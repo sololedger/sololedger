@@ -39,6 +39,7 @@ export async function bookTransaction(tx: any) {
         debit: tx.amount,
         credit: 0,
         description: tx.description,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       },
       {
@@ -48,6 +49,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: netAmount,
         description: tx.description,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       }
     ]
@@ -59,6 +61,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: vatAmount,
         description: `Utgående moms på ${tx.description}`,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       })
     }
@@ -71,6 +74,7 @@ export async function bookTransaction(tx: any) {
         debit: netAmount,
         credit: 0,
         description: tx.description,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       },
       {
@@ -80,6 +84,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: tx.amount,
         description: tx.description,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       }
     ]
@@ -91,6 +96,7 @@ export async function bookTransaction(tx: any) {
         debit: vatAmount,
         credit: 0,
         description: `Ingående moms på ${tx.description}`,
+        date: tx.date, // TILLAGD: Skickar med datum till journalen
         user_id: userId
       })
     }
