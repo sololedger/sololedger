@@ -741,28 +741,32 @@ export default function Home() {
                           )}
                         </td>
                         <td className="p-8">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-[10px] font-black text-emerald-500 uppercase">
-                              {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
-                            </p>
-                            {tx.booked && (
-                              <span className="text-[8px] font-black uppercase text-gray-300 border border-gray-200 px-1.5 py-0.5 rounded-md">
-                                Låst
-                              </span>
-                            )}
-                          </div>
-                          <p className="font-bold text-gray-700">{tx.description}</p>
-                          {tx.file_url && (
-                            <a
-                              href={tx.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600"
-                            >
-                              📎 Visa bilaga
-                            </a>
-                          )}
-                        </td>
+  <div className="flex items-center flex-wrap gap-2 mb-1">
+    <p className="text-[10px] font-black text-emerald-500 uppercase">
+      {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
+    </p>
+    {/* Här lägger vi till den nya moms-taggen */}
+    <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
+      Moms: {tx.vat_rate}%
+    </span>
+    {tx.booked && (
+      <span className="text-[8px] font-black uppercase text-gray-300 border border-gray-200 px-1.5 py-0.5 rounded-md">
+        Låst
+      </span>
+    )}
+  </div>
+  <p className="font-bold text-gray-700">{tx.description}</p>
+  {tx.file_url && (
+    <a
+      href={tx.file_url}
+      target="_blank"
+      rel="noreferrer"
+      className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600"
+    >
+      📎 Visa bilaga
+    </a>
+  )}
+</td>
                         <td className="p-8 text-right font-black text-lg text-gray-700">
                           {tx.amount.toLocaleString()} kr
                         </td>
