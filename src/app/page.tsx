@@ -60,15 +60,20 @@ export default function Home() {
     }
   }, [selectedYear, user])
 
-  // Funktion för att skapa standardkonton till en NY användare
+  // Funktion för att skapa EXAKT dina 11 korrekta standardkonton till en NY användare
   async function setupDefaultAccounts(userId: string) {
     const defaultAccounts = [
-      { id: '1930', name: 'Företagskonto / Bank', default_vat_rate: 0, user_id: userId },
-      { id: '3000', name: 'Försäljning', default_vat_rate: 25, user_id: userId },
-      { id: '4000', name: 'Inköp varor', default_vat_rate: 25, user_id: userId },
-      { id: '2611', name: 'Utgående moms 25%', default_vat_rate: 0, user_id: userId },
-      { id: '2641', name: 'Ingående moms', default_vat_rate: 0, user_id: userId },
-      { id: '6992', name: 'Ej avdragsgilla kostnader', default_vat_rate: 0, user_id: userId }
+      { id: 'avskrivning_inventarier', name: 'Avskrivning på inventarier', debit_account: '7830', credit_account: '1220', default_vat_rate: 0, comment: 'För inköp av dyr utrustning >28 650 kr', user_id: userId },
+      { id: 'bankavgift', name: 'Bankavgift', debit_account: '6570', credit_account: '1930', default_vat_rate: 0, comment: 'Bankkostnad', user_id: userId },
+      { id: 'egen_insättning', name: 'Egen insättning (Kapital)', debit_account: '1930', credit_account: '2018', default_vat_rate: 0, comment: 'När du sätter in privata pengar', user_id: userId },
+      { id: 'eget_uttag', name: 'Privat uttag (Lön)', debit_account: '2013', credit_account: '1930', default_vat_rate: 0, comment: 'När du tar ut pengar till dig själv', user_id: userId },
+      { id: 'ej_avdragsgillt', name: 'Ej avdragsgilla kostnader', debit_account: '6992', credit_account: '1930', default_vat_rate: 0, comment: 'Böter, förseningsavgift etc (Ej skatteavdrag)', user_id: userId },
+      { id: 'försäljning', name: 'Försäljning', debit_account: '1930', credit_account: '3010', default_vat_rate: 25, comment: 'Kundbetalning', user_id: userId },
+      { id: 'ingående_balans', name: 'Eget kapital, ingående balans (IB)', debit_account: '1930', credit_account: '2010', default_vat_rate: 0, comment: 'Används endast vid årets början', user_id: userId },
+      { id: 'kurser', name: 'Kurser', debit_account: '7610', credit_account: '1930', default_vat_rate: 25, comment: 'Fortbildning', user_id: userId },
+      { id: 'prenumerationer', name: 'Prenumerationer', debit_account: '5420', credit_account: '1930', default_vat_rate: 25, comment: 'Adobe, SaaS', user_id: userId },
+      { id: 'privat_utlägg', name: 'Privat utlägg för firman', debit_account: '5410', credit_account: '2018', default_vat_rate: 25, comment: 'Du har betalat firman grejer med privata pengar', user_id: userId },
+      { id: 'resor', name: 'Resor', debit_account: '5800', credit_account: '1930', default_vat_rate: 6, comment: 'Spårvagn, taxi', user_id: userId }
     ]
 
     const { error } = await supabase.from('accounts').insert(defaultAccounts)
@@ -81,17 +86,14 @@ export default function Home() {
     setLoading(true)
     try {
       if (isRegistering) {
-        // 1. Registrera användare
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         
         if (data.user) {
-          // 2. Skapa direkt upp deras unika standardkonton
           await setupDefaultAccounts(data.user.id)
           alert('Konto skapat! Du loggas nu in.')
         }
       } else {
-        // Logga in användare
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
       }
@@ -102,7 +104,6 @@ export default function Home() {
     }
   }
 
-  // Logga ut-funktion
   async function handleLogout() {
     await supabase.auth.signOut()
     setUser(null)
@@ -311,12 +312,10 @@ export default function Home() {
     (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
   ) / 100
 
-  // Loading-skärm medan vi kollar sessionen
   if (loading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
-  // Om användaren INTE är inloggad, visa den gröna Auth-skärmen
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -363,10 +362,8 @@ export default function Home() {
     )
   }
 
-  // Om användaren ÄR inloggad, visa hela bokföringsappen
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {/* Översta raden med logga ut */}
       <div className="flex justify-between items-center mb-8 px-4">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
