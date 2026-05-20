@@ -19,6 +19,7 @@ export default function Kontoplan() {
   }, [])
 
   async function loadKontoplan() {
+    // Supabase Auth ser via RLS till att vi bara får den inloggades konton
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
@@ -35,13 +36,18 @@ export default function Kontoplan() {
     }
     setSaving(true)
     try {
+      // Hämta den inloggade användarens ID
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('Ingen inloggad användare hittades.')
+
       const { error } = await supabase.from('accounts').insert([{
         id: newAccount.id.toLowerCase().trim(),
         name: newAccount.name.trim(),
         debit_account: newAccount.debit_account.trim(),
         credit_account: newAccount.credit_account.trim(),
         default_vat_rate: Number(newAccount.default_vat_rate),
-        comment: newAccount.comment.trim()
+        comment: newAccount.comment.trim(),
+        user_id: session.user.id // SKICKAR MED ANVÄNDARENS ID
       }])
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })
@@ -65,7 +71,7 @@ export default function Kontoplan() {
     <div className="space-y-8">
       {/* Formulär för nytt konto */}
       <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
-        <h2 className="text-sm font-black uppercase mb-6 text-blue-600 tracking-widest">Lägg till konto</h2>
+        <h2 className="text-sm font-black uppercase mb-6 text-emerald-600 tracking-widest">Lägg till konto</h2>
         <form onSubmit={handleAddAccount}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="flex flex-col gap-1">
@@ -75,7 +81,7 @@ export default function Kontoplan() {
                 value={newAccount.id}
                 onChange={e => setNewAccount({ ...newAccount, id: e.target.value })}
                 placeholder="resor"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
                 required
               />
             </div>
@@ -86,7 +92,7 @@ export default function Kontoplan() {
                 value={newAccount.name}
                 onChange={e => setNewAccount({ ...newAccount, name: e.target.value })}
                 placeholder="Resor"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
                 required
               />
             </div>
@@ -97,7 +103,7 @@ export default function Kontoplan() {
                 value={newAccount.comment}
                 onChange={e => setNewAccount({ ...newAccount, comment: e.target.value })}
                 placeholder="T.ex. tåg, taxi, parkering"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
               />
             </div>
           </div>
@@ -109,7 +115,7 @@ export default function Kontoplan() {
                 value={newAccount.debit_account}
                 onChange={e => setNewAccount({ ...newAccount, debit_account: e.target.value })}
                 placeholder="5800"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
                 required
               />
             </div>
@@ -120,7 +126,7 @@ export default function Kontoplan() {
                 value={newAccount.credit_account}
                 onChange={e => setNewAccount({ ...newAccount, credit_account: e.target.value })}
                 placeholder="1930"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
                 required
               />
             </div>
@@ -129,7 +135,7 @@ export default function Kontoplan() {
               <select
                 value={newAccount.default_vat_rate}
                 onChange={e => setNewAccount({ ...newAccount, default_vat_rate: Number(e.target.value) })}
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300"
               >
                 <option value={0}>0%</option>
                 <option value={6}>6%</option>
@@ -140,7 +146,7 @@ export default function Kontoplan() {
             <button
               type="submit"
               disabled={saving}
-              className="bg-blue-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all disabled:bg-gray-300"
+              className="bg-emerald-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
             >
               {saving ? '...' : 'Spara konto'}
             </button>
@@ -169,7 +175,7 @@ export default function Kontoplan() {
                   <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
                 </td>
                 <td className="p-6">
-                  <span className="font-mono font-black text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-lg text-xs">
+                  <span className="font-mono font-black text-emerald-500 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg text-xs">
                     {acc.debit_account} D
                   </span>
                 </td>

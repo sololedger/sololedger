@@ -7,9 +7,13 @@ import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
 
 export default function Home() {
-  const APP_PASSWORD = process.env.NEXT_PUBLIC_APP_PASSWORD
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [passwordInput, setPasswordInput] = useState('')
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  
+  // Auth-state för formuläret
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -35,18 +39,74 @@ export default function Home() {
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
+  // Lyssna på om en användare är inloggad via Supabase Auth
   useEffect(() => {
-    if (!APP_PASSWORD || sessionStorage.getItem('auth') === 'true') {
-      setIsAuthenticated(true)
-    }
-  }, [APP_PASSWORD])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       refreshData()
       loadKontoplanOptions()
     }
-  }, [selectedYear, isAuthenticated])
+  }, [selectedYear, user])
+
+  // Funktion för att skapa standardkonton till en NY användare
+  async function setupDefaultAccounts(userId: string) {
+    const defaultAccounts = [
+      { id: '1930', name: 'Företagskonto / Bank', default_vat_rate: 0, user_id: userId },
+      { id: '3000', name: 'Försäljning', default_vat_rate: 25, user_id: userId },
+      { id: '4000', name: 'Inköp varor', default_vat_rate: 25, user_id: userId },
+      { id: '2611', name: 'Utgående moms 25%', default_vat_rate: 0, user_id: userId },
+      { id: '2641', name: 'Ingående moms', default_vat_rate: 0, user_id: userId },
+      { id: '6992', name: 'Ej avdragsgilla kostnader', default_vat_rate: 0, user_id: userId }
+    ]
+
+    const { error } = await supabase.from('accounts').insert(defaultAccounts)
+    if (error) console.error('Kunde inte skapa standardkonton:', error)
+  }
+
+  // Hantera Logga in / Registrera via Supabase Auth
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      if (isRegistering) {
+        // 1. Registrera användare
+        const { data, error } = await supabase.auth.signUp({ email, password })
+        if (error) throw error
+        
+        if (data.user) {
+          // 2. Skapa direkt upp deras unika standardkonton
+          await setupDefaultAccounts(data.user.id)
+          alert('Konto skapat! Du loggas nu in.')
+        }
+      } else {
+        // Logga in användare
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+      }
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Logga ut-funktion
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   async function loadKontoplanOptions() {
     try {
@@ -57,7 +117,6 @@ export default function Home() {
       if (error) throw error
 
       if (data) {
-        // Alfabetisk ordning på svenska, ingående_balans alltid sist
         const sorted = [...data].sort((a, b) => {
           const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
           const bIsZ = b.id === 'ingående_balans' || b.id.toLowerCase().startsWith('z')
@@ -135,7 +194,6 @@ export default function Home() {
 
       if (editingId) {
         if (editingBooked) {
-          // Bokförd: uppdatera BARA beskrivning, datum och eventuell ny fil
           const updatePayload: any = {
             date: formData.date,
             description: formData.description,
@@ -148,7 +206,6 @@ export default function Home() {
             .eq('id', editingId)
           if (error) throw error
         } else {
-          // Ej bokförd: uppdatera allt
           const { error } = await supabase
             .from('transactions')
             .update({
@@ -165,7 +222,6 @@ export default function Home() {
         setEditingId(null)
         setEditingBooked(false)
       } else {
-        // Ny transaktion: skapa och bokför direkt
         const { data: newTx, error: insertError } = await supabase
           .from('transactions')
           .insert([{
@@ -229,7 +285,6 @@ export default function Home() {
     setFormData(prev => ({ ...prev, description: '', amount: '', file: null }))
   }
 
-  // Dashboard-beräkningar
   const bankSaldo = balances['1930'] || 0
 
   const intakter = Math.abs(
@@ -243,16 +298,11 @@ export default function Home() {
 
   const bokfortResultat = Math.round((intakter - kostnader) * 100) / 100
 
-  // Skattemässigt resultat = bokfört resultat + ej avdragsgilla kostnader (6992)
   const ejAvdragsgillt = Math.abs(balances['6992'] || 0)
   const skattemassigVinst = Math.round((bokfortResultat + ejAvdragsgillt) * 100) / 100
 
-  // Moms: positivt = du är skyldig Skatteverket, negativt = du får tillbaka
-  const utgMoms = Math.abs(balances['2611'] || 0)
-  const ingMoms = Math.abs(balances['2641'] || 0)
-  const momsNetto = Math.round((utgMoms - ingMoms) * 100) / 100
+  const momsNetto = Math.round((Math.abs(balances['2611'] || 0) - Math.abs(balances['2641'] || 0)) * 100) / 100
 
-  // Skattereservat baseras på skattemässig vinst (korrekt för NE-bilagan)
   const skattReserv = skattemassigVinst > 0
     ? Math.round(skattemassigVinst * (taxRate / 100) * 100) / 100
     : 0
@@ -261,97 +311,135 @@ export default function Home() {
     (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
   ) / 100
 
-  if (!isAuthenticated && APP_PASSWORD) {
+  // Loading-skärm medan vi kollar sessionen
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
+  }
+
+  // Om användaren INTE är inloggad, visa den gröna Auth-skärmen
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <form
-          onSubmit={e => {
-            e.preventDefault()
-            if (passwordInput === APP_PASSWORD) {
-              sessionStorage.setItem('auth', 'true')
-              setIsAuthenticated(true)
-            } else {
-              alert('Fel lösenord')
-            }
-          }}
-          className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100 w-full max-w-sm text-center"
+          onSubmit={handleAuth}
+          className="bg-white p-10 rounded-[2.5rem] shadow-xl border-2 border-emerald-500 w-full max-w-sm text-center"
         >
-          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6">S</div>
-          <h1 className="text-lg font-black uppercase tracking-tighter italic text-gray-800 mb-8">SoloLedger</h1>
+          <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6">S</div>
+          <h1 className="text-lg font-black uppercase tracking-tighter italic text-gray-800 mb-2">SoloLedger</h1>
+          <p className="text-[10px] font-black uppercase text-emerald-600 mb-8 tracking-wider">
+            {isRegistering ? 'Skapa nytt konto' : 'Fleranvändarsystem'}
+          </p>
+
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="E-postadress"
+            className="w-full bg-gray-50 rounded-2xl p-4 mb-3 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
+            required
+          />
           <input
             type="password"
-            value={passwordInput}
-            onChange={e => setPasswordInput(e.target.value)}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
             placeholder="Lösenord"
-            className="w-full bg-gray-50 rounded-2xl p-4 mb-4 text-center font-bold outline-none text-sm"
-            autoFocus
+            className="w-full bg-gray-50 rounded-2xl p-4 mb-6 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
+            required
           />
-          <button type="submit" className="w-full bg-gray-900 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all">
-            Lås upp
+          
+          <button type="submit" className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4">
+            {isRegistering ? 'Registrera dig' : 'Logga in'}
+          </button>
+
+          <button 
+            type="button" 
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-[10px] text-gray-400 hover:text-emerald-600 font-black uppercase tracking-wider transition-colors"
+          >
+            {isRegistering ? 'Har du redan ett konto? Logga in' : 'Inget konto? Skapa ett här'}
           </button>
         </form>
       </div>
     )
   }
 
+  // Om användaren ÄR inloggad, visa hela bokföringsappen
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {/* Rubrik och årsväljare */}
+      {/* Översta raden med logga ut */}
       <div className="flex justify-between items-center mb-8 px-4">
-        <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
-          {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : 'NE-Bilaga'}
-        </h1>
-        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
-          <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="bg-blue-50 border-none rounded-lg px-3 py-1 font-black text-sm text-blue-600 outline-none cursor-pointer hover:bg-blue-100 transition-colors"
+        <div>
+          <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
+            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : 'NE-Bilaga'}
+          </h1>
+          <p className="text-[10px] text-gray-400 font-bold mt-0.5">Inloggad som: {user.email}</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="bg-emerald-50 border-none rounded-lg px-3 py-1 font-black text-sm text-emerald-600 outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
+            >
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
+          <button 
+            onClick={handleLogout}
+            className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-400 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
           >
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+            Logga ut
+          </button>
         </div>
       </div>
 
       {activeTab === 'dashboard' ? (
         <>
-          {/* Sifferkort */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 text-center uppercase tracking-tighter font-black">
-            <button
-              onClick={() => setActiveModal('bank')}
-              className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-blue-300 hover:shadow-md transition-all cursor-pointer text-left"
-            >
-              <p className="text-[9px] text-gray-400 mb-1">Bank (1930) <span className="text-blue-300">↗</span></p>
-              <p className={`text-xl font-black ${bankSaldo >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                {bankSaldo.toLocaleString()} kr
-              </p>
-            </button>
-            <button
-              onClick={() => setActiveModal('skatt')}
-              className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-orange-200 hover:shadow-md transition-all cursor-pointer text-left"
-            >
-              <p className="text-[9px] text-gray-400 mb-1">Skatt ({taxRate}%) <span className="text-orange-300">↗</span></p>
-              <p className="text-xl text-orange-500">-{skattReserv.toLocaleString()} kr</p>
-            </button>
-            <button
-              onClick={() => setActiveModal('moms')}
-              className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-green-200 hover:shadow-md transition-all cursor-pointer text-left"
-            >
-              <p className="text-[9px] text-gray-400 mb-1">Moms <span className="text-green-300">↗</span></p>
-              <p className={`text-xl ${momsNetto <= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {momsNetto.toLocaleString()} kr
-              </p>
-            </button>
-            <button
-              onClick={() => setActiveModal('resultat')}
-              className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer text-left"
-            >
-              <p className="text-[9px] text-gray-400 mb-1">Resultat <span className="text-gray-300">↗</span></p>
-              <p className="text-xl text-gray-700">{bokfortResultat.toLocaleString()} kr</p>
-            </button>
-            <div className="bg-blue-600 p-6 rounded-[2rem] text-white shadow-lg">
-              <p className="text-[9px] opacity-80 mb-1 uppercase">Säkert uttag</p>
-              <p className="text-2xl italic font-black">{sakertUttag.toLocaleString()} kr</p>
+          <div className="border-2 border-emerald-500 rounded-[2.5rem] p-6 bg-white shadow-sm mb-6">
+            <h2 className="text-[10px] font-black uppercase text-emerald-600 tracking-wider mb-4 px-2">
+              Översikt: SoloLedger / Bokföring / Kontoplan / NE Bilaga
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center uppercase tracking-tighter font-black">
+              <button
+                onClick={() => setActiveModal('bank')}
+                className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer text-left"
+              >
+                <p className="text-[9px] text-gray-400 mb-1">Bank (1930) <span className="text-emerald-300">↗</span></p>
+                <p className={`text-xl font-black ${bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {bankSaldo.toLocaleString()} kr
+                </p>
+              </button>
+              <button
+                onClick={() => setActiveModal('skatt')}
+                className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-orange-200 hover:shadow-md transition-all cursor-pointer text-left"
+              >
+                <p className="text-[9px] text-gray-400 mb-1">Skatt ({taxRate}%) <span className="text-orange-300">↗</span></p>
+                <p className="text-xl text-orange-500">-{skattReserv.toLocaleString()} kr</p>
+              </button>
+              <button
+                onClick={() => setActiveModal('moms')}
+                className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-green-200 hover:shadow-md transition-all cursor-pointer text-left"
+              >
+                <p className="text-[9px] text-gray-400 mb-1">Moms <span className="text-green-300">↗</span></p>
+                <p className={`text-xl ${momsNetto <= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {momsNetto.toLocaleString()} kr
+                </p>
+              </button>
+              <button
+                onClick={() => setActiveModal('resultat')}
+                className="bg-white p-6 rounded-[2rem] border shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer text-left"
+              >
+                <p className="text-[9px] text-gray-400 mb-1">Resultat <span className="text-gray-300">↗</span></p>
+                <p className="text-xl text-gray-700">{bokfortResultat.toLocaleString()} kr</p>
+              </button>
+              <div className="bg-emerald-600 p-6 rounded-[2rem] text-white shadow-lg">
+                <p className="text-[9px] opacity-80 mb-1 uppercase">Säkert uttag</p>
+                <p className="text-2xl italic font-black">{sakertUttag.toLocaleString()} kr</p>
+              </div>
             </div>
           </div>
 
@@ -374,7 +462,7 @@ export default function Home() {
 
                 {activeModal === 'bank' && (
                   <>
-                    <h2 className="text-xl font-black uppercase italic tracking-tighter text-blue-600 mb-1">Bank (1930)</h2>
+                    <h2 className="text-xl font-black uppercase italic tracking-tighter text-emerald-600 mb-1">Bank (1930)</h2>
                     <p className="text-[10px] text-gray-400 uppercase font-black mb-6">Hur saldot beräknas</p>
                     <div className="space-y-3">
                       {transactions.map(tx => {
@@ -397,7 +485,7 @@ export default function Home() {
                     </div>
                     <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
                       <span className="text-xs font-black uppercase text-gray-400">Saldo</span>
-                      <span className={`text-2xl font-black ${bankSaldo >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                      <span className={`text-2xl font-black ${bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {bankSaldo.toLocaleString('sv-SE')} kr
                       </span>
                     </div>
@@ -449,14 +537,14 @@ export default function Home() {
                           <p className="text-xs font-black text-red-600 uppercase">Utgående moms (2611)</p>
                           <p className="text-[10px] text-gray-400 font-bold mt-0.5">Moms på din försäljning — ska betalas in</p>
                         </div>
-                        <span className="font-black text-red-500">+{utgMoms.toLocaleString('sv-SE')} kr</span>
+                        <span className="font-black text-red-500">+{Math.abs(balances['2611'] || 0).toLocaleString('sv-SE')} kr</span>
                       </div>
                       <div className="flex justify-between items-center bg-green-50 rounded-2xl px-5 py-3">
                         <div>
                           <p className="text-xs font-black text-green-600 uppercase">Ingående moms (2641)</p>
                           <p className="text-[10px] text-gray-400 font-bold mt-0.5">Moms på dina kostnader — du får tillbaka</p>
                         </div>
-                        <span className="font-black text-green-600">−{ingMoms.toLocaleString('sv-SE')} kr</span>
+                        <span className="font-black text-green-600">−{Math.abs(balances['2641'] || 0).toLocaleString('sv-SE')} kr</span>
                       </div>
                     </div>
                     <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
@@ -496,7 +584,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Skattereglage */}
           <div className="bg-white px-8 py-4 rounded-[2rem] border border-gray-100 shadow-sm mb-8 flex items-center gap-6">
             <span className="text-[9px] font-black uppercase text-gray-400 whitespace-nowrap">Skattsats:</span>
             <input
@@ -505,17 +592,15 @@ export default function Home() {
               max={70}
               value={taxRate}
               onChange={e => setTaxRate(Number(e.target.value))}
-              className="flex-1 accent-blue-600 cursor-pointer"
+              className="flex-1 accent-emerald-600 cursor-pointer"
             />
-            <span className="text-sm font-black text-blue-600 w-12 text-right">{taxRate}%</span>
+            <span className="text-sm font-black text-emerald-600 w-12 text-right">{taxRate}%</span>
             <span className="text-[9px] text-gray-300 font-medium hidden md:block">
               Reserverar skatt på skattemässigt resultat + drar av eventuell momsskuld
             </span>
           </div>
 
-          {/* Formulär */}
           <div className={`bg-white p-8 rounded-[2.5rem] border mb-8 shadow-sm transition-all ${editingId ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-
             {editingId && editingBooked && (
               <div className="mb-4 px-4 py-2 bg-amber-100 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
                 Bokförd post — du kan ändra datum, beskrivning och lägga till bilaga. Belopp och kategori är låsta.
@@ -594,7 +679,7 @@ export default function Home() {
                     <button
                       type="submit"
                       disabled={uploading}
-                      className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${uploading ? 'bg-gray-400' : editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${uploading ? 'bg-gray-400' : editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                       {uploading ? '...' : editingId ? 'Spara' : 'OK'}
                     </button>
@@ -611,7 +696,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Filuppladdning */}
               <div className="flex items-center gap-4 pt-3 border-t border-gray-50">
                 <label className="text-[9px] font-black text-gray-300 uppercase whitespace-nowrap">📎 Bilaga:</label>
                 <input
@@ -621,13 +705,12 @@ export default function Home() {
                   className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200 cursor-pointer"
                 />
                 {formData.file && (
-                  <span className="text-[9px] text-blue-500 font-bold">{formData.file.name}</span>
+                  <span className="text-[9px] text-emerald-500 font-bold">{formData.file.name}</span>
                 )}
               </div>
             </form>
           </div>
 
-          {/* Transaktionslista */}
           <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-[9px] font-black uppercase text-gray-400 tracking-widest border-b">
@@ -642,7 +725,7 @@ export default function Home() {
               <tbody className="divide-y divide-gray-50">
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-12 text-center text-gray-300 italic font-medium">
+                    <td colSpan={5} className="p-12 text-center text-gray-300 italic font-medium">
                       Inga transaktioner bokförda för {selectedYear}
                     </td>
                   </tr>
@@ -657,12 +740,12 @@ export default function Home() {
                         <td className="p-8 font-bold text-gray-400 text-sm">
                           {tx.date}
                           {journal[0]?.ver_nr && (
-                            <p className="text-[10px] font-black text-blue-600 italic">VER-{journal[0].ver_nr}</p>
+                            <p className="text-[10px] font-black text-emerald-600 italic">VER-{journal[0].ver_nr}</p>
                           )}
                         </td>
                         <td className="p-8">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="text-[10px] font-black text-blue-500 uppercase">
+                            <p className="text-[10px] font-black text-emerald-500 uppercase">
                               {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
                             </p>
                             {tx.booked && (
@@ -677,7 +760,7 @@ export default function Home() {
                               href={tx.file_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-400 text-xs mt-1 inline-block hover:text-blue-600"
+                              className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600"
                             >
                               📎 Visa bilaga
                             </a>
@@ -698,7 +781,7 @@ export default function Home() {
                                     className="inline-flex items-center gap-0.5 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 font-mono text-[10px] font-bold text-gray-500"
                                   >
                                     {e.account_number}
-                                    <span className={isDebit ? 'text-blue-500' : 'text-orange-400'}>
+                                    <span className={isDebit ? 'text-emerald-500' : 'text-orange-400'}>
                                       {isDebit ? ' D' : ' K'}
                                     </span>
                                   </span>
@@ -710,7 +793,7 @@ export default function Home() {
                           <div className="flex items-center justify-end gap-4">
                             <button
                               onClick={() => handleEdit(tx)}
-                              className="text-gray-200 hover:text-blue-600 transition-colors"
+                              className="text-gray-200 hover:text-emerald-600 transition-colors"
                               title={tx.booked ? "Redigera beskrivning/datum/bilaga" : "Redigera"}
                             >
                               ✎

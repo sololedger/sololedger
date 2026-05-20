@@ -40,7 +40,7 @@ function Tooltip({ text }: { text: string }) {
         onMouseLeave={() => setVisible(false)}
         onFocus={() => setVisible(true)}
         onBlur={() => setVisible(false)}
-        className="w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[9px] font-black flex items-center justify-center hover:bg-blue-100 hover:text-blue-600 transition-colors focus:outline-none"
+        className="w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-[9px] font-black flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-600 transition-colors focus:outline-none"
         aria-label="Info"
         type="button"
       >
@@ -63,7 +63,6 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
   const r14Color = R14 > 0 ? 'text-green-600' : R14 < 0 ? 'text-red-500' : 'text-gray-400'
   const r14Bg   = R14 > 0 ? 'bg-green-50 border-green-200' : R14 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
 
-  // Balanskontroll — Math.round för att undvika falska larm på grund av ören/JS-avrundning
   const tillgangar = Math.abs(neData.bank ?? 0)
   const egetKapitalOchSkulder = (neData.B10_total ?? 0) + (neData.B16 ?? 0)
   const balansDiff = Math.round((tillgangar - egetKapitalOchSkulder) * 100) / 100
@@ -71,11 +70,10 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
       <div className="bg-white p-12 rounded-[3rem] border shadow-sm">
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-blue-600 mb-8 border-b pb-4">
+        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
 
-        {/* Balanskontroll */}
         {Math.abs(balansDiff) > 1 && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
             ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Banken matchar inte kapitalet.
@@ -83,59 +81,49 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-
           {/* VÄNSTER KOLUMN: RESULTAT (R) */}
           <div className="space-y-0">
             <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4 italic underline">
               Resultat (R)
             </h3>
 
-            {/* R1 */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R1 Nettoomsättning</span>
               <span>{fmt(neData.R1)}</span>
             </div>
 
-            {/* R2 */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R2 Övriga intäkter</span>
               <span>{fmt(neData.R2)}</span>
             </div>
 
-            {/* R5 — alltid negativ, skyddad mot dubbel-negativ */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R5 Varukostnader</span>
               <span>{fmt(-Math.abs(neData.R5 ?? 0))}</span>
             </div>
 
-            {/* R6 — alltid negativ, skyddad mot dubbel-negativ */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R6 Övriga externa kostnader</span>
               <span>{fmt(-Math.abs(neData.R6 ?? 0))}</span>
             </div>
 
-            {/* R7 — alltid negativ, skyddad mot dubbel-negativ */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R7 Personalkostnader</span>
               <span>{fmt(-Math.abs(neData.R7 ?? 0))}</span>
             </div>
 
-            {/* R8 — alltid negativ, skyddad mot dubbel-negativ */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R8 Avskrivningar</span>
               <span>{fmt(-Math.abs(neData.R8 ?? 0))}</span>
             </div>
 
-            {/* Separator */}
             <div className="my-3 border-t-2 border-dashed border-gray-300" />
 
-            {/* R11 */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-700">
               <span>R11 Bokfört resultat</span>
               <span className={neData.R11 < 0 ? 'text-red-500' : ''}>{fmt(neData.R11)}</span>
             </div>
 
-            {/* R12 */}
             <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span className="flex items-center">
                 R12 Ej avdragsgilla kostnader
@@ -144,7 +132,6 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
               <span>{fmt(neData.R12)}</span>
             </div>
 
-            {/* R14 */}
             <div className={`mt-4 p-6 rounded-2xl border flex justify-between items-center font-black italic ${r14Bg}`}>
               <span className={`text-xs uppercase flex items-center ${r14Color}`}>
                 R14 Skattemässigt resultat
@@ -160,14 +147,13 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
               Balans & Kapital (B)
             </h3>
 
-            {/* B10 Eget kapital */}
             <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm">
               <div className="flex justify-between border-b border-gray-200 pb-3 mb-3 text-sm font-black uppercase tracking-tighter italic">
                 <span className="flex items-center">
                   B10 Eget Kapital
                   <Tooltip text="Eget kapital = IB + årets resultat + insättningar - uttag." />
                 </span>
-                <span className="text-blue-600">{fmt(neData.B10_total)}</span>
+                <span className="text-emerald-600">{fmt(neData.B10_total)}</span>
               </div>
               <div className="space-y-2 opacity-70 text-[9px] font-black uppercase tracking-tighter">
                 <div className="flex justify-between italic">
@@ -178,11 +164,10 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
                   <span>Årets bokförda resultat:</span>
                   <span className={neData.R11 < 0 ? 'text-red-500' : ''}>{fmt(neData.R11)}</span>
                 </div>
-                <div className="flex justify-between text-blue-600 italic">
+                <div className="flex justify-between text-emerald-600 italic">
                   <span>Privata insättningar (2018):</span>
                   <span>+{fmt(neData.insattningar)}</span>
                 </div>
-                {/* Uttag — alltid negativ, skyddad mot dubbel-negativ */}
                 <div className="flex justify-between text-orange-600 italic">
                   <span>Privata uttag (2013):</span>
                   <span>{fmt(-Math.abs(neData.uttag ?? 0))}</span>
@@ -190,13 +175,11 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
               </div>
             </div>
 
-            {/* B13 Kassa och bank */}
             <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
               <span>B13 Kassa och bank</span>
               <span className="text-gray-500">{fmt(neData.bank)}</span>
             </div>
 
-            {/* B16 Moms */}
             <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
               <span>B16 Skulder (Moms m.m.)</span>
               <span className="text-gray-700">{fmt(neData.B16)}</span>
