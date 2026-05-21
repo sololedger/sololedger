@@ -1,17 +1,23 @@
 import { supabase } from './supabaseClient'
 
-export async function bookTransaction(tx: any) {
-  // Hämta sessionen för att få användarens ID
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) throw new Error("Ingen inloggad användare hittades vid bokföring.")
-  const userId = session.user.id
+// Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
+async function getUserId() {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error("Ingen giltig eller inloggad användare hittades.")
+  return user.id
+}
 
+export async function bookTransaction(tx: any) {
+  const userId = await getUserId()
+
+  // SÄKERHETSBÄLTE: Filtrera kontohämtning på användarens eget ID
   const { data: acc, error: accError } = await supabase
     .from('accounts')
     .select('*')
     .eq('id', tx.type)
+    .eq('user_id', userId)
     .single()
-  if (accError || !acc) throw new Error("Konto saknas för: " + tx.type)
+  if (accError || !acc) throw new Error("Konto saknas eller tillhör inte användaren: " + tx.type)
 
   const vatRate = tx.vat_rate || 0
   const vatAmount = vatRate > 0
@@ -19,10 +25,11 @@ export async function bookTransaction(tx: any) {
     : 0
   const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
 
-  // Hämta senaste ver_nr för just DENNA användare
+  // Hämta senaste ver_nr isolerat per användare
   const { data: lastEntries } = await supabase
     .from('journal_entries')
     .select('ver_nr')
+    .eq('user_id', userId)
     .order('ver_nr', { ascending: false })
     .limit(1)
   const nextVerNr = (lastEntries?.[0]?.ver_nr || 0) + 1
@@ -39,7 +46,7 @@ export async function bookTransaction(tx: any) {
         debit: tx.amount,
         credit: 0,
         description: tx.description,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       },
       {
@@ -49,7 +56,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: netAmount,
         description: tx.description,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       }
     ]
@@ -61,7 +68,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: vatAmount,
         description: `Utgående moms på ${tx.description}`,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       })
     }
@@ -74,7 +81,7 @@ export async function bookTransaction(tx: any) {
         debit: netAmount,
         credit: 0,
         description: tx.description,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       },
       {
@@ -84,7 +91,7 @@ export async function bookTransaction(tx: any) {
         debit: 0,
         credit: tx.amount,
         description: tx.description,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       }
     ]
@@ -96,7 +103,7 @@ export async function bookTransaction(tx: any) {
         debit: vatAmount,
         credit: 0,
         description: `Ingående moms på ${tx.description}`,
-        date: tx.date, // TILLAGD: Skickar med datum till journalen
+        date: tx.date,
         user_id: userId
       })
     }
@@ -109,27 +116,32 @@ export async function bookTransaction(tx: any) {
     .from('transactions')
     .update({ booked: true })
     .eq('id', tx.id)
+    .eq('user_id', userId)
   if (updateError) throw updateError
 }
 
 export async function getAccountBalances(year: number) {
   const startDate = `${year}-01-01`
   const endDate = `${year}-12-31`
+  const userId = await getUserId()
 
   const { data: txs, error: txError } = await supabase
     .from('transactions')
     .select('id')
     .gte('date', startDate)
     .lte('date', endDate)
+    .eq('user_id', userId)
   if (txError) throw txError
 
   const ids = txs?.map(t => t.id) || []
   if (ids.length === 0) return {}
 
+  // SÄKERHETSBÄLTE: Filtrera även journalrader på user_id för att undvika data-läckage
   const { data: entries, error: entryError } = await supabase
     .from('journal_entries')
     .select('account_number, debit, credit')
     .in('transaction_id', ids)
+    .eq('user_id', userId)
   if (entryError) throw entryError
 
   const balances: Record<string, number> = {}
@@ -143,17 +155,90 @@ export async function getAccountBalances(year: number) {
 }
 
 export async function deleteTransaction(id: string) {
+  const userId = await getUserId()
+
+  // SÄKERHETSBÄLTE: Tillåt bara radering av egna journalrader och transaktioner
   const { error: journalError } = await supabase
     .from('journal_entries')
     .delete()
     .eq('transaction_id', id)
+    .eq('user_id', userId)
   if (journalError) throw new Error("Kunde inte radera bokföringsposter: " + journalError.message)
 
   const { error: txError } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id)
+    .eq('user_id', userId)
   if (txError) throw new Error("Kunde inte radera transaktionen: " + txError.message)
+}
+
+export async function createCorrectionTransaction(originalTxId: string): Promise<number> {
+  const userId = await getUserId()
+
+  // SÄKERHETSBÄLTE: Hämta originaltransaktionen och kräv att den tillhör den inloggade
+  const { data: originalTx, error: txError } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', originalTxId)
+    .eq('user_id', userId)
+    .single()
+  if (txError || !originalTx) throw new Error("Kunde inte hämta originaltransaktionen.")
+
+  // SÄKERHETSBÄLTE: Hämta originalets journalposter och kräv att de tillhör den inloggade
+  const { data: originalEntries, error: entriesError } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('transaction_id', originalTxId)
+    .eq('user_id', userId)
+  if (entriesError || !originalEntries?.length) throw new Error("Kunde inte hämta originalbokföringen.")
+
+  const originalVerNr = originalEntries[0].ver_nr
+
+  // Räkna ut nästa ver_nr isolerat per användare
+  const { data: lastEntries } = await supabase
+    .from('journal_entries')
+    .select('ver_nr')
+    .eq('user_id', userId)
+    .order('ver_nr', { ascending: false })
+    .limit(1)
+  const nextVerNr = (lastEntries?.[0]?.ver_nr || 0) + 1
+
+  // Skapa korrigeringstransaktionen
+  const today = new Date().toISOString().split('T')[0]
+  const { data: corrTx, error: corrTxError } = await supabase
+    .from('transactions')
+    .insert([{
+      date: today,
+      description: `↩ Korrigering av VER-${originalVerNr} (${originalTx.description})`,
+      amount: originalTx.amount,
+      type: originalTx.type,
+      vat_rate: originalTx.vat_rate,
+      booked: true,
+      is_correction: true,
+      corrects_ver_nr: originalVerNr,
+      user_id: userId,
+    }])
+    .select()
+    .single()
+  if (corrTxError || !corrTx) throw new Error("Kunde inte skapa korrigeringstransaktion: " + corrTxError?.message)
+
+  // Skapa spegelvända journalposter (debet↔kredit byter plats)
+  const correctionEntries = originalEntries.map((e: any) => ({
+    transaction_id: corrTx.id,
+    ver_nr: nextVerNr,
+    account_number: e.account_number,
+    debit: e.credit,
+    credit: e.debit,
+    description: `Korrigering av VER-${originalVerNr}: ${e.description}`,
+    date: today,
+    user_id: userId,
+  }))
+
+  const { error: insertError } = await supabase.from('journal_entries').insert(correctionEntries)
+  if (insertError) throw new Error("Kunde inte skapa korrigeringsposter: " + insertError.message)
+
+  return nextVerNr
 }
 
 export async function getNEData(year: number) {

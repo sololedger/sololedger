@@ -37,8 +37,8 @@ export default function Kontoplan() {
     setSaving(true)
     try {
       // Hämta den inloggade användarens ID
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) throw new Error('Ingen inloggad användare hittades.')
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) throw new Error('Ingen inloggad användare hittades.')
 
       const { error } = await supabase.from('accounts').insert([{
         id: newAccount.id.toLowerCase().trim(),
@@ -47,7 +47,7 @@ export default function Kontoplan() {
         credit_account: newAccount.credit_account.trim(),
         default_vat_rate: Number(newAccount.default_vat_rate),
         comment: newAccount.comment.trim(),
-        user_id: session.user.id // SKICKAR MED ANVÄNDARENS ID
+        user_id: user.id
       }])
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })
@@ -62,7 +62,9 @@ export default function Kontoplan() {
 
   async function handleDelete(id: string) {
     if (!confirm(`Radera kontot "${id}"? Det påverkar inte redan bokförda transaktioner.`)) return
-    const { error } = await supabase.from('accounts').delete().eq('id', id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { alert('Ingen inloggad användare.'); return }
+    const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', user.id)
     if (error) { alert('Kunde inte radera: ' + error.message); return }
     await loadKontoplan()
   }

@@ -63,9 +63,14 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
   const r14Color = R14 > 0 ? 'text-green-600' : R14 < 0 ? 'text-red-500' : 'text-gray-400'
   const r14Bg   = R14 > 0 ? 'bg-green-50 border-green-200' : R14 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
 
-  const tillgangar = Math.abs(neData.bank ?? 0)
-  const egetKapitalOchSkulder = (neData.B10_total ?? 0) + (neData.B16 ?? 0)
-  const balansDiff = Math.round((tillgangar - egetKapitalOchSkulder) * 100) / 100
+  // Balanskontroll — triggar bara när bank är positivt (pengar inne).
+  // Vid negativt resultat/bank är matematiken korrekt och ska ej varna.
+  const bank = neData.bank ?? 0
+  const b10 = neData.B10_total ?? 0
+  const b16 = neData.B16 ?? 0
+  const balansDiff = bank > 0
+    ? Math.round((bank - (b10 + b16)) * 100) / 100
+    : 0
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">

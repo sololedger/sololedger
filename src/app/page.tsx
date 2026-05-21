@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, getAccountBalances, deleteTransaction, getNEData } from '@/lib/accountingService'
+import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction } from '@/lib/accountingService'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -232,7 +232,8 @@ export default function Home() {
             amount: Number(formData.amount),
             type: formData.type,
             vat_rate: formData.vatRate,
-            file_url: fileUrl || null
+            file_url: fileUrl || null,
+            user_id: user.id
           }])
           .select()
           .single()
@@ -256,14 +257,24 @@ export default function Home() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Radera transaktion och alla bokföringsposter?")) return
+  async function handleDelete(tx: any) {
+    const journal = journalMap[tx.id] || []
+    const verNr = journal[0]?.ver_nr
+
+    const confirmed = confirm(
+      verNr
+        ? `Skapa korrigeringsverifikation VER-? för VER-${verNr}?\n\nDetta nollar ut bokföringen och kan inte ångras.`
+        : `Skapa korrigeringsverifikation för "${tx.description}"?\n\nDetta kan inte ångras.`
+    )
+    if (!confirmed) return
+
     try {
-      await deleteTransaction(id)
+      const newVerNr = await createCorrectionTransaction(tx.id)
+      alert(`✅ Korrigeringsverifikation VER-${newVerNr} skapad.`)
       await refreshData()
     } catch (err: any) {
-      console.error('Fel vid radering:', err)
-      alert("Kunde inte radera: " + err.message)
+      console.error('Fel vid korrigering:', err)
+      alert("Kunde inte skapa korrigering: " + err.message)
     }
   }
 
@@ -731,32 +742,55 @@ export default function Home() {
                 ) : (
                   transactions.map((tx) => {
                     const journal = journalMap[tx.id] || []
+                    const isCorrection = tx.is_correction === true
                     return (
                       <tr
                         key={tx.id}
-                        className={`hover:bg-gray-50/50 transition-colors ${editingId === tx.id ? 'bg-amber-50/50' : ''}`}
+                        className={`transition-colors ${
+                          isCorrection
+                            ? 'bg-amber-50/60 opacity-75'
+                            : editingId === tx.id
+                            ? 'bg-amber-50/50'
+                            : 'hover:bg-gray-50/50'
+                        }`}
                       >
                         <td className="p-8 font-bold text-gray-400 text-sm">
-                          {tx.date}
+                          {isCorrection ? (
+                            <span className="text-amber-500">{tx.date}</span>
+                          ) : (
+                            tx.date
+                          )}
                           {journal[0]?.ver_nr && (
-                            <p className="text-[10px] font-black text-emerald-600 italic">VER-{journal[0].ver_nr}</p>
+                            <p className={`text-[10px] font-black italic ${isCorrection ? 'text-amber-400' : 'text-emerald-600'}`}>
+                              VER-{journal[0].ver_nr}
+                            </p>
                           )}
                         </td>
                         <td className="p-8">
                           <div className="flex items-center flex-wrap gap-2 mb-1">
-                            <p className="text-[10px] font-black text-emerald-500 uppercase">
-                              {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
-                            </p>
-                            <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
-                              Moms: {tx.vat_rate}%
-                            </span>
-                            {tx.booked && (
+                            {isCorrection ? (
+                              <p className="text-[10px] font-black text-amber-500 uppercase flex items-center gap-1">
+                                ↩ Korrigering
+                              </p>
+                            ) : (
+                              <p className="text-[10px] font-black text-emerald-500 uppercase">
+                                {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
+                              </p>
+                            )}
+                            {!isCorrection && (
+                              <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
+                                Moms: {tx.vat_rate}%
+                              </span>
+                            )}
+                            {tx.booked && !isCorrection && (
                               <span className="text-[8px] font-black uppercase text-gray-300 border border-gray-200 px-1.5 py-0.5 rounded-md">
                                 Låst
                               </span>
                             )}
                           </div>
-                          <p className="font-bold text-gray-700">{tx.description}</p>
+                          <p className={`font-bold ${isCorrection ? 'text-amber-600 text-xs pl-4 border-l-2 border-amber-200' : 'text-gray-700'}`}>
+                            {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
+                          </p>
                           {tx.file_url && (
                             <a
                               href={tx.file_url}
@@ -768,7 +802,7 @@ export default function Home() {
                             </a>
                           )}
                         </td>
-                        <td className="p-8 text-right font-black text-lg text-gray-700">
+                        <td className={`p-8 text-right font-black text-lg ${isCorrection ? 'text-amber-400 line-through' : 'text-gray-700'}`}>
                           {tx.amount.toLocaleString()} kr
                         </td>
                         <td className="p-8">
@@ -780,7 +814,11 @@ export default function Home() {
                                 return (
                                   <span
                                     key={e.id}
-                                    className="inline-flex items-center gap-0.5 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 font-mono text-[10px] font-bold text-gray-500"
+                                    className={`inline-flex items-center gap-0.5 border rounded-lg px-2 py-1 font-mono text-[10px] font-bold ${
+                                      isCorrection
+                                        ? 'bg-amber-50 border-amber-100 text-amber-400'
+                                        : 'bg-gray-50 border-gray-100 text-gray-500'
+                                    }`}
                                   >
                                     {e.account_number}
                                     <span className={isDebit ? 'text-emerald-500' : 'text-orange-400'}>
@@ -793,20 +831,24 @@ export default function Home() {
                         </td>
                         <td className="p-8 text-right pr-12">
                           <div className="flex items-center justify-end gap-4">
-                            <button
-                              onClick={() => handleEdit(tx)}
-                              className="text-gray-200 hover:text-emerald-600 transition-colors"
-                              title={tx.booked ? "Redigera beskrivning/datum/bilaga" : "Redigera"}
-                            >
-                              ✎
-                            </button>
-                            <button
-                              onClick={() => handleDelete(tx.id)}
-                              className="text-red-100 hover:text-red-500 font-bold transition-colors"
-                              title="Radera"
-                            >
-                              ✕
-                            </button>
+                            {!isCorrection && (
+                              <button
+                                onClick={() => handleEdit(tx)}
+                                className="text-gray-200 hover:text-emerald-600 transition-colors"
+                                title="Redigera beskrivning/datum/bilaga"
+                              >
+                                ✎
+                              </button>
+                            )}
+                            {!isCorrection && (
+                              <button
+                                onClick={() => handleDelete(tx)}
+                                className="text-red-100 hover:text-red-500 font-bold transition-colors"
+                                title="Skapa korrigeringsverifikation"
+                              >
+                                ✕
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
