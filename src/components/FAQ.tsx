@@ -80,33 +80,41 @@ export default function FAQ() {
           <hr className="border-gray-100" />
 
           {/* SKATT */}
-          <Section
-            icon="📊"
-            iconColor="text-emerald-500"
-            title="Skatt i Enskild Firma"
-            content={
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst.
-                </p>
+<Section
+  icon="📊"
+  iconColor="text-emerald-500"
+  title="Skatt i Enskild Firma"
+  content={
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600 leading-relaxed">
+        Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst. Det finns ingen separat "företagsskatt", utan allt deklareras på din privata inkomstdeklaration (via NE-bilagan).
+      </p>
 
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Beskattning:</b> Vinsten beskattas ofta med ca 40–45% (skatt + egenavgifter).</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Bokföring:</b> Skatt är inte en kostnad. Betalning bokförs som <Tag>2013 (uttag)</Tag>.</span>
-                  </li>
-                </ul>
+      <ul className="space-y-2 text-sm text-gray-600">
+        <li className="flex gap-2">
+          <span className="text-emerald-500 mt-0.5">▸</span>
+          <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-emerald-500 mt-0.5">▸</span>
+          <span><b>Hur betalas skatten?</b> Du betalar oftast ett schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-emerald-500 mt-0.5">▸</span>
+          <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
+        </li>
+      </ul>
 
-                <p className="text-xs italic text-gray-400">
-                  Exempel: 100 000 kr i vinst kan innebära cirka 40 000–45 000 kr i skatt.
-                </p>
-              </div>
-            }
-          />
+      <CodeBox>
+        <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
+        <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
+        <p>• <b>Belopp:</b> 5000 kr</p>
+        <p>• <b>Moms %:</b> 0%</p>
+        <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
+      </CodeBox>
+    </div>
+  }
+/>
 
           <hr className="border-gray-100" />
 
