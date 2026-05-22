@@ -19,7 +19,6 @@ export default function Kontoplan() {
   }, [])
 
   async function loadKontoplan() {
-    // Supabase Auth ser via RLS till att vi bara får den inloggades konton
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
@@ -36,18 +35,13 @@ export default function Kontoplan() {
     }
     setSaving(true)
     try {
-      // Hämta den inloggade användarens ID
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) throw new Error('Ingen inloggad användare hittades.')
-
       const { error } = await supabase.from('accounts').insert([{
         id: newAccount.id.toLowerCase().trim(),
         name: newAccount.name.trim(),
         debit_account: newAccount.debit_account.trim(),
         credit_account: newAccount.credit_account.trim(),
         default_vat_rate: Number(newAccount.default_vat_rate),
-        comment: newAccount.comment.trim(),
-        user_id: user.id
+        comment: newAccount.comment.trim()
       }])
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })
@@ -62,9 +56,7 @@ export default function Kontoplan() {
 
   async function handleDelete(id: string) {
     if (!confirm(`Radera kontot "${id}"? Det påverkar inte redan bokförda transaktioner.`)) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { alert('Ingen inloggad användare.'); return }
-    const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', user.id)
+    const { error } = await supabase.from('accounts').delete().eq('id', id)
     if (error) { alert('Kunde inte radera: ' + error.message); return }
     await loadKontoplan()
   }
@@ -77,67 +69,67 @@ export default function Kontoplan() {
         <form onSubmit={handleAddAccount}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">ID (t.ex. resor)</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">ID (t.ex. resor)</label>
               <input
                 type="text"
                 value={newAccount.id}
                 onChange={e => setNewAccount({ ...newAccount, id: e.target.value })}
                 placeholder="resor"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">Namn</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Namn</label>
               <input
                 type="text"
                 value={newAccount.name}
                 onChange={e => setNewAccount({ ...newAccount, name: e.target.value })}
                 placeholder="Resor"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">Kommentar</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Kommentar</label>
               <input
                 type="text"
                 value={newAccount.comment}
                 onChange={e => setNewAccount({ ...newAccount, comment: e.target.value })}
                 placeholder="T.ex. tåg, taxi, parkering"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">Debitkonto</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Debitkonto</label>
               <input
                 type="text"
                 value={newAccount.debit_account}
                 onChange={e => setNewAccount({ ...newAccount, debit_account: e.target.value })}
                 placeholder="5800"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">Kreditkonto</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Kreditkonto</label>
               <input
                 type="text"
                 value={newAccount.credit_account}
                 onChange={e => setNewAccount({ ...newAccount, credit_account: e.target.value })}
                 placeholder="1930"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-300 ml-1">Standard moms %</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Standard moms %</label>
               <select
                 value={newAccount.default_vat_rate}
                 onChange={e => setNewAccount({ ...newAccount, default_vat_rate: Number(e.target.value) })}
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300"
+                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
               >
                 <option value={0}>0%</option>
                 <option value={6}>6%</option>
@@ -159,7 +151,7 @@ export default function Kontoplan() {
       {/* Kontolista */}
       <div className="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b">
+          <thead className="bg-gray-50 text-[9px] font-black text-gray-600 uppercase tracking-widest border-b">
             <tr>
               <th className="p-6">Namn</th>
               <th className="p-6">Debet</th>

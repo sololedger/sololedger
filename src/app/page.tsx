@@ -620,7 +620,7 @@ export default function Home() {
             <form onSubmit={handleAddTransaction}>
               <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3 items-end mb-4">
                 <div className="lg:col-span-2 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-300 uppercase ml-1">Datum</label>
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Datum</label>
                   <input
                     type="date"
                     value={formData.date}
@@ -630,7 +630,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="lg:col-span-3 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-300 uppercase ml-1">Kategori</label>
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Kategori</label>
                   <select
                     value={formData.type}
                     onChange={e => {
@@ -646,7 +646,7 @@ export default function Home() {
                   </select>
                 </div>
                 <div className="lg:col-span-3 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-300 uppercase ml-1">Beskrivning</label>
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Beskrivning</label>
                   <input
                     type="text"
                     value={formData.description}
@@ -656,7 +656,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="lg:col-span-1 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-300 uppercase ml-1">Moms %</label>
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Moms %</label>
                   <select
                     value={formData.vatRate}
                     onChange={e => setFormData({ ...formData, vatRate: Number(e.target.value) })}
@@ -670,7 +670,7 @@ export default function Home() {
                   </select>
                 </div>
                 <div className="lg:col-span-2 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-300 uppercase ml-1">Belopp inkl. moms</label>
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Belopp inkl. moms</label>
                   <input
                     type="number"
                     step="0.01"
@@ -707,7 +707,7 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-4 pt-3 border-t border-gray-50">
-                <label className="text-[9px] font-black text-gray-300 uppercase whitespace-nowrap">📎 Bilaga:</label>
+                <label className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">📎 Bilaga:</label>
                 <input
                   type="file"
                   accept="image/*,.pdf"
