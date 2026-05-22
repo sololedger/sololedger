@@ -79,42 +79,34 @@ export default function FAQ() {
 
           <hr className="border-gray-100" />
 
-{/* SKATT */}
-<Section
-  icon="📊"
-  iconColor="text-green-500" // (eller text-emerald-500 för SoloLedger)
-  title="Skatt i Enskild Firma"
-  content={
-    <div className="space-y-3">
-      <p className="text-sm text-gray-600 leading-relaxed">
-        Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst. Det finns ingen separat "företagsskatt", utan allt deklareras på din privata inkomstdeklaration (via NE-bilagan).
-      </p>
+          {/* SKATT */}
+          <Section
+            icon="📊"
+            iconColor="text-emerald-500"
+            title="Skatt i Enskild Firma"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst.
+                </p>
 
-      <ul className="space-y-2 text-sm text-gray-600">
-        <li className="flex gap-2">
-          <span className="text-green-500 mt-0.5">▸</span>
-          <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-green-500 mt-0.5">▸</span>
-          <span><b>Hur betalas skatten?</b> Du betalar oftast en schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-green-500 mt-0.5">▸</span>
-          <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
-        </li>
-      </ul>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Beskattning:</b> Vinsten beskattas ofta med ca 40–45% (skatt + egenavgifter).</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Bokföring:</b> Skatt är inte en kostnad. Betalning bokförs som <Tag>2013 (uttag)</Tag>.</span>
+                  </li>
+                </ul>
 
-      <CodeBox>
-        <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
-        <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
-        <p>• <b>Belopp:</b> 5000 kr</p>
-        <p>• <b>Moms %:</b> 0%</p>
-        <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
-      </CodeBox>
-    </div>
-  }
-/>
+                <p className="text-xs italic text-gray-400">
+                  Exempel: 100 000 kr i vinst kan innebära cirka 40 000–45 000 kr i skatt.
+                </p>
+              </div>
+            }
+          />
 
           <hr className="border-gray-100" />
 
@@ -126,14 +118,10 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Momsen tillhoff inte företaget — du är bara en mellanhand som redovisar den till staten.
+                  Momsen tillhör inte företaget — du är bara en mellanhand som redovisar den till staten.
                 </p>
 
                 <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Momsbefriad:</b> Under 80 000 kr → ingen moms.</span>
-                  </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
                     <span><b>Momsregistrerad:</b> Utgående moms minus ingående moms = skuld eller fordran. I appen räknas detta automatiskt och visas på det färgade momskortet samt på rad <Tag>B16 (Skulder)</Tag> i NE-bilagan.</span>
@@ -146,9 +134,78 @@ export default function FAQ() {
 
                 <CodeBox>
                   <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen året efter via kontot "skattekonto":</p>
-                  <p className="mb-2"><b>1. Om du ska BETALA moms (Skuld):</b><br />När du för över pengar till Skatteverkets bankgiro, bokför summan som ett <b>positivt</b> belopp (t.ex. <Tag>500.00</Tag>). Systemet drar pengarna från banken (1930) och nollar din skuld (2650).</p>
-                  <p><b>2. Om du får TILLBAKA moms (Återbäring):</b><br />När Skatteverket sätter in momspengar på ditt konto, bokför summan med ett <b>minusbelopp</b> (t.ex. <Tag>-500.00</Tag>). Systemet ökar pengarna på banken (1930) och nollar din fordran (2650).</p>
+                  <p className="mb-2"><b>1. Om du ska BETALA moms (Skuld):</b><br />När du för över pengar till Skatteverkets bankgiro, bokför summan som ett <b>positivt</b> belopp (t.ex. <Tag>134.14</Tag>). Systemet drar pengarna från banken (1930) och nollar din skuld (2650).</p>
+                  <p><b>2. Om du får TILLBAKA moms (Återbäring):</b><br />När Skatteverket sätter in momspengar på ditt konto, bokför summan med ett <b>minusbelopp</b> (t.ex. <Tag>-500.00</Tag>). Systemet ökar pengarna på banken (1930) og nollar din fordran (2650).</p>
                 </CodeBox>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
+          {/* PRIVATA UTBLÄGG */}
+          <Section
+            icon="💳"
+            iconColor="text-emerald-500"
+            title="Inköp med privata pengar"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Om du köper något till firman med ditt privata bankkort eller swish, räknas det som ett privat utlägg. 
+                </p>
+                <CodeBox>
+                  <p className="font-bold text-gray-700 mb-1">Hur det bokförs:</p>
+                  <p>Utgiften ska fortfarande dras som en vanlig kostnad i företaget. Skillnaden är att motkontot blir en <Tag>Egen insättning (2018)</Tag> istället för företagets bankkonto (<Tag>1930</Tag>).</p>
+                  <p className="mt-2 text-gray-500"><i>Tips: Lägg till ett konto i din Kontoplan (t.ex. "Privat utlägg") inställt på ditt önskade kostnadskonto som Debet, och konto 2018 som Kredit.</i></p>
+                </CodeBox>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
+          {/* KORRIGERING */}
+          <Section
+            icon="↩️"
+            iconColor="text-emerald-500"
+            title="Hur rättar jag en felaktig bokföring?"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Bokförda verifikat är låsta och ska inte raderas eller ändras direkt i efterhand enligt god redovisningssed.
+                </p>
+                <CodeBox>
+                  <p>1. Leta upp den felaktiga raden i din transaktionslista.</p>
+                  <p>2. Klicka på krysset (<Tag>✕</Tag>) längst till höger där det står <i>"Skapa korrigeringsverifikation"</i> när du för musen över.</p>
+                  <p>3. Systemet skapar nu automatiskt en exakt spegelvänd transaktion som helt nollar ut det gamla felet och stryker texten.</p>
+                  <p>4. Lägg därefter in transaktionen på nytt via formuläret med helt korrekta uppgifter.</p>
+                </CodeBox>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
+          {/* BILAGOR & KAVITTOKRAV */}
+          <Section
+            icon="📑"
+            iconColor="text-emerald-500"
+            title="Bilagor och Kvittokrav"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Alla transaktioner i bokföringen måste ha ett tillhörande underlag (kvitto eller faktura).
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Digitala kvitton räcker:</b> Tack vare moderniseringen av Bokföringslagen behöver du inte längre spara fysiska papperskvitton.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Gör så här:</b> Fota papperskvittot eller spara digitala PDF-fakturor. Ladda upp filen som bilaga direkt i ditt bokföringsformulär. När filen är sparad i systemet kan du kasta papperslappen!</span>
+                  </li>
+                </ul>
               </div>
             }
           />
