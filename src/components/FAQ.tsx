@@ -79,62 +79,76 @@ export default function FAQ() {
 
           <hr className="border-gray-100" />
 
-          {/* SKATT */}
-          <Section
-            icon="📊"
-            iconColor="text-emerald-500"
-            title="Skatt i Enskild Firma"
-            content={
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst.
-                </p>
+{/* SKATT */}
+<Section
+  icon="📊"
+  iconColor="text-green-500" // (eller text-emerald-500 för SoloLedger)
+  title="Skatt i Enskild Firma"
+  content={
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600 leading-relaxed">
+        Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst. Det finns ingen separat "företagsskatt", utan allt deklareras på din privata inkomstdeklaration (via NE-bilagan).
+      </p>
 
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Beskattning:</b> Vinsten beskattas ofta med ca 40–45% (skatt + egenavgifter).</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Bokföring:</b> Skatt är inte en kostnad. Betalning bokförs som <Tag>2013 (uttag)</Tag>.</span>
-                  </li>
-                </ul>
+      <ul className="space-y-2 text-sm text-gray-600">
+        <li className="flex gap-2">
+          <span className="text-green-500 mt-0.5">▸</span>
+          <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-green-500 mt-0.5">▸</span>
+          <span><b>Hur betalas skatten?</b> Du betalar oftast en schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-green-500 mt-0.5">▸</span>
+          <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
+        </li>
+      </ul>
 
-                <p className="text-xs italic text-gray-400">
-                  Exempel: 100 000 kr i vinst kan inneberar cirka 40 000–45 000 kr i skatt.
-                </p>
-              </div>
-            }
-          />
+      <CodeBox>
+        <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
+        <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
+        <p>• <b>Belopp:</b> 5000 kr</p>
+        <p>• <b>Moms %:</b> 0%</p>
+        <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
+      </CodeBox>
+    </div>
+  }
+/>
 
           <hr className="border-gray-100" />
 
           {/* MOMS */}
           <Section
             icon="💸"
-            iconColor="text-orange-500"
+            iconColor="text-emerald-500"
             title="Hur fungerar momsen?"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Momsen tillhör inte företaget — du redovisar den till staten.
+                  Momsen tillhoff inte företaget — du är bara en mellanhand som redovisar den till staten.
                 </p>
 
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
-                    <span className="text-orange-500 mt-0.5">▸</span>
+                    <span className="text-emerald-500 mt-0.5">▸</span>
                     <span><b>Momsbefriad:</b> Under 80 000 kr → ingen moms.</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-orange-500 mt-0.5">▸</span>
-                    <span><b>Momsregistrerad:</b> Utgående moms − ingående moms = skuld/fordran.</span>
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Momsregistrerad:</b> Utgående moms minus ingående moms = skuld eller fordran. I appen räknas detta automatiskt och visas på det färgade momskortet samt på rad <Tag>B16 (Skulder)</Tag> i NE-bilagan.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Övergång till nytt år:</b> Om du har helårs-moms nollas momskorten automatiskt i appen när du byter år (t.ex. till 2027). Förra årets momssumma ligger kvar som en historisk skuld/fordran på B16 för det gamla året. Du behöver inte göra någon manuell flytt på nyårsafton!</span>
                   </li>
                 </ul>
 
-                <p className="text-xs italic text-gray-400">
-                  I appen räknas detta automatiskt och visas på <Tag>B16</Tag>.
-                </p>
+                <CodeBox>
+                  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen året efter via kontot "skattekonto":</p>
+                  <p className="mb-2"><b>1. Om du ska BETALA moms (Skuld):</b><br />När du för över pengar till Skatteverkets bankgiro, bokför summan som ett <b>positivt</b> belopp (t.ex. <Tag>500.00</Tag>). Systemet drar pengarna från banken (1930) och nollar din skuld (2650).</p>
+                  <p><b>2. Om du får TILLBAKA moms (Återbäring):</b><br />När Skatteverket sätter in momspengar på ditt konto, bokför summan med ett <b>minusbelopp</b> (t.ex. <Tag>-500.00</Tag>). Systemet ökar pengarna på banken (1930) och nollar din fordran (2650).</p>
+                </CodeBox>
               </div>
             }
           />
@@ -223,7 +237,7 @@ export default function FAQ() {
           {/* DEKLARATION */}
           <Section
             icon="📝"
-            iconColor="text-emerald-500"
+            iconColor="text-orange-500"
             title="Inför Deklarationen"
             content={
               <div className="space-y-3">
