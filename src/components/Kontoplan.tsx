@@ -14,6 +14,17 @@ export default function Kontoplan() {
   })
   const [saving, setSaving] = useState(false)
 
+ // Lista med unika förslag på nya konton (utan dubbletter)
+ const kontoforslag = [
+  { id: 'lokalhyra', name: 'Lokalhyra', debit: '5010', credit: '1930', vat: 0, comment: 'Hyra för kontor, studio eller lager' },
+  { id: 'el-lokal', name: 'El för lokal', debit: '5020', credit: '1930', vat: 25, comment: 'Separat elavtal för arbetsplatsen' },
+  { id: 'reklam', name: 'Reklam & Annonsering', debit: '5900', credit: '1930', vat: 25, comment: 'Google Ads, Meta-annonser, trycksaker' },
+  { id: 'hemsida', name: 'Hemsida & Verktyg', debit: '6230', credit: '1930', vat: 25, comment: 'Webbhotell, domäner och programvaror (SaaS)' },
+  { id: 'frakt', name: 'Frakt & Porto', debit: '5710', credit: '1930', vat: 25, comment: 'PostNord, DHL och fraktkostnader' },
+  { id: 'forsakring', name: 'Företagsförsäkring', debit: '6310', credit: '1930', vat: 0, comment: 'Ansvars- och sakförsäkring för firman' },
+  { id: 'milersattning', name: 'Milersättning (Egen bil)', debit: '5843', credit: '2018', vat: 0, comment: 'När du kör privat bil i tjänsten (25 kr/mil)' },
+]
+
   useEffect(() => {
     loadKontoplan()
   }, [])
@@ -25,6 +36,17 @@ export default function Kontoplan() {
       .order('name')
     if (error) { console.error(error); return }
     if (data) setKontoplan(data)
+  }
+
+  function applyForslag(forslag: any) {
+    setNewAccount({
+      id: forslag.id,
+      name: forslag.name,
+      debit_account: forslag.debit,
+      credit_account: forslag.credit,
+      default_vat_rate: forslag.vat,
+      comment: forslag.comment
+    })
   }
 
   async function handleAddAccount(e: any) {
@@ -65,7 +87,25 @@ export default function Kontoplan() {
     <div className="space-y-8">
       {/* Formulär för nytt konto */}
       <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
-        <h2 className="text-sm font-black uppercase mb-6 text-emerald-600 tracking-widest">Lägg till konto</h2>
+        <h2 className="text-sm font-black uppercase mb-2 text-emerald-600 tracking-widest">Lägg till konto</h2>
+        
+        {/* Sektion för snabba kontoförslag */}
+        <div className="mb-6">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Förslag på vanliga konton (klicka för att fylla i):</p>
+          <div className="flex flex-wrap gap-2">
+            {kontoforslag.map(forslag => (
+              <button
+                key={forslag.id}
+                type="button"
+                onClick={() => applyForslag(forslag)}
+                className="text-[11px] font-bold px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800 transition-all shadow-sm"
+              >
+                + {forslag.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleAddAccount}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="flex flex-col gap-1">
