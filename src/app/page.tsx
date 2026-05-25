@@ -7,6 +7,7 @@ import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ' // TILLAGD: Importera FAQ
+import Momsrapport from '@/components/Momsrapport'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -421,7 +422,7 @@ export default function Home() {
       <div className="flex justify-between items-center mb-8 px-4">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
-            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : 'NE-Bilaga'}
+            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : 'NE-Bilaga'}
           </h1>
           <p className="text-[10px] text-gray-400 font-bold mt-0.5">Inloggad som: {user.email}</p>
         </div>
@@ -932,6 +933,8 @@ export default function Home() {
         </>
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan />
+      ) : activeTab === 'moms' ? (
+        <Momsrapport />
       ) : activeTab === 'faq' ? (
         <FAQ />
       ) : (

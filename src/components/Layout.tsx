@@ -40,6 +40,12 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
           >
             NE-Bilaga
           </button>
+          <button 
+            onClick={() => setActiveTab('moms')} 
+            className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${activeTab === 'moms' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Moms
+          </button>
           {/* TILLAGD: Menyknapp för Hjälp & FAQ */}
           <button 
             onClick={() => setActiveTab('faq')} 
