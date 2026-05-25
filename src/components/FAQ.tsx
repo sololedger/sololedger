@@ -54,7 +54,7 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Varje nytt år måste balansräkningen föras vidare från föregående år.
+                  Varje nytt year måste balansräkningen föras vidare från föregående year.
                   Du gör detta genom <span className="font-bold text-gray-800">en enda manuell bokföringsrad</span>.
                 </p>
 
@@ -71,7 +71,7 @@ export default function FAQ() {
                 </p>
 
                 <p className="text-xs italic text-gray-400">
-                  Resultaträkningen (R-rader) nollställs automatiskt varje år.
+                  Resultaträkningen (R-rader) nollställs automatiskt varje year.
                 </p>
               </div>
             }
@@ -80,41 +80,41 @@ export default function FAQ() {
           <hr className="border-gray-100" />
 
           {/* SKATT */}
-<Section
-  icon="📊"
-  iconColor="text-emerald-500"
-  title="Skatt i Enskild Firma"
-  content={
-    <div className="space-y-3">
-      <p className="text-sm text-gray-600 leading-relaxed">
-        Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst. Det finns ingen separat "företagsskatt", utan allt deklareras på din privata inkomstdeklaration (via NE-bilagan).
-      </p>
+          <Section
+            icon="📊"
+            iconColor="text-emerald-500"
+            title="Skatt i Enskild Firma"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Vinsten i firman (<Tag>R14</Tag>) är din personliga inkomst. Det finns ingen separat "företagsskatt", utan allt deklareras på din privata inkomstdeklaration (via NE-bilagan).
+                </p>
 
-      <ul className="space-y-2 text-sm text-gray-600">
-        <li className="flex gap-2">
-          <span className="text-emerald-500 mt-0.5">▸</span>
-          <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-emerald-500 mt-0.5">▸</span>
-          <span><b>Hur betalas skatten?</b> Du betalar oftast ett schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-emerald-500 mt-0.5">▸</span>
-          <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
-        </li>
-      </ul>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Hur betalas skatten?</b> Du betalar oftast ett schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
+                  </li>
+                </ul>
 
-      <CodeBox>
-        <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
-        <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
-        <p>• <b>Belopp:</b> 5000 kr</p>
-        <p>• <b>Moms %:</b> 0%</p>
-        <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
-      </CodeBox>
-    </div>
-  }
-/>
+                <CodeBox>
+                  <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
+                  <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
+                  <p>• <b>Belopp:</b> 5000 kr</p>
+                  <p>• <b>Moms %:</b> 0%</p>
+                  <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
+                </CodeBox>
+              </div>
+            }
+          />
 
           <hr className="border-gray-100" />
 
@@ -126,24 +126,31 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Momsen tillhör inte företaget — du är bara en mellanhand som redovisar den till staten.
+                  Momsen tillhör inte företaget — du är bara en mellanhand som redovisar den till Skatteverket. 
+                  Dina momskonton sammanställs löpande under fliken <span className="font-bold text-gray-800">Momsrapport</span>.
                 </p>
 
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Momsregistrerad:</b> Utgående moms minus ingående moms = skuld eller fordran. I appen räknas detta automatiskt och visas på det färgade momskortet samt på rad <Tag>B16 (Skulder)</Tag> i NE-bilagan.</span>
+                    <span><b>Momsöversikten:</b> Det vita momskortet på förstasidan visar alltid hela årets ackumulerade moms. Det stora gröna kortet <Tag>Säkert uttag</Tag> drar automatiskt av dina obetalda momsskulder så att du aldrig råkar ta ut skattepengar privat.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Övergång till nytt år:</b> Om du har helårs-moms nollas momskorten automatiskt i appen när du byter år (t.ex. till 2027). Förra årets momssumma ligger kvar som en historisk skuld/fordran på B16 för det gamla året. Du behöver inte göra någon manuell flytt på nyårsafton!</span>
+                    <span><b>Löpande momsredovisning:</b> Oavsett om du redovisar moms per månad, kvartal eller helt år, så bokför du betalningen eller återbäringen direkt när pengarna flyttas mellan ditt bankkonto och Skatteverket.</span>
                   </li>
                 </ul>
 
                 <CodeBox>
-                  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen året efter via kontot "skattekonto":</p>
-                  <p className="mb-2"><b>1. Om du ska BETALA moms (Skuld):</b><br />När du för över pengar till Skatteverkets bankgiro, bokför summan som ett <b>positivt</b> belopp (t.ex. <Tag>134.14</Tag>). Systemet drar pengarna från banken (1930) och nollar din skuld (2650).</p>
-                  <p><b>2. Om du får TILLBAKA moms (Återbäring):</b><br />När Skatteverket sätter in momspengar på ditt konto, bokför summan med ett <b>minusbelopp</b> (t.ex. <Tag>-500.00</Tag>). Systemet ökar pengarna på banken (1930) og nollar din fordran (2650).</p>
+                  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
+                  <p className="mb-2">
+                    <b>1. Om du ska BETALA moms (Skuld):</b><br />
+                    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2434.14</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
+                  </p>
+                  <p>
+                    <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
+                    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
+                  </p>
                 </CodeBox>
               </div>
             }
@@ -151,7 +158,7 @@ export default function FAQ() {
 
           <hr className="border-gray-100" />
 
-          {/* PRIVATA UTBLÄGG */}
+          {/* PRIVATA UTLÄGG */}
           <Section
             icon="💳"
             iconColor="text-emerald-500"
@@ -288,7 +295,7 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex gap-2">❌ Glömmer IB (Ingående Balans) vid nytt år</li>
+                  <li className="flex gap-2">❌ Glömmer IB (Ingående Balans) vid nytt year</li>
                   <li className="flex gap-2">❌ Bokför privata köp som kostnader i firman</li>
                   <li className="flex gap-2">❌ Tror att den personliga skatten är en företagskostnad</li>
                   <li className="flex gap-2">❌ Blandar ihop vad som är en ren intäkt och en egen insättning</li>
@@ -321,7 +328,7 @@ export default function FAQ() {
             }
           />
 
-          </div>
+        </div>
 
         <div className="mt-12 pt-6 border-t border-gray-100 text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-gray-300 italic">
