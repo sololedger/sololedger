@@ -142,16 +142,16 @@ export default function FAQ() {
                 </ul>
 
                 <CodeBox>
-                  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
-                  <p className="mb-2">
-                    <b>1. Om du ska BETALA moms (Skuld):</b><br />
-                    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2434.14</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
-                  </p>
-                  <p>
-                    <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
-                    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
-                  </p>
-                </CodeBox>
+  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
+  <p className="mb-2">
+    <b>1. Om du ska BETALA moms (Skuld):</b><br />
+    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2434.14</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
+  </p>
+  <p>
+    <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
+    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
+  </p>
+</CodeBox>
               </div>
             }
           />
