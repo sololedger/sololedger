@@ -177,6 +177,33 @@ export default function FAQ() {
             }
           />
 
+<hr className="border-gray-100" />
+
+          {/* PERIODISERING */}
+          <Section
+            icon="⏳"
+            iconColor="text-blue-500"
+            title="Periodisering — Kostnader över nyår"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Om du köper något i slutet av året (t.ex. en årslicens för ett program i december) som ska gälla för nästa år, ska kostnaden höra till det år den faktiskt används. Detta kallas för periodisering.
+                </p>
+                
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex gap-2">
+                    <span className="text-blue-500 mt-0.5">▸</span>
+                    <span><b>Hur gör jag?</b> När du bokför utgiften aktiverar du bara knappen <span className="font-bold">"Periodisera till nästa räkenskapsår"</span> i formuläret och väljer vilket år/månad kostnaden avser.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-500 mt-0.5">▸</span>
+                    <span><b>Vad händer under huven?</b> Appen drar pengarna från banken och bokar momsen direkt på det nuvarande året. Nettoeffekten (kostnaden) parkeras på <Tag>Konto 1790 (Förutbetalda kostnader)</Tag> över nyår, och flyttas automatiskt till ditt kostnadskonto när det nya året startar.</span>
+                  </li>
+                </ul>
+              </div>
+            }
+          />
+
           <hr className="border-gray-100" />
 
           {/* KORRIGERING */}
