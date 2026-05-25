@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction } from '@/lib/accountingService'
+import { exportSIE } from '@/lib/sieExport'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -117,6 +118,23 @@ export default function Home() {
   async function handleLogout() {
     await supabase.auth.signOut()
     setUser(null)
+  }
+
+  async function handleExportSIE() {
+    try {
+      const content = await exportSIE(selectedYear)
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `SIE-${selectedYear}.se`
+      a.click()
+
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert('SIE-export misslyckades: ' + err.message)
+    }
   }
 
   async function loadKontoplanOptions() {
@@ -403,7 +421,6 @@ export default function Home() {
       <div className="flex justify-between items-center mb-8 px-4">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
-            {/* TILLAGD: Uppdaterad rubriklogik för FAQ */}
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : 'NE-Bilaga'}
           </h1>
           <p className="text-[10px] text-gray-400 font-bold mt-0.5">Inloggad som: {user.email}</p>
@@ -420,6 +437,13 @@ export default function Home() {
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+
+          <button
+            onClick={handleExportSIE}
+            className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
+          >
+            Export SIE
+          </button>
 
           <button 
             onClick={handleLogout}
@@ -576,15 +600,13 @@ export default function Home() {
                       <div className="flex justify-between items-center bg-green-50 rounded-2xl px-5 py-3">
                         <div>
                           <p className="text-xs font-black text-green-600 uppercase">Ingående moms (2641)</p>
-                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">Moms på dina kostnader — du får tillbaka</p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">Moms du betalat på kostnader — dras av</p>
                         </div>
                         <span className="font-black text-green-600">−{Math.abs(balances['2641'] || 0).toLocaleString('sv-SE')} kr</span>
                       </div>
                     </div>
                     <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
-                      <span className="text-xs font-black uppercase text-gray-400">
-                        {momsNetto > 0 ? 'Att betala till Skatteverket' : 'Att få tillbaka från Skatteverket'}
-                      </span>
+                      <span className="text-xs font-black uppercase text-gray-400">Att betala / få tillbaka</span>
                       <span className={`text-2xl font-black ${momsNetto <= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {momsNetto.toLocaleString('sv-SE')} kr
                       </span>
@@ -597,12 +619,12 @@ export default function Home() {
                     <h2 className="text-xl font-black uppercase italic tracking-tighter text-gray-700 mb-1">Resultat</h2>
                     <p className="text-[10px] text-gray-400 uppercase font-black mb-6">Hur resultatet beräknas</p>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center bg-green-50 rounded-2xl px-5 py-3">
-                        <span className="text-xs font-black text-green-600 uppercase">Intäkter (3xxx)</span>
+                      <div className="flex justify-between items-center bg-gray-50 rounded-2xl px-5 py-3">
+                        <span className="text-xs font-black text-gray-500 uppercase">Intäkter (3xxx)</span>
                         <span className="font-black text-green-600">+{intakter.toLocaleString('sv-SE')} kr</span>
                       </div>
-                      <div className="flex justify-between items-center bg-red-50 rounded-2xl px-5 py-3">
-                        <span className="text-xs font-black text-red-500 uppercase">Kostnader (4–7xxx)</span>
+                      <div className="flex justify-between items-center bg-gray-50 rounded-2xl px-5 py-3">
+                        <span className="text-xs font-black text-gray-500 uppercase">Kostnader (4–7xxx)</span>
                         <span className="font-black text-red-500">−{kostnader.toLocaleString('sv-SE')} kr</span>
                       </div>
                     </div>
@@ -618,31 +640,9 @@ export default function Home() {
             </div>
           )}
 
-          <div className="bg-white px-8 py-4 rounded-[2rem] border border-gray-100 shadow-sm mb-8 flex items-center gap-6">
-            <span className="text-[9px] font-black uppercase text-gray-400 whitespace-nowrap">Skattsats:</span>
-            <input
-              type="range"
-              min={20}
-              max={70}
-              value={taxRate}
-              onChange={e => setTaxRate(Number(e.target.value))}
-              className="flex-1 accent-emerald-600 cursor-pointer"
-            />
-            <span className="text-sm font-black text-emerald-600 w-12 text-right">{taxRate}%</span>
-            <span className="text-[9px] text-gray-300 font-medium hidden md:block">
-              Reserverar skatt på skattemässigt resultat + drar av eventuell momsskuld
-            </span>
-          </div>
-
-          <div className={`bg-white p-8 rounded-[2.5rem] border mb-8 shadow-sm transition-all ${editingId ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-            {editingId && editingBooked && (
-              <div className="mb-4 px-4 py-2 bg-amber-100 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
-                Bokförd post — du kan ändra datum, beskrivning och lägga till bilaga. Belopp och kategori är låsta.
-              </div>
-            )}
-
+          <div className={`bg-white rounded-[2.5rem] border p-8 mb-6 shadow-sm transition-all ${editingId ? 'border-amber-300 shadow-amber-100' : 'border-gray-100'}`}>
             <form onSubmit={handleAddTransaction}>
-              <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3 items-end mb-4">
+              <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-4">
                 <div className="lg:col-span-2 flex flex-col gap-1">
                   <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Datum</label>
                   <input
