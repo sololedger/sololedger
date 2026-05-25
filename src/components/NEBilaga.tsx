@@ -17,6 +17,7 @@ interface NEData {
   bank: number;
   B10_total: number;
   B16: number;
+  B13_forutbetalda: number;
 }
 
 interface NEBilagaProps {
@@ -184,6 +185,16 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
               <span>B13 Kassa och bank</span>
               <span className="text-gray-500">{fmt(neData.bank)}</span>
             </div>
+
+            {(neData.B13_forutbetalda ?? 0) > 0 && (
+              <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase font-black">
+                <span className="flex items-center text-blue-500">
+                  B13 Förutbetalda kostnader (1790)
+                  <Tooltip text="Utgifter betalda i år men som avser nästa år (periodisering). Dessa är en tillgång tills de aktiveras nästa räkenskapsår via konto 1790." />
+                </span>
+                <span className="text-blue-600">{fmt(neData.B13_forutbetalda)}</span>
+              </div>
+            )}
 
             <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
               <span>B16 Skulder (Moms m.m.)</span>

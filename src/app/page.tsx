@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction } from '@/lib/accountingService'
+import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction } from '@/lib/accountingService'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -36,6 +36,14 @@ export default function Home() {
     type: '',
     vatRate: 0,
     file: null as File | null
+  })
+
+  // Periodiseringsstate
+  const [periodisera, setPeriodisera] = useState(false)
+  const [periodMonth, setPeriodMonth] = useState(() => {
+    const next = new Date()
+    next.setFullYear(next.getFullYear() + 1, 0, 1) // 1 jan nästa år
+    return next.toISOString().slice(0, 7) // "YYYY-MM"
   })
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
@@ -74,7 +82,8 @@ export default function Home() {
       { id: 'kurser', name: 'Kurser', debit_account: '7610', credit_account: '1930', default_vat_rate: 25, comment: 'Fortbildning', user_id: userId },
       { id: 'prenumerationer', name: 'Prenumerationer', debit_account: '5420', credit_account: '1930', default_vat_rate: 25, comment: 'Adobe, SaaS', user_id: userId },
       { id: 'privat_utlägg', name: 'Privat utlägg för firman', debit_account: '5410', credit_account: '2018', default_vat_rate: 25, comment: 'Du har betalat firman grejer med privata pengar', user_id: userId },
-      { id: 'resor', name: 'Resor', debit_account: '5800', credit_account: '1930', default_vat_rate: 6, comment: 'Spårvagn, taxi', user_id: userId }
+      { id: 'resor', name: 'Resor', debit_account: '5800', credit_account: '1930', default_vat_rate: 6, comment: 'Spårvagn, taxi', user_id: userId },
+      { id: 'periodisering', name: 'Förutbetalda kostnader', debit_account: '1790', credit_account: '1930', default_vat_rate: 0, comment: 'Används automatiskt vid periodisering av utgifter över nyår', user_id: userId }
     ]
 
     const { error } = await supabase.from('accounts').insert(defaultAccounts)
@@ -224,21 +233,35 @@ export default function Home() {
         setEditingId(null)
         setEditingBooked(false)
       } else {
-        const { data: newTx, error: insertError } = await supabase
-          .from('transactions')
-          .insert([{
+        if (periodisera) {
+          // Periodiserad bokföring — två transaktioner skapas via accountingService
+          const futureDate = `${periodMonth}-01`
+          await bookPeriodizedTransaction({
             date: formData.date,
+            future_date: futureDate,
             description: formData.description,
             amount: Number(formData.amount),
             type: formData.type,
             vat_rate: formData.vatRate,
             file_url: fileUrl || null,
-            user_id: user.id
-          }])
-          .select()
-          .single()
-        if (insertError) throw insertError
-        await bookTransaction(newTx)
+          })
+        } else {
+          const { data: newTx, error: insertError } = await supabase
+            .from('transactions')
+            .insert([{
+              date: formData.date,
+              description: formData.description,
+              amount: Number(formData.amount),
+              type: formData.type,
+              vat_rate: formData.vatRate,
+              file_url: fileUrl || null,
+              user_id: user.id
+            }])
+            .select()
+            .single()
+          if (insertError) throw insertError
+          await bookTransaction(newTx)
+        }
       }
 
       setFormData(prev => ({
@@ -248,6 +271,7 @@ export default function Home() {
         amount: '',
         file: null
       }))
+      setPeriodisera(false)
       await refreshData()
     } catch (err: any) {
       console.error('Fel vid bokföring:', err)
@@ -718,6 +742,53 @@ export default function Home() {
                   <span className="text-[9px] text-emerald-500 font-bold">{formData.file.name}</span>
                 )}
               </div>
+
+              {/* ── PERIODISERING ─────────────────────────────────────────── */}
+              {!editingId && (
+                <div className={`mt-4 rounded-2xl border-2 transition-all duration-200 ${periodisera ? 'border-blue-300 bg-blue-50/60' : 'border-gray-100 bg-gray-50/40'}`}>
+                  <label className="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={periodisera}
+                        onChange={e => setPeriodisera(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-checked:bg-blue-500 rounded-full transition-colors duration-200" />
+                      <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-gray-600 tracking-wide">
+                        Periodisera till nästa räkenskapsår
+                      </span>
+                      <p className="text-[9px] text-gray-400 font-medium mt-0.5">
+                        Kostnaden avser ett annat år — parkeras på konto 1790 och aktiveras automatiskt.
+                      </p>
+                    </div>
+                  </label>
+
+                  {periodisera && (
+                    <div className="px-5 pb-4 flex flex-wrap items-end gap-6 border-t border-blue-100">
+                      <div className="flex flex-col gap-1 mt-3">
+                        <label className="text-[9px] font-black text-blue-500 uppercase ml-1">
+                          Kostnaden avser (år/månad)
+                        </label>
+                        <input
+                          type="month"
+                          value={periodMonth}
+                          onChange={e => setPeriodMonth(e.target.value)}
+                          className="p-2.5 bg-white border border-blue-200 rounded-xl outline-none font-bold text-xs text-blue-700 focus:border-blue-400 transition-colors"
+                        />
+                      </div>
+                      <div className="mt-3 text-[9px] leading-relaxed text-blue-600 font-bold bg-blue-100/60 rounded-xl px-4 py-2.5 border border-blue-200">
+                        <p className="font-black uppercase mb-1 text-blue-700">Vad händer?</p>
+                        <p>📅 <strong>År 1 (idag):</strong> Bank krediteras. Moms bokas direkt. Netto → konto 1790.</p>
+                        <p>🔄 <strong>År 2 ({periodMonth}-01):</strong> 1790 krediteras → kostnadskonto debiteras.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
           </div>
 

@@ -14,16 +14,16 @@ export default function Kontoplan() {
   })
   const [saving, setSaving] = useState(false)
 
- // Lista med unika förslag på nya konton (utan dubbletter)
- const kontoforslag = [
-  { id: 'lokalhyra', name: 'Lokalhyra', debit: '5010', credit: '1930', vat: 0, comment: 'Hyra för kontor, studio eller lager' },
-  { id: 'el-lokal', name: 'El för lokal', debit: '5020', credit: '1930', vat: 25, comment: 'Separat elavtal för arbetsplatsen' },
-  { id: 'reklam', name: 'Reklam & Annonsering', debit: '5900', credit: '1930', vat: 25, comment: 'Google Ads, Meta-annonser, trycksaker' },
-  { id: 'hemsida', name: 'Hemsida & Verktyg', debit: '6230', credit: '1930', vat: 25, comment: 'Webbhotell, domäner och programvaror (SaaS)' },
-  { id: 'frakt', name: 'Frakt & Porto', debit: '5710', credit: '1930', vat: 25, comment: 'PostNord, DHL och fraktkostnader' },
-  { id: 'forsakring', name: 'Företagsförsäkring', debit: '6310', credit: '1930', vat: 0, comment: 'Ansvars- och sakförsäkring för firman' },
-  { id: 'milersattning', name: 'Milersättning (Egen bil)', debit: '5843', credit: '2018', vat: 0, comment: 'När du kör privat bil i tjänsten (25 kr/mil)' },
-]
+  // Lista med unika förslag på nya konton (utan dubbletter)
+  const kontoforslag = [
+    { id: 'lokalhyra', name: 'Lokalhyra', debit: '5010', credit: '1930', vat: 0, comment: 'Hyra för kontor, studio eller lager' },
+    { id: 'el-lokal', name: 'El för lokal', debit: '5020', credit: '1930', vat: 25, comment: 'Separat elavtal för arbetsplatsen' },
+    { id: 'reklam', name: 'Reklam & Annonsering', debit: '5900', credit: '1930', vat: 25, comment: 'Google Ads, Meta-annonser, trycksaker' },
+    { id: 'hemsida', name: 'Hemsida & Verktyg', debit: '6230', credit: '1930', vat: 25, comment: 'Webbhotell, domäner och programvaror (SaaS)' },
+    { id: 'frakt', name: 'Frakt & Porto', debit: '5710', credit: '1930', vat: 25, comment: 'PostNord, DHL och fraktkostnader' },
+    { id: 'forsakring', name: 'Företagsförsäkring', debit: '6310', credit: '1930', vat: 0, comment: 'Ansvars- och sakförsäkring för firman' },
+    { id: 'milersattning', name: 'Milersättning (Egen bil)', debit: '5843', credit: '2018', vat: 0, comment: 'När du kör privat bil i tjänsten (25 kr/mil)' },
+  ]
 
   useEffect(() => {
     loadKontoplan()
@@ -56,14 +56,20 @@ export default function Kontoplan() {
       return
     }
     setSaving(true)
+    
     try {
+      // FIX: Hämta den inloggade användaren direkt från Supabase Auth så att vi kan passera RLS-säkerhetsregeln
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) throw new Error("Hittade ingen inloggad användare.")
+
       const { error } = await supabase.from('accounts').insert([{
         id: newAccount.id.toLowerCase().trim(),
         name: newAccount.name.trim(),
         debit_account: newAccount.debit_account.trim(),
         credit_account: newAccount.credit_account.trim(),
         default_vat_rate: Number(newAccount.default_vat_rate),
-        comment: newAccount.comment.trim()
+        comment: newAccount.comment.trim(),
+        user_id: user.id // <--- FIX: Skicka med user_id i anropet!
       }])
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })

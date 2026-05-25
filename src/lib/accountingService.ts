@@ -241,6 +241,163 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   return nextVerNr
 }
 
+/**
+ * Periodisering: Bokför en utgift som sträcker sig över ett nyårsskifte.
+ *
+ * Transaktion 1 (innevarande år, t.ex. december):
+ *   Kredit acc.credit_account (1930 Bank)            = bruttobelopp
+ *   Debet  1790 Förutbetalda kostnader               = nettobelopp
+ *   Debet  2641 Ingående moms (om moms finns)        = momsbelopp
+ *
+ * Transaktion 2 (nästa år, t.ex. 1 januari — vändning):
+ *   Kredit 1790 Förutbetalda kostnader               = nettobelopp
+ *   Debet  acc.debit_account (faktiskt kostnadskonto) = nettobelopp
+ *   (Ingen moms — redan hanterad i TX1)
+ *
+ * Båda transaktionerna delar samma ver_nr (bokföringsmässigt korrekt).
+ * periodization_group_id kopplar ihop dem för framtida UI-filtrering.
+ */
+export async function bookPeriodizedTransaction(tx: any) {
+  // 1. Hämta den server-verifierade användarens ID
+  const userId = await getUserId()
+
+  // 2. SÄKERHETSBÄLTE: Verifiera att kontot existerar och tillhör användaren
+  const { data: acc, error: accError } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('id', tx.type)
+    .eq('user_id', userId)
+    .single()
+  if (accError || !acc) throw new Error("Konto saknas eller tillhör inte användaren: " + tx.type)
+
+  // 3. Räkna ut moms- och nettobelopp exakt
+  const vatRate = tx.vat_rate || 0
+  const vatAmount = vatRate > 0
+    ? Math.round((tx.amount - (tx.amount / (1 + vatRate / 100))) * 100) / 100
+    : 0
+  const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
+
+  // 4. Hämta det senaste verifikationsnumret — TX1 och TX2 delar samma ver_nr
+  const { data: lastEntries } = await supabase
+    .from('journal_entries')
+    .select('ver_nr')
+    .eq('user_id', userId)
+    .order('ver_nr', { ascending: false })
+    .limit(1)
+  const currentVerNr = lastEntries && lastEntries.length > 0 ? lastEntries[0].ver_nr + 1 : 1
+
+  // 5. Unikt grupp-id för att kedja ihop de två transaktionerna
+  const periodizationGroupId = crypto.randomUUID()
+
+  // ── TRANSAKTION 1: Innevarande år ──────────────────────────────────────────
+  const { data: insertedTx1, error: errorTx1 } = await supabase
+    .from('transactions')
+    .insert([{
+      user_id: userId,
+      date: tx.date,
+      description: `[Periodisering 1/2] ${tx.description}`,
+      amount: tx.amount,
+      type: tx.type,
+      vat_rate: vatRate,
+      file_url: tx.file_url || null,
+      booked: true,
+      is_periodized: true,
+      is_periodized_reversal: false,
+      periodized_future_date: tx.future_date,
+      periodization_group_id: periodizationGroupId,
+    }])
+    .select()
+    .single()
+  if (errorTx1) throw errorTx1
+
+  const tx1Journal: any[] = [
+    {
+      transaction_id: insertedTx1.id,
+      ver_nr: currentVerNr,
+      account_number: acc.credit_account, // 1930 Bank K
+      debit: 0,
+      credit: tx.amount,
+      description: `Förutbetald kostnad (Bank): ${tx.description}`,
+      date: tx.date,
+      user_id: userId,
+    },
+    {
+      transaction_id: insertedTx1.id,
+      ver_nr: currentVerNr,
+      account_number: '1790', // Förutbetalda kostnader D (netto)
+      debit: netAmount,
+      credit: 0,
+      description: `Förutbetald kostnad (Netto): ${tx.description}`,
+      date: tx.date,
+      user_id: userId,
+    },
+  ]
+  if (vatAmount > 0) {
+    tx1Journal.push({
+      transaction_id: insertedTx1.id,
+      ver_nr: currentVerNr,
+      account_number: '2641', // Ingående moms D — dras direkt år 1
+      debit: vatAmount,
+      credit: 0,
+      description: `Ingående moms (Periodisering): ${tx.description}`,
+      date: tx.date,
+      user_id: userId,
+    })
+  }
+
+  const { error: jError1 } = await supabase.from('journal_entries').insert(tx1Journal)
+  if (jError1) throw jError1
+
+  // ── TRANSAKTION 2: Nästa år (vändningsverifikat) ───────────────────────────
+  const { data: insertedTx2, error: errorTx2 } = await supabase
+    .from('transactions')
+    .insert([{
+      user_id: userId,
+      date: tx.future_date,
+      description: `[Periodisering 2/2] ${tx.description}`,
+      amount: netAmount,
+      type: tx.type,
+      vat_rate: 0, // Momsen är redan färdigdragen år 1
+      file_url: tx.file_url || null,
+      booked: true,
+      is_periodized: true,
+      is_periodized_reversal: true,
+      periodized_future_date: null,
+      periodization_group_id: periodizationGroupId,
+    }])
+    .select()
+    .single()
+  if (errorTx2) throw errorTx2
+
+  const tx2Journal: any[] = [
+    {
+      transaction_id: insertedTx2.id,
+      ver_nr: currentVerNr,
+      account_number: '1790', // Förutbetalda kostnader K — nollas ut
+      debit: 0,
+      credit: netAmount,
+      description: `Förutbetald kostnad upplöst: ${tx.description}`,
+      date: tx.future_date,
+      user_id: userId,
+    },
+    {
+      transaction_id: insertedTx2.id,
+      ver_nr: currentVerNr,
+      account_number: acc.debit_account, // Faktiskt kostnadskonto D (t.ex. 5010)
+      debit: netAmount,
+      credit: 0,
+      description: `Periodiserad kostnad aktiveras: ${tx.description}`,
+      date: tx.future_date,
+      user_id: userId,
+    },
+  ]
+
+  const { error: jError2 } = await supabase.from('journal_entries').insert(tx2Journal)
+  if (jError2) throw jError2
+
+  return { success: true, ver_nr: currentVerNr }
+}
+
 export async function getNEData(year: number) {
   const balances = await getAccountBalances(year)
 
@@ -280,6 +437,10 @@ export async function getNEData(year: number) {
 
   const bank = balances['1930'] || 0
 
+  // Konto 1790 — Förutbetalda kostnader (uppstår vid periodisering)
+  // Positiv balans = debet = tillgång i balansräkningen
+  const B13_forutbetalda = Math.max(0, balances['1790'] || 0)
+
   return {
     R1, R2, R5, R6, R7, R8,
     bokfortResultat: bokfRes,
@@ -287,5 +448,6 @@ export async function getNEData(year: number) {
     R11, R12, R14,
     IB_kapital, insattningar, uttag,
     bank, B10_total, B16,
+    B13_forutbetalda,
   }
 }
