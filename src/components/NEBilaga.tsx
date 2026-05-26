@@ -22,6 +22,9 @@ interface NEData {
 
 interface NEBilagaProps {
   neData: NEData | null;
+  selectedYear: number;
+  isYearLocked: boolean;
+  onLockYear: () => Promise<void>;
 }
 
 function fmt(value: number | undefined | null): string {
@@ -57,20 +60,23 @@ function Tooltip({ text }: { text: string }) {
   )
 }
 
-export default function NEBilaga({ neData }: NEBilagaProps) {
+export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYear }: NEBilagaProps) {
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
   const R14 = neData.R14 ?? 0
   const r14Color = R14 > 0 ? 'text-green-600' : R14 < 0 ? 'text-red-500' : 'text-gray-400'
   const r14Bg   = R14 > 0 ? 'bg-green-50 border-green-200' : R14 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
 
-  // Balanskontroll — triggar bara när bank är positivt (pengar inne).
+// Balanskontroll — triggar bara när bank är positivt (pengar inne).
   // Vid negativt resultat/bank är matematiken korrekt och ska ej varna.
   const bank = neData.bank ?? 0
   const b10 = neData.B10_total ?? 0
   const b16 = neData.B16 ?? 0
+  const b13_periodiserat = neData.B13_forutbetalda ?? 0 // <-- Hämtar din periodisering (konto 1790)
+
+  // Plussa ihop bank + periodisering på tillgångssidan innan skulder/kapital dras av
   const balansDiff = bank > 0
-    ? Math.round((bank - (b10 + b16)) * 100) / 100
+    ? Math.round(((bank + b13_periodiserat) - (b10 + b16)) * 100) / 100
     : 0
 
   return (
@@ -202,6 +208,29 @@ export default function NEBilaga({ neData }: NEBilagaProps) {
             </div>
           </div>
         </div>
+
+        {/* Låsningsknapp */}
+        <div className="mt-8 pt-6 border-t border-dashed border-gray-200 flex justify-end">
+          {isYearLocked ? (
+            <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+              <span>🔒</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                Räkenskapsår {selectedYear} är låst
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={onLockYear}
+              className="group flex items-center gap-2 bg-gray-800 hover:bg-red-700 text-white rounded-2xl px-6 py-3 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <span className="text-base">🔒</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                Lås räkenskapsår {selectedYear}
+              </span>
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   )

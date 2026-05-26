@@ -7,8 +7,20 @@ async function getUserId() {
   return user.id
 }
 
+// BACKEND-SKYDD: Kastar fel om räkenskapsåret är låst (Fixad med sträng-slice för att undvika tidszonsförskjutningar)
+async function assertYearOpen(date: string) {
+  const year = parseInt(date.slice(0, 4))
+  const locked = await isYearClosed(year)
+  if (locked) {
+    throw new Error(`Räkenskapsår ${year} är låst för ändringar.`)
+  }
+}
+
 export async function bookTransaction(tx: any) {
   const userId = await getUserId()
+  
+  // Säkerställ att året är öppet innan bokföring sker
+  await assertYearOpen(tx.date)
 
   // SÄKERHETSBÄLTE: Filtrera kontohämtning på användarens eget ID
   const { data: acc, error: accError } = await supabase
@@ -120,6 +132,56 @@ export async function bookTransaction(tx: any) {
   if (updateError) throw updateError
 }
 
+// BACKEND-SKYDD FÖR REDIGERING: Helt skyddad mot payload-manipulation och otillåtna ändringar
+export async function updateTransaction(txId: string, updates: any) {
+  const userId = await getUserId()
+
+  // Hämta befintlig transaktion från databasen
+  const { data: existing, error: fetchError } = await supabase
+    .from('transactions')
+    .select('date, user_id, booked')
+    .eq('id', txId)
+    .eq('user_id', userId)
+    .single()
+
+  if (fetchError || !existing) throw new Error("Transaktionen hittades inte eller tillhör inte dig.")
+
+  // 1. Kontrollera att det befintliga datumets år är öppet
+  await assertYearOpen(existing.date)
+  
+  // 2. Kontrollera att det nya önskade datumets år också är öppet (om datumet ändras)
+  if (updates.date) {
+    await assertYearOpen(updates.date)
+  }
+
+  // 3. REVISIONSKONTROLL (GPT-5): Om transaktionen redan är bokförd, tillåt INTE ändring av ekonomisk data
+  if (existing.booked && (
+    updates.amount !== undefined ||
+    updates.type !== undefined ||
+    updates.vat_rate !== undefined
+  )) {
+    throw new Error("Bokförda och låsta transaktioner får inte ändras i belopp, kategori eller moms.")
+  }
+
+  // 4. WHITELISTING PAYLOAD (GPT-5): Filtrera bort eventuellt skadliga fält som injicerats (t.ex. user_id eller booked)
+  const safeUpdates: any = {}
+  if (updates.date !== undefined) safeUpdates.date = updates.date
+  if (updates.description !== undefined) safeUpdates.description = updates.description
+  if (updates.amount !== undefined) safeUpdates.amount = updates.amount
+  if (updates.type !== undefined) safeUpdates.type = updates.type
+  if (updates.vat_rate !== undefined) safeUpdates.vat_rate = updates.vat_rate
+  if (updates.file_url !== undefined) safeUpdates.file_url = updates.file_url
+
+  // Utför den säkra uppdateringen
+  const { error: updateError } = await supabase
+    .from('transactions')
+    .update(safeUpdates)
+    .eq('id', txId)
+    .eq('user_id', userId)
+
+  if (updateError) throw updateError
+}
+
 export async function getAccountBalances(year: number) {
   const startDate = `${year}-01-01`
   const endDate = `${year}-12-31`
@@ -157,6 +219,18 @@ export async function getAccountBalances(year: number) {
 export async function deleteTransaction(id: string) {
   const userId = await getUserId()
 
+  // SÄKERHETSBÄLTE: Hämta transaktionen först för att veta vilket datum/år den tillhör
+  const { data: tx, error: fetchError } = await supabase
+    .from('transactions')
+    .select('date')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single()
+  if (fetchError || !tx) throw new Error("Transaktionen hittades inte.")
+  
+  // Säkerställ att året är öppet innan radering sker
+  await assertYearOpen(tx.date)
+
   // SÄKERHETSBÄLTE: Tillåt bara radering av egna journalrader och transaktioner
   const { error: journalError } = await supabase
     .from('journal_entries')
@@ -175,6 +249,10 @@ export async function deleteTransaction(id: string) {
 
 export async function createCorrectionTransaction(originalTxId: string): Promise<number> {
   const userId = await getUserId()
+  const today = new Date().toISOString().split('T')[0]
+
+  // Säkerställ att innevarande år är öppet för att kunna skriva en korrigering idag
+  await assertYearOpen(today)
 
   // SÄKERHETSBÄLTE: Hämta originaltransaktionen och kräv att den tillhör den inloggade
   const { data: originalTx, error: txError } = await supabase
@@ -205,7 +283,6 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   const nextVerNr = (lastEntries?.[0]?.ver_nr || 0) + 1
 
   // Skapa korrigeringstransaktionen
-  const today = new Date().toISOString().split('T')[0]
   const { data: corrTx, error: corrTxError } = await supabase
     .from('transactions')
     .insert([{
@@ -243,25 +320,15 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
 
 /**
  * Periodisering: Bokför en utgift som sträcker sig över ett nyårsskifte.
- *
- * Transaktion 1 (innevarande år, t.ex. december):
- *   Kredit acc.credit_account (1930 Bank)            = bruttobelopp
- *   Debet  1790 Förutbetalda kostnader               = nettobelopp
- *   Debet  2641 Ingående moms (om moms finns)        = momsbelopp
- *
- * Transaktion 2 (nästa år, t.ex. 1 januari — vändning):
- *   Kredit 1790 Förutbetalda kostnader               = nettobelopp
- *   Debet  acc.debit_account (faktiskt kostnadskonto) = nettobelopp
- *   (Ingen moms — redan hanterad i TX1)
- *
- * Båda transaktionerna delar samma ver_nr (bokföringsmässigt korrekt).
- * periodization_group_id kopplar ihop dem för framtida UI-filtrering.
  */
 export async function bookPeriodizedTransaction(tx: any) {
-  // 1. Hämta den server-verifierade användarens ID
   const userId = await getUserId()
 
-  // 2. SÄKERHETSBÄLTE: Verifiera att kontot existerar och tillhör användaren
+  // Säkerställ att BÅDA åren (utgiftsåret samt vändningsåret) är öppna
+  await assertYearOpen(tx.date)
+  await assertYearOpen(tx.future_date)
+
+  // SÄKERHETSBÄLTE: Verifiera att kontot existerar och tillhör användaren
   const { data: acc, error: accError } = await supabase
     .from('accounts')
     .select('*')
@@ -270,14 +337,12 @@ export async function bookPeriodizedTransaction(tx: any) {
     .single()
   if (accError || !acc) throw new Error("Konto saknas eller tillhör inte användaren: " + tx.type)
 
-  // 3. Räkna ut moms- och nettobelopp exakt
   const vatRate = tx.vat_rate || 0
   const vatAmount = vatRate > 0
     ? Math.round((tx.amount - (tx.amount / (1 + vatRate / 100))) * 100) / 100
     : 0
   const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
 
-  // 4. Hämta det senaste verifikationsnumret — TX1 och TX2 delar samma ver_nr
   const { data: lastEntries } = await supabase
     .from('journal_entries')
     .select('ver_nr')
@@ -286,7 +351,6 @@ export async function bookPeriodizedTransaction(tx: any) {
     .limit(1)
   const currentVerNr = lastEntries && lastEntries.length > 0 ? lastEntries[0].ver_nr + 1 : 1
 
-  // 5. Unikt grupp-id för att kedja ihop de två transaktionerna
   const periodizationGroupId = crypto.randomUUID()
 
   // ── TRANSAKTION 1: Innevarande år ──────────────────────────────────────────
@@ -314,7 +378,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     {
       transaction_id: insertedTx1.id,
       ver_nr: currentVerNr,
-      account_number: acc.credit_account, // 1930 Bank K
+      account_number: acc.credit_account,
       debit: 0,
       credit: tx.amount,
       description: `Förutbetald kostnad (Bank): ${tx.description}`,
@@ -324,7 +388,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     {
       transaction_id: insertedTx1.id,
       ver_nr: currentVerNr,
-      account_number: '1790', // Förutbetalda kostnader D (netto)
+      account_number: '1790',
       debit: netAmount,
       credit: 0,
       description: `Förutbetald kostnad (Netto): ${tx.description}`,
@@ -336,7 +400,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     tx1Journal.push({
       transaction_id: insertedTx1.id,
       ver_nr: currentVerNr,
-      account_number: '2641', // Ingående moms D — dras direkt år 1
+      account_number: '2641',
       debit: vatAmount,
       credit: 0,
       description: `Ingående moms (Periodisering): ${tx.description}`,
@@ -357,7 +421,7 @@ export async function bookPeriodizedTransaction(tx: any) {
       description: `[Periodisering 2/2] ${tx.description}`,
       amount: netAmount,
       type: tx.type,
-      vat_rate: 0, // Momsen är redan färdigdragen år 1
+      vat_rate: 0,
       file_url: tx.file_url || null,
       booked: true,
       is_periodized: true,
@@ -373,7 +437,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     {
       transaction_id: insertedTx2.id,
       ver_nr: currentVerNr,
-      account_number: '1790', // Förutbetalda kostnader K — nollas ut
+      account_number: '1790',
       debit: 0,
       credit: netAmount,
       description: `Förutbetald kostnad upplöst: ${tx.description}`,
@@ -383,7 +447,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     {
       transaction_id: insertedTx2.id,
       ver_nr: currentVerNr,
-      account_number: acc.debit_account, // Faktiskt kostnadskonto D (t.ex. 5010)
+      account_number: acc.debit_account,
       debit: netAmount,
       credit: 0,
       description: `Periodiserad kostnad aktiveras: ${tx.description}`,
@@ -396,6 +460,30 @@ export async function bookPeriodizedTransaction(tx: any) {
   if (jError2) throw jError2
 
   return { success: true, ver_nr: currentVerNr }
+}
+
+// ── RÄKENSKAPSÅRSLÅSNING ───────────────────────────────────────────────────
+export async function isYearClosed(year: number): Promise<boolean> {
+  const userId = await getUserId()
+  const { data, error } = await supabase
+    .from('closed_years')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('year', year)
+    .maybeSingle()
+  if (error) throw new Error('Kunde inte kontrollera låsstatus: ' + error.message)
+  return data !== null
+}
+
+export async function closeYear(year: number): Promise<void> {
+  const userId = await getUserId()
+  const alreadyClosed = await isYearClosed(year)
+  if (alreadyClosed) throw new Error(`År ${year} är redan låst.`)
+
+  const { error } = await supabase
+    .from('closed_years')
+    .insert([{ user_id: userId, year, closed_at: new Date().toISOString() }])
+  if (error) throw new Error('Kunde inte låsa räkenskapsåret: ' + error.message)
 }
 
 export async function getNEData(year: number) {
@@ -436,9 +524,6 @@ export async function getNEData(year: number) {
   const B16 = Math.round((utgMoms - ingMoms) * 100) / 100
 
   const bank = balances['1930'] || 0
-
-  // Konto 1790 — Förutbetalda kostnader (uppstår vid periodisering)
-  // Positiv balans = debet = tillgång i balansräkningen
   const B13_forutbetalda = Math.max(0, balances['1790'] || 0)
 
   return {

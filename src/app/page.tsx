@@ -1,12 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction } from '@/lib/accountingService'
+import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
-import FAQ from '@/components/FAQ' // TILLAGD: Importera FAQ
+import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
 
 export default function Home() {
@@ -20,6 +20,7 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [isYearLocked, setIsYearLocked] = useState(false)
   const [transactions, setTransactions] = useState<any[]>([])
   const [balances, setBalances] = useState<any>({})
   const [neData, setNeData] = useState<any>(null)
@@ -69,6 +70,21 @@ export default function Home() {
       refreshData()
       loadKontoplanOptions()
     }
+  }, [selectedYear, user])
+
+  // Kontrollera om det valda räkenskapsåret är låst
+  useEffect(() => {
+    async function checkYearLock() {
+      if (!user) return
+      try {
+        const locked = await isYearClosed(selectedYear)
+        setIsYearLocked(locked)
+      } catch (err) {
+        console.error(err)
+        setIsYearLocked(false)
+      }
+    }
+    checkYearLock()
   }, [selectedYear, user])
 
   // Funktion för att skapa EXAKT dina 11 korrekta standardkonton till en NY användare
@@ -215,6 +231,7 @@ export default function Home() {
 
   async function handleAddTransaction(e: any) {
     e.preventDefault()
+    if (isYearLocked) return
     setUploading(true)
 
     try {
@@ -224,37 +241,21 @@ export default function Home() {
       }
 
       if (editingId) {
-        if (editingBooked) {
-          const updatePayload: any = {
-            date: formData.date,
-            description: formData.description,
-          }
-          if (fileUrl) updatePayload.file_url = fileUrl
-
-          const { error } = await supabase
-            .from('transactions')
-            .update(updatePayload)
-            .eq('id', editingId)
-          if (error) throw error
-        } else {
-          const { error } = await supabase
-            .from('transactions')
-            .update({
-              date: formData.date,
-              description: formData.description,
-              amount: Number(formData.amount),
-              type: formData.type,
-              vat_rate: formData.vatRate,
-              ...(fileUrl ? { file_url: fileUrl } : {})
-            })
-            .eq('id', editingId)
-          if (error) throw error
+        // Skickar nu med fälten till den backend-säkrade updateTransaction-funktionen
+        const updatePayload: any = {
+          date: formData.date,
+          description: formData.description,
+          amount: Number(formData.amount),
+          type: formData.type,
+          vat_rate: formData.vatRate
         }
+        if (fileUrl) updatePayload.file_url = fileUrl
+
+        await updateTransaction(editingId, updatePayload)
         setEditingId(null)
         setEditingBooked(false)
       } else {
         if (periodisera) {
-          // Periodiserad bokföring — två transaktioner skapas via accountingService
           const futureDate = `${periodMonth}-01`
           await bookPeriodizedTransaction({
             date: formData.date,
@@ -302,6 +303,7 @@ export default function Home() {
   }
 
   async function handleDelete(tx: any) {
+    if (isYearLocked) return
     const journal = journalMap[tx.id] || []
     const verNr = journal[0]?.ver_nr
 
@@ -323,6 +325,7 @@ export default function Home() {
   }
 
   const handleEdit = (tx: any) => {
+    if (isYearLocked) return
     setEditingId(tx.id)
     setEditingBooked(tx.booked === true)
     setFormData({
@@ -340,6 +343,20 @@ export default function Home() {
     setEditingId(null)
     setEditingBooked(false)
     setFormData(prev => ({ ...prev, description: '', amount: '', file: null }))
+  }
+
+  async function handleLockYear() {
+    const confirmed = confirm(
+      `Är du säker på att du vill låsa ${selectedYear}?\n\nDetta låser alla verifikationer permanent och kan inte ångras enligt god redovisningssed.`
+    )
+    if (!confirmed) return
+    try {
+      await closeYear(selectedYear)
+      setIsYearLocked(true)
+      await refreshData()
+    } catch (err: any) {
+      alert('Fel vid låsning: ' + err.message)
+    }
   }
 
   const bankSaldo = balances['1930'] || 0
@@ -642,6 +659,21 @@ export default function Home() {
             </div>
           )}
 
+          {/* Låsningsbanner — visas när räkenskapsåret är stängt */}
+          {isYearLocked && (
+            <div className="flex items-center gap-3 bg-amber-50 border-2 border-amber-300 rounded-[2rem] px-6 py-4 mb-4 shadow-sm animate-in fade-in duration-200">
+              <span className="text-xl">🔒</span>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-700">
+                  Räkenskapsår {selectedYear} är låst
+                </p>
+                <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+                  Detta räkenskapsår är låst och kan inte ändras enligt god redovisningssed.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className={`bg-white rounded-[2.5rem] border p-8 mb-6 shadow-sm transition-all ${editingId ? 'border-amber-300 shadow-amber-100' : 'border-gray-100'}`}>
             <form onSubmit={handleAddTransaction}>
               <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-4">
@@ -650,8 +682,9 @@ export default function Home() {
                   <input
                     type="date"
                     value={formData.date}
+                    disabled={isYearLocked}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    className="p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"
+                    className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                     required
                   />
                 </div>
@@ -663,8 +696,8 @@ export default function Home() {
                       const acc = kontoplan.find(k => k.id === e.target.value)
                       setFormData({ ...formData, type: e.target.value, vatRate: Number(acc?.default_vat_rate) || 0 })
                     }}
-                    disabled={editingBooked}
-                    className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'}`}
+                    disabled={editingBooked || isYearLocked}
+                    className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'} ${isYearLocked ? 'opacity-40' : ''}`}
                   >
                     {kontoplan.map(item => (
                       <option key={item.id} value={item.id}>{item.name}</option>
@@ -676,8 +709,9 @@ export default function Home() {
                   <input
                     type="text"
                     value={formData.description}
+                    disabled={isYearLocked}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    className="p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"
+                    className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                     required
                   />
                 </div>
@@ -686,8 +720,8 @@ export default function Home() {
                   <select
                     value={formData.vatRate}
                     onChange={e => setFormData({ ...formData, vatRate: Number(e.target.value) })}
-                    disabled={editingBooked}
-                    className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'}`}
+                    disabled={editingBooked || isYearLocked}
+                    className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'} ${isYearLocked ? 'opacity-40' : ''}`}
                   >
                     <option value={25}>25%</option>
                     <option value={12}>12%</option>
@@ -702,8 +736,8 @@ export default function Home() {
                     step="0.01"
                     value={formData.amount}
                     onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                    disabled={editingBooked}
-                    className={`p-3 rounded-xl outline-none font-black text-sm ${editingBooked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50'}`}
+                    disabled={editingBooked || isYearLocked}
+                    className={`p-3 rounded-xl outline-none font-black text-sm ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50'} ${isYearLocked ? 'opacity-40' : ''}`}
                     required
                   />
                 </div>
@@ -714,8 +748,8 @@ export default function Home() {
                   <div className="flex gap-2">
                     <button
                       type="submit"
-                      disabled={uploading}
-                      className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${uploading ? 'bg-gray-400' : editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                      disabled={uploading || isYearLocked}
+                      className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${uploading ? 'bg-gray-400' : isYearLocked ? 'bg-gray-300 opacity-40 cursor-not-allowed' : editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                       {uploading ? '...' : editingId ? 'Spara' : 'OK'}
                     </button>
@@ -737,8 +771,9 @@ export default function Home() {
                 <input
                   type="file"
                   accept="image/*,.pdf"
+                  disabled={isYearLocked}
                   onChange={e => setFormData({ ...formData, file: e.target.files?.[0] || null })}
-                  className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200 cursor-pointer"
+                  className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 />
                 {formData.file && (
                   <span className="text-[9px] text-emerald-500 font-bold">{formData.file.name}</span>
@@ -747,12 +782,13 @@ export default function Home() {
 
               {/* ── PERIODISERING ─────────────────────────────────────────── */}
               {!editingId && (
-                <div className={`mt-4 rounded-2xl border-2 transition-all duration-200 ${periodisera ? 'border-blue-300 bg-blue-50/60' : 'border-gray-100 bg-gray-50/40'}`}>
+                <div className={`mt-4 rounded-2xl border-2 transition-all duration-200 ${periodisera ? 'border-blue-300 bg-blue-50/60' : 'border-gray-100 bg-gray-50/40'} ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <label className="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none">
                     <div className="relative">
                       <input
                         type="checkbox"
                         checked={periodisera}
+                        disabled={isYearLocked}
                         onChange={e => setPeriodisera(e.target.checked)}
                         className="sr-only peer"
                       />
@@ -769,7 +805,7 @@ export default function Home() {
                     </div>
                   </label>
 
-                  {periodisera && (
+                  {periodisera && !isYearLocked && (
                     <div className="px-5 pb-4 flex flex-wrap items-end gap-6 border-t border-blue-100">
                       <div className="flex flex-col gap-1 mt-3">
                         <label className="text-[9px] font-black text-blue-500 uppercase ml-1">
@@ -904,7 +940,7 @@ export default function Home() {
                         </td>
                         <td className="p-8 text-right pr-12">
                           <div className="flex items-center justify-end gap-4">
-                            {!isCorrection && (
+                            {!isCorrection && !isYearLocked && (
                               <button
                                 onClick={() => handleEdit(tx)}
                                 className="text-gray-200 hover:text-emerald-600 transition-colors"
@@ -913,7 +949,7 @@ export default function Home() {
                                 ✎
                               </button>
                             )}
-                            {!isCorrection && (
+                            {!isCorrection && !isYearLocked && (
                               <button
                                 onClick={() => handleDelete(tx)}
                                 className="text-red-100 hover:text-red-500 font-bold transition-colors"
@@ -939,7 +975,12 @@ export default function Home() {
       ) : activeTab === 'faq' ? (
         <FAQ />
       ) : (
-        <NEBilaga neData={neData} />
+        <NEBilaga
+          neData={neData}
+          selectedYear={selectedYear}
+          isYearLocked={isYearLocked}
+          onLockYear={handleLockYear}
+        />
       )}
     </Layout>
   )
