@@ -67,7 +67,7 @@ export default function FAQ() {
                 </CodeBox>
 
                 <p className="text-xs italic text-gray-400">
-                  Detta är en teknisk startbokning för att få balans i systemet — den påverkar inte dina faktiska pengar.
+                  Dette är en teknisk startbokning för att få balans i systemet — den påverkar inte dina faktiska pengar.
                 </p>
 
                 <p className="text-xs italic text-gray-400">
@@ -142,16 +142,16 @@ export default function FAQ() {
                 </ul>
 
                 <CodeBox>
-  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
-  <p className="mb-2">
-    <b>1. Om du ska BETALA moms (Skuld):</b><br />
-    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2500.00</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
-  </p>
-  <p>
-    <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
-    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
-  </p>
-</CodeBox>
+                  <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
+                  <p className="mb-2">
+                    <b>1. Om du ska BETALA moms (Skuld):</b><br />
+                    When du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2500.00</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
+                  </p>
+                  <p>
+                    <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
+                    When Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
+                  </p>
+                </CodeBox>
               </div>
             }
           />
@@ -171,13 +171,13 @@ export default function FAQ() {
                 <CodeBox>
                   <p className="font-bold text-gray-700 mb-1">Hur det bokförs:</p>
                   <p>Utgiften ska fortfarande dras som en vanlig kostnad i företaget. Skillnaden är att motkontot blir en <Tag>Egen insättning (2018)</Tag> istället för företagets bankkonto (<Tag>1930</Tag>).</p>
-                  <p className="mt-2 text-gray-500"><i>Tips: Lägg till ett konto i din Kontoplan (t.ex. "Privat utlägg") inställt på ditt önskade kostnadskonto som Debet, och konto 2018 som Kredit.</i></p>
+                  <p className="mt-2 text-gray-500"><i>Tips: Lägg till et konto i din Kontoplan (t.ex. "Privat utlägg") inställt på ditt önskade kostnadskonto som Debet, och konto 2018 som Kredit.</i></p>
                 </CodeBox>
               </div>
             }
           />
 
-<hr className="border-gray-100" />
+          <hr className="border-gray-100" />
 
           {/* PERIODISERING */}
           <Section
@@ -351,6 +351,41 @@ export default function FAQ() {
                 <p className="text-xs italic text-gray-400">
                   Du behöver inte räkna om något manuellt.
                 </p>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
+          {/* SÄKERHET OCH DATASKYDD */}
+          <Section
+            icon="🛡️"
+            iconColor="text-emerald-600"
+            title="Säkerhet, Integritet & Dataskydd"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Vi tar din datasäkerhet på största allvar. SoloLedger är byggt med modern infrastruktur i bankklass för att säkerställa att din finansiella historik förblir helt privat, intakt och skyddad.
+                </p>
+
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Isolerad databehandling (Row-Level Security):</b> Genom strikt verifiering via Supabase är din data helt avskärmad från andra användare. Det är tekniskt omöjligt för obehöriga att se eller komma åt din bokföring.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Kryptering hela vägen:</b> All information som skickas mellan din webbläsare och appen skyddas av SSL/TLS-kryptering. Din data krypteras även vid lagring i databasen.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Säkra sessioner:</b> Lösenord hanteras aldrig i klartext. Inloggningar skyddas med krypterade säkerhetstokens som valideras i realtid på servernivå vid varje enskilt klick.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500 mt-0.5">▸</span>
+                    <span><b>Serververifierat bokföringsskydd:</b> Systemet verifierar alltid ditt unika användar-ID i bakgrunden innan en rad sparas eller ändras. När du låser ett räkenskapsår fryses datan permanent på servernivå mot efterföljande payload-manipulation.</span>
+                  </li>
+                </ul>
               </div>
             }
           />
