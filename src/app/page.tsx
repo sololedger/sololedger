@@ -233,13 +233,21 @@ export default function Home() {
     e.preventDefault()
     if (isYearLocked) return
     setUploading(true)
-
+  
     try {
+      // ── SÄKERHETSBÄLTE (FRONTEND-DATUMBOKNING) ──────────────────────────────
+      const targetYear = parseInt(formData.date.slice(0, 4))
+      const isTargetYearClosed = await isYearClosed(targetYear)
+      if (isTargetYearClosed) {
+        throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
+      }
+      // ──────────────────────────────────────────────────────────────────────────
+  
       let fileUrl = ''
       if (formData.file) {
         fileUrl = await handleFileUpload(formData.file)
       }
-
+  
       if (editingId) {
         // Skickar nu med fälten till den backend-säkrade updateTransaction-funktionen
         const updatePayload: any = {
