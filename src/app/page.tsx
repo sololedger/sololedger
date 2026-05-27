@@ -12,7 +12,7 @@ import Momsrapport from '@/components/Momsrapport'
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  
+
   // Auth-state för formuläret
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
@@ -117,7 +117,7 @@ export default function Home() {
       if (isRegistering) {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        
+
         if (data.user) {
           await setupDefaultAccounts(data.user.id)
           alert('Konto skapat! Du loggas nu in.')
@@ -233,7 +233,7 @@ export default function Home() {
     e.preventDefault()
     if (isYearLocked) return
     setUploading(true)
-  
+
     try {
       // ── SÄKERHETSBÄLTE (FRONTEND-DATUMBOKNING) ──────────────────────────────
       const targetYear = parseInt(formData.date.slice(0, 4))
@@ -242,12 +242,12 @@ export default function Home() {
         throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
       }
       // ──────────────────────────────────────────────────────────────────────────
-  
+
       let fileUrl = ''
       if (formData.file) {
         fileUrl = await handleFileUpload(formData.file)
       }
-  
+
       if (editingId) {
         // Skickar nu med fälten till den backend-säkrade updateTransaction-funktionen
         const updatePayload: any = {
@@ -426,13 +426,13 @@ export default function Home() {
             className="w-full bg-gray-50 rounded-2xl p-4 mb-6 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
             required
           />
-          
+
           <button type="submit" className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4">
             {isRegistering ? 'Registrera dig' : 'Logga in'}
           </button>
 
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setIsRegistering(!isRegistering)}
             className="text-[10px] text-gray-400 hover:text-emerald-600 font-black uppercase tracking-wider transition-colors"
           >
@@ -452,7 +452,7 @@ export default function Home() {
           </h1>
           <p className="text-[10px] text-gray-400 font-bold mt-0.5">Inloggad som: {user.email}</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
             <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
@@ -472,7 +472,7 @@ export default function Home() {
             Export SIE
           </button>
 
-          <button 
+          <button
             onClick={handleLogout}
             className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-400 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
           >
@@ -487,7 +487,7 @@ export default function Home() {
             <h2 className="text-[10px] font-black uppercase text-emerald-600 tracking-wider mb-4 px-2">
               Översikt: SoloLedger / Bokföring / Kontoplan / NE Bilaga
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center uppercase tracking-tighter font-black">
               <button
                 onClick={() => setActiveModal('bank')}
@@ -863,13 +863,12 @@ export default function Home() {
                     return (
                       <tr
                         key={tx.id}
-                        className={`transition-colors ${
-                          isCorrection
+                        className={`transition-colors ${isCorrection
                             ? 'bg-amber-50/60 opacity-75'
                             : editingId === tx.id
-                            ? 'bg-amber-50/50'
-                            : 'hover:bg-gray-50/50'
-                        }`}
+                              ? 'bg-amber-50/50'
+                              : 'hover:bg-gray-50/50'
+                          }`}
                       >
                         <td className="p-8 font-bold text-gray-400 text-sm">
                           {isCorrection ? (
@@ -919,7 +918,13 @@ export default function Home() {
                             </a>
                           )}
                         </td>
-                        <td className={`p-8 text-right font-black text-lg ${isCorrection ? 'text-amber-400 line-through' : 'text-gray-700'}`}>
+                        <td className={`p-8 text-right font-black text-lg ${isCorrection
+                            ? 'text-amber-400 line-through'
+                            : tx.type?.toLowerCase() === 'försäljning'
+                              ? 'text-emerald-600'
+                              : 'text-rose-600'
+                          }`}>
+                          {!isCorrection && (tx.type?.toLowerCase() === 'försäljning' ? '+ ' : '- ')}
                           {tx.amount.toLocaleString()} kr
                         </td>
                         <td className="p-8">
@@ -931,11 +936,10 @@ export default function Home() {
                                 return (
                                   <span
                                     key={e.id}
-                                    className={`inline-flex items-center gap-0.5 border rounded-lg px-2 py-1 font-mono text-[10px] font-bold ${
-                                      isCorrection
+                                    className={`inline-flex items-center gap-0.5 border rounded-lg px-2 py-1 font-mono text-[10px] font-bold ${isCorrection
                                         ? 'bg-amber-50 border-amber-100 text-amber-400'
                                         : 'bg-gray-50 border-gray-100 text-gray-500'
-                                    }`}
+                                      }`}
                                   >
                                     {e.account_number}
                                     <span className={isDebit ? 'text-emerald-500' : 'text-orange-400'}>
