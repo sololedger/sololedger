@@ -33,7 +33,13 @@ export default function Home() {
   const [neData, setNeData] = useState<any>(null)
   const [journalMap, setJournalMap] = useState<any>({})
   const [kontoplan, setKontoplan] = useState<any[]>([])
-  const [taxRate, setTaxRate] = useState(30)
+  const [taxRate, setTaxRate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('solo_tax_rate')
+      return saved ? Number(saved) : 30
+    }
+    return 30
+  })
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
 
   // Formulär-state
@@ -71,6 +77,10 @@ export default function Home() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('solo_tax_rate', taxRate.toString())
+  }, [taxRate])
 
   useEffect(() => {
     if (user) {
