@@ -45,8 +45,13 @@ export default function TransactionTable({
               const journal = journalMap[tx.id] || []
               const isCorrection = tx.is_correction === true
 
+              // 1. Kolla om denna rad har blivit korrigerad av en korrigeringsverifikation
+              // (Vi letar efter en rad där is_correction är sant och som matchar beskrivningen)
+              const hasBeenCorrected = !isCorrection && transactions.some(
+                t => t.is_correction === true && t.description.includes(tx.description)
+              )
+
               // Robust inkomstcheck: kolla credit_account på kontodefinitionen
-              // istället för kontonamnet — fungerar oavsett vad kontot heter
               const accountDef = kontoplan.find(k => k.id === tx.type)
               const isIncome = accountDef?.credit_account?.startsWith('3') ?? false
 
@@ -56,9 +61,11 @@ export default function TransactionTable({
                   className={`transition-colors ${
                     isCorrection
                       ? 'bg-amber-50/60 opacity-75'
-                      : editingId === tx.id
-                        ? 'bg-amber-50/50'
-                        : 'hover:bg-gray-50/50'
+                      : hasBeenCorrected
+                        ? 'bg-gray-50/40 opacity-50' // <── Tona ner ursprungskorrigerade rader
+                        : editingId === tx.id
+                          ? 'bg-amber-50/50'
+                          : 'hover:bg-gray-50/50'
                   }`}
                 >
                   <td className="p-8 font-bold text-gray-400 text-sm">
@@ -82,7 +89,7 @@ export default function TransactionTable({
                         </p>
                       ) : (
                         <p className="text-[10px] font-black text-emerald-500 uppercase">
-                          {kontoplan.find(k => k.id === tx.type)?.name || tx.type}
+                          {accountDef?.name || tx.type}
                         </p>
                       )}
                       {!isCorrection && (
@@ -90,13 +97,19 @@ export default function TransactionTable({
                           Moms: {tx.vat_rate}%
                         </span>
                       )}
-                      {tx.booked && !isCorrection && (
+                      {(tx.booked || hasBeenCorrected) && !isCorrection && (
                         <span className="text-[8px] font-black uppercase text-gray-300 border border-gray-200 px-1.5 py-0.5 rounded-md">
-                          Låst
+                          {hasBeenCorrected ? 'Korrigerad' : 'Låst'}
                         </span>
                       )}
                     </div>
-                    <p className={`font-bold ${isCorrection ? 'text-amber-600 text-xs pl-4 border-l-2 border-amber-200' : 'text-gray-700'}`}>
+                    <p className={`font-bold ${
+                      isCorrection 
+                        ? 'text-amber-600 text-xs pl-4 border-l-2 border-amber-200' 
+                        : hasBeenCorrected
+                          ? 'text-gray-400 line-through' // <── Stryk över texten på den gamla raden
+                          : 'text-gray-700'
+                    }`}>
                       {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
                     </p>
                     {tx.file_url && (
@@ -112,13 +125,13 @@ export default function TransactionTable({
                   </td>
 
                   <td className={`p-8 text-right font-black text-lg ${
-                    isCorrection
-                      ? 'text-amber-400 line-through'
+                    isCorrection || hasBeenCorrected
+                      ? 'text-gray-400 line-through' // <── Gör beloppet grått och överstruket
                       : isIncome
                         ? 'text-emerald-600'
                         : 'text-rose-600'
                   }`}>
-                    {!isCorrection && (isIncome ? '+ ' : '- ')}
+                    {!isCorrection && !hasBeenCorrected && (isIncome ? '+ ' : '- ')}
                     {tx.amount.toLocaleString()} kr
                   </td>
 
@@ -132,8 +145,8 @@ export default function TransactionTable({
                             <span
                               key={e.id}
                               className={`inline-flex items-center gap-0.5 border rounded-lg px-2 py-1 font-mono text-[10px] font-bold ${
-                                isCorrection
-                                  ? 'bg-amber-50 border-amber-100 text-amber-400'
+                                isCorrection || hasBeenCorrected
+                                  ? 'bg-gray-50/50 border-gray-100 text-gray-300 line-through' // <── Dämpa även bokföringskontona
                                   : 'bg-gray-50 border-gray-100 text-gray-500'
                               }`}
                             >
@@ -149,7 +162,7 @@ export default function TransactionTable({
 
                   <td className="p-8 text-right pr-12">
                     <div className="flex items-center justify-end gap-4">
-                      {!isCorrection && !isYearLocked && (
+                      {!isCorrection && !isYearLocked && !hasBeenCorrected && (
                         <button
                           onClick={() => onEdit(tx)}
                           className="text-gray-200 hover:text-emerald-600 transition-colors"
@@ -158,7 +171,7 @@ export default function TransactionTable({
                           ✎
                         </button>
                       )}
-                      {!isCorrection && !isYearLocked && (
+                      {!isCorrection && !isYearLocked && !hasBeenCorrected && (
                         <button
                           onClick={() => onDelete(tx)}
                           className="text-red-100 hover:text-red-500 font-bold transition-colors"
