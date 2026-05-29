@@ -226,6 +226,7 @@ useEffect(() => {
       const [txData, balanceData, neRes] = await Promise.all([
         supabase.from('transactions')
           .select('*')
+          .eq('user_id', user.id)
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', { ascending: false }),
