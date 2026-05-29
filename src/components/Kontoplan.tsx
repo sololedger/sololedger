@@ -29,13 +29,27 @@ export default function Kontoplan() {
     loadKontoplan()
   }, [])
 
+  // SÄKRAD HÄMTNING: Hämtar användaren och filtrerar baserat på user_id
   async function loadKontoplan() {
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .order('name')
-    if (error) { console.error(error); return }
-    if (data) setKontoplan(data)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user.id) // ✅ Säkrat med RLS-filter
+        .order('name')
+
+      if (error) {
+        console.error(error)
+        return
+      }
+
+      if (data) setKontoplan(data)
+    } catch (err) {
+      console.error('Kunde inte ladda kontoplan:', err)
+    }
   }
 
   function applyForslag(forslag: any) {
@@ -58,7 +72,6 @@ export default function Kontoplan() {
     setSaving(true)
     
     try {
-      // FIX: Hämta den inloggade användaren direkt från Supabase Auth så att vi kan passera RLS-säkerhetsregeln
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) throw new Error("Hittade ingen inloggad användare.")
 
@@ -69,7 +82,7 @@ export default function Kontoplan() {
         credit_account: newAccount.credit_account.trim(),
         default_vat_rate: Number(newAccount.default_vat_rate),
         comment: newAccount.comment.trim(),
-        user_id: user.id // <--- FIX: Skicka med user_id i anropet!
+        user_id: user.id
       }])
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })
@@ -82,11 +95,29 @@ export default function Kontoplan() {
     }
   }
 
+  // SÄKRAD RADERING: Kräver matchning på både id och user_id i koden
   async function handleDelete(id: string) {
     if (!confirm(`Radera kontot "${id}"? Det påverkar inte redan bokförda transaktioner.`)) return
-    const { error } = await supabase.from('accounts').delete().eq('id', id)
-    if (error) { alert('Kunde inte radera: ' + error.message); return }
-    await loadKontoplan()
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('accounts')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id) // ✅ Explicit säkerhet även vid radering
+
+      if (error) {
+        alert('Kunde inte radera: ' + error.message)
+        return
+      }
+      
+      await loadKontoplan()
+    } catch (err: any) {
+      console.error(err)
+    }
   }
 
   return (
@@ -214,16 +245,23 @@ export default function Kontoplan() {
                   <p className="font-black text-gray-800">{acc.name}</p>
                   <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
                 </td>
+                
+                {/* 🎨 Uppdaterade och snygga Debet-badges */}
                 <td className="p-6">
-                  <span className="font-mono font-black text-emerald-500 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg text-xs">
-                    {acc.debit_account} D
+                  <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
+                    <span>{acc.debit_account}</span>
+                    <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
                   </span>
                 </td>
+                
+                {/* 🎨 Uppdaterade och snygga Kredit-badges */}
                 <td className="p-6">
-                  <span className="font-mono font-black text-orange-400 bg-orange-50 border border-orange-100 px-2 py-1 rounded-lg text-xs">
-                    {acc.credit_account} K
+                  <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
+                    <span>{acc.credit_account}</span>
+                    <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
                   </span>
                 </td>
+                
                 <td className="p-6 font-bold text-gray-400 text-xs">
                   {acc.default_vat_rate > 0 ? `${acc.default_vat_rate}%` : '—'}
                 </td>

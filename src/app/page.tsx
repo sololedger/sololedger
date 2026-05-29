@@ -157,9 +157,7 @@ useEffect(() => {
           await setupDefaultAccounts(userId)
         }
       
-        alert('Konto skapat! Du loggas nu in.')
-      }
-      
+        alert('Konto skapat! Du loggas nu in.')      
 
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
