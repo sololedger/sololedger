@@ -55,41 +55,66 @@ export default function Home() {
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
-  // Lyssna på om en användare är inloggad via Supabase Auth
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+ // Lyssna på om en användare är inloggad via Supabase Auth
+ useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null)
+    setLoading(false)
+  })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null)
+  })
 
-    return () => subscription.unsubscribe()
-  }, [])
+  return () => subscription.unsubscribe()
+}, [])
 
-  useEffect(() => {
-    if (user) {
+// Kontrollera kontoplan (och skapa standardkonton om det är tomt), samt ladda data
+useEffect(() => {
+  if (!user) return
+
+  async function ensureAccountsAndLoadData() {
+    try {
+      // 1. Kolla om användaren redan har minst ett konto i databasen
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+
+      if (error) throw error
+
+      // 2. Om listan är helt tom, skapa standardkontona automatiskt
+      if (!data || data.length === 0) {
+        console.log("Ingen kontoplan hittades för användaren. Skapar standardkonton...")
+        await setupDefaultAccounts(user.id)
+      }
+    } catch (err) {
+      console.error("Fel vid kontroll av kontoplan:", err)
+    } finally {
+      // 3. När konton garanterat finns (eller har skapats), hämta resten av datan
       refreshData()
       loadKontoplanOptions()
     }
-  }, [selectedYear, user])
+  }
 
-  // Kontrollera om det valda räkenskapsåret är låst
-  useEffect(() => {
-    async function checkYearLock() {
-      if (!user) return
-      try {
-        const locked = await isYearClosed(selectedYear)
-        setIsYearLocked(locked)
-      } catch (err) {
-        console.error(err)
-        setIsYearLocked(false)
-      }
+  ensureAccountsAndLoadData()
+}, [selectedYear, user])
+
+// Kontrollera om det valda räkenskapsåret är låst
+useEffect(() => {
+  async function checkYearLock() {
+    if (!user) return
+    try {
+      const locked = await isYearClosed(selectedYear)
+      setIsYearLocked(locked)
+    } catch (err) {
+      console.error(err)
+      setIsYearLocked(false)
     }
-    checkYearLock()
-  }, [selectedYear, user])
+  }
+  checkYearLock()
+}, [selectedYear, user])
 
   // Funktion för att skapa EXAKT dina 11 korrekta standardkonton till en NY användare
   async function setupDefaultAccounts(userId: string) {
