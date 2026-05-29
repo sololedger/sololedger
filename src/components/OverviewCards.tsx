@@ -20,6 +20,13 @@ export default function OverviewCards({
   activeModal,
   balances,
 }: OverviewCardsProps) {
+  // Bygg ett set av alla ver_nr som har blivit korrigerade
+  const neutralizedVerNrs = new Set(
+    transactions
+      .filter(tx => tx.is_correction && tx.corrects_ver_nr != null)
+      .map(tx => tx.corrects_ver_nr)
+  )
+
   return (
     <>
       {/* ── ÖVERSIKTSKORT ─────────────────────────────────────────── */}
@@ -142,6 +149,8 @@ export default function OverviewCards({
 
                     const amount = Number(bankEntry.debit) - Number(bankEntry.credit)
                     const isCorrection = tx.is_correction === true
+                    const verNr = journal[0]?.ver_nr
+                    const isNeutralized = !isCorrection && verNr != null && neutralizedVerNrs.has(verNr)
 
                     return (
                       <div
@@ -149,11 +158,19 @@ export default function OverviewCards({
                         className={`flex justify-between items-center rounded-2xl px-4 py-3 transition-all ${
                           isCorrection
                             ? 'bg-amber-50/60 opacity-60'
+                            : isNeutralized
+                            ? 'bg-gray-50/40 opacity-50'
                             : 'bg-gray-50/60 hover:bg-gray-100/60'
                         }`}
                       >
                         <div>
-                          <p className={`font-bold text-sm ${isCorrection ? 'text-amber-500 line-through' : 'text-gray-700'}`}>
+                          <p className={`font-bold text-sm ${
+                            isCorrection
+                              ? 'text-amber-500 line-through'
+                              : isNeutralized
+                              ? 'text-gray-300 line-through'
+                              : 'text-gray-700'
+                          }`}>
                             {isCorrection
                               ? `↩ ${tx.description.replace('↩ ', '')}`
                               : tx.description}
@@ -163,6 +180,8 @@ export default function OverviewCards({
                         <span className={`font-black text-sm tabular-nums ${
                           isCorrection
                             ? 'text-amber-400 line-through'
+                            : isNeutralized
+                            ? 'text-gray-300 line-through'
                             : amount >= 0
                             ? 'text-emerald-600'
                             : 'text-red-500'
@@ -174,21 +193,11 @@ export default function OverviewCards({
                   }).filter(Boolean)}
                 </div>
 
-                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-col gap-2 font-black uppercase tracking-tighter text-[11px] text-gray-500">
-                  <div className="flex justify-between items-center">
-                    <span>Tot Försäljning</span>
-                    <span className="text-emerald-600">+{data.intakter.toLocaleString('sv-SE')} kr</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Tot Kostnader</span>
-                    <span className="text-red-500">−{data.kostnader.toLocaleString('sv-SE')} kr</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-dashed border-gray-200 text-sm">
-                    <span className="text-gray-700 font-black">Aktuellt Saldo</span>
-                    <span className={`text-xl font-black ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {data.bankSaldo.toLocaleString('sv-SE')} kr
-                    </span>
-                  </div>
+                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center font-black uppercase tracking-tighter">
+                  <span className="text-[11px] text-gray-500">Aktuellt Saldo</span>
+                  <span className={`text-xl font-black ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {data.bankSaldo.toLocaleString('sv-SE')} kr
+                  </span>
                 </div>
               </>
             )}
