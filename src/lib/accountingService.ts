@@ -315,6 +315,74 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   const { error: insertError } = await supabase.from('journal_entries').insert(correctionEntries)
   if (insertError) throw new Error("Kunde inte skapa korrigeringsposter: " + insertError.message)
 
+  // ── PERIODISERINGSKORRIGERING ──────────────────────────────────────────────
+  // Om originaltransaktionen tillhör en periodiseringsgrupp (t.ex. hyra som
+  // sträcker sig över ett nyårsskifte) finns det ett vändningsverifikat i nästa
+  // år med samma periodization_group_id. Det måste också korrigeras, annars
+  // aktiveras kostnaden felaktigt i framtiden trots att ursprungsposten ångrats.
+  if (originalTx.periodization_group_id && !originalTx.is_periodized_reversal) {
+    // Hitta vändningstransaktionen (is_periodized_reversal = true) i samma grupp
+    const { data: reversalTx, error: reversalTxError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('periodization_group_id', originalTx.periodization_group_id)
+      .eq('is_periodized_reversal', true)
+      .eq('user_id', userId)
+      .single()
+
+    // Om vändningstransaktionen finns och året den tillhör är öppet → korrigera den också
+    if (!reversalTxError && reversalTx) {
+      await assertYearOpen(reversalTx.date)
+
+      const { data: reversalEntries, error: reversalEntriesError } = await supabase
+        .from('journal_entries')
+        .select('*')
+        .eq('transaction_id', reversalTx.id)
+        .eq('user_id', userId)
+      if (reversalEntriesError || !reversalEntries?.length)
+        throw new Error("Kunde inte hämta vändningsverifikatets journalposter.")
+
+      const reversalVerNr = reversalEntries[0].ver_nr
+
+      // Nästa ver_nr (ett steg efter det vi precis använde)
+      const nextVerNr2 = nextVerNr + 1
+
+      const { data: corrReversalTx, error: corrReversalTxError } = await supabase
+        .from('transactions')
+        .insert([{
+          date: reversalTx.date,
+          description: `↩ Korrigering av VER-${reversalVerNr} (${reversalTx.description})`,
+          amount: reversalTx.amount,
+          type: reversalTx.type,
+          vat_rate: reversalTx.vat_rate,
+          booked: true,
+          is_correction: true,
+          corrects_ver_nr: reversalVerNr,
+          user_id: userId,
+        }])
+        .select()
+        .single()
+      if (corrReversalTxError || !corrReversalTx)
+        throw new Error("Kunde inte skapa korrigering av vändningsverifikat: " + corrReversalTxError?.message)
+
+      const corrReversalEntries = reversalEntries.map((e: any) => ({
+        transaction_id: corrReversalTx.id,
+        ver_nr: nextVerNr2,
+        account_number: e.account_number,
+        debit: e.credit,
+        credit: e.debit,
+        description: `Korrigering av VER-${reversalVerNr}: ${e.description}`,
+        date: reversalTx.date,
+        user_id: userId,
+      }))
+
+      const { error: insertReversalError } = await supabase.from('journal_entries').insert(corrReversalEntries)
+      if (insertReversalError)
+        throw new Error("Kunde inte skapa korrigeringsposter för vändningsverifikat: " + insertReversalError.message)
+    }
+  }
+  // ── SLUT PERIODISERINGSKORRIGERING ────────────────────────────────────────
+
   return nextVerNr
 }
 
