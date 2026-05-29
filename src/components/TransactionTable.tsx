@@ -1,4 +1,5 @@
 'use client'
+import { supabase } from '@/lib/supabaseClient' // ── NY IMPORT: Krävs för lagringsanropet 🚀
 
 interface TransactionTableProps {
   transactions: any[]
@@ -103,15 +104,24 @@ export default function TransactionTable({
                       {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
                     </p>
 
+                    {/* ── UPPDATERAD OCH SÄKRAD KVITTO-KNAPP HÄR 🚀 ── */}
                     {tx.file_url && (
-                      <a
-                        href={tx.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600"
+                      <button
+                        onClick={async () => {
+                          const { data } = await supabase.storage
+                            .from('attachments')
+                            .createSignedUrl(tx.file_url, 60)
+
+                          if (data?.signedUrl) {
+                            window.open(data.signedUrl, '_blank')
+                          } else {
+                            alert("Kunde inte hämta bilagan. Kontrollera att du har behörighet.")
+                          }
+                        }}
+                        className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
                       >
                         📎 Visa bilaga
-                      </a>
+                      </button>
                     )}
                   </td>
 

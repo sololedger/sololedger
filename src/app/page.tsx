@@ -253,10 +253,10 @@ useEffect(() => {
 
   async function handleFileUpload(file: File): Promise<string> {
     const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const { error } = await supabase.storage.from('attachments').upload(fileName, file)
     if (error) throw new Error("Filuppladdning misslyckades: " + error.message)
-    return supabase.storage.from('attachments').getPublicUrl(fileName).data.publicUrl
+    return fileName
   }
 
   async function handleAddTransaction(e: any) {
