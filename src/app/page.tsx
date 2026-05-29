@@ -148,15 +148,7 @@ useEffect(() => {
       if (isRegistering) {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-      
-        const { data: sessionData } = await supabase.auth.getSession()
-      
-        const userId = data.user?.id || sessionData.session?.user?.id
-      
-        if (userId) {
-          await setupDefaultAccounts(userId)
-        }
-      
+          
         alert('Konto skapat! Du loggas nu in.')      
 
       } else {
