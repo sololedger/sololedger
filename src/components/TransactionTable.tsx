@@ -48,7 +48,7 @@ export default function TransactionTable({
               const isCorrection = tx.is_correction === true
 
               const accountDef = kontoplan.find(k => k.id === tx.type)
-              const isIncome = accountDef?.credit_account?.startsWith('3') ?? false
+              const isIncome = (accountDef?.credit_account?.startsWith('3') || tx.type === 'egen_insättning') ?? false
 
               return (
                 <tr
