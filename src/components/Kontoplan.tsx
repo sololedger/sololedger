@@ -22,6 +22,7 @@ export default function Kontoplan() {
     { id: 'hemsida', name: 'Hemsida & Verktyg', debit: '6230', credit: '1930', vat: 25, comment: 'Webbhotell, domäner och programvaror (SaaS)' },
     { id: 'frakt', name: 'Frakt & Porto', debit: '5710', credit: '1930', vat: 25, comment: 'PostNord, DHL och fraktkostnader' },
     { id: 'forsakring', name: 'Företagsförsäkring', debit: '6310', credit: '1930', vat: 0, comment: 'Ansvars- och sakförsäkring för firman' },
+    { id: 'materialinkop', name: 'Inköp av material (Utrustning)', debit: '5410', credit: '1930', vat: 25, comment: 'Blixtar, objektiv, studiobakgrunder och tillbehör' },
     { id: 'milersattning', name: 'Milersättning (Egen bil)', debit: '5843', credit: '2018', vat: 0, comment: 'När du kör privat bil i tjänsten (25 kr/mil)' },
   ]
 
