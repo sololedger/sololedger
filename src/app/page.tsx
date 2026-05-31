@@ -32,7 +32,17 @@ export default function Home() {
   const [kontoplan, setKontoplan] = useState<any[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
-  const [taxRate, setTaxRate] = useState(45)
+  const [taxRate, setTaxRate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = Number(localStorage.getItem('taxRate'))
+      if (!isNaN(saved) && saved >= 25 && saved <= 55) return saved
+    }
+    return 45
+  })
+
+  useEffect(() => {
+    localStorage.setItem('taxRate', taxRate.toString())
+  }, [taxRate])
   const [uploading, setUploading] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
 
@@ -486,6 +496,20 @@ useEffect(() => {
           >
             Export SIE
           </button>
+
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400 italic">Skatt:</span>
+            <input
+              type="range"
+              min={25}
+              max={55}
+              step={1}
+              value={taxRate}
+              onChange={(e) => setTaxRate(Number(e.target.value))}
+              className="w-20 accent-emerald-500 cursor-pointer"
+            />
+            <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
+          </div>
 
           <button
             onClick={handleLogout}
