@@ -37,14 +37,11 @@ export async function bookTransaction(tx: any) {
     : 0
   const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
 
-  // Hämta senaste ver_nr isolerat per användare
-  const { data: lastEntries } = await supabase
-    .from('journal_entries')
-    .select('ver_nr')
-    .eq('user_id', userId)
-    .order('ver_nr', { ascending: false })
-    .limit(1)
-  const nextVerNr = (lastEntries?.[0]?.ver_nr || 0) + 1
+  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
+  const { data: verNrData, error: verNrError } = await supabase
+    .rpc('get_next_ver_nr', { p_user_id: userId })
+  if (verNrError || verNrData === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError?.message)
+  const nextVerNr = verNrData as number
 
   const isIncome = acc.credit_account?.startsWith('3')
   let entries: any[]
@@ -273,14 +270,11 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
 
   const originalVerNr = originalEntries[0].ver_nr
 
-  // Räkna ut nästa ver_nr isolerat per användare
-  const { data: lastEntries } = await supabase
-    .from('journal_entries')
-    .select('ver_nr')
-    .eq('user_id', userId)
-    .order('ver_nr', { ascending: false })
-    .limit(1)
-  const nextVerNr = (lastEntries?.[0]?.ver_nr || 0) + 1
+  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
+  const { data: verNrData3, error: verNrError3 } = await supabase
+    .rpc('get_next_ver_nr', { p_user_id: userId })
+  if (verNrError3 || verNrData3 === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError3?.message)
+  const nextVerNr = verNrData3 as number
 
   // Skapa korrigeringstransaktionen
   const { data: corrTx, error: corrTxError } = await supabase
@@ -344,8 +338,11 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
 
       const reversalVerNr = reversalEntries[0].ver_nr
 
-      // Nästa ver_nr (ett steg efter det vi precis använde)
-      const nextVerNr2 = nextVerNr + 1
+      // Hämta eget ver_nr för reversalkorrigeringen — atomärt, ingen +1
+      const { data: verNrData4, error: verNrError4 } = await supabase
+        .rpc('get_next_ver_nr', { p_user_id: userId })
+      if (verNrError4 || verNrData4 === null) throw new Error('Kunde inte generera ver_nr för reversalkorrigering: ' + verNrError4?.message)
+      const nextVerNr2 = verNrData4 as number
 
       const { data: corrReversalTx, error: corrReversalTxError } = await supabase
         .from('transactions')
@@ -411,13 +408,11 @@ export async function bookPeriodizedTransaction(tx: any) {
     : 0
   const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
 
-  const { data: lastEntries } = await supabase
-    .from('journal_entries')
-    .select('ver_nr')
-    .eq('user_id', userId)
-    .order('ver_nr', { ascending: false })
-    .limit(1)
-  const currentVerNr = lastEntries && lastEntries.length > 0 ? lastEntries[0].ver_nr + 1 : 1
+  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
+  const { data: verNrData2, error: verNrError2 } = await supabase
+    .rpc('get_next_ver_nr', { p_user_id: userId })
+  if (verNrError2 || verNrData2 === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError2?.message)
+  const currentVerNr = verNrData2 as number
 
   const periodizationGroupId = crypto.randomUUID()
 
@@ -480,6 +475,12 @@ export async function bookPeriodizedTransaction(tx: any) {
   const { error: jError1 } = await supabase.from('journal_entries').insert(tx1Journal)
   if (jError1) throw jError1
 
+  // Hämta eget ver_nr för reversal-transaktionen — bokföringsmässigt separat verifikat
+  const { data: verNrData2b, error: verNrError2b } = await supabase
+    .rpc('get_next_ver_nr', { p_user_id: userId })
+  if (verNrError2b || verNrData2b === null) throw new Error('Kunde inte generera ver_nr för reversal: ' + verNrError2b?.message)
+  const reversalVerNr = verNrData2b as number
+
   // ── TRANSAKTION 2: Nästa år (vändningsverifikat) ───────────────────────────
   const { data: insertedTx2, error: errorTx2 } = await supabase
     .from('transactions')
@@ -504,7 +505,7 @@ export async function bookPeriodizedTransaction(tx: any) {
   const tx2Journal: any[] = [
     {
       transaction_id: insertedTx2.id,
-      ver_nr: currentVerNr,
+      ver_nr: reversalVerNr,
       account_number: '1790',
       debit: 0,
       credit: netAmount,
@@ -514,7 +515,7 @@ export async function bookPeriodizedTransaction(tx: any) {
     },
     {
       transaction_id: insertedTx2.id,
-      ver_nr: currentVerNr,
+      ver_nr: reversalVerNr,
       account_number: acc.debit_account,
       debit: netAmount,
       credit: 0,
