@@ -22,13 +22,16 @@ export default function Momsrapport() {
   const [period, setPeriod]   = useState<Period>('Q1')
   const [loading, setLoading] = useState(false)
   const [fetched, setFetched] = useState(false)
-  const [utgående, setUtgående] = useState(0)   // konto 2611: sum(credit - debit)
-  const [ingående, setIngående] = useState(0)   // konto 2641: sum(debit - credit)
+  const [utgående, setUtgående] = useState(0)
+  const [ingående, setIngående] = useState(0)
 
-  const years = [currentYear - 2, currentYear - 1, currentYear]
+  // Inkluderar 2027 så du kan klicka dig framåt i tiden! 📅
+  const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1]
+  
   const netto = Math.round((utgående - ingående) * 100) / 100
   const skaBetalas = netto > 0
 
+  // ✅ GPT:s uppdaterade, super-stabila funktion
   async function fetchMoms() {
     setLoading(true)
     setFetched(false)
@@ -42,7 +45,7 @@ export default function Momsrapport() {
 
       const { data, error } = await supabase
         .from('journal_entries')
-        .select('account_number, debit, credit')
+        .select('account_number, debit, credit, date')
         .eq('user_id', user.id)
         .gte('date', startDate)
         .lte('date', endDate)
@@ -50,14 +53,16 @@ export default function Momsrapport() {
 
       if (error) throw error
 
-      let ut = 0
-      let ing = 0
-      for (const row of data || []) {
-        const d = Number(row.debit)
-        const c = Number(row.credit)
-        if (row.account_number === '2611') ut  += (c - d)
-        if (row.account_number === '2641') ing += (d - c)
-      }
+      console.log("MOMS DATA:", data)   // 👈 LÄGG IN DEN HÄR
+
+      // Summering på ett stabilt och tydligt sätt via reduce
+      const ut = (data || [])
+        .filter(r => r.account_number === '2611')
+        .reduce((sum, r) => sum + (Number(r.credit) - Number(r.debit)), 0)
+
+      const ing = (data || [])
+        .filter(r => r.account_number === '2641')
+        .reduce((sum, r) => sum + (Number(r.debit) - Number(r.credit)), 0)
 
       setUtgående(Math.round(ut  * 100) / 100)
       setIngående(Math.round(ing * 100) / 100)
@@ -69,7 +74,6 @@ export default function Momsrapport() {
     }
   }
 
-  // Auto-fetch when year/period changes if already fetched once
   useEffect(() => {
     if (fetched) fetchMoms()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,8 +199,9 @@ export default function Momsrapport() {
                 </p>
               </div>
               <div className="text-right">
+                {/* ✅ GPT:s supersnygga UI-fix inbakad här! */}
                 <p className={`text-3xl font-black italic tabular-nums ${skaBetalas ? 'text-red-500' : 'text-emerald-600'}`}>
-                  {skaBetalas ? '' : '+'}{netto >= 0 ? '' : ''}{fmt(netto)} kr
+                  {skaBetalas ? '' : '+'}{fmt(Math.abs(netto))} kr
                 </p>
                 <p className={`text-[10px] font-black uppercase mt-1 ${skaBetalas ? 'text-red-400' : 'text-emerald-500'}`}>
                   {skaBetalas ? '▲ Skuld' : '▼ Fordran'}

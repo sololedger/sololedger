@@ -310,12 +310,7 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   if (insertError) throw new Error("Kunde inte skapa korrigeringsposter: " + insertError.message)
 
   // ── PERIODISERINGSKORRIGERING ──────────────────────────────────────────────
-  // Om originaltransaktionen tillhör en periodiseringsgrupp (t.ex. hyra som
-  // sträcker sig över ett nyårsskifte) finns det ett vändningsverifikat i nästa
-  // år med samma periodization_group_id. Det måste också korrigeras, annars
-  // aktiveras kostnaden felaktigt i framtiden trots att ursprungsposten ångrats.
   if (originalTx.periodization_group_id && !originalTx.is_periodized_reversal) {
-    // Hitta vändningstransaktionen (is_periodized_reversal = true) i samma grupp
     const { data: reversalTx, error: reversalTxError } = await supabase
       .from('transactions')
       .select('*')
@@ -324,7 +319,6 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
       .eq('user_id', userId)
       .single()
 
-    // Om vändningstransaktionen finns och året den tillhör är öppet → korrigera den också
     if (!reversalTxError && reversalTx) {
       await assertYearOpen(reversalTx.date)
 
@@ -338,7 +332,6 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
 
       const reversalVerNr = reversalEntries[0].ver_nr
 
-      // Hämta eget ver_nr för reversalkorrigeringen — atomärt, ingen +1
       const { data: verNrData4, error: verNrError4 } = await supabase
         .rpc('get_next_ver_nr', { p_user_id: userId })
       if (verNrError4 || verNrData4 === null) throw new Error('Kunde inte generera ver_nr för reversalkorrigering: ' + verNrError4?.message)
@@ -378,7 +371,6 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
         throw new Error("Kunde inte skapa korrigeringsposter för vändningsverifikat: " + insertReversalError.message)
     }
   }
-  // ── SLUT PERIODISERINGSKORRIGERING ────────────────────────────────────────
 
   return nextVerNr
 }
@@ -416,12 +408,15 @@ export async function bookPeriodizedTransaction(tx: any) {
 
   const periodizationGroupId = crypto.randomUUID()
 
-  // ── TRANSAKTION 1: Innevarande år ──────────────────────────────────────────
+  // ── FIX: Tvinga periodiseringsgrunden till årets sista dag (31 december) ──
+  const yearEnd = `${tx.date.slice(0, 4)}-12-31`
+
+  // ── TRANSAKTION 1: Innevarande år (Bokslutsdagen) ──────────────────────────
   const { data: insertedTx1, error: errorTx1 } = await supabase
     .from('transactions')
     .insert([{
       user_id: userId,
-      date: tx.date,
+      date: yearEnd, // ✅ APPLICERAD FIX: Sparas nu säkert på bokslutsdagen istället för mitt i kvartalet
       description: `[Periodisering 1/2] ${tx.description}`,
       amount: tx.amount,
       type: tx.type,
@@ -445,7 +440,7 @@ export async function bookPeriodizedTransaction(tx: any) {
       debit: 0,
       credit: tx.amount,
       description: `Förutbetald kostnad (Bank): ${tx.description}`,
-      date: tx.date,
+      date: yearEnd, // ✅ Synkad med transaktionen
       user_id: userId,
     },
     {
@@ -455,7 +450,7 @@ export async function bookPeriodizedTransaction(tx: any) {
       debit: netAmount,
       credit: 0,
       description: `Förutbetald kostnad (Netto): ${tx.description}`,
-      date: tx.date,
+      date: yearEnd, // ✅ Synkad med transaktionen
       user_id: userId,
     },
   ]
@@ -467,7 +462,7 @@ export async function bookPeriodizedTransaction(tx: any) {
       debit: vatAmount,
       credit: 0,
       description: `Ingående moms (Periodisering): ${tx.description}`,
-      date: tx.date,
+      date: yearEnd, // ✅ Synkad med transaktionen
       user_id: userId,
     })
   }
