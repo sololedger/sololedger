@@ -82,8 +82,9 @@ export default function Home() {
 // Kontrollera kontoplan (och skapa standardkonton om det är tomt), samt ladda data
 useEffect(() => {
   if (!user) return
+  let cancelled = false
 
-  async function ensureAccountsAndLoadData() {
+  async function load() {
     try {
       // 1. Kolla om användaren redan har minst ett konto i databasen
       const { data, error } = await supabase
@@ -96,19 +97,55 @@ useEffect(() => {
 
       // 2. Om listan är helt tom, skapa standardkontona automatiskt
       if (!data || data.length === 0) {
-        console.log("Ingen kontoplan hittades för användaren. Skapar standardkonton...")
         await setupDefaultAccounts(user.id)
       }
-    } catch (err) {
-      console.error("Fel vid kontroll av kontoplan:", err)
-    } finally {
-      // 3. När konton garanterat finns (eller har skapats), hämta resten av datan
-      refreshData()
+
+      if (cancelled) return
+
+      // 3. Ladda all data för valt år
+      const startDate = `${selectedYear}-01-01`
+      const endDate   = `${selectedYear}-12-31`
+
+      const [txData, balanceData, neRes] = await Promise.all([
+        supabase.from('transactions').select('*')
+          .eq('user_id', user.id)
+          .gte('date', startDate).lte('date', endDate)
+          .order('date', { ascending: false }),
+        getAccountBalances(selectedYear),
+        getNEData(selectedYear)
+      ])
+
+      if (cancelled) return // ← Avbryt om användaren bytt år under laddningen
+
+      if (txData.error) throw txData.error
+
+      const txIds = txData.data?.map((t: any) => t.id) || []
+      let jMap: any = {}
+
+      if (txIds.length > 0) {
+        const { data: yearJournal, error: jError } = await supabase
+          .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
+        if (jError) throw jError
+        yearJournal?.forEach((row: any) => {
+          if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
+          jMap[row.transaction_id].push(row)
+        })
+      }
+
+      if (cancelled) return
+
+      setTransactions(txData.data || [])
+      setBalances(balanceData || {})
+      setJournalMap(jMap)
+      setNeData(neRes)
       loadKontoplanOptions()
+    } catch (err) {
+      if (!cancelled) console.error("Fel vid kontroll av kontoplan:", err)
     }
   }
 
-  ensureAccountsAndLoadData()
+  load()
+  return () => { cancelled = true }
 }, [selectedYear, user])
 
 // Kontrollera om det valda räkenskapsåret är låst
@@ -173,6 +210,7 @@ useEffect(() => {
   }
 
   async function handleLogout() {
+    localStorage.removeItem('taxRate') // 🔒 Rensar finansiell PII från delade datorer
     await supabase.auth.signOut()
     setUser(null)
   }
@@ -198,7 +236,8 @@ useEffect(() => {
     try {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, name, default_vat_rate, credit_account') // <── NU HÄMTAR VI DEN HÄR!
+        .select('id, name, default_vat_rate, credit_account')
+        .eq('user_id', user.id) // 🔒 Säkerställer att bara egna konton visas
         .order('name')
       if (error) throw error
 
@@ -245,6 +284,7 @@ useEffect(() => {
           .from('journal_entries')
           .select('*')
           .in('transaction_id', txIds)
+          .eq('user_id', user.id)
         if (jError) throw jError
         yearJournal?.forEach((row: any) => {
           if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
@@ -262,11 +302,21 @@ useEffect(() => {
   }
 
   async function handleFileUpload(file: File): Promise<string> {
-    const ext = file.name.split('.').pop()
-    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const { error } = await supabase.storage.from('attachments').upload(fileName, file)
-    if (error) throw new Error("Filuppladdning misslyckades: " + error.message)
-    return fileName
+    // 🔒 Whitelist på MIME-typ — förhindrar path traversal och otillåtna filtyper
+    const ALLOWED_TYPES: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png':  'png',
+      'image/webp': 'webp',
+      'application/pdf': 'pdf',
+    }
+    const ext = ALLOWED_TYPES[file.type]
+    if (!ext) {
+      throw new Error(`Filtypen "${file.type}" är inte tillåten. Endast JPG, PNG, WebP och PDF accepteras.`)
+    }
+    const safeName = `${user.id}/${Date.now()}-${crypto?.randomUUID?.() || Date.now().toString()}.${ext}`
+    const { error } = await supabase.storage.from('attachments').upload(safeName, file)
+    if (error) throw new Error('Filuppladdning misslyckades: ' + error.message)
+    return safeName
   }
 
   async function handleAddTransaction(e: any) {

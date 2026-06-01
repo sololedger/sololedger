@@ -18,7 +18,18 @@ async function assertYearOpen(date: string) {
 
 export async function bookTransaction(tx: any) {
   const userId = await getUserId()
-  
+
+  // ── SÄKERHETSBÄLTE: Förhindra dubbelbokning vid dubbelklick ──
+  const { data: existingTx } = await supabase
+    .from('transactions')
+    .select('booked')
+    .eq('id', tx.id)
+    .eq('user_id', userId)
+    .single()
+  if (existingTx?.booked) {
+    throw new Error('Transaktionen är redan bokförd. Dubbelbokning förhindrad.')
+  }
+
   // Säkerställ att året är öppet innan bokföring sker
   await assertYearOpen(tx.date)
 

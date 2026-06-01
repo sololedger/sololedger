@@ -53,8 +53,6 @@ export default function Momsrapport() {
 
       if (error) throw error
 
-      console.log("MOMS DATA:", data)   // 👈 LÄGG IN DEN HÄR
-
       // Summering på ett stabilt och tydligt sätt via reduce
       const ut = (data || [])
         .filter(r => r.account_number === '2611')
