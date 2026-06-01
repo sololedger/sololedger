@@ -75,11 +75,17 @@ export async function exportSIE(year: number) {
   // KONTOPLAN (#KONTO)
   // ───────────────────────────────
   const konton = new Map<string, string>()
+
+  // 1. Bygg först upp kontolistan från databasen (utan onödiga överskrivningar)
   accounts?.forEach(acc => {
-    if (acc.debit_account) konton.set(acc.debit_account, acc.name || `Konto ${acc.debit_account}`)
-    if (acc.credit_account) konton.set(acc.credit_account, acc.name || `Konto ${acc.credit_account}`)
+    if (acc.debit_account && !konton.has(acc.debit_account)) {
+      konton.set(acc.debit_account, acc.name || `Konto ${acc.debit_account}`)
+    }
+    if (acc.credit_account && !konton.has(acc.credit_account)) {
+      konton.set(acc.credit_account, acc.name || `Konto ${acc.credit_account}`)
+    }
   })
-  // Sortera konton numeriskt
+  
   // Säkring: lägg till konton från journalrader som saknas i kontoplanen
   entries?.forEach(e => {
     if (!konton.has(e.account_number)) {
@@ -87,6 +93,19 @@ export async function exportSIE(year: number) {
     }
   })
 
+  // 2. 🔥 MASTER OVERRIDE: Tvinga alltid fram rätt standardnamn sist av allt
+  const accountNames: Record<string, string> = {
+    '1930': 'Företagskonto',
+    '2018': 'Egen insättning'
+  }
+
+  Object.entries(accountNames).forEach(([konto, name]) => {
+    if (konton.has(konto)) {
+      konton.set(konto, name)
+    }
+  })
+
+  // 3. Sortera konton numeriskt och skriv ut rader
   Array.from(konton.entries())
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .forEach(([konto, name]) => {
