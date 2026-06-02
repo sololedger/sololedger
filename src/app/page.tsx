@@ -90,41 +90,51 @@ useEffect(() => {
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
  // Lyssna på om en användare är inloggad via Supabase Auth och hämta profil
- useEffect(() => {
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    const currentUser = session?.user ?? null
-    setUser(currentUser)
-    
-    if (currentUser) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('subscription_type, subscription_end')
-        .eq('id', currentUser.id)
-        .maybeSingle()
-      setProfile(data)
-    }
-    
-    setLoading(false)
-  })
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    const currentUser = session?.user ?? null
-    setUser(currentUser)
-    
-    if (currentUser) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('subscription_type, subscription_end')
-        .eq('id', currentUser.id)
-        .maybeSingle()
-      setProfile(data)
-    } else {
-      setProfile(null)
-    }
-  })
-
-  return () => subscription.unsubscribe()
-}, [])
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+       
+      if (currentUser) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('subscription_type, subscription_end')
+          .eq('id', currentUser.id)
+          .maybeSingle()
+         
+        // 🟢 DEBUG 1: Vid första sidladdningen
+        console.log("DEBUG 1 - RAW DATA FRÅN SUPABASE:", data);
+        console.log("DEBUG 1 - PROFILE STATE INNAN SET:", profile);
+         
+        setProfile(data)
+      }
+       
+      setLoading(false)
+    })
+  
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+       
+      if (currentUser) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('subscription_type, subscription_end')
+          .eq('id', currentUser.id)
+          .maybeSingle()
+         
+        // 🟢 DEBUG 2: Vid ändring av inloggningsstatus
+        console.log("DEBUG 2 - RAW DATA FRÅN SUPABASE:", data);
+        console.log("DEBUG 2 - PROFILE STATE INNAN SET:", profile);
+         
+        setProfile(data)
+      } else {
+        setProfile(null)
+      }
+    })
+  
+    return () => subscription.unsubscribe()
+  }, [])
 
 // Kontrollera kontoplan, samt ladda data
 useEffect(() => {
@@ -706,7 +716,7 @@ useEffect(() => {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="Momsrapport" user={user} />} // ✅ Nu skickas user med!
+          fallback={<Paywall feature="Momsrapport" user={profile} />} // ✅ Nu skickas user med!
         >
           <Momsrapport />
         </SubscriptionGuard>
@@ -716,7 +726,7 @@ useEffect(() => {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="NE-Bilaga" user={user} />} // ✅ Nu skickas user med!
+          fallback={<Paywall feature="NE-Bilaga" user={profile} />} // ✅ Nu skickas user med!
         >
           <NEBilaga
             neData={neData}
