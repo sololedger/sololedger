@@ -121,7 +121,7 @@ export default function TestSubPage() {
 
   // 2. Om du är inloggad på riktigt, skicka profilen till din Guard!
   return (
-    <SubscriptionGuard profile={profile}>
+    <SubscriptionGuard profile={profile} requiredLevel="paid">
       <div className="p-8">
         <div className="bg-green-100 text-green-800 p-4 rounded mb-6 font-bold">
           🎉 Match! Du är inloggad på riktigt och har en aktiv prenumeration.
