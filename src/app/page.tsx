@@ -17,7 +17,7 @@ import TransactionForm from '@/components/TransactionForm'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
 
-// Importerar dina gränsfunktioner från din befintliga limits-fil
+// Importerar din gränsfunktioner från din befintliga limits-fil
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
 
 export default function Home() {
