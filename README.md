@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoloLedger
 
-## Getting Started
+## 🚀 Projektstatus
 
-First, run the development server:
+Detta är en Next.js + Supabase SaaS-applikation.
+
+### ✅ Stripe Subscription (TEST – klart)
+
+Prenumerationsflödet är implementerat och verifierat i testmiljö.
+
+#### Funktionalitet:
+- ✅ Stripe Checkout (subscription + 14 dagars trial)
+- ✅ Webhook tar emot events från Stripe
+- ✅ Supabase `profiles` uppdateras korrekt:
+  - `subscription_type` (free / trial / paid)
+  - `stripe_customer_id`
+  - `stripe_subscription_id`
+  - `subscription_end`
+- ✅ Auth via Supabase fungerar
+- ✅ SubscriptionGuard blockerar/släpper access korrekt
+
+#### Testmiljö:
+Användes via:
+/test-sub
+
+#### Stripe:
+- Körs i testläge (`sk_test`, `pk_test`)
+
+---
+
+## ⚠️ Att göra (nästa steg)
+
+- [ ] Skapa `/dashboard` (success/cancel UI)
+- [ ] Integrera SubscriptionGuard i riktiga appen
+- [ ] Flytta från test → produktionsflöde
+- [ ] Implementera Stripe Customer Portal
+
+---
+
+## 🛠️ Starta projektet
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Öppna:
+http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+⚠️ Viktigt
+.env.local innehåller API-nycklar och ska inte committas.
 
-## Learn More
+💡 Notering
+Stripe-integration är testad end-to-end och redo att integreras i huvudapplikationen.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# ✅ Sen gör du bara:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+git add README.md
+git commit -m "docs: add Stripe subscription documentation"
