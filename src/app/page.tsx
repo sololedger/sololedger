@@ -21,6 +21,7 @@ import Paywall from '@/components/Paywall'
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
 
 export default function Home() {
+  console.log("KOMPONENTEN RENDERAS LIVE I WEBBLÄSAREN!");
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null) 
   const [loading, setLoading] = useState(true)
