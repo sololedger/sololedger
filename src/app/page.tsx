@@ -84,25 +84,38 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
- // Auth — lyssna på Supabase-session med skottsäker getSession-fallback för F5/Reloads
+ // Auth — Slutgiltig, helt skottsäker auth-lyssnare som garanterar att F5 aldrig kan låsa sidan
  useEffect(() => {
   let isMounted = true
 
-  // ✅ Fallback – Kollar sessionen direkt vid F5 så att appen aldrig fastnar på "Laddar..."
-  supabase.auth.getSession().then(({ data: { session } }) => {
+  // ✅ Den ultimata säkerhetsventilen: Kolla sessionen direkt vid F5
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
     if (!isMounted) return
 
     const currentUser = session?.user ?? null
     setUser(currentUser)
 
-    // Om användaren inte är inloggad alls, stäng av loading direkt
-    if (!currentUser) {
+    if (currentUser) {
+      // Om användaren är inloggad, försök hämta profilen direkt så den är redo
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('subscription_type, subscription_end')
+          .eq('id', currentUser.id)
+          .maybeSingle()
+        if (isMounted) setProfile(data)
+      } catch (err) {
+        console.error('Fel vid profilhämtning i getSession:', err)
+      }
+    } else {
       setProfile(null)
-      setLoading(false)
     }
+
+    // 🔥 FIXEN: Slå ALLTID av loading här, oavsett om användaren är inloggad eller utloggad!
+    if (isMounted) setLoading(false)
   })
 
-  // Huvudflödet som hanterar inloggningar och profilhämtning
+  // Hanterar förändringar (t.ex. när man aktivt klickar på Logga in eller Logga ut)
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (_event, session) => {
       if (!isMounted) return
@@ -119,13 +132,13 @@ export default function Home() {
             .maybeSingle()
           if (isMounted) setProfile(data)
         } catch (err) {
-          console.error('Fel vid profilhämtning:', err)
+          console.error('Fel vid profilhämtning i onAuthStateChange:', err)
         }
       } else {
         setProfile(null)
       }
 
-      // Stäng av loading oavsett — garanterar att vi kommer förbi laddningsskärmen
+      // Slå av loading vid auth-ändringar
       if (isMounted) setLoading(false)
     }
   )
