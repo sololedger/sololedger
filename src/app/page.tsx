@@ -92,61 +92,36 @@ useEffect(() => {
 
 // Lyssna på om en användare är inloggad via Supabase Auth och hämta profil
 useEffect(() => {
-  console.log("🟢 LIVE TEST: useEffect för Auth startar nu!");
+  let isMounted = true;
 
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    try {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (!isMounted) return;
+      
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      console.log("🟢 LIVE TEST: Session kollad. Användare:", currentUser ? "INLOGGAD" : "UTLOGGAD");
-       
+
       if (currentUser) {
-        console.log("🟢 LIVE TEST: Försöker hämta profil från Supabase för ID:", currentUser.id);
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('subscription_type, subscription_end')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-         
-        if (error) {
-          console.error("🔴 LIVE TEST: Fel vid profilhämtning:", error);
-        }
-
-        console.log("🟢 LIVE TEST: Rådata mottagen från profiles-tabell:", data);
-        setProfile(data);
-      }
-    } catch (err) {
-      console.error("🔴 LIVE TEST: Akut krasch inuti getSession blocket:", err);
-    } finally {
-      // Detta block körs ALLTID, oavsett om koden ovan lyckades eller kraschade!
-      console.log("🟢 LIVE TEST: Slår av loading-skärmen nu!");
-      setLoading(false);
-    }
-  });
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    const currentUser = session?.user ?? null;
-    setUser(currentUser);
-     
-    if (currentUser) {
-      try {
         const { data } = await supabase
           .from('profiles')
           .select('subscription_type, subscription_end')
           .eq('id', currentUser.id)
           .maybeSingle();
-         
-        setProfile(data);
-      } catch (err) {
-        console.error("Fel i onAuthStateChange:", err);
+        
+        if (isMounted) setProfile(data);
+      } else {
+        setProfile(null);
       }
-    } else {
-      setProfile(null);
-    }
-  });
 
-  return () => subscription.unsubscribe();
+      // Sätt loading false oavsett vad — INITIAL_SESSION triggar alltid först
+      if (isMounted) setLoading(false);
+    }
+  );
+
+  return () => {
+    isMounted = false;
+    subscription.unsubscribe();
+  };
 }, []);
 
 // Kontrollera kontoplan, samt ladda data
