@@ -84,42 +84,57 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-  // Auth — lyssna på Supabase-session
-  useEffect(() => {
-    let isMounted = true
+ // Auth — lyssna på Supabase-session med skottsäker getSession-fallback för F5/Reloads
+ useEffect(() => {
+  let isMounted = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return
+  // ✅ Fallback – Kollar sessionen direkt vid F5 så att appen aldrig fastnar på "Laddar..."
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!isMounted) return
 
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
+    const currentUser = session?.user ?? null
+    setUser(currentUser)
 
-        if (currentUser) {
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('subscription_type, subscription_end')
-              .eq('id', currentUser.id)
-              .maybeSingle()
-            if (isMounted) setProfile(data)
-          } catch (err) {
-            console.error('Fel vid profilhämtning:', err)
-          }
-        } else {
-          setProfile(null)
-        }
-
-        // Stäng av loading oavsett — INITIAL_SESSION triggar alltid vid mount
-        if (isMounted) setLoading(false)
-      }
-    )
-
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
+    // Om användaren inte är inloggad alls, stäng av loading direkt
+    if (!currentUser) {
+      setProfile(null)
+      setLoading(false)
     }
-  }, [])
+  })
+
+  // Huvudflödet som hanterar inloggningar och profilhämtning
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      if (!isMounted) return
+
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+
+      if (currentUser) {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('subscription_type, subscription_end')
+            .eq('id', currentUser.id)
+            .maybeSingle()
+          if (isMounted) setProfile(data)
+        } catch (err) {
+          console.error('Fel vid profilhämtning:', err)
+        }
+      } else {
+        setProfile(null)
+      }
+
+      // Stäng av loading oavsett — garanterar att vi kommer förbi laddningsskärmen
+      if (isMounted) setLoading(false)
+    }
+  )
+
+  return () => {
+    isMounted = false
+    subscription.unsubscribe()
+  }
+}, [])
 
   // Ladda data när user eller år ändras
   useEffect(() => {
