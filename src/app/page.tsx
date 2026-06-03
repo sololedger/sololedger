@@ -29,7 +29,8 @@ export default function Home() {
   const [password, setPassword] = useState('')
 
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  // SSR-säkert: statiskt värde vid server-render
+  const [selectedYear, setSelectedYear] = useState(2025)
   const [isYearLocked, setIsYearLocked] = useState(false)
   const [transactions, setTransactions] = useState<any[]>([])
   const [balances, setBalances] = useState<any>({})
@@ -40,19 +41,15 @@ export default function Home() {
   const [editingBooked, setEditingBooked] = useState(false)
   const [showLimitPaywall, setShowLimitPaywall] = useState(false)
 
-  const [taxRate, setTaxRate] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = Number(localStorage.getItem('taxRate'))
-      if (!isNaN(saved) && saved >= 25 && saved <= 55) return saved
-    }
-    return 45
-  })
+  // SSR-säkert: alltid 45 vid server-render, synkas med localStorage i useEffect nedan
+  const [taxRate, setTaxRate] = useState(45)
 
   const [uploading, setUploading] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
 
+  // SSR-säkert: tomma strängar vid server-render, fylls i av useEffect nedan
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     description: '',
     amount: '',
     type: '',
@@ -61,11 +58,21 @@ export default function Home() {
   })
 
   const [periodisera, setPeriodisera] = useState(false)
-  const [periodMonth, setPeriodMonth] = useState(() => {
+  // SSR-säkert: tom sträng vid server-render
+  const [periodMonth, setPeriodMonth] = useState('')
+
+  // Sätter datum-defaultvärden efter hydration
+  useEffect(() => {
+    const today = new Date()
+    setSelectedYear(today.getFullYear())
+    setFormData(prev => ({
+      ...prev,
+      date: today.toISOString().split('T')[0]
+    }))
     const next = new Date()
     next.setFullYear(next.getFullYear() + 1, 0, 1)
-    return next.toISOString().slice(0, 7)
-  })
+    setPeriodMonth(next.toISOString().slice(0, 7))
+  }, [])
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
@@ -81,15 +88,28 @@ export default function Home() {
     }
   }, [showLimitPaywall])
 
+  // Läser sparad skattesats från localStorage EFTER hydration (aldrig under SSR)
+  useEffect(() => {
+    const saved = Number(localStorage.getItem('taxRate'))
+    if (!isNaN(saved) && saved >= 25 && saved <= 55) {
+      setTaxRate(saved)
+    }
+  }, [])
+
+  // Skriver tillbaka till localStorage när användaren justerar reglaget
   useEffect(() => {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-  // Auth — Slutgiltig, helt skottsäker auth-lyssnare som garanterar att F5 aldrig kan låsa sidan
+  // Auth — skottsäker lyssnare med garanterad setAuthLoading(false) i ALLA kodvägar
   useEffect(() => {
     let isMounted = true
 
-    // ✅ Den ultimata säkerhetsventilen: Kolla sessionen direkt vid F5
+    // Kolla sessionen direkt vid sidladdning/F5.
+    // KRITISK FIX: setAuthLoading(false) MÅSTE anropas här oavsett om användaren
+    // är inloggad eller ej. onAuthStateChange är inte tillförlitlig i alla miljöer
+    // (strikta företagsproxies, CSP-policies, browser-extensions) och kan tystna
+    // helt vid F5 — om vi bara förlitar oss på den fastnar sidan på "Laddar..." för evigt.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!isMounted) return
 
@@ -111,11 +131,16 @@ export default function Home() {
         setProfile(null)
       }
 
-      // Slå av loading här för utloggade användare
-      if (isMounted && !currentUser) setAuthLoading(false)
+      // ALLTID av authLoading här — oavsett inloggad eller ej
+      if (isMounted) setAuthLoading(false)
+    }).catch((err) => {
+      // Säkerhetsnät: om getSession själv kastar (nätverksfel, CSP-block osv.)
+      // måste vi ändå låsa upp UI:t så sidan inte fryser permanent.
+      console.error('getSession misslyckades:', err)
+      if (isMounted) setAuthLoading(false)
     })
 
-    // Hanterar förändringar (t.ex. när man aktivt klickar på Logga in eller Logga ut)
+    // Hanterar aktiva förändringar (inloggning/utloggning via klick)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!isMounted) return
@@ -136,8 +161,10 @@ export default function Home() {
           }
         } else {
           setProfile(null)
-          if (isMounted) setAuthLoading(false)
         }
+
+        // Alltid av authLoading även här (täcker login/logout-flöden)
+        if (isMounted) setAuthLoading(false)
       }
     )
 
@@ -147,7 +174,7 @@ export default function Home() {
     }
   }, [])
 
-  // Ladda data när user eller år ändras — NU MED SKOTTSÄKER SETLOADING-HANTERING
+  // Ladda data när user eller år ändras
   useEffect(() => {
     if (!user) return
     let cancelled = false
@@ -208,7 +235,7 @@ export default function Home() {
       } catch (err) {
         if (!cancelled) console.error('Fel vid laddning av data:', err)
       } finally {
-        // Alltid av loading – oavsett om cancelled eller ej, annars fryser sidan
+        // Alltid av loading – annars fryser sidan
         setDataLoading(false)
         setAuthLoading(false)
       }

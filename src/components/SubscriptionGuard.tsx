@@ -3,7 +3,7 @@ import React from 'react'
 import SubscribeButton from './SubscribeButton'
 
 interface GuardProps {
-  user?: any // ✅ Ny prop – förhindrar att betalvägg blinkar under laddning
+  user?: any
   profile: {
     subscription_type: string
     subscription_end: string | null
@@ -14,18 +14,19 @@ interface GuardProps {
 }
 
 export default function SubscriptionGuard({ user, profile, requiredLevel, fallback, children }: GuardProps) {
-  // 0. Om vi inte vet om användaren är inloggad ännu – visa ingenting (undviker betalväggs-blink)
-  if (user === undefined || user === null) {
+  // 🔥 GPT FIX: Vänta tills BÅDE user och profile har laddats klart från Supabase.
+  // Detta eliminerar att en betalvägg blinkar till i en millisekund vid en refresh (F5).
+  if (!user || !profile) {
     return null
   }
 
   // 1. Admin har alltid tillgång till allt
-  if (profile?.subscription_type === 'admin') {
+  if (profile.subscription_type === 'admin') {
     return <>{children}</>
   }
 
   // 2. Om nivån kräver administratör men användaren saknar det
-  if (requiredLevel === 'admin' && profile?.subscription_type !== 'admin') {
+  if (requiredLevel === 'admin' && profile.subscription_type !== 'admin') {
     return (
       <div className="p-8 text-center bg-red-50 rounded-[2rem] border border-red-200">
         <p className="text-sm font-black text-red-700 uppercase">🔒 Endast för administratörer</p>
@@ -34,9 +35,9 @@ export default function SubscriptionGuard({ user, profile, requiredLevel, fallba
   }
 
   // 3. Dubbelriktad tidskontroll (Säkrar upp om webhooks laggar eller missas)
-  const isActive = 
-    (profile?.subscription_type === 'paid' || profile?.subscription_type === 'trial') &&
-    (!profile?.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
+  const isActive =
+    (profile.subscription_type === 'paid' || profile.subscription_type === 'trial') &&
+    (!profile.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
 
   // 4. Om prenumerationen inte är aktiv (eller har löpt ut) -> Visa betalvägg
   if (!isActive) {
