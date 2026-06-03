@@ -84,40 +84,12 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
- // Auth — Slutgiltig, helt skottsäker auth-lyssnare som garanterar att F5 aldrig kan låsa sidan
- useEffect(() => {
-  let isMounted = true
+  // Auth — Slutgiltig, helt skottsäker auth-lyssnare som garanterar att F5 aldrig kan låsa sidan
+  useEffect(() => {
+    let isMounted = true
 
-  // ✅ Den ultimata säkerhetsventilen: Kolla sessionen direkt vid F5
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    if (!isMounted) return
-
-    const currentUser = session?.user ?? null
-    setUser(currentUser)
-
-    if (currentUser) {
-      // Om användaren är inloggad, försök hämta profilen direkt så den är redo
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('subscription_type, subscription_end')
-          .eq('id', currentUser.id)
-          .maybeSingle()
-        if (isMounted) setProfile(data)
-      } catch (err) {
-        console.error('Fel vid profilhämtning i getSession:', err)
-      }
-    } else {
-      setProfile(null)
-    }
-
-    // 🔥 FIXEN: Slå ALLTID av loading här, oavsett om användaren är inloggad eller utloggad!
-    if (isMounted) setLoading(false)
-  })
-
-  // Hanterar förändringar (t.ex. när man aktivt klickar på Logga in eller Logga ut)
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
+    // ✅ Den ultimata säkerhetsventilen: Kolla sessionen direkt vid F5
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!isMounted) return
 
       const currentUser = session?.user ?? null
@@ -132,24 +104,49 @@ export default function Home() {
             .maybeSingle()
           if (isMounted) setProfile(data)
         } catch (err) {
-          console.error('Fel vid profilhämtning i onAuthStateChange:', err)
+          console.error('Fel vid profilhämtning i getSession:', err)
         }
       } else {
         setProfile(null)
       }
 
-      // Slå av loading vid auth-ändringar
-      if (isMounted) setLoading(false)
+      // Slå av loading här för utloggade användare
+      if (isMounted && !currentUser) setLoading(false)
+    })
+
+    // Hanterar förändringar (t.ex. när man aktivt klickar på Logga in eller Logga ut)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!isMounted) return
+
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+
+        if (currentUser) {
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('subscription_type, subscription_end')
+              .eq('id', currentUser.id)
+              .maybeSingle()
+            if (isMounted) setProfile(data)
+          } catch (err) {
+            console.error('Fel vid profilhämtning i onAuthStateChange:', err)
+          }
+        } else {
+          setProfile(null)
+          if (isMounted) setLoading(false)
+        }
+      }
+    )
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
     }
-  )
+  }, [])
 
-  return () => {
-    isMounted = false
-    subscription.unsubscribe()
-  }
-}, [])
-
-  // Ladda data när user eller år ändras
+  // Ladda data när user eller år ändras — NU MED SKOTTSÄKER SETLOADING-HANTERING
   useEffect(() => {
     if (!user) return
     let cancelled = false
@@ -208,6 +205,9 @@ export default function Home() {
         loadKontoplanOptions()
       } catch (err) {
         if (!cancelled) console.error('Fel vid laddning av data:', err)
+      } finally {
+        // 🔥 DETTA KNÄCKER BUGGEN: Slå alltid av loading när datan laddats klart för den inloggade användaren!
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -697,7 +697,7 @@ export default function Home() {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="Momsrapport" user={profile} />}
+          fallback={<Paywall feature="Momsrapport" user={user} />}
         >
           <Momsrapport />
         </SubscriptionGuard>
@@ -707,7 +707,7 @@ export default function Home() {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="NE-Bilaga" user={profile} />}
+          fallback={<Paywall feature="NE-Bilaga" user={user} />}
         >
           <NEBilaga
             neData={neData}
