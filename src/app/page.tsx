@@ -13,20 +13,16 @@ import TransactionTable from '@/components/TransactionTable'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
 
-// Importerar dina prenumerationskomponenter
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
 
-// Importerar din gränsfunktioner från din befintliga limits-fil
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
 
 export default function Home() {
-  console.log("KOMPONENTEN RENDERAS LIVE I WEBBLÄSAREN!");
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null) 
+  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // Auth-state för formuläret
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,8 +37,6 @@ export default function Home() {
   const [kontoplan, setKontoplan] = useState<any[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
-  
-  // State för att styra popup-betalväggen vid uppnådd transaktionsgräns
   const [showLimitPaywall, setShowLimitPaywall] = useState(false)
 
   const [taxRate, setTaxRate] = useState(() => {
@@ -52,22 +46,7 @@ export default function Home() {
     }
     return 45
   })
-// Låser bakgrundsscrollen när betalväggen visas för att ge äkta app-känsla
-useEffect(() => {
-  if (showLimitPaywall) {
-    document.body.style.overflow = 'hidden'
-  } else {
-    document.body.style.overflow = 'auto'
-  }
-  
-  // Återställ scrollen om komponenten avmonteras
-  return () => {
-    document.body.style.overflow = 'auto'
-  }
-}, [showLimitPaywall])
-  useEffect(() => {
-    localStorage.setItem('taxRate', taxRate.toString())
-  }, [taxRate])
+
   const [uploading, setUploading] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
 
@@ -80,132 +59,149 @@ useEffect(() => {
     file: null as File | null
   })
 
-  // Periodiseringsstate
   const [periodisera, setPeriodisera] = useState(false)
   const [periodMonth, setPeriodMonth] = useState(() => {
     const next = new Date()
-    next.setFullYear(next.getFullYear() + 1, 0, 1) 
-    return next.toISOString().slice(0, 7) 
+    next.setFullYear(next.getFullYear() + 1, 0, 1)
+    return next.toISOString().slice(0, 7)
   })
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
-// Lyssna på om en användare är inloggad via Supabase Auth och hämta profil
-useEffect(() => {
-  let isMounted = true;
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (!isMounted) return;
-      
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('subscription_type, subscription_end')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-        
-        if (isMounted) setProfile(data);
-      } else {
-        setProfile(null);
-      }
-
-      // Sätt loading false oavsett vad — INITIAL_SESSION triggar alltid först
-      if (isMounted) setLoading(false);
+  // Lås bakgrundsscrollen när betalväggen visas
+  useEffect(() => {
+    if (showLimitPaywall) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
     }
-  );
-
-  return () => {
-    isMounted = false;
-    subscription.unsubscribe();
-  };
-}, []);
-
-// Kontrollera kontoplan, samt ladda data
-useEffect(() => {
-  if (!user) return
-  let cancelled = false
-
-  async function load() {
-    try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
-
-      if (error) throw error
-
-      if (!data || data.length === 0) {
-        await setupDefaultAccounts(user.id)
-      }
-
-      if (cancelled) return
-
-      const startDate = `${selectedYear}-01-01`
-      const endDate   = `${selectedYear}-12-31`
-
-      const [txData, balanceData, neRes] = await Promise.all([
-        supabase.from('transactions').select('*')
-          .eq('user_id', user.id)
-          .gte('date', startDate).lte('date', endDate)
-          .order('date', { ascending: false }),
-        getAccountBalances(selectedYear),
-        getNEData(selectedYear)
-      ])
-
-      if (cancelled) return 
-
-      if (txData.error) throw txData.error
-
-      const txIds = txData.data?.map((t: any) => t.id) || []
-      let jMap: any = {}
-
-      if (txIds.length > 0) {
-        const { data: yearJournal, error: jError } = await supabase
-          .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
-        if (jError) throw jError
-        yearJournal?.forEach((row: any) => {
-          if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
-          jMap[row.transaction_id].push(row)
-        })
-      }
-
-      if (cancelled) return
-
-      setTransactions(txData.data || [])
-      setBalances(balanceData || {})
-      setJournalMap(jMap)
-      setNeData(neRes)
-      loadKontoplanOptions()
-    } catch (err) {
-      if (!cancelled) console.error("Fel vid kontroll av kontoplan:", err)
+    return () => {
+      document.body.style.overflow = 'auto'
     }
-  }
+  }, [showLimitPaywall])
 
-  load()
-  return () => { cancelled = true }
-}, [selectedYear, user])
+  useEffect(() => {
+    localStorage.setItem('taxRate', taxRate.toString())
+  }, [taxRate])
 
-// Kontrollera om det valda räkenskapsåret är låst
-useEffect(() => {
-  async function checkYearLock() {
+  // Auth — lyssna på Supabase-session
+  useEffect(() => {
+    let isMounted = true
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return
+
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+
+        if (currentUser) {
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('subscription_type, subscription_end')
+              .eq('id', currentUser.id)
+              .maybeSingle()
+            if (isMounted) setProfile(data)
+          } catch (err) {
+            console.error('Fel vid profilhämtning:', err)
+          }
+        } else {
+          setProfile(null)
+        }
+
+        // Stäng av loading oavsett — INITIAL_SESSION triggar alltid vid mount
+        if (isMounted) setLoading(false)
+      }
+    )
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  // Ladda data när user eller år ändras
+  useEffect(() => {
     if (!user) return
-    try {
-      const locked = await isYearClosed(selectedYear)
-      setIsYearLocked(locked)
-    } catch (err) {
-      console.error(err)
-      setIsYearLocked(false)
-    }
-  }
-  checkYearLock()
-}, [selectedYear, user])
+    let cancelled = false
 
-  // Skapa standardkonton
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          await setupDefaultAccounts(user.id)
+        }
+
+        if (cancelled) return
+
+        const startDate = `${selectedYear}-01-01`
+        const endDate   = `${selectedYear}-12-31`
+
+        const [txData, balanceData, neRes] = await Promise.all([
+          supabase.from('transactions').select('*')
+            .eq('user_id', user.id)
+            .gte('date', startDate).lte('date', endDate)
+            .order('date', { ascending: false }),
+          getAccountBalances(selectedYear),
+          getNEData(selectedYear)
+        ])
+
+        if (cancelled) return
+
+        if (txData.error) throw txData.error
+
+        const txIds = txData.data?.map((t: any) => t.id) || []
+        let jMap: any = {}
+
+        if (txIds.length > 0) {
+          const { data: yearJournal, error: jError } = await supabase
+            .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
+          if (jError) throw jError
+          yearJournal?.forEach((row: any) => {
+            if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
+            jMap[row.transaction_id].push(row)
+          })
+        }
+
+        if (cancelled) return
+
+        setTransactions(txData.data || [])
+        setBalances(balanceData || {})
+        setJournalMap(jMap)
+        setNeData(neRes)
+        loadKontoplanOptions()
+      } catch (err) {
+        if (!cancelled) console.error('Fel vid laddning av data:', err)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [selectedYear, user])
+
+  // Kontrollera om räkenskapsåret är låst
+  useEffect(() => {
+    async function checkYearLock() {
+      if (!user) return
+      try {
+        const locked = await isYearClosed(selectedYear)
+        setIsYearLocked(locked)
+      } catch (err) {
+        console.error(err)
+        setIsYearLocked(false)
+      }
+    }
+    checkYearLock()
+  }, [selectedYear, user])
+
   async function setupDefaultAccounts(userId: string) {
     const defaultAccounts = [
       { id: 'avskrivning_inventarier', name: 'Avskrivning på inventarier', debit_account: '7830', credit_account: '1220', default_vat_rate: 0, comment: 'För inköp av dyr utrustning >28 650 kr', user_id: userId },
@@ -222,12 +218,10 @@ useEffect(() => {
       { id: 'periodisering', name: 'Förutbetalda kostnader', debit_account: '1790', credit_account: '1930', default_vat_rate: 0, comment: 'Används automatiskt vid periodisering av utgifter över nyår', user_id: userId },
       { id: 'skattekonto_default', name: 'Skattekonto (Moms & Skattereglering)', debit_account: '2012', credit_account: '1930', default_vat_rate: 0, comment: 'Används för insättningar och uttag på Skatteverkets skattekonto (t.ex. momsreglering och skatteåterbäring)', user_id: userId }
     ]
-
     const { error } = await supabase.from('accounts').insert(defaultAccounts)
     if (error) console.error('Kunde inte skapa standardkonton:', error)
   }
 
-  // Hantera Logga in / Registrera via Supabase Auth
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -235,7 +229,7 @@ useEffect(() => {
       if (isRegistering) {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        alert('Konto skapat! Du loggas nu in.')      
+        alert('Konto skapat! Du loggas nu in.')
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -248,7 +242,7 @@ useEffect(() => {
   }
 
   async function handleLogout() {
-    localStorage.removeItem('taxRate') 
+    localStorage.removeItem('taxRate')
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
@@ -259,12 +253,10 @@ useEffect(() => {
       const content = await exportSIE(selectedYear)
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
-
       const a = document.createElement('a')
       a.href = url
       a.download = `SIE-${selectedYear}.se`
       a.click()
-
       URL.revokeObjectURL(url)
     } catch (err: any) {
       alert('SIE-export misslyckades: ' + err.message)
@@ -276,10 +268,9 @@ useEffect(() => {
       const { data, error } = await supabase
         .from('accounts')
         .select('id, name, default_vat_rate, credit_account')
-        .eq('user_id', user.id) 
+        .eq('user_id', user.id)
         .order('name')
       if (error) throw error
-
       if (data) {
         const sorted = [...data].sort((a, b) => {
           const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
@@ -302,35 +293,26 @@ useEffect(() => {
     try {
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
-
       const [txData, balanceData, neRes] = await Promise.all([
-        supabase.from('transactions')
-          .select('*')
+        supabase.from('transactions').select('*')
           .eq('user_id', user.id)
-          .gte('date', startDate)
-          .lte('date', endDate)
+          .gte('date', startDate).lte('date', endDate)
           .order('date', { ascending: false }),
         getAccountBalances(selectedYear),
         getNEData(selectedYear)
       ])
-
       if (txData.error) throw txData.error
-
       const txIds = txData.data?.map((t: any) => t.id) || []
       let jMap: any = {}
       if (txIds.length > 0) {
         const { data: yearJournal, error: jError } = await supabase
-          .from('journal_entries')
-          .select('*')
-          .in('transaction_id', txIds)
-          .eq('user_id', user.id)
+          .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
         if (jError) throw jError
         yearJournal?.forEach((row: any) => {
           if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
           jMap[row.transaction_id].push(row)
         })
       }
-
       setTransactions(txData.data || [])
       setBalances(balanceData || {})
       setJournalMap(jMap)
@@ -349,7 +331,7 @@ useEffect(() => {
     }
     const ext = ALLOWED_TYPES[file.type]
     if (!ext) {
-      throw new Error(`Filtypen "${file.type}" är inte tillåten. Endast JPG, PNG, WebP och PDF accepts.`)
+      throw new Error(`Filtypen "${file.type}" är inte tillåten. Endast JPG, PNG, WebP och PDF accepteras.`)
     }
     const safeName = `${user.id}/${Date.now()}-${crypto?.randomUUID?.() || Date.now().toString()}.${ext}`
     const { error } = await supabase.storage.from('attachments').upload(safeName, file)
@@ -361,18 +343,15 @@ useEffect(() => {
     e.preventDefault()
     if (isYearLocked) return
 
-    // Om det är en NY transaktion (dvs inte redigering), kolla om de nått gratisgränsen
     if (!editingId) {
       const allowed = canCreateTransaction(profile ?? { subscription_type: 'free' }, transactions.length)
       if (!allowed) {
-        // SKOTTSÄKERT PRODUKTIONSSKYDD: Istället för fula alert(), öppna vår snygga modal
         setShowLimitPaywall(true)
-        return // Avbryt direkt, rör aldrig Supabase
+        return
       }
     }
 
     setUploading(true)
-
     try {
       const targetYear = parseInt(formData.date.slice(0, 4))
       const isTargetYearClosed = await isYearClosed(targetYear)
@@ -390,17 +369,14 @@ useEffect(() => {
           date: formData.date,
           description: formData.description
         }
-
         if (!editingBooked) {
           updatePayload.amount = Number(formData.amount)
           updatePayload.type = formData.type
           updatePayload.vat_rate = formData.vatRate
         }
-
         if (fileUrl) {
           updatePayload.file_url = fileUrl
         }
-
         await updateTransaction(editingId, updatePayload)
         setEditingId(null)
         setEditingBooked(false)
@@ -446,9 +422,9 @@ useEffect(() => {
       await refreshData()
     } catch (err: any) {
       console.error('Fel vid bokföring:', err)
-      alert("Fel: " + err.message)
+      alert('Fel: ' + err.message)
     } finally {
-      setUploading(false) // Återställer knappen från "..." oavsett vad
+      setUploading(false)
     }
   }
 
@@ -456,21 +432,19 @@ useEffect(() => {
     if (isYearLocked) return
     const journal = journalMap[tx.id] || []
     const verNr = journal[0]?.ver_nr
-
     const confirmed = confirm(
       verNr
         ? `Skapa korrigeringsverifikation VER-? för VER-${verNr}?\n\nDetta nollar ut bokföringen och kan inte ångras.`
         : `Skapa korrigeringsverifikation för "${tx.description}"?\n\nDetta kan inte ångras.`
     )
     if (!confirmed) return
-
     try {
       const newVerNr = await createCorrectionTransaction(tx.id)
       alert(`✅ Korrigeringsverifikation VER-${newVerNr} skapad.`)
       await refreshData()
     } catch (err: any) {
       console.error('Fel vid korrigering:', err)
-      alert("Kunde inte skapa korrigering: " + err.message)
+      alert('Kunde inte skapa korrigering: ' + err.message)
     }
   }
 
@@ -527,7 +501,6 @@ useEffect(() => {
           <p className="text-[10px] font-black uppercase text-emerald-600 mb-8 tracking-wider">
             {isRegistering ? 'Skapa nytt konto' : 'Fleranvändarsystem'}
           </p>
-
           <input
             type="email"
             value={email}
@@ -544,11 +517,9 @@ useEffect(() => {
             className="w-full bg-gray-50 rounded-2xl p-4 mb-6 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
             required
           />
-
           <button type="submit" className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4">
             {isRegistering ? 'Registrera dig' : 'Logga in'}
           </button>
-
           <button
             type="button"
             onClick={() => setIsRegistering(!isRegistering)}
@@ -563,12 +534,10 @@ useEffect(() => {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {/* ── MODAL-BETALVÄGG NÄR MAN NÅTT 15 TRANSAKTIONER ──────────────── */}
       {showLimitPaywall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative bg-white rounded-[2.5rem] p-8 max-w-lg w-full shadow-2xl border-2 border-amber-400 animate-in zoom-in-95 duration-200">
-            {/* Stängknapp (X) i hörnet */}
-            <button 
+            <button
               onClick={() => setShowLimitPaywall(false)}
               className="absolute top-6 right-6 w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black rounded-full flex items-center justify-center transition-all"
             >
@@ -584,7 +553,6 @@ useEffect(() => {
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : 'NE-Bilaga'}
           </h1>
-          
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user.email}</p>
             {profile?.subscription_type === 'free' && (
@@ -644,7 +612,6 @@ useEffect(() => {
 
       {activeTab === 'dashboard' ? (
         <>
-          {/* ── ÖVERSIKTSKORT + MODALER ─────────────────────────────── */}
           <OverviewCards
             data={data}
             taxRate={taxRate}
@@ -660,7 +627,7 @@ useEffect(() => {
               <span className="text-xl">🔒</span>
               <div>
                 <p className="text-[11px] font-black uppercase tracking-widest text-amber-700">
-                  Räkenskapsår {selectedYear} Leo låst
+                  Räkenskapsår {selectedYear} är låst
                 </p>
                 <p className="text-[10px] font-bold text-amber-600 mt-0.5">
                   Detta räkenskapsår är låst och kan inte ändras enligt god redovisningssed.
@@ -669,7 +636,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* ── TRANSAKTIONSFORMULÄR ────────────────────────────────── */}
           <TransactionForm
             formData={formData}
             setFormData={setFormData}
@@ -686,7 +652,6 @@ useEffect(() => {
             onCancelEdit={cancelEdit}
           />
 
-          {/* ── TRANSAKTIONSTABELL ──────────────────────────────────── */}
           <TransactionTable
             transactions={transactions}
             journalMap={journalMap}
@@ -704,7 +669,7 @@ useEffect(() => {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="Momsrapport" user={profile} />} // ✅ Nu skickas user med!
+          fallback={<Paywall feature="Momsrapport" user={profile} />}
         >
           <Momsrapport />
         </SubscriptionGuard>
@@ -714,7 +679,7 @@ useEffect(() => {
         <SubscriptionGuard
           profile={profile}
           requiredLevel="paid"
-          fallback={<Paywall feature="NE-Bilaga" user={profile} />} // ✅ Nu skickas user med!
+          fallback={<Paywall feature="NE-Bilaga" user={profile} />}
         >
           <NEBilaga
             neData={neData}
