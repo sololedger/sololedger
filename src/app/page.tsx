@@ -90,52 +90,64 @@ useEffect(() => {
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
 
- // Lyssna på om en användare är inloggad via Supabase Auth och hämta profil
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-       
-      if (currentUser) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('subscription_type, subscription_end')
-          .eq('id', currentUser.id)
-          .maybeSingle()
-         
-        // 🟢 DEBUG 1: Vid första sidladdningen
-        console.log("DEBUG 1 - RAW DATA FRÅN SUPABASE:", data);
-        console.log("DEBUG 1 - PROFILE STATE INNAN SET:", profile);
-         
-        setProfile(data)
-      }
-       
-      setLoading(false)
-    })
-  
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-       
-      if (currentUser) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('subscription_type, subscription_end')
-          .eq('id', currentUser.id)
-          .maybeSingle()
-         
-        // 🟢 DEBUG 2: Vid ändring av inloggningsstatus
-        console.log("DEBUG 2 - RAW DATA FRÅN SUPABASE:", data);
-        console.log("DEBUG 2 - PROFILE STATE INNAN SET:", profile);
-         
-        setProfile(data)
-      } else {
-        setProfile(null)
-      }
-    })
-  
-    return () => subscription.unsubscribe()
-  }, [])
+// Lyssna på om en användare är inloggad via Supabase Auth och hämta profil
+useEffect(() => {
+  console.log("🟢 LIVE TEST: useEffect för Auth startar nu!");
+
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
+    try {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      console.log("🟢 LIVE TEST: Session kollad. Användare:", currentUser ? "INLOGGAD" : "UTLOGGAD");
+       
+      if (currentUser) {
+        console.log("🟢 LIVE TEST: Försöker hämta profil från Supabase för ID:", currentUser.id);
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_type, subscription_end')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+         
+        if (error) {
+          console.error("🔴 LIVE TEST: Fel vid profilhämtning:", error);
+        }
+
+        console.log("🟢 LIVE TEST: Rådata mottagen från profiles-tabell:", data);
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error("🔴 LIVE TEST: Akut krasch inuti getSession blocket:", err);
+    } finally {
+      // Detta block körs ALLTID, oavsett om koden ovan lyckades eller kraschade!
+      console.log("🟢 LIVE TEST: Slår av loading-skärmen nu!");
+      setLoading(false);
+    }
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+     
+    if (currentUser) {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('subscription_type, subscription_end')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+         
+        setProfile(data);
+      } catch (err) {
+        console.error("Fel i onAuthStateChange:", err);
+      }
+    } else {
+      setProfile(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
 // Kontrollera kontoplan, samt ladda data
 useEffect(() => {
