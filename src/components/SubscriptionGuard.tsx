@@ -3,6 +3,7 @@ import React from 'react'
 import SubscribeButton from './SubscribeButton'
 
 interface GuardProps {
+  user?: any // ✅ Ny prop – förhindrar att betalvägg blinkar under laddning
   profile: {
     subscription_type: string
     subscription_end: string | null
@@ -12,7 +13,12 @@ interface GuardProps {
   children: React.ReactNode
 }
 
-export default function SubscriptionGuard({ profile, requiredLevel, fallback, children }: GuardProps) {
+export default function SubscriptionGuard({ user, profile, requiredLevel, fallback, children }: GuardProps) {
+  // 0. Om vi inte vet om användaren är inloggad ännu – visa ingenting (undviker betalväggs-blink)
+  if (user === undefined || user === null) {
+    return null
+  }
+
   // 1. Admin har alltid tillgång till allt
   if (profile?.subscription_type === 'admin') {
     return <>{children}</>
@@ -43,7 +49,7 @@ export default function SubscriptionGuard({ profile, requiredLevel, fallback, ch
         <p className="text-xs text-gray-400 font-bold mt-1 mb-6 max-w-xs">
           Dina 14 dagars gratis testperiod har löpt ut. Aktivera SoloLedger Premium för att låsa upp obegränsad bokföring och deklarationsrapporter.
         </p>
-        <SubscribeButton />
+        <SubscribeButton user={user} />
       </div>
     )
   }

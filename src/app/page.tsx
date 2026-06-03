@@ -21,7 +21,8 @@ import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscription
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
 
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
@@ -111,7 +112,7 @@ export default function Home() {
       }
 
       // Slå av loading här för utloggade användare
-      if (isMounted && !currentUser) setLoading(false)
+      if (isMounted && !currentUser) setAuthLoading(false)
     })
 
     // Hanterar förändringar (t.ex. när man aktivt klickar på Logga in eller Logga ut)
@@ -135,7 +136,7 @@ export default function Home() {
           }
         } else {
           setProfile(null)
-          if (isMounted) setLoading(false)
+          if (isMounted) setAuthLoading(false)
         }
       }
     )
@@ -150,6 +151,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) return
     let cancelled = false
+    setDataLoading(true)
 
     async function load() {
       try {
@@ -206,8 +208,9 @@ export default function Home() {
       } catch (err) {
         if (!cancelled) console.error('Fel vid laddning av data:', err)
       } finally {
-        // 🔥 DETTA KNÄCKER BUGGEN: Slå alltid av loading när datan laddats klart för den inloggade användaren!
-        if (!cancelled) setLoading(false)
+        // Alltid av loading – oavsett om cancelled eller ej, annars fryser sidan
+        setDataLoading(false)
+        setAuthLoading(false)
       }
     }
 
@@ -252,7 +255,7 @@ export default function Home() {
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
+    setAuthLoading(true)
     try {
       if (isRegistering) {
         const { error } = await supabase.auth.signUp({ email, password })
@@ -265,7 +268,7 @@ export default function Home() {
     } catch (err: any) {
       alert(err.message)
     } finally {
-      setLoading(false)
+      setAuthLoading(false)
     }
   }
 
@@ -513,7 +516,7 @@ export default function Home() {
 
   const data = calculateDashboard(balances, taxRate)
 
-  if (loading) {
+  if (authLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
@@ -695,6 +698,7 @@ export default function Home() {
         <Kontoplan />
       ) : activeTab === 'moms' ? (
         <SubscriptionGuard
+          user={user}
           profile={profile}
           requiredLevel="paid"
           fallback={<Paywall feature="Momsrapport" user={user} />}
@@ -705,6 +709,7 @@ export default function Home() {
         <FAQ />
       ) : (
         <SubscriptionGuard
+          user={user}
           profile={profile}
           requiredLevel="paid"
           fallback={<Paywall feature="NE-Bilaga" user={user} />}
