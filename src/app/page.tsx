@@ -49,7 +49,7 @@ export default function Home() {
 
   // SSR-säkert: tomma strängar vid server-render, fylls i av useEffect nedan
   const [formData, setFormData] = useState({
-    date: '',
+    date: '2025-01-01', // ✅ VIKTIGT
     description: '',
     amount: '',
     type: '',
@@ -59,7 +59,7 @@ export default function Home() {
 
   const [periodisera, setPeriodisera] = useState(false)
   // SSR-säkert: tom sträng vid server-render
-  const [periodMonth, setPeriodMonth] = useState('')
+  const [periodMonth, setPeriodMonth] = useState('2026-01')
 
   // Sätter datum-defaultvärden efter hydration
   useEffect(() => {
