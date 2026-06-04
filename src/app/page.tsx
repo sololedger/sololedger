@@ -300,10 +300,16 @@ export default function Home() {
   }
 
   async function handleLogout() {
-    localStorage.removeItem('taxRate')
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+    try {
+      localStorage.removeItem('taxRate')
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Utloggning misslyckades:', err)
+    } finally {
+      setUser(null)
+      setProfile(null)
+      window.location.reload()
+    }
   }
 
   async function handleExportSIE() {
@@ -613,7 +619,7 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user.email}</p>
-            {profile?.subscription_type === 'free' && (
+            {(profile?.subscription_type ?? 'free') === 'free' && (
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] text-amber-600 font-black uppercase tracking-wider">
                   (Gratisplan — Uppgradera för obegränsat)
