@@ -14,19 +14,27 @@ interface GuardProps {
 }
 
 export default function SubscriptionGuard({ user, profile, requiredLevel, fallback, children }: GuardProps) {
-  // 🔥 GPT FIX: Vänta tills BÅDE user och profile har laddats klart från Supabase.
-  // Detta eliminerar att en betalvägg blinkar till i en millisekund vid en refresh (F5).
-  if (!user || !profile) {
+  // Vänta tills vi vet om användaren är inloggad.
+  // Viktigt: kolla BARA user här, inte profile — profile kan vara null
+  // temporärt medan den laddas (async delay), och det ska inte blockera rendering.
+  if (!user) {
     return null
   }
 
-  // 1. Admin har alltid tillgång till allt
-  if (profile.subscription_type === 'admin') {
+  // Om profile inte laddat klart ännu: behandla som free-användare.
+  // Detta är korrekt UX — en betalande användare som ser paywall i 200ms
+  // är bättre än en tom skärm. Profile laddas alltid in getSession-blocket
+  // INNAN authLoading sätts till false, så i praktiken är profile alltid
+  // satt när vi når den här komponenten. Fallbacken är ett extra säkerhetsnät.
+  const userProfile = profile ?? { subscription_type: 'free', subscription_end: null }
+
+  // Admin har alltid tillgång till allt
+  if (userProfile.subscription_type === 'admin') {
     return <>{children}</>
   }
 
-  // 2. Om nivån kräver administratör men användaren saknar det
-  if (requiredLevel === 'admin' && profile.subscription_type !== 'admin') {
+  // Om nivån kräver administratör men användaren saknar det
+  if (requiredLevel === 'admin' && userProfile.subscription_type !== 'admin') {
     return (
       <div className="p-8 text-center bg-red-50 rounded-[2rem] border border-red-200">
         <p className="text-sm font-black text-red-700 uppercase">🔒 Endast för administratörer</p>
@@ -34,12 +42,11 @@ export default function SubscriptionGuard({ user, profile, requiredLevel, fallba
     )
   }
 
-  // 3. Dubbelriktad tidskontroll (Säkrar upp om webhooks laggar eller missas)
+  // Dubbelriktad tidskontroll (säkrar upp om webhooks laggar eller missas)
   const isActive =
-    (profile.subscription_type === 'paid' || profile.subscription_type === 'trial') &&
-    (!profile.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
+    (userProfile.subscription_type === 'paid' || userProfile.subscription_type === 'trial') &&
+    (!userProfile.subscription_end || new Date(userProfile.subscription_end).getTime() > Date.now())
 
-  // 4. Om prenumerationen inte är aktiv (eller har löpt ut) -> Visa betalvägg
   if (!isActive) {
     if (fallback) return <>{fallback}</>
 
