@@ -105,42 +105,6 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true
 
-    // Kolla sessionen direkt vid sidladdning/F5.
-    // KRITISK FIX: setAuthLoading(false) MÅSTE anropas här oavsett om användaren
-    // är inloggad eller ej. onAuthStateChange är inte tillförlitlig i alla miljöer
-    // (strikta företagsproxies, CSP-policies, browser-extensions) och kan tystna
-    // helt vid F5 — om vi bara förlitar oss på den fastnar sidan på "Laddar..." för evigt.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return
-
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-
-      if (currentUser) {
-        try {
-          const { data } = await supabase
-            .from('profiles')
-            .select('subscription_type, subscription_end')
-            .eq('id', currentUser.id)
-            .maybeSingle()
-          if (isMounted) setProfile(data)
-        } catch (err) {
-          console.error('Fel vid profilhämtning i getSession:', err)
-        }
-      } else {
-        setProfile(null)
-      }
-
-      // ALLTID av authLoading här — oavsett inloggad eller ej
-      if (isMounted) setAuthLoading(false)
-    }).catch((err) => {
-      // Säkerhetsnät: om getSession själv kastar (nätverksfel, CSP-block osv.)
-      // måste vi ändå låsa upp UI:t så sidan inte fryser permanent.
-      console.error('getSession misslyckades:', err)
-      if (isMounted) setAuthLoading(false)
-    })
-
-    // Hanterar aktiva förändringar (inloggning/utloggning via klick)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!isMounted) return
@@ -155,15 +119,15 @@ export default function Home() {
               .select('subscription_type, subscription_end')
               .eq('id', currentUser.id)
               .maybeSingle()
+
             if (isMounted) setProfile(data)
           } catch (err) {
-            console.error('Fel vid profilhämtning i onAuthStateChange:', err)
+            console.error('Fel vid profilhämtning:', err)
           }
         } else {
           setProfile(null)
         }
 
-        // Alltid av authLoading även här (täcker login/logout-flöden)
         if (isMounted) setAuthLoading(false)
       }
     )
