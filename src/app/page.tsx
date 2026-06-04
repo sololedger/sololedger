@@ -237,7 +237,6 @@ export default function Home() {
       } finally {
         // Alltid av loading – annars fryser sidan
         setDataLoading(false)
-        setAuthLoading(false)
       }
     }
 
@@ -669,12 +668,6 @@ export default function Home() {
             <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-400 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
-          >
-            Logga ut
-          </button>
         </div>
       </div>
 
