@@ -2,11 +2,10 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabaseClient'  // ← ÄNDRAD
 import { useSearchParams } from 'next/navigation'
 import DashboardClient from './DashboardClient'
 
-// En inre komponent som säkert kan läsa URL-parametrar (status=success)
 function DashboardContent() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -15,14 +14,10 @@ function DashboardContent() {
   const params = useSearchParams()
   const status = params.get('status')
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // ← BORTTAGEN: const supabase = createBrowserClient(...)
 
   useEffect(() => {
     async function load() {
-      // Skarpt och säkert anrop via getUser() på klientsidan
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
@@ -57,8 +52,6 @@ function DashboardContent() {
   )
 }
 
-// Huvudkomponenten som Next.js letar efter. 
-// Den omsluter allt i Suspense vilket lagar buggen direkt!
 export default function DashboardPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-gray-500">Laddar...</div>}>
