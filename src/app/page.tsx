@@ -101,7 +101,7 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-  // Auth — skottsäker lyssnare med garanterad setAuthLoading(false) i ALLA kodvägar
+  // Auth — ignorerar events där user inte faktiskt ändrats, stoppar onödig re-render
   useEffect(() => {
     let isMounted = true
 
@@ -110,7 +110,12 @@ export default function Home() {
         if (!isMounted) return
 
         const currentUser = session?.user ?? null
-        setUser(currentUser)
+
+        // Uppdatera user BARA om id faktiskt ändrats — stoppar re-render vid tomma flik-events
+        setUser((prev: any) => {
+          if (prev?.id === currentUser?.id) return prev
+          return currentUser
+        })
 
         if (currentUser) {
           try {
@@ -120,7 +125,13 @@ export default function Home() {
               .eq('id', currentUser.id)
               .maybeSingle()
 
-            if (isMounted) setProfile(data)
+            if (isMounted) {
+              // Uppdatera profile BARA om data faktiskt ändrats
+              setProfile((prev: any) => {
+                if (JSON.stringify(prev) === JSON.stringify(data)) return prev
+                return data
+              })
+            }
           } catch (err) {
             console.error('Fel vid profilhämtning:', err)
           }
