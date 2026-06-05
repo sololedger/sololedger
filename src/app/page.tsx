@@ -108,54 +108,52 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-  // Auth — ignorerar events där user inte faktiskt ändrats, stoppar onödig re-render
-  useEffect(() => {
-    let isMounted = true
+ // Auth — hanterar session lifecycle och bryter token-loops i prod
+ useEffect(() => {
+  let isMounted = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log('AUTH EVENT:', _event, !!session?.user)
-        if (!isMounted) return
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (!isMounted) return
+      console.log('AUTH EVENT:', event, !!session?.user)
 
-        const currentUser = session?.user ?? null
-
-        // Uppdatera user BARA om id faktiskt ändrats — stoppar re-render vid tomma flik-events
-        setUser((prev: any) => {
-          if (prev?.id === currentUser?.id) return prev
-          return currentUser
-        })
-
-        if (currentUser) {
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('subscription_type, subscription_end')
-              .eq('id', currentUser.id)
-              .maybeSingle()
-
-            if (isMounted) {
-              // Uppdatera profile BARA om data faktiskt ändrats
-              setProfile((prev: any) => {
-                if (JSON.stringify(prev) === JSON.stringify(data)) return prev
-                return data
-              })
-            }
-          } catch (err) {
-            console.error('Fel vid profilhämtning:', err)
-          }
-        } else {
-          setProfile(null)
-        }
-
+      // 🔥 OOM ERROR/RELOAD-LOOP FIX: Om sessionen är korrupt, rensa stenhårt direkt
+      if (event === 'SIGNED_OUT' && !session) {
+        await supabase.auth.signOut()
+        setUser(null)
+        setProfile(null)
         if (isMounted) setAuthLoading(false)
+        return
       }
-    )
 
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+
+      if (currentUser) {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('subscription_type, subscription_end')
+            .eq('id', currentUser.id)
+            .maybeSingle()
+          
+          if (isMounted) setProfile(data)
+        } catch (err) {
+          console.error('Fel vid profilhämtning:', err)
+        }
+      } else {
+        setProfile(null)
+      }
+
+      if (isMounted) setAuthLoading(false)
     }
-  }, [])
+  )
+
+  return () => {
+    isMounted = false
+    subscription.unsubscribe()
+  }
+}, [])
 
   // Ladda data när user eller år ändras
   useEffect(() => {
