@@ -108,27 +108,32 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
- // Auth — hanterar session lifecycle och bryter token-loops i prod
- useEffect(() => {
+// Auth — hanterar session lifecycle och låter profil laddas i bakgrunden utan att blockera UI
+useEffect(() => {
   let isMounted = true
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
+    async (_event, session) => {
+      console.log('AUTH EVENT:', _event, !!session?.user)
       if (!isMounted) return
-      console.log('AUTH EVENT:', event, !!session?.user)
+
+      const currentUser = session?.user ?? null
+
+      // ✅ SÄTT USER DIREKT
+      setUser(currentUser)
+
+      // ✅ AVSLUTA LOADING DIREKT (KRITISKT) — blockera aldrig UI med async-anrop
+      if (isMounted) setAuthLoading(false)
 
       // 🔥 OOM ERROR/RELOAD-LOOP FIX: Om sessionen är korrupt, rensa stenhårt direkt
-      if (event === 'SIGNED_OUT' && !session) {
+      if (_event === 'SIGNED_OUT' && !session) {
         await supabase.auth.signOut()
         setUser(null)
         setProfile(null)
-        if (isMounted) setAuthLoading(false)
         return
       }
 
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-
+      // ✅ LÅT PROFIL LADDAS SEPARAT I BAKGRUNDEN
       if (currentUser) {
         try {
           const { data } = await supabase
@@ -139,13 +144,11 @@ export default function Home() {
           
           if (isMounted) setProfile(data)
         } catch (err) {
-          console.error('Fel vid profilhämtning:', err)
+          console.error('Profile error:', err)
         }
       } else {
         setProfile(null)
       }
-
-      if (isMounted) setAuthLoading(false)
     }
   )
 
