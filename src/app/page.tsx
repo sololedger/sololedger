@@ -107,6 +107,7 @@ export default function Home() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('AUTH EVENT:', _event, !!session?.user)
         if (!isMounted) return
 
         const currentUser = session?.user ?? null
