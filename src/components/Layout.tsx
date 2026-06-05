@@ -55,10 +55,13 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout }: 
             Hjälp & FAQ
           </button>
 
-          {/* ✅ TILLAGD: Logga ut-knapp som faktiskt kör vår skottsäkra reload-funktion */}
+          {/* ✅ SPÅRARE INLAGD: Loggar LOGOUT CLICKED i F12 innan funktionen körs */}
           {onLogout && (
             <button 
-              onClick={onLogout}
+              onClick={() => {
+                console.log('LOGOUT CLICKED')
+                onLogout()
+              }}
               className="ml-2 px-4 py-2 bg-gray-200/60 hover:bg-red-50 hover:text-red-600 text-gray-500 rounded-lg font-black text-xs uppercase tracking-wider transition-all"
             >
               Logga ut

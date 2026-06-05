@@ -64,6 +64,10 @@ export default function Home() {
   // SSR-säkert: tom sträng vid server-render
   const [periodMonth, setPeriodMonth] = useState('2026-01')
 
+  useEffect(() => {
+    console.log('PAGE MOUNTED')
+  }, [])
+
   // Sätter datum-defaultvärden efter hydration
   useEffect(() => {
     const today = new Date()
