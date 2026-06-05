@@ -1,4 +1,8 @@
 'use client'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
