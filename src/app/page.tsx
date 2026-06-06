@@ -134,6 +134,15 @@ export default function Home() {
         if (currentUser) {
           console.log('HÄMTAR PROFIL FÖR:', currentUser.id)
           try {
+            // Verifiera att sessionen är aktiv innan DB-anrop
+            const { data: { session } } = await supabase.auth.getSession()
+            console.log('SESSION VID PROFILANROP:', !!session)
+            
+            if (!session) {
+              if (isMounted) setAuthLoading(false)
+              return
+            }
+
             const { data, error } = await supabase
               .from('profiles')
               .select('subscription_type, subscription_end')
@@ -149,10 +158,17 @@ export default function Home() {
             console.error('Fel vid profilhämtning:', err)
             if (isMounted) setAuthLoading(false)
           }
+        } else {
+          setProfile(null)
+        }
+
+        if (isMounted) {
+          console.log('SÄTTER authLoading false, isMounted:', isMounted)
+          setAuthLoading(false)
         }
       }
     )
-  
+
     return () => {
       isMounted = false
       hasTriggered = true
