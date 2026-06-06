@@ -121,6 +121,7 @@ export default function Home() {
   
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('AUTH EVENT:', _event, !!session?.user, 'isMounted:', isMounted)
         if (!isMounted) return
         hasTriggered = true
         clearTimeout(fallbackTimer)
