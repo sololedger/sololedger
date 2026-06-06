@@ -132,26 +132,23 @@ export default function Home() {
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
   
         if (currentUser) {
+          console.log('HÄMTAR PROFIL FÖR:', currentUser.id)
           try {
-            const { data } = await supabase
+            const { data, error } = await supabase
               .from('profiles')
               .select('subscription_type, subscription_end')
               .eq('id', currentUser.id)
               .maybeSingle()
+            
+            console.log('PROFIL SVAR:', { data, error })
+            
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
             )
           } catch (err) {
             console.error('Fel vid profilhämtning:', err)
-            if (isMounted) setAuthLoading(false) // ← lägg till denna
+            if (isMounted) setAuthLoading(false)
           }
-        } else {
-          setProfile(null)
-        }
-  
-        if (isMounted) {
-          console.log('SÄTTER authLoading false, isMounted:', isMounted)
-          setAuthLoading(false)
         }
       }
     )
