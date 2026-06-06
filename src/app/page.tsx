@@ -134,28 +134,27 @@ export default function Home() {
         if (currentUser) {
           console.log('HÄMTAR PROFIL FÖR:', currentUser.id)
           try {
-            const { data, error } = await supabase
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('TIMEOUT efter 5 sekunder')), 5000)
+            )
+            
+            const queryPromise = supabase
               .from('profiles')
               .select('subscription_type, subscription_end')
               .eq('id', currentUser.id)
               .maybeSingle()
+            
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
             
             console.log('PROFIL SVAR:', { data, error })
             
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
             )
-          } catch (err) {
-            console.error('Fel vid profilhämtning:', err)
+          } catch (err: any) {
+            console.error('Profilhämtning fel/timeout:', err.message)
             if (isMounted) setAuthLoading(false)
           }
-        } else {
-          setProfile(null)
-        }
-
-        if (isMounted) {
-          console.log('SÄTTER authLoading false, isMounted:', isMounted)
-          setAuthLoading(false)
         }
       }
     )
