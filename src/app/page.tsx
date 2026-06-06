@@ -121,7 +121,6 @@ export default function Home() {
   
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        console.log('AUTH EVENT:', _event, !!session?.user, 'isMounted:', isMounted)
         if (!isMounted) return
         hasTriggered = true
         clearTimeout(fallbackTimer)
@@ -131,34 +130,32 @@ export default function Home() {
         const currentUser = session?.user ?? null
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
   
-        if (currentUser) {
-          console.log('HÄMTAR PROFIL FÖR:', currentUser.id)
+        // Hämta profil BARA när sessionen är fullt initialiserad
+        // SIGNED_IN triggas för tidigt — DB-anrop hänger då
+        if (currentUser && _event !== 'SIGNED_IN') {
           try {
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('TIMEOUT efter 5 sekunder')), 5000)
-            )
-            
-            const queryPromise = supabase
+            const { data, error } = await supabase
               .from('profiles')
               .select('subscription_type, subscription_end')
               .eq('id', currentUser.id)
               .maybeSingle()
-            
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
-            
+  
             console.log('PROFIL SVAR:', { data, error })
-            
+  
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
             )
-          } catch (err: any) {
-            console.error('Profilhämtning fel/timeout:', err.message)
-            if (isMounted) setAuthLoading(false)
+          } catch (err) {
+            console.error('Fel vid profilhämtning:', err)
           }
+        } else if (!currentUser) {
+          setProfile(null)
         }
+  
+        if (isMounted) setAuthLoading(false)
       }
     )
-
+  
     return () => {
       isMounted = false
       hasTriggered = true
