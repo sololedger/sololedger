@@ -143,6 +143,7 @@ export default function Home() {
             )
           } catch (err) {
             console.error('Fel vid profilhämtning:', err)
+            if (isMounted) setAuthLoading(false) // ← lägg till denna
           }
         } else {
           setProfile(null)
