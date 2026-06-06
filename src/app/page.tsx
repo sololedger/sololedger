@@ -108,32 +108,40 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-// Auth — hanterar session lifecycle och låter profil laddas i bakgrunden utan att blockera UI
+// Auth — Hanterar session lifecycle med en säkerhetsmarginal på 2000ms
 useEffect(() => {
   let isMounted = true
+  let hasTriggered = false
+
+  // ⏳ SÄKERHETSNÄT: Om Supabase är helt tyst i prod (t.ex. vid trasiga sessioner),
+  // tvingar vi upp dörren efter 2000ms så att sidan ALDRIG kan fastna på "Laddar...".
+  const fallbackTimer = setTimeout(() => {
+    if (isMounted && !hasTriggered) {
+      console.log('AUTH FALLBACK: 2000ms har gått, tvingar authLoading till false');
+      setAuthLoading(false)
+    }
+  }, 2000)
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      console.log('AUTH EVENT:', _event, !!session?.user)
+    async (event, session) => {
       if (!isMounted) return
+      hasTriggered = true
+      clearTimeout(fallbackTimer) // Supabase svarade i tid, avbryt timern!
+      
+      console.log('AUTH EVENT:', event, !!session?.user)
 
-      const currentUser = session?.user ?? null
-
-      // ✅ SÄTT USER DIREKT
-      setUser(currentUser)
-
-      // ✅ AVSLUTA LOADING DIREKT (KRITISKT) — blockera aldrig UI med async-anrop
-      if (isMounted) setAuthLoading(false)
-
-      // 🔥 OOM ERROR/RELOAD-LOOP FIX: Om sessionen är korrupt, rensa stenhårt direkt
-      if (_event === 'SIGNED_OUT' && !session) {
+      // 🛑 TOKEN-LOOP FIX: Om sessionen är helt korrupt, logga ut stenhårt direkt
+      if (event === 'SIGNED_OUT' && !session) {
         await supabase.auth.signOut()
         setUser(null)
         setProfile(null)
+        if (isMounted) setAuthLoading(false)
         return
       }
 
-      // ✅ LÅT PROFIL LADDAS SEPARAT I BAKGRUNDEN
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+
       if (currentUser) {
         try {
           const { data } = await supabase
@@ -144,16 +152,20 @@ useEffect(() => {
           
           if (isMounted) setProfile(data)
         } catch (err) {
-          console.error('Profile error:', err)
+          console.error('Fel vid profilhämtning:', err)
         }
       } else {
         setProfile(null)
       }
+
+      if (isMounted) setAuthLoading(false)
     }
   )
 
   return () => {
     isMounted = false
+    hasTriggered = true
+    clearTimeout(fallbackTimer)
     subscription.unsubscribe()
   }
 }, [])
