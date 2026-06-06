@@ -147,7 +147,10 @@ export default function Home() {
           setProfile(null)
         }
   
-        if (isMounted) setAuthLoading(false)
+        if (isMounted) {
+          console.log('SÄTTER authLoading false, isMounted:', isMounted)
+          setAuthLoading(false)
+        }
       }
     )
   
