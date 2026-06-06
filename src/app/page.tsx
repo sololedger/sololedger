@@ -134,15 +134,6 @@ export default function Home() {
         if (currentUser) {
           console.log('HÄMTAR PROFIL FÖR:', currentUser.id)
           try {
-            // Verifiera att sessionen är aktiv innan DB-anrop
-            const { data: { session } } = await supabase.auth.getSession()
-            console.log('SESSION VID PROFILANROP:', !!session)
-            
-            if (!session) {
-              if (isMounted) setAuthLoading(false)
-              return
-            }
-
             const { data, error } = await supabase
               .from('profiles')
               .select('subscription_type, subscription_end')
