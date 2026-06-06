@@ -533,6 +533,8 @@ export default function Home() {
 
   const data = calculateDashboard(balances, taxRate)
 
+  console.log('RENDER:', { authLoading, user: !!user })
+
   if (authLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
