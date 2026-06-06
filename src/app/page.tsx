@@ -65,7 +65,7 @@ export default function Home() {
   const [periodMonth, setPeriodMonth] = useState('2026-01')
 
   useEffect(() => {
-    console.log('PAGE MOUNTED')
+
   }, [])
 
   // Sätter datum-defaultvärden efter hydration
@@ -114,7 +114,6 @@ export default function Home() {
   
     const fallbackTimer = setTimeout(() => {
       if (isMounted && !hasTriggered) {
-        console.log('AUTH FALLBACK: Supabase var tyst, tvingar authLoading till false')
         setAuthLoading(false)
       }
     }, 2000)
@@ -125,7 +124,7 @@ export default function Home() {
         hasTriggered = true
         clearTimeout(fallbackTimer)
   
-        console.log('AUTH EVENT:', _event, !!session?.user)
+
   
         const currentUser = session?.user ?? null
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
@@ -140,7 +139,7 @@ export default function Home() {
               .eq('id', currentUser.id)
               .maybeSingle()
   
-            console.log('PROFIL SVAR:', { data, error })
+
   
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
@@ -538,7 +537,7 @@ export default function Home() {
 
   const data = calculateDashboard(balances, taxRate)
 
-  console.log('RENDER:', { authLoading, user: !!user })
+
 
   if (authLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
