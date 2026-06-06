@@ -108,67 +108,56 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-// Auth — Hanterar session lifecycle med en säkerhetsmarginal på 2000ms
-useEffect(() => {
-  let isMounted = true
-  let hasTriggered = false
-
-  // ⏳ SÄKERHETSNÄT: Om Supabase är helt tyst i prod (t.ex. vid trasiga sessioner),
-  // tvingar vi upp dörren efter 2000ms så att sidan ALDRIG kan fastna på "Laddar...".
-  const fallbackTimer = setTimeout(() => {
-    if (isMounted && !hasTriggered) {
-      console.log('AUTH FALLBACK: 2000ms har gått, tvingar authLoading till false');
-      setAuthLoading(false)
-    }
-  }, 2000)
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (!isMounted) return
-      hasTriggered = true
-      clearTimeout(fallbackTimer) // Supabase svarade i tid, avbryt timern!
-      
-      console.log('AUTH EVENT:', event, !!session?.user)
-
-      // 🛑 TOKEN-LOOP FIX: Om sessionen är helt korrupt, logga ut stenhårt direkt
-      if (event === 'SIGNED_OUT' && !session) {
-        await supabase.auth.signOut()
-        setUser(null)
-        setProfile(null)
-        if (isMounted) setAuthLoading(false)
-        return
+  useEffect(() => {
+    let isMounted = true
+    let hasTriggered = false
+  
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted && !hasTriggered) {
+        console.log('AUTH FALLBACK: Supabase var tyst, tvingar authLoading till false')
+        setAuthLoading(false)
       }
-
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-
-      if (currentUser) {
-        try {
-          const { data } = await supabase
-            .from('profiles')
-            .select('subscription_type, subscription_end')
-            .eq('id', currentUser.id)
-            .maybeSingle()
-          
-          if (isMounted) setProfile(data)
-        } catch (err) {
-          console.error('Fel vid profilhämtning:', err)
+    }, 2000)
+  
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!isMounted) return
+        hasTriggered = true
+        clearTimeout(fallbackTimer)
+  
+        console.log('AUTH EVENT:', _event, !!session?.user)
+  
+        const currentUser = session?.user ?? null
+        setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
+  
+        if (currentUser) {
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('subscription_type, subscription_end')
+              .eq('id', currentUser.id)
+              .maybeSingle()
+            if (isMounted) setProfile((prev: any) =>
+              JSON.stringify(prev) === JSON.stringify(data) ? prev : data
+            )
+          } catch (err) {
+            console.error('Fel vid profilhämtning:', err)
+          }
+        } else {
+          setProfile(null)
         }
-      } else {
-        setProfile(null)
+  
+        if (isMounted) setAuthLoading(false)
       }
-
-      if (isMounted) setAuthLoading(false)
+    )
+  
+    return () => {
+      isMounted = false
+      hasTriggered = true
+      clearTimeout(fallbackTimer)
+      subscription.unsubscribe()
     }
-  )
-
-  return () => {
-    isMounted = false
-    hasTriggered = true
-    clearTimeout(fallbackTimer)
-    subscription.unsubscribe()
-  }
-}, [])
+  }, [])
 
   // Ladda data när user eller år ändras
   useEffect(() => {
