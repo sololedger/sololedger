@@ -65,7 +65,7 @@ export default function Home() {
   const [periodMonth, setPeriodMonth] = useState('2026-01')
 
   useEffect(() => {
-
+    console.log('PAGE MOUNTED')
   }, [])
 
   // Sätter datum-defaultvärden efter hydration
@@ -114,6 +114,7 @@ export default function Home() {
   
     const fallbackTimer = setTimeout(() => {
       if (isMounted && !hasTriggered) {
+        console.log('AUTH FALLBACK: Supabase var tyst, tvingar authLoading till false')
         setAuthLoading(false)
       }
     }, 2000)
@@ -124,7 +125,7 @@ export default function Home() {
         hasTriggered = true
         clearTimeout(fallbackTimer)
   
-
+        console.log('AUTH EVENT:', _event, !!session?.user)
   
         const currentUser = session?.user ?? null
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
@@ -139,7 +140,7 @@ export default function Home() {
               .eq('id', currentUser.id)
               .maybeSingle()
   
-
+            console.log('PROFIL SVAR:', { data, error })
   
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
@@ -170,6 +171,7 @@ export default function Home() {
     setDataLoading(true)
 
     async function load() {
+      if (!user?.id) return
       try {
         const { data, error } = await supabase
           .from('accounts')
@@ -537,7 +539,7 @@ export default function Home() {
 
   const data = calculateDashboard(balances, taxRate)
 
-
+  console.log('RENDER:', { authLoading, user: !!user })
 
   if (authLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
@@ -606,19 +608,22 @@ export default function Home() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8 px-4">
+<div className="flex justify-between items-center mb-8 px-4">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : 'NE-Bilaga'}
           </h1>
-          <div className="flex items-center gap-2 mt-0.5">
+          
+          {/* Vi ändrar till flex-col här för att stapla raderna vertikalt */}
+          <div className="flex flex-col gap-1 mt-1">
             <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user.email}</p>
+            
             {(profile?.subscription_type ?? 'free') === 'free' && (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px] text-amber-600 font-black uppercase tracking-wider">
                   (Gratisplan — Uppgradera för obegränsat)
                 </span>
-                <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200">
+                <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm">
                   📊 {transactions.length} / {FREE_TRANSACTION_LIMIT} transaktioner använda
                 </span>
               </div>
