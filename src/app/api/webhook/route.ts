@@ -20,6 +20,7 @@ function parseEndDate(rawEnd: any): string {
 }
 
 export async function POST(req: Request) {
+  console.log('WEBHOOK ANROPAD')
   const body = await req.text()
   const headerList = await headers()
   const signature = headerList.get('Stripe-Signature')
