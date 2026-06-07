@@ -132,26 +132,29 @@ export default function Home() {
   
         // Hämta profil BARA när sessionen är fullt initialiserad
         // SIGNED_IN triggas för tidigt — DB-anrop hänger då
-        if (currentUser && _event !== 'SIGNED_IN') {
+        if (currentUser) {
           try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('subscription_type, subscription_end')
-              .eq('id', currentUser.id)
-              .maybeSingle()
-  
-            console.log('PROFIL SVAR:', { data, error })
-  
+            const { data } = await Promise.race([
+              supabase
+                .from('profiles')
+                .select('subscription_type, subscription_end')
+                .eq('id', currentUser.id)
+                .maybeSingle(),
+              new Promise<any>((_, reject) =>
+                setTimeout(() => reject(new Error('timeout')), 3000)
+              )
+            ]) as any
+
             if (isMounted) setProfile((prev: any) =>
               JSON.stringify(prev) === JSON.stringify(data) ? prev : data
             )
           } catch (err) {
             console.error('Fel vid profilhämtning:', err)
           }
-        } else if (!currentUser) {
+        } else {
           setProfile(null)
         }
-  
+
         if (isMounted) setAuthLoading(false)
       }
     )
@@ -233,7 +236,7 @@ export default function Home() {
 
     load()
     return () => { cancelled = true }
-  }, [selectedYear, user])
+  }, [user, selectedYear, profile]) // 🌟 LÄGG TILL profile HÄR!
 
   // Kontrollera om räkenskapsåret är låst
   useEffect(() => {
@@ -541,7 +544,7 @@ export default function Home() {
 
   console.log('RENDER:', { authLoading, user: !!user })
 
-  if (authLoading) {
+  if (authLoading || (user && !profile)) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
