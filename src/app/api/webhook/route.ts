@@ -49,6 +49,7 @@ export async function POST(req: Request) {
 
     if (userId && subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+      console.log('SUBSCRIPTION DATA:', JSON.stringify(subscription.current_period_end))
       const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
