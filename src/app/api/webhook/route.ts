@@ -22,7 +22,6 @@ function parseEndDate(rawEnd: any): string {
 }
 
 export async function POST(req: Request) {
-  console.log('WEBHOOK ANROPAD')
   const body = await req.text()
   const headerList = await headers()
   const signature = headerList.get('Stripe-Signature')
@@ -52,7 +51,6 @@ export async function POST(req: Request) {
 
     if (userId && subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
-      console.log('SUBSCRIPTION DATA:', JSON.stringify(subscription.current_period_end))
       const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
