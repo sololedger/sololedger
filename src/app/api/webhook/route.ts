@@ -5,7 +5,6 @@ import { createClient } from '@supabase/supabase-js'
 // @ts-ignore
 import Stripe from 'stripe'
 
-// Genom att sätta hela Stripe-instansen till 'as any' tvingar vi TypeScript att strunta i ALLA fel i hela filen
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {} as any)
 
 const supabaseAdmin = createClient(
@@ -13,12 +12,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+function parseEndDate(rawEnd: any): string {
+  if (typeof rawEnd === 'number') {
+    return new Date(rawEnd * 1000).toISOString()
+  }
+  return new Date(rawEnd).toISOString()
+}
+
 export async function POST(req: Request) {
   const body = await req.text()
   const headerList = await headers()
   const signature = headerList.get('Stripe-Signature')
 
-  // Spärr: Avvisa direkt om signatur saknas
   if (!signature) {
     return NextResponse.json({ error: 'Mottog ingen Stripe-signatur' }, { status: 400 })
   }
@@ -44,7 +49,7 @@ export async function POST(req: Request) {
 
     if (userId && subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
-      const endDate = new Date(subscription.current_period_end * 1000).toISOString()
+      const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
         .from('profiles')
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
 
     if (subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
-      const endDate = new Date(subscription.current_period_end * 1000).toISOString()
+      const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
         .from('profiles')
@@ -84,7 +89,7 @@ export async function POST(req: Request) {
 
     await supabaseAdmin
       .from('profiles')
-      .update({ 
+      .update({
         subscription_type: 'free',
         subscription_end: new Date().toISOString()
       })
