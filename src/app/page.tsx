@@ -12,6 +12,7 @@ import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
+import ProfileSettings from '@/components/ProfileSettings'
 import TransactionTable from '@/components/TransactionTable'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
@@ -137,7 +138,7 @@ export default function Home() {
             const { data } = await Promise.race([
               supabase
                 .from('profiles')
-                .select('subscription_type, subscription_end')
+                .select('subscription_type, subscription_end, company_name, org_nr')
                 .eq('id', currentUser.id)
                 .maybeSingle(),
               new Promise<any>((_, reject) =>
@@ -614,12 +615,12 @@ export default function Home() {
 <div className="flex justify-between items-center mb-8 px-4">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
-            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : 'NE-Bilaga'}
+            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : 'NE-Bilaga'}
           </h1>
           
           {/* Vi ändrar till flex-col här för att stapla raderna vertikalt */}
           <div className="flex flex-col gap-1 mt-1">
-            <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user.email}</p>
+            <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user?.email}</p>
             
             {(profile?.subscription_type ?? 'free') === 'free' && (
               <div className="flex items-center gap-2 mt-0.5">
@@ -635,38 +636,46 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
-            <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="bg-emerald-50 border-none rounded-lg px-3 py-1 font-black text-sm text-emerald-600 outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
+          {/* Årsväljaren visas INTE på profil, faq och kontoplan */}
+          {!['profil', 'faq', 'kontoplan'].includes(activeTab) && (
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+              <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-emerald-50 border-none rounded-lg px-3 py-1 font-black text-sm text-emerald-600 outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
+              >
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* SIE-exporten visas BARA på dashboard (Bokföring) */}
+          {activeTab === 'dashboard' && (
+            <button
+              onClick={handleExportSIE}
+              className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
             >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
+              Export SIE
+            </button>
+          )}
 
-          <button
-            onClick={handleExportSIE}
-            className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
-          >
-            Export SIE
-          </button>
-
-          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
-            <span className="text-[10px] font-black uppercase text-gray-400 italic">Skatt:</span>
-            <input
-              type="range"
-              min={25}
-              max={55}
-              step={1}
-              value={taxRate}
-              onChange={(e) => setTaxRate(Number(e.target.value))}
-              className="w-20 accent-emerald-500 cursor-pointer"
-            />
-            <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
-          </div>
-
+          {/* Skattereglaget visas BARA på dashboard och ne-bilaga */}
+          {['dashboard', 'ne-bilaga', 'NE-Bilaga', 'ne'].includes(activeTab) && (
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+              <span className="text-[10px] font-black uppercase text-gray-400 italic">Skatt:</span>
+              <input
+                type="range"
+                min={25}
+                max={55}
+                step={1}
+                value={taxRate}
+                onChange={(e) => setTaxRate(Number(e.target.value))}
+                className="w-20 accent-emerald-500 cursor-pointer"
+              />
+              <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -732,10 +741,16 @@ export default function Home() {
           requiredLevel="paid"
           fallback={<Paywall feature="Momsrapport" user={user} />}
         >
-          <Momsrapport />
+<Momsrapport />
         </SubscriptionGuard>
       ) : activeTab === 'faq' ? (
         <FAQ />
+      ) : activeTab === 'profil' ? (
+        <ProfileSettings 
+          user={user} 
+          profile={profile} 
+          onProfileUpdate={(updated) => setProfile(updated)} 
+        />
       ) : (
         <SubscriptionGuard
           user={user}

@@ -55,6 +55,13 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout }: 
             Hjälp & FAQ
           </button>
 
+          <button 
+            onClick={() => setActiveTab('profil')} 
+            className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${activeTab === 'profil' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Profil
+          </button>
+
           {/* ✅ SPÅRARE INLAGD: Loggar LOGOUT CLICKED i F12 innan funktionen körs */}
           {onLogout && (
             <button 
