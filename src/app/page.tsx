@@ -637,7 +637,7 @@ export default function Home() {
 
         <div className="flex items-center gap-4">
           {/* Årsväljaren visas INTE på profil, faq och kontoplan */}
-          {!['profil', 'faq', 'kontoplan'].includes(activeTab) && (
+          {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) && (
             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
               <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
               <select
