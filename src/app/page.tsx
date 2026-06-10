@@ -21,11 +21,10 @@ import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
 
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function Home() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const { user, profile, authLoading, handleAuth, handleLogout, setProfile } = useAuth()
   const [dataLoading, setDataLoading] = useState(false)
 
   const [isRegistering, setIsRegistering] = useState(false)
@@ -108,65 +107,6 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
-
-  useEffect(() => {
-    let isMounted = true
-    let hasTriggered = false
-  
-    const fallbackTimer = setTimeout(() => {
-      if (isMounted && !hasTriggered) {
-        console.log('AUTH FALLBACK: Supabase var tyst, tvingar authLoading till false')
-        setAuthLoading(false)
-      }
-    }, 2000)
-  
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!isMounted) return
-        hasTriggered = true
-        clearTimeout(fallbackTimer)
-  
-        console.log('AUTH EVENT:', _event, !!session?.user)
-  
-        const currentUser = session?.user ?? null
-        setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
-  
-        // Hämta profil BARA när sessionen är fullt initialiserad
-        // SIGNED_IN triggas för tidigt — DB-anrop hänger då
-        if (currentUser) {
-          try {
-            const { data } = await Promise.race([
-              supabase
-                .from('profiles')
-                .select('subscription_type, subscription_end, company_name, org_nr')
-                .eq('id', currentUser.id)
-                .maybeSingle(),
-              new Promise<any>((_, reject) =>
-                setTimeout(() => reject(new Error('timeout')), 3000)
-              )
-            ]) as any
-
-            if (isMounted) setProfile((prev: any) =>
-              JSON.stringify(prev) === JSON.stringify(data) ? prev : data
-            )
-          } catch (err) {
-            console.error('Fel vid profilhämtning:', err)
-          }
-        } else {
-          setProfile(null)
-        }
-
-        if (isMounted) setAuthLoading(false)
-      }
-    )
-  
-    return () => {
-      isMounted = false
-      hasTriggered = true
-      clearTimeout(fallbackTimer)
-      subscription.unsubscribe()
-    }
-  }, [])
 
   // Ladda data när user eller år ändras
   useEffect(() => {
@@ -274,38 +214,6 @@ export default function Home() {
     if (error) console.error('Kunde inte skapa standardkonton:', error)
   }
 
-  async function handleAuth(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    try {
-      if (isRegistering) {
-        const { error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
-        alert('Konto skapat! Du loggas nu in.')
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-      }
-    } catch (err: any) {
-      alert(err.message)
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
-  async function handleLogout() {
-    try {
-      localStorage.removeItem('taxRate')
-      await supabase.auth.signOut()
-    } catch (err) {
-      console.error('Utloggning misslyckades:', err)
-    } finally {
-      setUser(null)
-      setProfile(null)
-      window.location.reload()
-    }
-  }
-
   async function handleExportSIE() {
     try {
       const content = await exportSIE(selectedYear)
@@ -402,7 +310,7 @@ export default function Home() {
     if (isYearLocked) return
 
     if (!editingId) {
-      const allowed = canCreateTransaction(profile ?? { subscription_type: 'free' }, transactions.length)
+      const allowed = canCreateTransaction(profile ?? { subscription_type: 'free', subscription_end: null }, transactions.length)
       if (!allowed) {
         setShowLimitPaywall(true)
         return
@@ -553,7 +461,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <form
-          onSubmit={handleAuth}
+          onSubmit={(e) => handleAuth(e, { email, password, isRegistering })}
           className="bg-white p-10 rounded-[2.5rem] shadow-xl border-2 border-emerald-500 w-full max-w-sm text-center"
         >
           <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6">S</div>
@@ -612,7 +520,7 @@ export default function Home() {
         </div>
       )}
 
-<div className="flex justify-between items-center mb-8">
+<div className="flex justify-between items-center mb-8 px-6 lg:px-8">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : 'NE-Bilaga'}
