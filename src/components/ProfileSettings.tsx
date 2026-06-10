@@ -84,7 +84,7 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
   }[subscriptionKey] ?? 'text-gray-500 bg-gray-50 border-gray-200'
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Kontoinformation */}
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8">

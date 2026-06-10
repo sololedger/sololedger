@@ -612,7 +612,7 @@ export default function Home() {
         </div>
       )}
 
-<div className="flex justify-between items-center mb-8 px-4">
+<div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : 'NE-Bilaga'}
@@ -635,10 +635,10 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Årsväljaren visas INTE på profil, faq och kontoplan */}
-          {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) && (
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+        <div className="flex items-center gap-4 w-[480px] justify-end">
+          {/* Årsväljaren visas INTE på profil, faq, kontoplan och moms */}
+          {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) ? (
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm shrink-0">
               <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
               <select
                 value={selectedYear}
@@ -648,21 +648,21 @@ export default function Home() {
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-          )}
+          ) : <div className="w-[104px] h-[38px] shrink-0" />}
 
-          {/* SIE-exporten visas BARA på dashboard (Bokföring) */}
-          {activeTab === 'dashboard' && (
-            <button
-              onClick={handleExportSIE}
-              className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all"
-            >
-              Export SIE
-            </button>
-          )}
+          {/* SIE-exporten ligger alltid kvar i strukturen men göms elegant */}
+          <button
+            onClick={handleExportSIE}
+            className={`bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
+              activeTab === 'dashboard' ? 'opacity-100 pointer-events-auto' : 'invisible pointer-events-none'
+            }`}
+          >
+            Export SIE
+          </button>
 
           {/* Skattereglaget visas BARA på dashboard och ne-bilaga */}
-          {['dashboard', 'ne-bilaga', 'NE-Bilaga', 'ne'].includes(activeTab) && (
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+          {['dashboard', 'ne-bilaga', 'NE-Bilaga', 'ne'].includes(activeTab) ? (
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm shrink-0">
               <span className="text-[10px] font-black uppercase text-gray-400 italic">Skatt:</span>
               <input
                 type="range"
@@ -675,9 +675,9 @@ export default function Home() {
               />
               <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
             </div>
-          )}
+          ) : <div className="w-[185px] h-[38px] shrink-0" />}
+          </div>
         </div>
-      </div>
 
       {activeTab === 'dashboard' ? (
         <>

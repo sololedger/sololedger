@@ -80,7 +80,7 @@ export default function Momsrapport() {
   const periodLabel = PERIODS.find(p => p.value === period)?.label ?? ''
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="mb-8">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">SKV 4700</p>

@@ -80,7 +80,7 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
     : 0
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="bg-white p-12 rounded-[3rem] border shadow-sm">
         <h2 className="text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation

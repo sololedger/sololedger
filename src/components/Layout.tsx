@@ -10,7 +10,7 @@ interface LayoutProps {
 
 export default function Layout({ children, activeTab, setActiveTab, onLogout }: LayoutProps) {
   return (
-    <main className="max-w-7xl mx-auto p-4 md:p-8 bg-gray-50/50 min-h-screen">
+    <main className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-gray-50/50 min-h-screen">
       {/* HEADER / NAVIGATION */}
       <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-3xl border shadow-sm">
         <div className="flex items-center gap-3">
