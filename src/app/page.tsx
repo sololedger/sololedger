@@ -177,7 +177,7 @@ export default function Home() {
 
     load()
     return () => { cancelled = true }
-  }, [user, selectedYear, profile]) // 🌟 LÄGG TILL profile HÄR!
+  }, [user, selectedYear, profile?.subscription_type])
 
   // Kontrollera om räkenskapsåret är låst
   useEffect(() => {
@@ -451,6 +451,11 @@ export default function Home() {
 
   const data = calculateDashboard(balances, taxRate)
 
+
+  const hasActiveSubscription =
+    (profile?.subscription_type === 'paid' || profile?.subscription_type === 'trial') &&
+    (!profile?.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
+  const showFreeBanner = !hasActiveSubscription
   console.log('RENDER:', { authLoading, user: !!user })
 
   if (authLoading || (user && !profile)) {
@@ -530,7 +535,7 @@ export default function Home() {
           <div className="flex flex-col gap-1 mt-1">
             <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user?.email}</p>
             
-            {(profile?.subscription_type ?? 'free') === 'free' && (
+            {showFreeBanner && (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px] text-amber-600 font-black uppercase tracking-wider">
                   (Gratisplan — Uppgradera för obegränsat)
