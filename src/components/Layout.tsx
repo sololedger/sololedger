@@ -5,10 +5,11 @@ interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onLogout?: () => void; // ✅ TILLAGD: Tar emot logga ut-funktionen från page.tsx
+  onLogout?: () => void;
+  isAdmin?: boolean;
 }
 
-export default function Layout({ children, activeTab, setActiveTab, onLogout }: LayoutProps) {
+export default function Layout({ children, activeTab, setActiveTab, onLogout, isAdmin }: LayoutProps) {
   return (
     <main className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-gray-50/50 min-h-screen">
       {/* HEADER / NAVIGATION */}
@@ -62,6 +63,15 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout }: 
             Profil
           </button>
 
+
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${activeTab === 'admin' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Admin
+            </button>
+          )}
           {/* ✅ SPÅRARE INLAGD: Loggar LOGOUT CLICKED i F12 innan funktionen körs */}
           {onLogout && (
             <button 

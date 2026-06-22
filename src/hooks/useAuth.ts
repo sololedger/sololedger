@@ -8,6 +8,8 @@ export type AuthProfile = {
   subscription_end: string | null
   company_name: string | null
   org_nr: string | null
+  role?: string
+  email?: string
 } | null
 
 export type AuthCredentials = {
@@ -48,7 +50,7 @@ export function useAuth() {
             const { data } = await Promise.race([
               supabase
                 .from('profiles')
-                .select('subscription_type, subscription_end, company_name, org_nr')
+                .select('subscription_type, subscription_end, company_name, org_nr, role, email')
                 .eq('id', currentUser.id)
                 .maybeSingle(),
               new Promise<any>((_, reject) =>

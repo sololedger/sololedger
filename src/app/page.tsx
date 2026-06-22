@@ -19,6 +19,7 @@ import TransactionForm from '@/components/TransactionForm'
 
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
+import AdminPanel from '@/components/AdminPanel'
 
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
@@ -45,6 +46,8 @@ export default function Home() {
     isYearLocked, setIsYearLocked,
     refreshData,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
+
+  const isAdmin = profile?.role === 'admin'
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
@@ -358,7 +361,8 @@ export default function Home() {
     <Layout 
       activeTab={activeTab} 
       setActiveTab={setActiveTab}
-      onLogout={handleLogout} // 🔥 DENNA RAD SKA IN HÄR!
+      onLogout={handleLogout}
+      isAdmin={isAdmin}
     >
       {showLimitPaywall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -377,7 +381,7 @@ export default function Home() {
 <div className="flex justify-between items-center mb-8 px-6 lg:px-8">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
-            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : 'NE-Bilaga'}
+            {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : activeTab === 'admin' ? 'Admin' : 'NE-Bilaga'}
           </h1>
           
           {/* Vi ändrar till flex-col här för att stapla raderna vertikalt */}
@@ -513,6 +517,8 @@ export default function Home() {
           profile={profile} 
           onProfileUpdate={(updated) => setProfile(updated)} 
         />
+      ) : activeTab === 'admin' && isAdmin ? (
+        <AdminPanel />
       ) : (
         <SubscriptionGuard
           user={user}
