@@ -4,10 +4,9 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, getAccountBalances, deleteTransaction, getNEData, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
+import { bookTransaction, deleteTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { calculateDashboard } from '@/lib/calculations'
-import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -23,10 +22,10 @@ import Paywall from '@/components/Paywall'
 
 import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
+import { useAccountingData } from '@/hooks/useAccountingData'
 
 export default function Home() {
   const { user, profile, authLoading, handleAuth, handleLogout, setProfile } = useAuth()
-  const [dataLoading, setDataLoading] = useState(false)
 
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
@@ -35,12 +34,18 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
   // SSR-säkert: statiskt värde vid server-render
   const [selectedYear, setSelectedYear] = useState(2025)
-  const [isYearLocked, setIsYearLocked] = useState(false)
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [balances, setBalances] = useState<any>({})
-  const [neData, setNeData] = useState<any>(null)
-  const [journalMap, setJournalMap] = useState<any>({})
-  const [kontoplan, setKontoplan] = useState<any[]>([])
+
+  const {
+    transactions,
+    balances,
+    neData,
+    journalMap,
+    kontoplan,
+    dataLoading,
+    isYearLocked, setIsYearLocked,
+    refreshData,
+  } = useAccountingData(user, selectedYear, profile?.subscription_type)
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
   const [showLimitPaywall, setShowLimitPaywall] = useState(false)
@@ -109,92 +114,6 @@ export default function Home() {
     localStorage.setItem('taxRate', taxRate.toString())
   }, [taxRate])
 
-  // Ladda data när user eller år ändras
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    setDataLoading(true)
-
-    async function load() {
-      if (!user?.id) return
-      try {
-        const { data, error } = await supabase
-          .from('accounts')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1)
-
-        if (error) throw error
-
-        if (!data || data.length === 0) {
-          await setupDefaultAccounts(user.id)
-        }
-
-        if (cancelled) return
-
-        const startDate = `${selectedYear}-01-01`
-        const endDate   = `${selectedYear}-12-31`
-
-        const [txData, balanceData, neRes] = await Promise.all([
-          supabase.from('transactions').select('*')
-            .eq('user_id', user.id)
-            .gte('date', startDate).lte('date', endDate)
-            .order('date', { ascending: false }),
-          getAccountBalances(selectedYear),
-          getNEData(selectedYear)
-        ])
-
-        if (cancelled) return
-
-        if (txData.error) throw txData.error
-
-        const txIds = txData.data?.map((t: any) => t.id) || []
-        let jMap: any = {}
-
-        if (txIds.length > 0) {
-          const { data: yearJournal, error: jError } = await supabase
-            .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
-          if (jError) throw jError
-          yearJournal?.forEach((row: any) => {
-            if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
-            jMap[row.transaction_id].push(row)
-          })
-        }
-
-        if (cancelled) return
-
-        setTransactions(txData.data || [])
-        setBalances(balanceData || {})
-        setJournalMap(jMap)
-        setNeData(neRes)
-        loadKontoplanOptions()
-      } catch (err) {
-        if (!cancelled) console.error('Fel vid laddning av data:', err)
-      } finally {
-        // Alltid av loading – annars fryser sidan
-        setDataLoading(false)
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [user, selectedYear, profile?.subscription_type])
-
-  // Kontrollera om räkenskapsåret är låst
-  useEffect(() => {
-    async function checkYearLock() {
-      if (!user) return
-      try {
-        const locked = await isYearClosed(selectedYear)
-        setIsYearLocked(locked)
-      } catch (err) {
-        console.error(err)
-        setIsYearLocked(false)
-      }
-    }
-    checkYearLock()
-  }, [selectedYear, user])
-
   async function handleExportSIE() {
     try {
       const content = await exportSIE(selectedYear)
@@ -210,64 +129,13 @@ export default function Home() {
     }
   }
 
-  async function loadKontoplanOptions() {
-    try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('id, name, default_vat_rate, credit_account')
-        .eq('user_id', user.id)
-        .order('name')
-      if (error) throw error
-      if (data) {
-        const sorted = [...data].sort((a, b) => {
-          const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
-          const bIsZ = b.id === 'ingående_balans' || b.id.toLowerCase().startsWith('z')
-          if (aIsZ && !bIsZ) return 1
-          if (!aIsZ && bIsZ) return -1
-          return a.name.localeCompare(b.name, 'sv')
-        })
-        setKontoplan(sorted)
-        if (!formData.type && sorted[0]) {
-          setFormData(prev => ({ ...prev, type: sorted[0].id, vatRate: Number(sorted[0].default_vat_rate) || 0 }))
-        }
-      }
-    } catch (err) {
-      console.error('Fel vid laddning av kontoplan:', err)
+  // Sätter default-typ/momssats på formuläret första gången kontoplanen laddas,
+  // motsvarar det som tidigare gjordes inuti loadKontoplanOptions.
+  useEffect(() => {
+    if (!formData.type && kontoplan[0]) {
+      setFormData(prev => ({ ...prev, type: kontoplan[0].id, vatRate: Number(kontoplan[0].default_vat_rate) || 0 }))
     }
-  }
-
-  async function refreshData() {
-    try {
-      const startDate = `${selectedYear}-01-01`
-      const endDate = `${selectedYear}-12-31`
-      const [txData, balanceData, neRes] = await Promise.all([
-        supabase.from('transactions').select('*')
-          .eq('user_id', user.id)
-          .gte('date', startDate).lte('date', endDate)
-          .order('date', { ascending: false }),
-        getAccountBalances(selectedYear),
-        getNEData(selectedYear)
-      ])
-      if (txData.error) throw txData.error
-      const txIds = txData.data?.map((t: any) => t.id) || []
-      let jMap: any = {}
-      if (txIds.length > 0) {
-        const { data: yearJournal, error: jError } = await supabase
-          .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
-        if (jError) throw jError
-        yearJournal?.forEach((row: any) => {
-          if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
-          jMap[row.transaction_id].push(row)
-        })
-      }
-      setTransactions(txData.data || [])
-      setBalances(balanceData || {})
-      setJournalMap(jMap)
-      setNeData(neRes)
-    } catch (err) {
-      console.error('Fel vid laddning av data:', err)
-    }
-  }
+  }, [kontoplan])
 
   async function handleFileUpload(file: File): Promise<string> {
     const ALLOWED_TYPES: Record<string, string> = {
