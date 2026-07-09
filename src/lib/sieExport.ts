@@ -149,7 +149,7 @@ export async function exportSIE(year: number) {
 
     const date = formatDate(v.rows[0].date)
 
-    sie += `#VER A ${v.ver_nr} ${date} "${description}"\n{\n`
+    sie += `#VER A ${v.ver_nr} ${date} "${description}" ${date}\n{\n`
 
     v.rows.forEach(row => {
       const amount = Number(row.debit) > 0
