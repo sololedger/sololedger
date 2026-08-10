@@ -62,18 +62,41 @@ export default function TransactionForm({
           <div className="lg:col-span-3 flex flex-col gap-1">
             <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Kategori</label>
             <select
-              value={formData.type}
-              onChange={e => {
-                const acc = kontoplan.find(k => k.id === e.target.value)
-                setFormData({ ...formData, type: e.target.value, vatRate: Number(acc?.default_vat_rate) || 0 })
-              }}
-              disabled={editingBooked || isYearLocked}
-              className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'} ${isYearLocked ? 'opacity-40' : ''}`}
-            >
-              {kontoplan.map(item => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </select>
+  value={formData.type}
+  onChange={e => {
+    const acc = kontoplan.find(k => k.id === e.target.value)
+    setFormData({ ...formData, type: e.target.value, vatRate: Number(acc?.default_vat_rate) || 0 })
+  }}
+  disabled={editingBooked || isYearLocked}
+  className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50 cursor-pointer'} ${isYearLocked ? 'opacity-40' : ''}`}
+>
+  {(() => {
+    const income = kontoplan.filter(k => k.credit_account?.startsWith('3'))
+    const special = kontoplan.filter(k => 
+      k.id === 'ingående_balans' || 
+      k.id === 'skattekonto_default' || 
+      k.id === 'egen_insättning' ||
+      k.id === 'eget_uttag' ||
+      k.id === 'periodisering'
+    )
+    const costs = kontoplan.filter(k => 
+      !income.includes(k) && !special.includes(k)
+    )
+    return (
+      <>
+        <optgroup label="── Intäkter ──">
+          {income.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </optgroup>
+        <optgroup label="── Kostnader ──">
+          {costs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </optgroup>
+        <optgroup label="── Övrigt ──">
+          {special.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </optgroup>
+      </>
+    )
+  })()}
+</select>
           </div>
 
           {/* Beskrivning */}

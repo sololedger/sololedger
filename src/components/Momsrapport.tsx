@@ -150,11 +150,11 @@ export default function Momsrapport() {
             </div>
           </div>
 
-          {/* Ruta 49 — Ingående moms */}
+          {/* Ruta 48 — Ingående moms */}
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-7">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 49</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 48</p>
                 <p className="text-xs font-black uppercase text-gray-600">Ingående moms att dra av</p>
                 <p className="text-[9px] text-gray-400 font-medium mt-1">Konto 2641 — moms på dina kostnader</p>
               </div>
@@ -176,7 +176,7 @@ export default function Momsrapport() {
             <div className="flex-1 border-t border-dashed border-gray-200" />
           </div>
 
-          {/* Ruta 499 — Netto */}
+          {/* Ruta 49 — Netto */}
           <div className={`rounded-[2rem] border-2 shadow-sm p-7 ${
             skaBetalas
               ? 'bg-red-50 border-red-200'

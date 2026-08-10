@@ -24,6 +24,12 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       if (error) throw error
       if (data) {
         const sorted = [...data].sort((a, b) => {
+          // Intäktskonton (kredit på 3xxx) alltid överst
+          const aIsIncome = a.credit_account?.startsWith('3')
+          const bIsIncome = b.credit_account?.startsWith('3')
+          if (aIsIncome && !bIsIncome) return -1
+          if (!aIsIncome && bIsIncome) return 1
+          // Ingående balans och z-konton alltid nederst
           const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
           const bIsZ = b.id === 'ingående_balans' || b.id.toLowerCase().startsWith('z')
           if (aIsZ && !bIsZ) return 1
