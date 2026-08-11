@@ -10,6 +10,7 @@ interface TransactionTableProps {
   selectedYear: number
   onEdit: (tx: any) => void
   onDelete: (tx: any) => void
+  onFavorite: (tx: any) => void
 }
 
 export default function TransactionTable({
@@ -21,6 +22,7 @@ export default function TransactionTable({
   selectedYear,
   onEdit,
   onDelete,
+  onFavorite,
 }: TransactionTableProps) {
 
   // Bygg ett set av alla ver_nr som har blivit korrigerade

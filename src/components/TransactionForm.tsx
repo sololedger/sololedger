@@ -1,4 +1,6 @@
 'use client'
+import { useState } from 'react'
+import FavoriteChips, { Favorite } from './FavoriteChips'
 
 export interface FormData {
   date: string
@@ -23,6 +25,10 @@ interface TransactionFormProps {
   setPeriodMonth: (val: string) => void
   onSubmit: (e: any) => void
   onCancelEdit: () => void
+  userId: string
+  lastSubmitted: { type: string; amount: string; vatRate: number } | null
+  onSaveFavorite: (name: string) => Promise<void>
+  onDismissFavorite: () => void
 }
 
 export default function TransactionForm({
@@ -39,9 +45,43 @@ export default function TransactionForm({
   setPeriodMonth,
   onSubmit,
   onCancelEdit,
+  userId,
+  lastSubmitted,
+  onSaveFavorite,
+  onDismissFavorite,
 }: TransactionFormProps) {
+  const [favName, setFavName] = useState('')
+  const [showFavInput, setShowFavInput] = useState(false)
+  const [descriptionHighlight, setDescriptionHighlight] = useState(false)
+  const [favRefreshKey, setFavRefreshKey] = useState(0)
+
+  function handleFavoriteSelect(fav: Favorite) {
+    setFormData({
+      ...formData,
+      type: fav.type,
+      amount: fav.amount.toString(),
+      vatRate: fav.vat_rate,
+      description: '',
+    })
+    setDescriptionHighlight(true)
+    setTimeout(() => setDescriptionHighlight(false), 2000)
+  }
+
+  async function handleSaveFav() {
+    if (!favName.trim()) return
+    await onSaveFavorite(favName.trim())
+    setFavName('')
+    setShowFavInput(false)
+    setFavRefreshKey(k => k + 1)
+  }
   return (
     <div className={`bg-white rounded-[2.5rem] border p-8 mb-6 shadow-sm transition-all ${editingId ? 'border-amber-300 shadow-amber-100' : 'border-gray-100'}`}>
+
+      {/* Favorit-chips — visas bara när man inte redigerar */}
+      {!editingId && (
+        <FavoriteChips userId={userId} onSelect={handleFavoriteSelect} refreshKey={favRefreshKey} />
+      )}
+
       <form onSubmit={onSubmit}>
         <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-4">
 
@@ -107,7 +147,8 @@ export default function TransactionForm({
               value={formData.description}
               disabled={isYearLocked}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs transition-all ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''} ${descriptionHighlight ? 'ring-2 ring-amber-400 bg-amber-50 animate-pulse' : ''}`}
+              placeholder={descriptionHighlight ? '← Fyll i beskrivning!' : ''}
               required
             />
           </div>
@@ -231,6 +272,56 @@ export default function TransactionForm({
           </div>
         )}
       </form>
+
+      {/* ⭐ Favorit-banner — dyker upp efter att en transaktion bokförts */}
+      {lastSubmitted && !editingId && (
+        <div className="mt-4 flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-3 animate-in fade-in duration-300">
+          <span className="text-base">⭐</span>
+          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-wide flex-1">
+            Spara som favorit?
+          </p>
+          {showFavInput ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={favName}
+                onChange={e => setFavName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveFav()}
+                placeholder="Namn på favorit..."
+                autoFocus
+                className="text-xs font-bold bg-white border border-emerald-200 rounded-lg px-3 py-1.5 outline-none focus:border-emerald-400 transition-colors"
+              />
+              <button
+                onClick={handleSaveFav}
+                className="text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Spara
+              </button>
+              <button
+                onClick={() => { setShowFavInput(false); setFavName('') }}
+                className="text-gray-300 hover:text-gray-500 font-bold text-sm transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFavInput(true)}
+                className="text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Ja, spara ⭐
+              </button>
+              <button
+                onClick={onDismissFavorite}
+                className="text-[10px] font-bold text-gray-300 hover:text-gray-400 transition-colors"
+              >
+                Nej tack
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

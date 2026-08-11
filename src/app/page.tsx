@@ -58,6 +58,7 @@ export default function Home() {
 
   const [uploading, setUploading] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
+  const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
 
   // SSR-säkert: tomma strängar vid server-render, fylls i av useEffect nedan
   const [formData, setFormData] = useState({
@@ -229,6 +230,7 @@ export default function Home() {
         }
       }
 
+      setLastSubmitted({ type: formData.type, amount: formData.amount, vatRate: formData.vatRate })
       setFormData(prev => ({
         ...prev,
         date: new Date().toISOString().split('T')[0],
@@ -299,6 +301,18 @@ export default function Home() {
     } catch (err: any) {
       alert('Fel vid låsning: ' + err.message)
     }
+  }
+
+  async function handleFavorite(name: string) {
+    if (!lastSubmitted) return
+    await supabase.from('favorites').insert({
+      user_id: user.id,
+      name,
+      type: lastSubmitted.type,
+      amount: Number(lastSubmitted.amount),
+      vat_rate: lastSubmitted.vatRate,
+    })
+    setLastSubmitted(null)
   }
 
   const data = calculateDashboard(balances, taxRate)
@@ -472,6 +486,7 @@ export default function Home() {
           )}
 
           <TransactionForm
+            userId={user.id}
             formData={formData}
             setFormData={setFormData}
             kontoplan={kontoplan}
@@ -485,6 +500,9 @@ export default function Home() {
             setPeriodMonth={setPeriodMonth}
             onSubmit={handleAddTransaction}
             onCancelEdit={cancelEdit}
+            lastSubmitted={lastSubmitted}
+            onSaveFavorite={handleFavorite}
+            onDismissFavorite={() => setLastSubmitted(null)}
           />
 
           <TransactionTable
@@ -496,6 +514,7 @@ export default function Home() {
             selectedYear={selectedYear}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onFavorite={handleFavorite}
           />
         </>
       ) : activeTab === 'kontoplan' ? (
