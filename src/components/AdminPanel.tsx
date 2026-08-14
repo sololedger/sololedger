@@ -147,12 +147,12 @@ export default function AdminPanel() {
       ) : (
         <div className="flex flex-col gap-3">
           {users.map(user => (
-            <div key={user.id} className="bg-white rounded-2xl border shadow-sm px-5 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-black text-gray-800">{user.company_name || '—'}</p>
-                  <p className="text-[11px] text-gray-400 font-bold mt-0.5">{user.email}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
+            <div key={user.id} className="bg-white rounded-2xl border shadow-sm px-4 sm:px-5 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-gray-800 truncate">{user.company_name || '—'}</p>
+                  <p className="text-[11px] text-gray-400 font-bold mt-0.5 truncate">{user.email}</p>
+                  <div className="flex items-center flex-wrap gap-2 mt-1.5">
                     {subscriptionBadge(user.subscription_type, user.subscription_end)}
                     {user.role === 'admin' && (
                       <span className="text-[10px] bg-purple-100 text-purple-700 font-black px-2 py-0.5 rounded-full">admin</span>
@@ -167,7 +167,7 @@ export default function AdminPanel() {
                 <button
                   onClick={() => handleDryRun(user)}
                   disabled={user.role === 'admin'}
-                  className="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="shrink-0 w-full sm:w-auto text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Torrkör radering
                 </button>
@@ -186,17 +186,17 @@ export default function AdminPanel() {
                     <li>• {dryRun.counts.closed_years} låsta år</li>
                     <li>• {dryRun.counts.attachments} bilagor (storage)</li>
                   </ul>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={handleDelete}
                       disabled={deleting}
-                      className="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all disabled:opacity-50"
+                      className="w-full sm:w-auto text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all disabled:opacity-50"
                     >
                       {deleting ? 'Raderar...' : '⚠️ Radera användare permanent'}
                     </button>
                     <button
                       onClick={() => setDryRun(null)}
-                      className="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-white border text-gray-500 hover:bg-gray-50 transition-all"
+                      className="w-full sm:w-auto text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl bg-white border text-gray-500 hover:bg-gray-50 transition-all"
                     >
                       Avbryt
                     </button>

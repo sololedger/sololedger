@@ -34,8 +34,8 @@ export default function Paywall({ feature, user }: PaywallProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-      <div className="bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 p-10 max-w-md w-full text-center shadow-sm">
+    <div className="flex flex-col items-center justify-center min-h-[400px] p-4 sm:p-8">
+      <div className="bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 p-6 sm:p-10 max-w-md w-full text-center shadow-sm">
         
         {/* Ikon */}
         <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">

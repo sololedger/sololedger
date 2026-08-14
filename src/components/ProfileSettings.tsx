@@ -87,7 +87,7 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
     <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Kontoinformation */}
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8">
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
         <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Kontoinformation</h2>
 
         <div className="space-y-4">
@@ -111,7 +111,7 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
       </div>
 
       {/* Företagsinformation */}
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8">
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
         <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Företagsinformation</h2>
         <p className="text-[10px] text-gray-400 font-bold mb-6">Används i SIE-exporten och på rapporter.</p>
 
@@ -150,14 +150,14 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
 
       {/* Prenumerationshantering */}
       {(profile?.subscription_type === 'trial' || profile?.subscription_type === 'paid') && (
-        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8">
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Hantera prenumeration</h2>
           <p className="text-[10px] text-gray-400 font-bold mb-6">Avsluta, byt betalmetod eller se fakturahistorik via Stripes säkra kundportal.</p>
 
           <button
             onClick={handlePortal}
             disabled={portalLoading}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl px-6 py-3 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+            className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl px-6 py-3 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
           >
             {portalLoading ? 'Öppnar...' : 'Hantera prenumeration →'}
           </button>
