@@ -50,11 +50,11 @@ export default function FavoriteChips({ userId, onSelect, refreshKey }: Props) {
           onClick={() => onSelect(fav)}
           className="group flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-700 rounded-xl px-3 py-1.5 cursor-pointer transition-all"
         >
-          <span className="text-[11px] font-black">{fav.name}</span>
-          <span className="text-[10px] text-emerald-400 font-bold">{fav.amount.toLocaleString()} kr</span>
+          <span className="text-[11px] font-black truncate max-w-[38vw] sm:max-w-[160px]">{fav.name}</span>
+          <span className="text-[10px] text-emerald-400 font-bold shrink-0">{fav.amount.toLocaleString()} kr</span>
           <button
             onClick={(e) => handleDelete(fav.id, e)}
-            className="text-emerald-200 hover:text-red-400 font-black text-xs transition-colors ml-1"
+            className="text-emerald-200 hover:text-red-400 font-black text-xs transition-colors ml-1 shrink-0"
             title="Ta bort favorit"
           >
             ✕

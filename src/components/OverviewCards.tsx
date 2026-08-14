@@ -35,7 +35,7 @@ export default function OverviewCards({
           Översikt
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
 
           {/* Bank */}
           <button
@@ -121,12 +121,12 @@ export default function OverviewCards({
           onClick={() => setActiveModal(null)}
         >
           <div
-            className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-10 relative max-h-[85vh] overflow-y-auto"
+            className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-6 sm:p-10 relative max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <button
               onClick={() => setActiveModal(null)}
-              className="absolute top-6 right-8 text-gray-300 hover:text-gray-600 text-2xl font-black transition-colors"
+              className="absolute top-5 right-6 sm:top-6 sm:right-8 text-gray-300 hover:text-gray-600 text-2xl font-black transition-colors"
             >
               ×
             </button>
@@ -155,7 +155,7 @@ export default function OverviewCards({
                     return (
                       <div
                         key={tx.id}
-                        className={`flex justify-between items-center rounded-2xl px-4 py-3 transition-all ${
+                        className={`flex flex-wrap justify-between items-center gap-2 rounded-2xl px-4 py-3 transition-all ${
                           isCorrection
                             ? 'bg-amber-50/60 opacity-60'
                             : isNeutralized
@@ -193,7 +193,7 @@ export default function OverviewCards({
                   }).filter(Boolean)}
                 </div>
 
-                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center font-black uppercase tracking-tighter">
+                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2 font-black uppercase tracking-tighter">
                   <span className="text-[11px] text-gray-500">Aktuellt Saldo</span>
                   <span className={`text-xl font-black ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {data.bankSaldo.toLocaleString('sv-SE')} kr
@@ -212,34 +212,34 @@ export default function OverviewCards({
                   Hur skatten beräknas
                 </p>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-gray-50 rounded-2xl px-5 py-3">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">Total Försäljning (3xxx)</span>
                     <span className="font-black text-emerald-600">+{data.intakter.toLocaleString('sv-SE')} kr</span>
                   </div>
-                  <div className="flex justify-between items-center bg-gray-50 rounded-2xl px-5 py-3">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">Totala Kostnader (4–7xxx)</span>
                     <span className="font-black text-red-500">−{data.kostnader.toLocaleString('sv-SE')} kr</span>
                   </div>
-                  <div className="flex justify-between items-center bg-gray-50 rounded-2xl px-5 py-3">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">Bokfört resultat</span>
                     <span className={`font-black ${data.bokfortResultat >= 0 ? 'text-gray-700' : 'text-red-500'}`}>
                       {data.bokfortResultat.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                   {data.ejAvdragsgillt > 0 && (
-                    <div className="flex justify-between items-center bg-orange-50 rounded-2xl px-5 py-3">
+                    <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
                       <span className="text-xs font-black text-orange-500 uppercase">+ Ej avdragsgilla (6992)</span>
                       <span className="font-black text-orange-500">+{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center bg-orange-50 rounded-2xl px-5 py-3 border border-orange-200">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3 border border-orange-200">
                     <span className="text-xs font-black text-orange-600 uppercase">Skattemässigt resultat</span>
                     <span className="font-black text-orange-600">
                       {data.skattemassigVinst.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
+                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     {data.skattemassigVinst.toLocaleString('sv-SE')} kr × {taxRate}%
                   </span>
@@ -260,7 +260,7 @@ export default function OverviewCards({
                   Hur momsen beräknas
                 </p>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-red-50 rounded-2xl px-5 py-3">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-red-50 rounded-2xl px-5 py-3">
                     <div>
                       <p className="text-xs font-black text-red-600 uppercase">Utgående moms (2611)</p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
@@ -271,7 +271,7 @@ export default function OverviewCards({
                       +{Math.abs(balances['2611'] || 0).toLocaleString('sv-SE')} kr
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-emerald-50 rounded-2xl px-5 py-3">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3">
                     <div>
                       <p className="text-xs font-black text-emerald-600 uppercase">Ingående moms (2641)</p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
@@ -283,7 +283,7 @@ export default function OverviewCards({
                     </span>
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
+                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     Momsbalans (Utgående − Ingående)
                   </span>
@@ -305,7 +305,7 @@ export default function OverviewCards({
                   Översikt av intäkter och kostnader
                 </p>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-emerald-50 rounded-2xl px-5 py-3 border border-emerald-100">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3 border border-emerald-100">
                     <span className="text-xs font-black text-emerald-700 uppercase">
                       Total Försäljning (3xxx)
                     </span>
@@ -313,7 +313,7 @@ export default function OverviewCards({
                       +{data.intakter.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
-                  <div className="flex justify-between items-center bg-rose-50 rounded-2xl px-5 py-3 border border-rose-100">
+                  <div className="flex flex-wrap justify-between items-center gap-2 bg-rose-50 rounded-2xl px-5 py-3 border border-rose-100">
                     <span className="text-xs font-black text-rose-700 uppercase">
                       Totala Kostnader (4–7xxx)
                     </span>
@@ -322,7 +322,7 @@ export default function OverviewCards({
                     </span>
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex justify-between items-center">
+                <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     Verksamhetens Resultat
                   </span>

@@ -280,7 +280,17 @@ export default function Home() {
       vatRate: tx.vat_rate,
       file: null
     })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Scrolla till formuläret (inte sidans topp) — viktigt på mobil där
+    // Ekonomiöversikt-korten annars hamnar mellan användaren och formuläret.
+    requestAnimationFrame(() => {
+      const formSection = document.getElementById('transaction-form-section')
+      if (formSection) {
+        const top = formSection.getBoundingClientRect().top + window.scrollY - 16
+        window.scrollTo({ top, behavior: 'smooth' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    })
   }
 
   const cancelEdit = () => {
@@ -392,22 +402,21 @@ export default function Home() {
         </div>
       )}
 
-<div className="flex justify-between items-center mb-8 px-6 lg:px-8">
+<div className="flex flex-col gap-4 mb-8 px-4 sm:px-6 lg:px-8 md:flex-row md:justify-between md:items-center">
         <div>
-          <h1 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">
+          <h1 className="text-xl sm:text-2xl font-black uppercase italic tracking-tighter text-gray-800">
             {activeTab === 'dashboard' ? 'Ekonomiöversikt' : activeTab === 'kontoplan' ? 'Kontoplan' : activeTab === 'faq' ? 'Hjälp & FAQ' : activeTab === 'moms' ? 'Momsrapport' : activeTab === 'profil' ? 'Profilinställningar' : activeTab === 'admin' ? 'Admin' : 'NE-Bilaga'}
           </h1>
           
-          {/* Vi ändrar till flex-col här för att stapla raderna vertikalt */}
           <div className="flex flex-col gap-1 mt-1">
             <p className="text-[10px] text-gray-400 font-bold">Inloggad som: {user?.email}</p>
             
             {showFreeBanner && (
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 mt-0.5">
                 <span className="text-[10px] text-amber-600 font-black uppercase tracking-wider">
                   (Gratisplan — Uppgradera för obegränsat)
                 </span>
-                <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm">
+                <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm w-fit">
                   📊 {transactions.length} / {FREE_TRANSACTION_LIMIT} transaktioner använda
                 </span>
               </div>
@@ -415,10 +424,10 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-[480px] justify-end">
+        <div className="flex flex-col gap-3 w-full md:flex-row md:items-center md:justify-end md:gap-4 md:w-[480px]">
           {/* Årsväljaren visas INTE på profil, faq, kontoplan och moms */}
           {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) ? (
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm shrink-0">
+            <div className="flex items-center justify-between md:justify-start gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm w-full md:w-auto md:shrink-0">
               <span className="text-[10px] font-black uppercase text-gray-400 italic">År:</span>
               <select
                 value={selectedYear}
@@ -428,21 +437,23 @@ export default function Home() {
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-          ) : <div className="w-[104px] h-[38px] shrink-0" />}
+          ) : <div className="hidden md:block w-[104px] h-[38px] shrink-0" />}
 
-          {/* SIE-exporten ligger alltid kvar i strukturen men göms elegant */}
+          {/* SIE-exporten */}
           <button
             onClick={handleExportSIE}
-            className={`bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
-              activeTab === 'dashboard' ? 'opacity-100 pointer-events-auto' : 'invisible pointer-events-none'
+            className={`bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all w-full md:w-auto md:shrink-0 ${
+              activeTab === 'dashboard'
+                ? 'opacity-100 pointer-events-auto'
+                : 'hidden md:block md:invisible md:pointer-events-none'
             }`}
           >
             Export SIE
           </button>
 
-          {/* Skattereglaget visas BARA på dashboard och ne-bilaga */}
+          {/* Skattereglaget */}
           {['dashboard', 'ne-bilaga', 'NE-Bilaga', 'ne'].includes(activeTab) ? (
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm shrink-0">
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border shadow-sm w-full md:w-auto md:shrink-0">
               <span className="text-[10px] font-black uppercase text-gray-400 italic">Skatt:</span>
               <input
                 type="range"
@@ -451,13 +462,13 @@ export default function Home() {
                 step={1}
                 value={taxRate}
                 onChange={(e) => setTaxRate(Number(e.target.value))}
-                className="w-20 accent-emerald-500 cursor-pointer"
+                className="flex-1 md:flex-none md:w-20 accent-emerald-500 cursor-pointer"
               />
-              <span className="text-sm font-black text-emerald-600 w-8 tabular-nums">{taxRate}%</span>
+              <span className="text-sm font-black text-emerald-600 w-8 tabular-nums text-right">{taxRate}%</span>
             </div>
-          ) : <div className="w-[185px] h-[38px] shrink-0" />}
-          </div>
+          ) : <div className="hidden md:block w-[185px] h-[38px] shrink-0" />}
         </div>
+      </div>
 
       {activeTab === 'dashboard' ? (
         <>
@@ -485,25 +496,27 @@ export default function Home() {
             </div>
           )}
 
-          <TransactionForm
-            userId={user.id}
-            formData={formData}
-            setFormData={setFormData}
-            kontoplan={kontoplan}
-            isYearLocked={isYearLocked}
-            editingId={editingId}
-            editingBooked={editingBooked}
-            uploading={uploading}
-            periodisera={periodisera}
-            setPeriodisera={setPeriodisera}
-            periodMonth={periodMonth}
-            setPeriodMonth={setPeriodMonth}
-            onSubmit={handleAddTransaction}
-            onCancelEdit={cancelEdit}
-            lastSubmitted={lastSubmitted}
-            onSaveFavorite={handleFavorite}
-            onDismissFavorite={() => setLastSubmitted(null)}
-          />
+          <div id="transaction-form-section">
+            <TransactionForm
+              userId={user.id}
+              formData={formData}
+              setFormData={setFormData}
+              kontoplan={kontoplan}
+              isYearLocked={isYearLocked}
+              editingId={editingId}
+              editingBooked={editingBooked}
+              uploading={uploading}
+              periodisera={periodisera}
+              setPeriodisera={setPeriodisera}
+              periodMonth={periodMonth}
+              setPeriodMonth={setPeriodMonth}
+              onSubmit={handleAddTransaction}
+              onCancelEdit={cancelEdit}
+              lastSubmitted={lastSubmitted}
+              onSaveFavorite={handleFavorite}
+              onDismissFavorite={() => setLastSubmitted(null)}
+            />
+          </div>
 
           <TransactionTable
             transactions={transactions}

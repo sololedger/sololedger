@@ -75,7 +75,7 @@ export default function TransactionForm({
     setFavRefreshKey(k => k + 1)
   }
   return (
-    <div className={`bg-white rounded-[2.5rem] border p-8 mb-6 shadow-sm transition-all ${editingId ? 'border-amber-300 shadow-amber-100' : 'border-gray-100'}`}>
+    <div className={`bg-white rounded-[2.5rem] border p-4 sm:p-8 mb-6 shadow-sm transition-all ${editingId ? 'border-amber-300 shadow-amber-100' : 'border-gray-100'}`}>
 
       {/* Favorit-chips — visas bara när man inte redigerar */}
       {!editingId && (
@@ -139,8 +139,7 @@ export default function TransactionForm({
 </select>
           </div>
 
-          {/* Beskrivning */}
-          <div className="lg:col-span-3 flex flex-col gap-1">
+          <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
             <label className="text-[9px] font-black text-gray-500 uppercase ml-1">Beskrivning</label>
             <input
               type="text"
@@ -184,7 +183,7 @@ export default function TransactionForm({
           </div>
 
           {/* Submit / Cancel */}
-          <div className="lg:col-span-1 flex flex-col gap-1">
+          <div className="col-span-2 lg:col-span-1 flex flex-col gap-1">
             {editingId && (
               <label className="text-[9px] font-black text-amber-400 uppercase ml-1">Redigerar</label>
             )}
@@ -210,7 +209,7 @@ export default function TransactionForm({
         </div>
 
         {/* Bilaga */}
-        <div className="flex items-center gap-4 pt-3 border-t border-gray-50">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t border-gray-50">
           <label className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">📎 Bilaga:</label>
           <input
             type="file"
@@ -220,7 +219,7 @@ export default function TransactionForm({
             className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           />
           {formData.file && (
-            <span className="text-[9px] text-emerald-500 font-bold">{formData.file.name}</span>
+            <span className="text-[9px] text-emerald-500 font-bold truncate max-w-[160px] sm:max-w-none">{formData.file.name}</span>
           )}
         </div>
 
@@ -275,13 +274,13 @@ export default function TransactionForm({
 
       {/* ⭐ Favorit-banner — dyker upp efter att en transaktion bokförts */}
       {lastSubmitted && !editingId && (
-        <div className="mt-4 flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-3 animate-in fade-in duration-300">
+        <div className="mt-4 flex flex-wrap items-center gap-y-2 gap-x-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-3 animate-in fade-in duration-300">
           <span className="text-base">⭐</span>
-          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-wide flex-1">
+          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-wide flex-1 min-w-[110px]">
             Spara som favorit?
           </p>
           {showFavInput ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 type="text"
                 value={favName}
@@ -289,7 +288,7 @@ export default function TransactionForm({
                 onKeyDown={e => e.key === 'Enter' && handleSaveFav()}
                 placeholder="Namn på favorit..."
                 autoFocus
-                className="text-xs font-bold bg-white border border-emerald-200 rounded-lg px-3 py-1.5 outline-none focus:border-emerald-400 transition-colors"
+                className="text-xs font-bold bg-white border border-emerald-200 rounded-lg px-3 py-1.5 outline-none focus:border-emerald-400 transition-colors flex-1 min-w-0 sm:flex-none"
               />
               <button
                 onClick={handleSaveFav}
