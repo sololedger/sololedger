@@ -84,13 +84,12 @@ export default function Momsrapport() {
       {/* Header */}
       <div className="mb-8">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">SKV 4700</p>
-        <h2 className="text-2xl font-black uppercase italic tracking-tighter text-gray-800">Momsrapport</h2>
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex flex-col gap-1">
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:items-end">
+          <div className="flex flex-col gap-1 sm:w-auto">
             <label className="text-[9px] font-black uppercase text-gray-400 ml-1">År</label>
             <select
               value={year}
@@ -101,7 +100,7 @@ export default function Momsrapport() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+          <div className="flex flex-col gap-1 flex-1 sm:min-w-[160px]">
             <label className="text-[9px] font-black uppercase text-gray-400 ml-1">Period</label>
             <select
               value={period}
@@ -117,7 +116,7 @@ export default function Momsrapport() {
           <button
             onClick={fetchMoms}
             disabled={loading}
-            className="h-[42px] px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300"
+            className="h-[42px] px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
           >
             {loading ? '...' : 'Beräkna'}
           </button>
@@ -134,15 +133,15 @@ export default function Momsrapport() {
           </p>
 
           {/* Ruta 05 — Utgående moms */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-7">
-            <div className="flex items-start justify-between">
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 05</p>
                 <p className="text-xs font-black uppercase text-gray-600">Utgående moms</p>
                 <p className="text-[9px] text-gray-400 font-medium mt-1">Konto 2611 — moms på din försäljning</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-red-500 tabular-nums">
+                <p className="text-2xl font-black text-red-500 tabular-nums whitespace-nowrap">
                   {fmt(utgående)} kr
                 </p>
                 <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Ska betalas in</p>
@@ -151,15 +150,15 @@ export default function Momsrapport() {
           </div>
 
           {/* Ruta 48 — Ingående moms */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-7">
-            <div className="flex items-start justify-between">
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 48</p>
                 <p className="text-xs font-black uppercase text-gray-600">Ingående moms att dra av</p>
                 <p className="text-[9px] text-gray-400 font-medium mt-1">Konto 2641 — moms på dina kostnader</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-emerald-600 tabular-nums">
+                <p className="text-2xl font-black text-emerald-600 tabular-nums whitespace-nowrap">
                   {fmt(ingående)} kr
                 </p>
                 <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Avdrag</p>
@@ -177,12 +176,12 @@ export default function Momsrapport() {
           </div>
 
           {/* Ruta 49 — Netto */}
-          <div className={`rounded-[2rem] border-2 shadow-sm p-7 ${
+          <div className={`rounded-[2rem] border-2 shadow-sm p-5 sm:p-7 ${
             skaBetalas
               ? 'bg-red-50 border-red-200'
               : 'bg-emerald-50 border-emerald-200'
           }`}>
-            <div className="flex items-start justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${skaBetalas ? 'text-red-400' : 'text-emerald-500'}`}>
                   Ruta 49 (netto)
@@ -198,7 +197,7 @@ export default function Momsrapport() {
               </div>
               <div className="text-right">
                 {/* ✅ GPT:s supersnygga UI-fix inbakad här! */}
-                <p className={`text-3xl font-black italic tabular-nums ${skaBetalas ? 'text-red-500' : 'text-emerald-600'}`}>
+                <p className={`text-3xl font-black italic tabular-nums whitespace-nowrap ${skaBetalas ? 'text-red-500' : 'text-emerald-600'}`}>
                   {skaBetalas ? '' : '+'}{fmt(Math.abs(netto))} kr
                 </p>
                 <p className={`text-[10px] font-black uppercase mt-1 ${skaBetalas ? 'text-red-400' : 'text-emerald-500'}`}>

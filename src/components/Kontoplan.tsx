@@ -124,7 +124,7 @@ export default function Kontoplan() {
   return (
     <div className="space-y-8">
       {/* Formulär för nytt konto */}
-      <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
+      <div className="bg-white p-4 sm:p-8 rounded-[2.5rem] border shadow-sm">
         <h2 className="text-sm font-black uppercase mb-2 text-emerald-600 tracking-widest">Lägg till konto</h2>
         
         {/* Sektion för snabba kontoförslag */}
@@ -226,8 +226,8 @@ export default function Kontoplan() {
         </form>
       </div>
 
-      {/* Kontolista */}
-      <div className="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
+      {/* Kontolista — DESKTOP: tabell (md och uppåt) */}
+      <div className="hidden md:block bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-gray-50 text-[9px] font-black text-gray-600 uppercase tracking-widest border-b">
             <tr>
@@ -246,7 +246,7 @@ export default function Kontoplan() {
                   <p className="font-black text-gray-800">{acc.name}</p>
                   <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
                 </td>
-                
+
                 {/* 🎨 Uppdaterade och snygga Debet-badges */}
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
@@ -254,7 +254,7 @@ export default function Kontoplan() {
                     <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
                   </span>
                 </td>
-                
+
                 {/* 🎨 Uppdaterade och snygga Kredit-badges */}
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
@@ -262,7 +262,7 @@ export default function Kontoplan() {
                     <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
                   </span>
                 </td>
-                
+
                 <td className="p-6 font-bold text-gray-400 text-xs">
                   {acc.default_vat_rate > 0 ? `${acc.default_vat_rate}%` : '—'}
                 </td>
@@ -280,6 +280,53 @@ export default function Kontoplan() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Kontolista — MOBIL: kortlista (under md) */}
+      <div className="md:hidden flex flex-col gap-3">
+        {kontoplan.length === 0 ? (
+          <div className="bg-white rounded-[1.75rem] border p-8 text-center text-gray-300 italic font-medium shadow-sm">
+            Inga konton tillagda ännu
+          </div>
+        ) : (
+          kontoplan.map(acc => (
+            <div key={acc.id} className="bg-white rounded-[1.75rem] border p-5 shadow-sm">
+              <div className="flex justify-between items-start gap-3 mb-3">
+                <div>
+                  <p className="font-black text-gray-800">{acc.name}</p>
+                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
+                </div>
+                <button
+                  onClick={() => handleDelete(acc.id)}
+                  className="shrink-0 text-red-300 hover:text-red-500 font-bold transition-colors text-sm w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50"
+                  title="Radera konto"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
+                  <span>{acc.debit_account}</span>
+                  <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
+                  <span>{acc.credit_account}</span>
+                  <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
+                </span>
+                {acc.default_vat_rate > 0 && (
+                  <span className="text-[10px] font-black uppercase bg-gray-100 text-gray-500 px-2 py-1 rounded-lg border border-gray-200">
+                    Moms {acc.default_vat_rate}%
+                  </span>
+                )}
+              </div>
+
+              {acc.comment && (
+                <p className="text-xs text-gray-400 italic">{acc.comment}</p>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

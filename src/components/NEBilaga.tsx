@@ -81,75 +81,75 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <div className="bg-white p-12 rounded-[3rem] border shadow-sm">
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
+      <div className="bg-white p-5 sm:p-8 md:p-12 rounded-[3rem] border shadow-sm">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
 
         {Math.abs(balansDiff) > 1 && (
-          <div className="mb-8 bg-red-50 border-2 border-red-200 p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
+          <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
             ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Banken matchar inte kapitalet.
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
           {/* VÄNSTER KOLUMN: RESULTAT (R) */}
           <div className="space-y-0">
             <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4 italic underline">
               Resultat (R)
             </h3>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R1 Nettoomsättning</span>
-              <span>{fmt(neData.R1)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R1)}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R2 Övriga intäkter</span>
-              <span>{fmt(neData.R2)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R2)}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R5 Varukostnader</span>
-              <span>{fmt(-Math.abs(neData.R5 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R5 ?? 0))}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R6 Övriga externa kostnader</span>
-              <span>{fmt(-Math.abs(neData.R6 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R6 ?? 0))}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R7 Personalkostnader</span>
-              <span>{fmt(-Math.abs(neData.R7 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R7 ?? 0))}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span>R8 Avskrivningar</span>
-              <span>{fmt(-Math.abs(neData.R8 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R8 ?? 0))}</span>
             </div>
 
             <div className="my-3 border-t-2 border-dashed border-gray-300" />
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-700">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-700">
               <span>R11 Bokfört resultat</span>
-              <span className={neData.R11 < 0 ? 'text-red-500' : ''}>{fmt(neData.R11)}</span>
+              <span className={`whitespace-nowrap ${neData.R11 < 0 ? 'text-red-500' : ''}`}>{fmt(neData.R11)}</span>
             </div>
 
-            <div className="flex justify-between border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span className="flex items-center">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+              <span className="flex items-center flex-wrap">
                 R12 Ej avdragsgilla kostnader
                 <Tooltip text="Detta är kostnader som inte är skattemässigt avdragsgilla, t.ex. konto 6992." />
               </span>
-              <span>{fmt(neData.R12)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R12)}</span>
             </div>
 
-            <div className={`mt-4 p-6 rounded-2xl border flex justify-between items-center font-black italic ${r14Bg}`}>
-              <span className={`text-xs uppercase flex items-center ${r14Color}`}>
+            <div className={`mt-4 p-4 sm:p-6 rounded-2xl border flex flex-wrap justify-between items-center gap-3 font-black italic ${r14Bg}`}>
+              <span className={`text-xs uppercase flex items-center flex-wrap ${r14Color}`}>
                 R14 Skattemässigt resultat
                 <Tooltip text="Detta är ditt skattemässiga resultat (R14 i NE-bilagan)." />
               </span>
-              <span className={`text-2xl tracking-tighter ${r14Color}`}>{fmt(R14)}</span>
+              <span className={`text-2xl tracking-tighter whitespace-nowrap ${r14Color}`}>{fmt(R14)}</span>
             </div>
           </div>
 
@@ -159,52 +159,52 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
               Balans & Kapital (B)
             </h3>
 
-            <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between border-b border-gray-200 pb-3 mb-3 text-sm font-black uppercase tracking-tighter italic">
-                <span className="flex items-center">
+            <div className="p-4 sm:p-6 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 border-b border-gray-200 pb-3 mb-3 text-sm font-black uppercase tracking-tighter italic">
+                <span className="flex items-center flex-wrap">
                   B10 Eget Kapital
                   <Tooltip text="Eget kapital = IB + årets resultat + insättningar - uttag." />
                 </span>
-                <span className="text-emerald-600">{fmt(neData.B10_total)}</span>
+                <span className="text-emerald-600 whitespace-nowrap">{fmt(neData.B10_total)}</span>
               </div>
               <div className="space-y-2 opacity-70 text-[9px] font-black uppercase tracking-tighter">
-                <div className="flex justify-between italic">
+                <div className="flex flex-wrap justify-between gap-x-3 italic">
                   <span>IB Kapital (2010):</span>
-                  <span>{fmt(neData.IB_kapital)}</span>
+                  <span className="whitespace-nowrap">{fmt(neData.IB_kapital)}</span>
                 </div>
-                <div className="flex justify-between italic">
+                <div className="flex flex-wrap justify-between gap-x-3 italic">
                   <span>Årets bokförda resultat:</span>
-                  <span className={neData.R11 < 0 ? 'text-red-500' : ''}>{fmt(neData.R11)}</span>
+                  <span className={`whitespace-nowrap ${neData.R11 < 0 ? 'text-red-500' : ''}`}>{fmt(neData.R11)}</span>
                 </div>
-                <div className="flex justify-between text-emerald-600 italic">
+                <div className="flex flex-wrap justify-between gap-x-3 text-emerald-600 italic">
                   <span>Privata insättningar (2018):</span>
-                  <span>+{fmt(neData.insattningar)}</span>
+                  <span className="whitespace-nowrap">+{fmt(neData.insattningar)}</span>
                 </div>
-                <div className="flex justify-between text-orange-600 italic">
+                <div className="flex flex-wrap justify-between gap-x-3 text-orange-600 italic">
                   <span>Privata uttag (2013):</span>
-                  <span>{fmt(-Math.abs(neData.uttag ?? 0))}</span>
+                  <span className="whitespace-nowrap">{fmt(-Math.abs(neData.uttag ?? 0))}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
               <span>B13 Kassa och bank</span>
-              <span className="text-gray-500">{fmt(neData.bank)}</span>
+              <span className="text-gray-500 whitespace-nowrap">{fmt(neData.bank)}</span>
             </div>
 
             {(neData.B13_forutbetalda ?? 0) > 0 && (
-              <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase font-black">
-                <span className="flex items-center text-blue-500">
+              <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase font-black">
+                <span className="flex items-center flex-wrap text-blue-500">
                   B13 Förutbetalda kostnader (1790)
                   <Tooltip text="Utgifter betalda i år men som avser nästa år (periodisering). Dessa är en tillgång tills de aktiveras nästa räkenskapsår via konto 1790." />
                 </span>
-                <span className="text-blue-600">{fmt(neData.B13_forutbetalda)}</span>
+                <span className="text-blue-600 whitespace-nowrap">{fmt(neData.B13_forutbetalda)}</span>
               </div>
             )}
 
-            <div className="flex justify-between border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
               <span>B16 Skulder (Moms m.m.)</span>
-              <span className="text-gray-700">{fmt(neData.B16)}</span>
+              <span className="text-gray-700 whitespace-nowrap">{fmt(neData.B16)}</span>
             </div>
           </div>
         </div>
@@ -212,16 +212,16 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
         {/* Låsningsknapp */}
         <div className="mt-8 pt-6 border-t border-dashed border-gray-200 flex justify-end">
           {isYearLocked ? (
-            <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
+            <div className="w-full sm:w-auto flex items-center justify-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
               <span>🔒</span>
-              <span className="text-[10px] font-black uppercase tracking-widest">
+              <span className="text-[10px] font-black uppercase tracking-widest text-center">
                 Räkenskapsår {selectedYear} är låst
               </span>
             </div>
           ) : (
             <button
               onClick={onLockYear}
-              className="group flex items-center gap-2 bg-gray-800 hover:bg-red-700 text-white rounded-2xl px-6 py-3 transition-all duration-200 shadow-md hover:shadow-lg"
+              className="w-full sm:w-auto group flex items-center justify-center gap-2 bg-gray-800 hover:bg-red-700 text-white rounded-2xl px-6 py-3 transition-all duration-200 shadow-md hover:shadow-lg"
             >
               <span className="text-base">🔒</span>
               <span className="text-[10px] font-black uppercase tracking-widest">
