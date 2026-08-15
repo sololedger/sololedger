@@ -74,10 +74,6 @@ export default function Home() {
   // SSR-säkert: tom sträng vid server-render
   const [periodMonth, setPeriodMonth] = useState('2026-01')
 
-  useEffect(() => {
-    console.log('PAGE MOUNTED')
-  }, [])
-
   // Sätter datum-defaultvärden efter hydration
   useEffect(() => {
     const today = new Date()
@@ -332,7 +328,6 @@ export default function Home() {
     (profile?.subscription_type === 'paid' || profile?.subscription_type === 'trial') &&
     (!profile?.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
   const showFreeBanner = !hasActiveSubscription
-  console.log('RENDER:', { authLoading, user: !!user })
 
   if (authLoading || (user && !profile)) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>

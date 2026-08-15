@@ -72,13 +72,9 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
               Admin
             </button>
           )}
-          {/* ✅ SPÅRARE INLAGD: Loggar LOGOUT CLICKED i F12 innan funktionen körs */}
           {onLogout && (
             <button 
-              onClick={() => {
-                console.log('LOGOUT CLICKED')
-                onLogout()
-              }}
+              onClick={onLogout}
               className="shrink-0 snap-start ml-2 px-4 py-2 bg-gray-200/60 hover:bg-red-50 hover:text-red-600 text-gray-500 rounded-lg font-black text-xs uppercase tracking-wider transition-all"
             >
               Logga ut

@@ -11,9 +11,6 @@ export default function SubscribeButton({ user }: SubscribeButtonProps) {
   async function handleSubscribe() {
     setLoading(true)
     
-    // 🔍 FELSÖKNING: Detta kommer synas i din webbläsarkonsol (F12) när du klickar
-    console.log("Knappen försöker skicka följande user till API:", user)
-
     try {
       const res = await fetch('/api/checkout', { 
         method: 'POST',

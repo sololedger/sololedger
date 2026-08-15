@@ -29,7 +29,6 @@ export function useAuth() {
 
     const fallbackTimer = setTimeout(() => {
       if (isMounted && !hasTriggered) {
-        console.log('AUTH FALLBACK: Supabase var tyst, tvingar authLoading till false')
         setAuthLoading(false)
       }
     }, 2000)
@@ -39,8 +38,6 @@ export function useAuth() {
         if (!isMounted) return
         hasTriggered = true
         clearTimeout(fallbackTimer)
-
-        console.log('AUTH EVENT:', _event, !!session?.user)
 
         const currentUser = session?.user ?? null
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
