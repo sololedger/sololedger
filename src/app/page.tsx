@@ -26,7 +26,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 
 export default function Home() {
-  const { user, profile, authLoading, handleAuth, handleLogout, setProfile } = useAuth()
+  const { user, profile, authLoading, profileError, retryProfile, handleAuth, handleLogout, setProfile } = useAuth()
 
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
@@ -329,7 +329,30 @@ export default function Home() {
     (!profile?.subscription_end || new Date(profile.subscription_end).getTime() > Date.now())
   const showFreeBanner = !hasActiveSubscription
 
-  if (authLoading || (user && !profile)) {
+  if (authLoading) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
+  }
+
+  if (user && !profile) {
+    if (profileError) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-[2.5rem] border border-red-100 shadow-sm p-8 max-w-sm w-full text-center">
+            <p className="text-3xl mb-3">⚠️</p>
+            <p className="text-sm font-black uppercase text-gray-700 mb-2">Kunde inte ladda din profil</p>
+            <p className="text-xs text-gray-400 font-bold mb-6">
+              Det tar ovanligt lång tid att hämta dina kontouppgifter. Kontrollera din uppkoppling och försök igen.
+            </p>
+            <button
+              onClick={retryProfile}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all"
+            >
+              Försök igen
+            </button>
+          </div>
+        </div>
+      )
+    }
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 

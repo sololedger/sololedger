@@ -39,6 +39,7 @@ export function useAuth() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<AuthProfile>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [profileError, setProfileError] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -60,6 +61,7 @@ export function useAuth() {
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
 
         if (currentUser) {
+          setProfileError(false)
           const applyProfile = (data: AuthProfile) => {
             if (!isMounted) return
             setProfile((prev: AuthProfile) =>
@@ -68,18 +70,21 @@ export function useAuth() {
           }
 
           try {
-            // Snabbt första försök — hinner det inte inom 3s släpper vi
-            // ändå in användaren (SubscriptionGuard behandlar saknad
-            // profil som gratisanvändare tills riktig data kommer in).
+            // Snabbt första försök — hinner det inte inom 3s går vi vidare
+            // och gör ett bakgrundsförsök med mer tålamod (istället för
+            // att blockera sidan längre än nödvändigt).
             const data = await fetchProfileWithTimeout(currentUser.id, 3000)
             applyProfile(data)
           } catch (err) {
-            // Fortsätt i bakgrunden med mer tålamod, UTAN att blockera
-            // sidan eller hålla kvar laddningsskärmen längre.
             fetchProfileWithTimeout(currentUser.id, 8000)
               .then(applyProfile)
               .catch((bgErr) => {
+                // Båda försöken misslyckades. Vi GISSAR INTE på en
+                // prenumerationsstatus (kan felaktigt visa en betalande
+                // kund som gratisanvändare) — istället visar UI:t ett
+                // tydligt felläge med möjlighet att försöka igen.
                 console.error('Fel vid profilhämtning:', bgErr)
+                if (isMounted) setProfileError(true)
               })
           }
         } else {
@@ -136,6 +141,20 @@ export function useAuth() {
     }
   }, [])
 
+  const retryProfile = useCallback(async () => {
+    if (!user?.id) return
+    setProfileError(false)
+    try {
+      const data = await fetchProfileWithTimeout(user.id, 5000)
+      setProfile((prev: AuthProfile) =>
+        JSON.stringify(prev) === JSON.stringify(data) ? prev : data
+      )
+    } catch (err) {
+      console.error('Fel vid profilhämtning (manuellt försök):', err)
+      setProfileError(true)
+    }
+  }, [user])
+
   const updateProfile = useCallback((updated: AuthProfile) => {
     setProfile(updated)
   }, [])
@@ -144,6 +163,8 @@ export function useAuth() {
     user,
     profile,
     authLoading,
+    profileError,
+    retryProfile,
     handleAuth,
     handleLogout,
     setProfile: updateProfile,
