@@ -193,7 +193,7 @@ export default function TransactionForm({
                 disabled={uploading || isYearLocked}
                 className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${uploading ? 'bg-gray-400' : isYearLocked ? 'bg-gray-300 opacity-40 cursor-not-allowed' : editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
               >
-                {uploading ? '...' : editingId ? 'Spara' : 'OK'}
+                {uploading ? '...' : editingId ? 'Spara' : 'Bokför'}
               </button>
               {editingId && (
                 <button
