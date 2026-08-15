@@ -18,10 +18,9 @@ export type AuthCredentials = {
   isRegistering: boolean
 }
 
-// Hämtar profilen med en timeout, och gör ETT automatiskt återförsök
-// (med lite längre tålamod) innan den ger upp. Detta minskar risken för
-// tillfälliga "timeout"-fel vid t.ex. Supabase cold start eller
-// långsam uppkoppling, utan att sidan riskerar hänga sig för evigt.
+// Hämtar profilen med en timeout. Används både för det initiala,
+// snabba försöket och för det bakgrundsförsök som görs om det första
+// tar för lång tid.
 async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
   const { data } = await Promise.race([
     supabase
@@ -34,16 +33,6 @@ async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
     )
   ]) as any
   return data
-}
-
-async function fetchProfileWithRetry(userId: string) {
-  try {
-    return await fetchProfileWithTimeout(userId, 3000)
-  } catch (err) {
-    // Första försöket tog för lång tid — ge det en chans till med mer tålamod
-    // innan vi ger upp och loggar felet.
-    return await fetchProfileWithTimeout(userId, 5000)
-  }
 }
 
 export function useAuth() {
@@ -71,16 +60,27 @@ export function useAuth() {
         setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
 
         if (currentUser) {
-          try {
-            const data = await fetchProfileWithRetry(currentUser.id)
+          const applyProfile = (data: AuthProfile) => {
+            if (!isMounted) return
+            setProfile((prev: AuthProfile) =>
+              JSON.stringify(prev) === JSON.stringify(data) ? prev : data
+            )
+          }
 
-            if (isMounted) {
-              setProfile((prev: AuthProfile) =>
-                JSON.stringify(prev) === JSON.stringify(data) ? prev : data
-              )
-            }
+          try {
+            // Snabbt första försök — hinner det inte inom 3s släpper vi
+            // ändå in användaren (SubscriptionGuard behandlar saknad
+            // profil som gratisanvändare tills riktig data kommer in).
+            const data = await fetchProfileWithTimeout(currentUser.id, 3000)
+            applyProfile(data)
           } catch (err) {
-            console.error('Fel vid profilhämtning:', err)
+            // Fortsätt i bakgrunden med mer tålamod, UTAN att blockera
+            // sidan eller hålla kvar laddningsskärmen längre.
+            fetchProfileWithTimeout(currentUser.id, 8000)
+              .then(applyProfile)
+              .catch((bgErr) => {
+                console.error('Fel vid profilhämtning:', bgErr)
+              })
           }
         } else {
           setProfile(null)
