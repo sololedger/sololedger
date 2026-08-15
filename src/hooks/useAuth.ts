@@ -18,6 +18,34 @@ export type AuthCredentials = {
   isRegistering: boolean
 }
 
+// Hämtar profilen med en timeout, och gör ETT automatiskt återförsök
+// (med lite längre tålamod) innan den ger upp. Detta minskar risken för
+// tillfälliga "timeout"-fel vid t.ex. Supabase cold start eller
+// långsam uppkoppling, utan att sidan riskerar hänga sig för evigt.
+async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
+  const { data } = await Promise.race([
+    supabase
+      .from('profiles')
+      .select('subscription_type, subscription_end, company_name, org_nr, role, email')
+      .eq('id', userId)
+      .maybeSingle(),
+    new Promise<any>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), timeoutMs)
+    )
+  ]) as any
+  return data
+}
+
+async function fetchProfileWithRetry(userId: string) {
+  try {
+    return await fetchProfileWithTimeout(userId, 3000)
+  } catch (err) {
+    // Första försöket tog för lång tid — ge det en chans till med mer tålamod
+    // innan vi ger upp och loggar felet.
+    return await fetchProfileWithTimeout(userId, 5000)
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<AuthProfile>(null)
@@ -44,16 +72,7 @@ export function useAuth() {
 
         if (currentUser) {
           try {
-            const { data } = await Promise.race([
-              supabase
-                .from('profiles')
-                .select('subscription_type, subscription_end, company_name, org_nr, role, email')
-                .eq('id', currentUser.id)
-                .maybeSingle(),
-              new Promise<any>((_, reject) =>
-                setTimeout(() => reject(new Error('timeout')), 3000)
-              )
-            ]) as any
+            const data = await fetchProfileWithRetry(currentUser.id)
 
             if (isMounted) {
               setProfile((prev: AuthProfile) =>
