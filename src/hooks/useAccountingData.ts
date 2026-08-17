@@ -3,6 +3,20 @@ import { supabase } from '@/lib/supabaseClient'
 import { getAccountBalances, getNEData, isYearClosed } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 
+// Sorterar transaktioner: nyaste datum överst, och vid samma datum
+// nyaste ver_nr överst (annars saknas sekundärsortering helt och
+// Supabase/Postgres returnerar likadana datum i en godtycklig — och
+// därför skenbart "slumpad" — ordning).
+function sortTransactionsByDateAndVer(transactions: any[], jMap: any) {
+  return [...transactions].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    const verA = jMap[a.id]?.[0]?.ver_nr ?? 0
+    const verB = jMap[b.id]?.[0]?.ver_nr ?? 0
+    return verB - verA
+  })
+}
+
 // Äger laddning av: transactions, balances, neData, journalMap, kontoplan, isYearLocked.
 // Samma beteende som tidigare i page.tsx — bara flyttat, inget ändrat i fetch- eller affärslogik.
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
@@ -67,7 +81,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
           jMap[row.transaction_id].push(row)
         })
       }
-      setTransactions(txData.data || [])
+      setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
       setBalances(balanceData || {})
       setJournalMap(jMap)
       setNeData(neRes)
@@ -130,7 +144,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
         if (cancelled) return
 
-        setTransactions(txData.data || [])
+        setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
         setBalances(balanceData || {})
         setJournalMap(jMap)
         setNeData(neRes)
