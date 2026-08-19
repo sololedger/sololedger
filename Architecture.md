@@ -1,50 +1,55 @@
 # SoloLedger — Arkitekturöversikt
 
-## `src/app/`
-**`page.tsx`** — Huvudsidan. Orkestrerar tabs, formulär, modals och UI-state. Konsumerar hooks, renderar allt.
+## src/app/
 
-**`layout.tsx`** — Next.js root layout. Wrapprar hela appen (HTML-skal, fonts, metadata).
+**page.tsx** — Huvudsidan. Orkestrerar tabs, formulär, modals och UI-state. Konsumerar hooks, renderar allt.
 
-**`globals.css`** — Global CSS.
+**layout.tsx** — Next.js root layout. Wrapprar hela appen (HTML-skal, fonts, metadata).
+
+**globals.css** — Global CSS.
 
 ---
 
-## `src/app/components/`
+## src/app/components/
+
 | Fil | Ansvar |
 |---|---|
-| `AdminPanel.tsx` | Adminvy: användarlista, torrkörning och radering av användare (endast för role = admin) |
-| `FAQ.tsx` | FAQ-sektionen |
-| `Kontoplan.tsx` | Vyn för att hantera kontoplanen (lägga till/ta bort konton) |
-| `Layout.tsx` | Sidhuvud, navigation, logout-knapp — skalet runt innehållet. Visar Admin-tab om isAdmin |
-| `Momsrapport.tsx` | Beräknar och visar momsrapport |
-| `NEBilaga.tsx` | NE-bilagan (skattedeklaration för enskild firma) |
-| `OverviewCards.tsx` | Summakorten högst upp på dashboard |
-| `Paywall.tsx` | Modal/banner för uppgradering |
-| `ProfileSettings.tsx` | Profilinställningar, byta lösenord etc |
-| `SubscribeButton.tsx` | Knapp för att starta prenumeration |
-| `SubscriptionGuard.tsx` | Blockerar features baserat på subscription_type |
-| `TransactionForm.tsx` | Formuläret för att lägga till/redigera transaktioner |
-| `TransactionTable.tsx` | Tabellen med alla transaktioner |
+| AdminPanel.tsx | Adminvy: användarlista, torrkörning och radering av användare (endast för role = admin) |
+| FAQ.tsx | FAQ-sektionen |
+| FavoriteChips.tsx | Visar och hanterar sparade favorit-mönster för snabb-bokföring |
+| Kontoplan.tsx | Hantering av kontoplan (lägga till/ta bort konton) |
+| Layout.tsx | Sidhuvud, navigation, logout-knapp. Visar Admin-tab om isAdmin |
+| Momsrapport.tsx | Beräknar och visar momsrapport |
+| NEBilaga.tsx | NE-bilaga för enskild firma |
+| OverviewCards.tsx | Dashboardens sammanfattningskort |
+| Paywall.tsx | Modal/banner för uppgradering |
+| ProfileSettings.tsx | Profilinställningar, lösenordsbyte m.m. |
+| SubscribeButton.tsx | Knapp för att starta prenumeration |
+| SubscriptionGuard.tsx | Blockerar funktioner beroende på subscription_type |
+| TransactionForm.tsx | Formulär för skapande och redigering av transaktioner |
+| TransactionTable.tsx | Lista över alla transaktioner |
 
 ---
 
-## `src/hooks/`
+## src/hooks/
+
 | Fil | Ansvar |
 |---|---|
-| `useAuth.ts` | Äger auth-livscykeln: user, profile (inkl. role och email), login, logout, onAuthStateChange |
-| `useAccountingData.ts` | Äger all bokföringsdata: transactions, balances, neData, journalMap, kontoplan, laddning, årslås |
+| useAuth.ts | Äger auth-livscykeln: user, profile, login, logout, password recovery, PASSWORD_RECOVERY-hantering, updatePassword, auth notices, onAuthStateChange |
+| useAccountingData.ts | Äger all bokföringsdata: transactions, balances, neData, journalMap, kontoplan, laddning, refreshData samt årslåsning |
 
 ---
 
-## `src/lib/`
+## src/lib/
+
 | Fil | Vill du ändra... | Kolla här |
 |---|---|---|
-| `accountingService.ts` | Hur bokföring, verifikationer, journalposter skapas/raderas | ✅ |
-| `calculations.ts` | Hur siffror beräknas (balans, resultat, moms, NE-värden) | ✅ |
-| `setupDefaultAccounts.ts` | Vilka konton nya användare får från start | ✅ |
-| `sieExport.ts` | Hur SIE-filen genereras vid export | ✅ |
-| `subscriptionLimits.ts` | Regler för vad gratis/trial/paid får göra | ✅ |
-| `supabaseClient.ts` | Supabase-anslutningen (URL, anon key) | ✅ |
+| accountingService.ts | Hur bokföring, verifikationer och journalposter skapas/raderas | ✅ |
+| calculations.ts | Hur moms, resultat, balans och NE-värden räknas ut | ✅ |
+| setupDefaultAccounts.ts | Standardkonton för nya användare | ✅ |
+| sieExport.ts | Hur SIE-filen genereras | ✅ |
+| subscriptionLimits.ts | Regler för gratis/trial/paid | ✅ |
+| supabaseClient.ts | Supabase-anslutning | ✅ |
 
 ---
 
@@ -53,36 +58,33 @@
 ### Tabeller
 | Tabell | Innehåll |
 |---|---|
-| `profiles` | Användarprofiler: subscription_type, role, email, company_name, org_nr |
-| `transactions` | Bokförda transaktioner per användare och år |
-| `journal_entries` | Journalposter kopplade till transaktioner |
-| `accounts` | Kontoplan per användare |
-| `closed_years` | Låsta räkenskapsår per användare |
-| `ver_nr_sequences` | Verifikationsnummer-räknare per användare |
+| profiles | Användarprofil: subscription_type, role, email, company_name, org_nr |
+| transactions | Bokförda transaktioner |
+| journal_entries | Journalposter per transaktion |
+| accounts | Kontoplan per användare |
+| favorites | Sparade favorit-transaktioner/mönster per användare |
+| closed_years | Låsta räkenskapsår |
+| ver_nr_sequences | Verifikationsnummer-räknare |
 
 ### Storage
 | Bucket | Innehåll |
 |---|---|
-| `attachments` | Bilagor per användare, mappstruktur: `userId/filnamn` |
+| attachments | Bilagor per användare (userId/filnamn) |
 
 ### Edge Functions
 | Funktion | Ansvar |
 |---|---|
-| `delete-user` | Raderar en användare permanent: storage, alla tabellrader och auth-kontot. Kräver admin-roll. |
+| delete-user | Raderar användare permanent inklusive storage, tabellrader och auth-konto |
 
 ### Triggers & Policies
-- **`on_auth_user_created`** — Skapar profiles-rad automatiskt vid registrering (email, role = user, subscription_type = free)
-- **`profiles_self_access`** — RLS: användare läser bara sin egen rad
-- **`admin_read_all_profiles`** — RLS: admins kan läsa alla profiles-rader (använder SECURITY DEFINER för att undvika loop)
+- **on_auth_user_created** — Skapar profiles-rad automatiskt vid registrering.
+- **profiles_self_access** — RLS: användare läser endast sin egen profil.
+- **admin_read_all_profiles** — RLS: admins kan läsa alla profiler.
 
 ---
 
-## Tumregel för var saker hör hemma
+## Auth-flöde
 
-| Fråga | Plats |
-|---|---|
-| Hur ser det ut? | `components/` |
-| Hur laddas/ägs data? | `hooks/` |
-| Hur räknas/bearbetas det? | `lib/` |
-| Vad visas och när? | `page.tsx` |
-| Serversidelogik som kräver service_role? | Supabase Edge Functions |
+### Login / Registrering
+```text
+page.tsx -> useAuth.ts -> Supabase Auth
