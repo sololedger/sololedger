@@ -26,9 +26,19 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 
 export default function Home() {
-  const { user, profile, authLoading, profileError, retryProfile, handleAuth, handleLogout, setProfile } = useAuth()
+  const {
+    user, profile, authLoading, profileError, retryProfile,
+    authNotice, dismissAuthNotice, resetPassword, updatePassword,
+    passwordRecoveryMode, exitPasswordRecoveryMode,
+    handleAuth, handleLogout, setProfile,
+  } = useAuth()
 
   const [isRegistering, setIsRegistering] = useState(false)
+  const [showResetForm, setShowResetForm] = useState(false)
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('')
+  const [recoverySaving, setRecoverySaving] = useState(false)
+  const [recoveryNotice, setRecoveryNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -356,45 +366,209 @@ export default function Home() {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
-  if (!user) {
+  // Om användaren kom hit via en klickad återställningslänk: visa en
+  // dedikerad "sätt nytt lösenord"-skärm direkt, istället för att tyst
+  // släppa in dem i vanliga appen där det inte är uppenbart varför de
+  // egentligen är inloggade.
+  if (passwordRecoveryMode) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <form
-          onSubmit={(e) => handleAuth(e, { email, password, isRegistering })}
+          onSubmit={async (e) => {
+            e.preventDefault()
+            setRecoveryNotice(null)
+            if (recoveryPassword.length < 6) {
+              setRecoveryNotice({ type: 'error', text: 'Lösenordet måste vara minst 6 tecken.' })
+              return
+            }
+            if (recoveryPassword !== recoveryPasswordConfirm) {
+              setRecoveryNotice({ type: 'error', text: 'Lösenorden matchar inte.' })
+              return
+            }
+            setRecoverySaving(true)
+            const result = await updatePassword(recoveryPassword)
+            setRecoverySaving(false)
+            if (result.success) {
+              setRecoveryNotice({ type: 'success', text: '✓ Lösenordet är uppdaterat! Du kan nu använda appen som vanligt.' })
+              setRecoveryPassword('')
+              setRecoveryPasswordConfirm('')
+              setTimeout(() => exitPasswordRecoveryMode(), 1500)
+            } else {
+              setRecoveryNotice({ type: 'error', text: result.error })
+            }
+          }}
           className="bg-white p-10 rounded-[2.5rem] shadow-xl border-2 border-emerald-500 w-full max-w-sm text-center"
         >
           <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6">S</div>
           <h1 className="text-lg font-black uppercase tracking-tighter italic text-gray-800 mb-2">SoloLedger</h1>
-          <p className="text-[10px] font-black uppercase text-emerald-600 mb-8 tracking-wider">
-            {isRegistering ? 'Skapa nytt konto' : 'Fleranvändarsystem'}
-          </p>
+          <p className="text-[10px] font-black uppercase text-emerald-600 mb-6 tracking-wider">Sätt nytt lösenord</p>
+
+          {recoveryNotice && (
+            <div className={`mb-4 rounded-2xl px-4 py-3 text-[11px] font-bold text-left ${
+              recoveryNotice.type === 'error'
+                ? 'bg-red-50 text-red-600 border border-red-200'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}>
+              {recoveryNotice.text}
+            </div>
+          )}
+
           <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="E-postadress"
+            type="password"
+            value={recoveryPassword}
+            onChange={e => setRecoveryPassword(e.target.value)}
+            placeholder="Nytt lösenord (minst 6 tecken)"
             className="w-full bg-gray-50 rounded-2xl p-4 mb-3 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
             required
           />
           <input
             type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Lösenord"
+            value={recoveryPasswordConfirm}
+            onChange={e => setRecoveryPasswordConfirm(e.target.value)}
+            placeholder="Bekräfta nytt lösenord"
             className="w-full bg-gray-50 rounded-2xl p-4 mb-6 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
             required
           />
-          <button type="submit" className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4">
-            {isRegistering ? 'Registrera dig' : 'Logga in'}
-          </button>
           <button
-            type="button"
-            onClick={() => setIsRegistering(!isRegistering)}
-            className="text-[10px] text-gray-400 hover:text-emerald-600 font-black uppercase tracking-wider transition-colors"
+            type="submit"
+            disabled={recoverySaving}
+            className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md disabled:opacity-50"
           >
-            {isRegistering ? 'Har du redan ett konto? Logga in' : 'Inget konto? Skapa ett här'}
+            {recoverySaving ? 'Uppdaterar...' : 'Spara nytt lösenord'}
           </button>
         </form>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border-2 border-emerald-500 w-full max-w-sm text-center">
+          <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic mx-auto mb-6">
+            S
+          </div>
+  
+          <h1 className="text-lg font-black uppercase tracking-tighter italic text-gray-800 mb-2">
+            SoloLedger
+          </h1>
+  
+          <p className="text-[10px] font-black uppercase text-emerald-600 mb-6 tracking-wider">
+            {showResetForm
+              ? 'Återställ lösenord'
+              : isRegistering
+                ? 'Skapa nytt konto'
+                : 'Fleranvändarsystem'}
+          </p>
+  
+          {authNotice && (
+            <div
+              className={`mb-4 rounded-2xl px-4 py-3 text-[11px] font-bold text-left ${
+                authNotice.type === 'error'
+                  ? 'bg-red-50 text-red-600 border border-red-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              {authNotice.text}
+            </div>
+          )}
+  
+  {showResetForm ? (
+            <form>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="E-postadress"
+                className="w-full bg-gray-50 rounded-2xl p-4 mb-3 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
+                required
+              />
+
+              <p className="text-[10px] text-gray-400 font-bold mb-6 leading-relaxed">
+                Vi skickar en länk till din e-post där du kan sätta ett nytt lösenord.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => resetPassword(email)}
+                className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4"
+              >
+                Skicka återställningslänk
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setShowResetForm(false); dismissAuthNotice() }}
+                className="text-[10px] text-gray-400 hover:text-emerald-600 font-black uppercase tracking-wider transition-colors"
+              >
+                Tillbaka till inloggning
+              </button>
+            </form>
+          ) : (
+            <form
+              onSubmit={(e) =>
+                handleAuth(e, {
+                  email,
+                  password,
+                  isRegistering,
+                })
+              }
+            >
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="E-postadress"
+                className="w-full bg-gray-50 rounded-2xl p-4 mb-3 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
+                required
+              />
+  
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Lösenord"
+                className="w-full bg-gray-50 rounded-2xl p-4 mb-2 text-center font-bold outline-none text-sm border border-transparent focus:border-emerald-300"
+                required
+              />
+  
+              {!isRegistering && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetForm(true)
+                    dismissAuthNotice()
+                  }}
+                  className="block ml-auto mb-4 text-[9px] text-gray-400 hover:text-emerald-600 font-bold uppercase tracking-wider transition-colors"
+                >
+                  Glömt lösenord?
+                </button>
+              )}
+  
+              <button
+                type="submit"
+                className={`w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-md mb-4 ${
+                  isRegistering ? '' : 'mt-2'
+                }`}
+              >
+                {isRegistering ? 'Registrera dig' : 'Logga in'}
+              </button>
+  
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegistering(!isRegistering)
+                  dismissAuthNotice()
+                }}
+                className="text-[10px] text-gray-400 hover:text-emerald-600 font-black uppercase tracking-wider transition-colors"
+              >
+                {isRegistering
+                  ? 'Har du redan ett konto? Logga in'
+                  : 'Inget konto? Skapa ett här'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     )
   }
@@ -566,6 +740,7 @@ export default function Home() {
           user={user} 
           profile={profile} 
           onProfileUpdate={(updated) => setProfile(updated)} 
+          onUpdatePassword={updatePassword}
         />
       ) : activeTab === 'admin' && isAdmin ? (
         <AdminPanel />

@@ -6,14 +6,20 @@ interface Props {
   user: any
   profile: any
   onProfileUpdate: (updated: any) => void
+  onUpdatePassword: (newPassword: string) => Promise<{ success: true } | { success: false; error: string }>
 }
 
-export default function ProfileSettings({ user, profile, onProfileUpdate }: Props) {
+export default function ProfileSettings({ user, profile, onProfileUpdate, onUpdatePassword }: Props) {
   const [companyName, setCompanyName] = useState(profile?.company_name || '')
   const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordNotice, setPasswordNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   // 🌟 Synka lokala states när profildatan har landat från Supabase
   useEffect(() => {
@@ -42,6 +48,34 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
       alert('Kunde inte spara: ' + err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPasswordNotice(null)
+
+    if (newPassword.length < 6) {
+      setPasswordNotice({ type: 'error', text: 'Lösenordet måste vara minst 6 tecken.' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordNotice({ type: 'error', text: 'Lösenorden matchar inte.' })
+      return
+    }
+
+    setPasswordSaving(true)
+    try {
+      const result = await onUpdatePassword(newPassword)
+      if (result.success) {
+        setPasswordNotice({ type: 'success', text: '✓ Lösenordet är uppdaterat.' })
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        setPasswordNotice({ type: 'error', text: result.error })
+      }
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -144,6 +178,53 @@ export default function ProfileSettings({ user, profile, onProfileUpdate }: Prop
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all shadow-sm disabled:opacity-50"
           >
             {saving ? 'Sparar...' : saved ? '✓ Sparat!' : 'Spara ändringar'}
+          </button>
+        </form>
+      </div>
+
+      {/* Byt lösenord */}
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
+        <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Byt lösenord</h2>
+
+        {passwordNotice && (
+          <div className={`mb-4 rounded-xl px-4 py-3 text-[11px] font-bold ${
+            passwordNotice.type === 'error'
+              ? 'bg-red-50 text-red-600 border border-red-200'
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`}>
+            {passwordNotice.text}
+          </div>
+        )}
+
+        <form onSubmit={handleUpdatePassword} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Nytt lösenord</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Minst 6 tecken"
+              className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Bekräfta nytt lösenord</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Upprepa lösenordet"
+              className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={passwordSaving || !newPassword || !confirmPassword}
+            className="w-full bg-gray-800 hover:bg-gray-900 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all shadow-sm disabled:opacity-50"
+          >
+            {passwordSaving ? 'Uppdaterar...' : 'Byt lösenord'}
           </button>
         </form>
       </div>
