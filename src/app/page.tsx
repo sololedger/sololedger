@@ -723,7 +723,7 @@ export default function Home() {
           />
         </>
       ) : activeTab === 'kontoplan' ? (
-        <Kontoplan />
+        <Kontoplan onAccountCreated={refreshData} />
       ) : activeTab === 'moms' ? (
         <SubscriptionGuard
           user={user}

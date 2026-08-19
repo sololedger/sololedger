@@ -18,7 +18,6 @@ function sortTransactionsByDateAndVer(transactions: any[], jMap: any) {
 }
 
 // Äger laddning av: transactions, balances, neData, journalMap, kontoplan, isYearLocked.
-// Samma beteende som tidigare i page.tsx — bara flyttat, inget ändrat i fetch- eller affärslogik.
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
   const [dataLoading, setDataLoading] = useState(false)
   const [isYearLocked, setIsYearLocked] = useState(false)
@@ -85,6 +84,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       setBalances(balanceData || {})
       setJournalMap(jMap)
       setNeData(neRes)
+
+      // Uppdaterar även kontoplanen globalt vid refresh
+      await loadKontoplanOptions()
     } catch (err) {
       console.error('Fel vid laddning av data:', err)
     }

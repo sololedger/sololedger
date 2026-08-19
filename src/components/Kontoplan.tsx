@@ -2,7 +2,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-export default function Kontoplan() {
+interface KontoplanProps {
+  onAccountCreated?: () => Promise<void> | void
+}
+
+export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [kontoplan, setKontoplan] = useState<any[]>([])
   const [newAccount, setNewAccount] = useState({
     id: '',
@@ -39,7 +43,7 @@ export default function Kontoplan() {
       const { data, error } = await supabase
         .from('accounts')
         .select('*')
-        .eq('user_id', user.id) // ✅ Säkrat med RLS-filter
+        .eq('user_id', user.id)
         .order('name')
 
       if (error) {
@@ -88,6 +92,10 @@ export default function Kontoplan() {
       if (error) throw error
       setNewAccount({ id: '', name: '', debit_account: '', credit_account: '1930', default_vat_rate: 0, comment: '' })
       await loadKontoplan()
+
+      if (onAccountCreated) {
+        await onAccountCreated()
+      }
     } catch (err: any) {
       console.error(err)
       alert('Kunde inte spara konto: ' + err.message)
@@ -108,7 +116,7 @@ export default function Kontoplan() {
         .from('accounts')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id) // ✅ Explicit säkerhet även vid radering
+        .eq('user_id', user.id)
 
       if (error) {
         alert('Kunde inte radera: ' + error.message)
@@ -116,6 +124,10 @@ export default function Kontoplan() {
       }
       
       await loadKontoplan()
+
+      if (onAccountCreated) {
+        await onAccountCreated()
+      }
     } catch (err: any) {
       console.error(err)
     }
@@ -247,7 +259,6 @@ export default function Kontoplan() {
                   <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
                 </td>
 
-                {/* 🎨 Uppdaterade och snygga Debet-badges */}
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                     <span>{acc.debit_account}</span>
@@ -255,7 +266,6 @@ export default function Kontoplan() {
                   </span>
                 </td>
 
-                {/* 🎨 Uppdaterade och snygga Kredit-badges */}
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                     <span>{acc.credit_account}</span>
