@@ -57,8 +57,15 @@ export default function TransactionTable({
     const verNr = journal[0]?.ver_nr
     const isNeutralized = !isCorrection && verNr != null && neutralizedVerNrs.has(verNr)
 
+    // Importerade SIE-verifikationer har varken en enskild kategori (type)
+    // eller en enskild momssats (vat_rate) - de kan ha godtyckligt många
+    // motkonton och representerar ingen "affärshändelse" i samma mening
+    // som en manuellt bokförd rad. isIncome beräknas därför INTE för dem:
+    // att låta accountDef bli undefined och tyst falla tillbaka till
+    // isIncome=false skulle visa en importerad intäkt som en röd utgift.
+    const isImported = tx.source === 'sie_import'
     const accountDef = kontoplan.find(k => k.id === tx.type)
-    const isIncome = (accountDef?.credit_account?.startsWith('3') || tx.type === 'egen_insättning') ?? false
+    const isIncome = !isImported && ((accountDef?.credit_account?.startsWith('3') || tx.type === 'egen_insättning') ?? false)
 
     const rowClass = isCorrection
       ? 'bg-amber-50/70 opacity-80'
@@ -66,24 +73,34 @@ export default function TransactionTable({
       ? 'bg-gray-50 opacity-60'
       : editingId === tx.id
       ? 'bg-amber-50/50'
+      : isImported
+      ? 'bg-sky-50/40 hover:bg-sky-50/60'
       : 'hover:bg-gray-50/50'
 
     const textClass = isCorrection
       ? 'text-amber-600 line-through'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isImported
+      ? 'text-sky-900'
       : 'text-gray-700'
 
     const verClass = isCorrection
       ? 'text-amber-400 line-through'
       : isNeutralized
       ? 'text-gray-300 line-through'
+      : isImported
+      ? 'text-sky-500'
       : 'text-emerald-600'
 
+    // Neutral blå ton för importer istället för grönt/rött - en verifikation
+    // med flera motkonton har ingen entydig "inkomst eller utgift"-riktning.
     const amountClass = isCorrection
       ? 'text-amber-400 line-through'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isImported
+      ? 'text-sky-700'
       : isIncome
       ? 'text-emerald-600'
       : 'text-rose-600'
@@ -92,12 +109,14 @@ export default function TransactionTable({
       ? 'bg-amber-50 border-amber-100 text-amber-400'
       : isNeutralized
       ? 'bg-gray-50 border-gray-100 text-gray-300'
+      : isImported
+      ? 'bg-sky-50 border-sky-100 text-sky-600'
       : 'bg-gray-50 border-gray-100 text-gray-500'
 
     const sortedJournal = [...journal].sort((a: any, b: any) => (Number(b.debit) > 0 ? -1 : 1))
 
     return {
-      tx, journal: sortedJournal, isCorrection, verNr, isNeutralized,
+      tx, journal: sortedJournal, isCorrection, verNr, isNeutralized, isImported,
       accountDef, isIncome, rowClass, textClass, verClass, amountClass, badgeClass,
     }
   })
@@ -128,7 +147,7 @@ export default function TransactionTable({
           </thead>
 
           <tbody className="divide-y divide-gray-50">
-            {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, accountDef, isIncome, rowClass, textClass, verClass, amountClass, badgeClass }) => (
+            {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, accountDef, isIncome, rowClass, textClass, verClass, amountClass, badgeClass }) => (
               <tr key={tx.id} className={`transition-colors ${rowClass}`}>
 
                 {/* ── DATUM / VER ── */}
@@ -139,6 +158,11 @@ export default function TransactionTable({
                   {verNr && (
                     <p className={`text-[10px] font-black italic ${verClass}`}>
                       VER-{verNr}
+                    </p>
+                  )}
+                  {isImported && (
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-sky-400">
+                      SIE {tx.source_ver_series}{tx.source_ver_number}
                     </p>
                   )}
                 </td>
@@ -154,13 +178,19 @@ export default function TransactionTable({
                       <p className="text-[10px] font-black text-gray-300 uppercase line-through">
                         {accountDef?.name || tx.type}
                       </p>
+                    ) : isImported ? (
+                      <p className="text-[10px] font-black text-sky-500 uppercase">
+                        Importerad verifikation
+                      </p>
                     ) : (
                       <p className="text-[10px] font-black text-emerald-500 uppercase">
                         {accountDef?.name || tx.type}
                       </p>
                     )}
 
-                    {!isCorrection && !isNeutralized && (
+                    {/* Momsbadgen gäller bara affärshändelser - importer har ingen
+                        enskild momssats (vat_rate är null), se arkitekturanalysen. */}
+                    {!isCorrection && !isNeutralized && !isImported && (
                       <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                         Moms: {tx.vat_rate}%
                       </span>
@@ -193,7 +223,9 @@ export default function TransactionTable({
 
                 {/* ── BELOPP ── */}
                 <td className={`p-8 text-right font-black text-lg ${amountClass}`}>
-                  {!isCorrection && !isNeutralized && (isIncome ? '+ ' : '- ')}
+                  {/* Inget +/- tecken för importer: en verifikation med flera
+                      motkonton har ingen entydig inkomst/utgift-riktning. */}
+                  {!isCorrection && !isNeutralized && !isImported && (isIncome ? '+ ' : '- ')}
                   {tx.amount.toLocaleString()} kr
                 </td>
 
@@ -226,7 +258,12 @@ export default function TransactionTable({
                 {/* ── ÅTGÄRD ── */}
                 <td className="p-8 text-right pr-12">
                   <div className="flex items-center justify-end gap-4">
-                    {!isCorrection && !isNeutralized && !isYearLocked && (
+                    {/* Redigeringsformuläret representerar en enskild kategoriserad
+                        rad och kan inte visa/ändra en N-radig SIE-verifikation
+                        korrekt - döljs därför helt istället för att visa ett
+                        formulär som tyst tappar data. Korrigering (nedan)
+                        fungerar generiskt oavsett antal rader och lämnas kvar. */}
+                    {!isCorrection && !isNeutralized && !isImported && !isYearLocked && (
                       <button
                         onClick={() => onEdit(tx)}
                         className="text-gray-200 hover:text-emerald-600 transition-colors"
@@ -255,7 +292,7 @@ export default function TransactionTable({
 
       {/* ══════════════════════ MOBIL: KORTLISTA (under md) ══════════════════════ */}
       <div className="md:hidden flex flex-col gap-3">
-        {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, accountDef, isIncome, textClass, verClass, amountClass, badgeClass }) => (
+        {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, accountDef, isIncome, textClass, verClass, amountClass, badgeClass }) => (
           <div
             key={tx.id}
             className={`rounded-[1.75rem] border p-5 shadow-sm transition-colors ${
@@ -265,6 +302,8 @@ export default function TransactionTable({
                 ? 'bg-gray-50 border-gray-100 opacity-70'
                 : editingId === tx.id
                 ? 'bg-amber-50/50 border-amber-200'
+                : isImported
+                ? 'bg-sky-50/40 border-sky-100'
                 : 'bg-white border-gray-100'
             }`}
           >
@@ -279,9 +318,14 @@ export default function TransactionTable({
                     VER-{verNr}
                   </p>
                 )}
+                {isImported && (
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-sky-400">
+                    SIE {tx.source_ver_series}{tx.source_ver_number}
+                  </p>
+                )}
               </div>
               <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
-                {!isCorrection && !isNeutralized && (isIncome ? '+ ' : '- ')}
+                {!isCorrection && !isNeutralized && !isImported && (isIncome ? '+ ' : '- ')}
                 {tx.amount.toLocaleString()} kr
               </p>
             </div>
@@ -294,13 +338,17 @@ export default function TransactionTable({
                 <p className="text-[10px] font-black text-gray-300 uppercase line-through">
                   {accountDef?.name || tx.type}
                 </p>
+              ) : isImported ? (
+                <p className="text-[10px] font-black text-sky-500 uppercase">
+                  Importerad verifikation
+                </p>
               ) : (
                 <p className="text-[10px] font-black text-emerald-500 uppercase">
                   {accountDef?.name || tx.type}
                 </p>
               )}
 
-              {!isCorrection && !isNeutralized && (
+              {!isCorrection && !isNeutralized && !isImported && (
                 <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                   Moms: {tx.vat_rate}%
                 </span>
@@ -358,12 +406,14 @@ export default function TransactionTable({
             {/* ── ÅTGÄRDER (riktiga touch-knappar, inte bara ikoner) ── */}
             {!isCorrection && !isNeutralized && !isYearLocked && (
               <div className="flex gap-2 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => onEdit(tx)}
-                  className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
-                >
-                  ✎ Redigera
-                </button>
+                {!isImported && (
+                  <button
+                    onClick={() => onEdit(tx)}
+                    className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
+                  >
+                    ✎ Redigera
+                  </button>
+                )}
                 <button
                   onClick={() => onDelete(tx)}
                   className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-500 font-black text-[10px] uppercase tracking-wide transition-colors"

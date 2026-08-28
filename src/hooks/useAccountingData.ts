@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { getAccountBalances, getNEData, isYearClosed } from '@/lib/accountingService'
+import { getAccountBalances, getNEData, isYearClosed, getMomsBreakdown } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 
 // Sorterar transaktioner: nyaste datum överst, och vid samma datum
@@ -26,6 +26,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const [neData, setNeData] = useState<any>(null)
   const [journalMap, setJournalMap] = useState<any>({})
   const [kontoplan, setKontoplan] = useState<any[]>([])
+  const [momsBreakdown, setMomsBreakdown] = useState({ utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
 
   async function loadKontoplanOptions() {
     try {
@@ -60,13 +61,14 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     try {
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
-      const [txData, balanceData, neRes] = await Promise.all([
+      const [txData, balanceData, neRes, momsRes] = await Promise.all([
         supabase.from('transactions').select('*')
           .eq('user_id', user.id)
           .gte('date', startDate).lte('date', endDate)
           .order('date', { ascending: false }),
         getAccountBalances(selectedYear),
-        getNEData(selectedYear)
+        getNEData(selectedYear),
+        getMomsBreakdown(startDate, endDate)
       ])
       if (txData.error) throw txData.error
       const txIds = txData.data?.map((t: any) => t.id) || []
@@ -84,6 +86,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       setBalances(balanceData || {})
       setJournalMap(jMap)
       setNeData(neRes)
+      setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
 
       // Uppdaterar även kontoplanen globalt vid refresh
       await loadKontoplanOptions()
@@ -118,13 +121,14 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         const startDate = `${selectedYear}-01-01`
         const endDate   = `${selectedYear}-12-31`
 
-        const [txData, balanceData, neRes] = await Promise.all([
+        const [txData, balanceData, neRes, momsRes] = await Promise.all([
           supabase.from('transactions').select('*')
             .eq('user_id', user.id)
             .gte('date', startDate).lte('date', endDate)
             .order('date', { ascending: false }),
           getAccountBalances(selectedYear),
-          getNEData(selectedYear)
+          getNEData(selectedYear),
+          getMomsBreakdown(startDate, endDate)
         ])
 
         if (cancelled) return
@@ -150,6 +154,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         setBalances(balanceData || {})
         setJournalMap(jMap)
         setNeData(neRes)
+        setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
         loadKontoplanOptions()
       } catch (err) {
         if (!cancelled) console.error('Fel vid laddning av data:', err)
@@ -187,5 +192,6 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    momsBreakdown,
   }
 }

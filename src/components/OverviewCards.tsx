@@ -8,7 +8,6 @@ interface OverviewCardsProps {
   journalMap: any
   setActiveModal: (modal: null | 'bank' | 'skatt' | 'moms' | 'resultat') => void
   activeModal: null | 'bank' | 'skatt' | 'moms' | 'resultat'
-  balances: any
 }
 
 export default function OverviewCards({
@@ -18,7 +17,6 @@ export default function OverviewCards({
   journalMap,
   setActiveModal,
   activeModal,
-  balances,
 }: OverviewCardsProps) {
   // Bygg ett set av alla ver_nr som har blivit korrigerade
   const neutralizedVerNrs = new Set(
@@ -262,24 +260,24 @@ export default function OverviewCards({
                 <div className="space-y-3">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-red-50 rounded-2xl px-5 py-3">
                     <div>
-                      <p className="text-xs font-black text-red-600 uppercase">Utgående moms (2611)</p>
+                      <p className="text-xs font-black text-red-600 uppercase">Utgående moms (261x/262x/263x)</p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
                         Moms på din försäljning — ska betalas in
                       </p>
                     </div>
                     <span className="font-black text-red-500">
-                      +{Math.abs(balances['2611'] || 0).toLocaleString('sv-SE')} kr
+                      +{data.utgaendeMoms.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3">
                     <div>
-                      <p className="text-xs font-black text-emerald-600 uppercase">Ingående moms (2641)</p>
+                      <p className="text-xs font-black text-emerald-600 uppercase">Ingående moms (264x)</p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
                         Moms du betalat på kostnader — dras av
                       </p>
                     </div>
                     <span className="font-black text-emerald-600">
-                      −{Math.abs(balances['2641'] || 0).toLocaleString('sv-SE')} kr
+                      −{data.ingaendeMoms.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                 </div>

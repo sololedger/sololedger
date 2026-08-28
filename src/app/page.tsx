@@ -16,6 +16,7 @@ import ProfileSettings from '@/components/ProfileSettings'
 import TransactionTable from '@/components/TransactionTable'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
+import SieImportModal from '@/components/SieImportModal'
 
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
@@ -55,6 +56,7 @@ export default function Home() {
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    momsBreakdown,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
 
   const isAdmin = profile?.role === 'admin'
@@ -67,6 +69,7 @@ export default function Home() {
   const [taxRate, setTaxRate] = useState(45)
 
   const [uploading, setUploading] = useState(false)
+  const [showSieImport, setShowSieImport] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
 
@@ -331,7 +334,7 @@ export default function Home() {
     setLastSubmitted(null)
   }
 
-  const data = calculateDashboard(balances, taxRate)
+  const data = calculateDashboard(balances, taxRate, momsBreakdown)
 
 
   const hasActiveSubscription =
@@ -594,6 +597,12 @@ export default function Home() {
         </div>
       )}
 
+      <SieImportModal
+        isOpen={showSieImport}
+        onClose={() => setShowSieImport(false)}
+        refreshData={refreshData}
+      />
+
 <div className="flex flex-col gap-4 mb-8 px-4 sm:px-6 lg:px-8 md:flex-row md:justify-between md:items-center">
         <div>
           <h1 className="text-xl sm:text-2xl font-black uppercase italic tracking-tighter text-gray-800">
@@ -630,6 +639,18 @@ export default function Home() {
               </select>
             </div>
           ) : <div className="hidden md:block w-[104px] h-[38px] shrink-0" />}
+
+          {/* SIE-importen */}
+          <button
+            onClick={() => setShowSieImport(true)}
+            className={`bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all w-full md:w-auto md:shrink-0 ${
+              activeTab === 'dashboard'
+                ? 'opacity-100 pointer-events-auto'
+                : 'hidden md:block md:invisible md:pointer-events-none'
+            }`}
+          >
+            Importera SIE
+          </button>
 
           {/* SIE-exporten */}
           <button
@@ -671,7 +692,6 @@ export default function Home() {
             journalMap={journalMap}
             setActiveModal={setActiveModal}
             activeModal={activeModal}
-            balances={balances}
           />
 
           {isYearLocked && (

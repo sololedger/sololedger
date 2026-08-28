@@ -1,7 +1,8 @@
 import { supabase } from './supabaseClient'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
-async function getUserId() {
+// Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
+export async function getUserId() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error("Ingen giltig eller inloggad användare hittades.")
   return user.id
@@ -222,6 +223,85 @@ export async function getAccountBalances(year: number) {
     ) / 100
   })
   return balances
+}
+
+/**
+ * Beräknar utgående/ingående moms och netto för en period ("Alternativ E", låst arkitekturbeslut).
+ *
+ * Summerar rörelser på momskonton (261x/262x/263x utgående, 264x ingående) inom
+ * [startDate, endDate], men EXKLUDERAR alla momskontorader vars verifikation även
+ * innehåller en rad på ett avräkningskonto (265x, t.ex. 2650). En sådan verifikation
+ * är en intern momsombokning (flyttar ackumulerad moms till avräkningskontot),
+ * inte en ny affärshändelse - och ska därför inte räknas som periodens moms.
+ *
+ * Detta ersätter den tidigare modellen som bara summerade 2611/2641 rakt av,
+ * vilken visade 0 kr för importerad SIE-data eftersom källbokföringen gör
+ * periodiska momsombokningar som nollar ut exakt de kontona inom samma period.
+ *
+ * Konton utanför 26xx (t.ex. betalningar mot 1930 vid en skattedeklaration)
+ * påverkar aldrig resultatet - de saknar momskontorader att exkludera eller
+ * räkna med i första läget.
+ *
+ * Detta är den ENDA platsen momsberäkningen görs. Momsrapport.tsx, Dashboard
+ * (via calculations.ts) och all annan momsvisning ska anropa den här funktionen
+ * istället för att räkna själva - annars riskerar olika delar av appen visa
+ * olika siffror för samma period.
+ */
+export interface MomsBreakdown {
+  utgaendeMoms: number
+  ingaendeMoms: number
+  momsNetto: number
+}
+
+export async function getMomsBreakdown(startDate: string, endDate: string): Promise<MomsBreakdown> {
+  const userId = await getUserId()
+
+  const { data: entries, error } = await supabase
+    .from('journal_entries')
+    .select('account_number, debit, credit, transaction_id')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .like('account_number', '26%')
+  if (error) throw error
+
+  const isUtgåendeMomskonto = (acc: string) =>
+    acc.startsWith('261') || acc.startsWith('262') || acc.startsWith('263')
+  const isIngåendeMomskonto = (acc: string) => acc.startsWith('264')
+  const isAvräkningskonto = (acc: string) => acc.startsWith('265')
+
+  // Gruppera på verifikation (transaction_id) för att kunna avgöra om en
+  // momsrad hör till en ombokning - dvs. om SAMMA verifikation även har en
+  // rad på ett avräkningskonto.
+  const byTransaction: Record<string, { account_number: string; debit: number; credit: number }[]> = {}
+  entries?.forEach(e => {
+    const key = e.transaction_id
+    if (!byTransaction[key]) byTransaction[key] = []
+    byTransaction[key].push(e)
+  })
+
+  let utgaendeMoms = 0
+  let ingaendeMoms = 0
+
+  Object.values(byTransaction).forEach(rows => {
+    const ärOmföring = rows.some(r => isAvräkningskonto(r.account_number))
+    if (ärOmföring) return // hela verifikationens momsrader exkluderas
+
+    rows.forEach(r => {
+      const net = Number(r.credit) - Number(r.debit)
+      if (isUtgåendeMomskonto(r.account_number)) {
+        utgaendeMoms += net
+      } else if (isIngåendeMomskonto(r.account_number)) {
+        ingaendeMoms += -net // avdragsperspektiv: debetöverskott på 264x = positivt avdrag
+      }
+    })
+  })
+
+  utgaendeMoms = Math.round(utgaendeMoms * 100) / 100
+  ingaendeMoms = Math.round(ingaendeMoms * 100) / 100
+  const momsNetto = Math.round((utgaendeMoms - ingaendeMoms) * 100) / 100
+
+  return { utgaendeMoms, ingaendeMoms, momsNetto }
 }
 
 export async function deleteTransaction(id: string) {
@@ -596,7 +676,18 @@ export async function getNEData(year: number) {
 
   const utgMoms = Math.abs(balances['2611'] || 0)
   const ingMoms = Math.abs(balances['2641'] || 0)
-  const B16 = Math.round((utgMoms - ingMoms) * 100) / 100
+  // Kvarvarande, obetald skuld på momsavräkningskontot (265x, t.ex. 2650) vid
+  // årsskiftet. Krävs eftersom källbokföring (t.ex. importerad SIE) gör
+  // löpande momsombokningar som nollar ut 2611/2641 långt innan bokslutet -
+  // utan denna term missar B16 hela skulden så fort det sker (verifierat
+  // mot Visma-exempelfilen: 2611=0, 2641=0, 2650=-46 867 kr => B16 blev 0 kr
+  // istället för korrekt 46 867 kr). max(0, ...) förhindrar att en eventuell
+  // överbetalning (2650 i debetsaldo, en fordran snarare än en skuld) av
+  // misstag skulle ge B16 ett negativt värde.
+  const avräkningsskuld = Object.entries(balances)
+    .filter(([acc]) => acc.startsWith('265'))
+    .reduce((sum, [, v]) => sum + Math.max(0, -(v as number)), 0)
+  const B16 = Math.round((utgMoms - ingMoms + avräkningsskuld) * 100) / 100
 
   const bank = balances['1930'] || 0
   const B13_forutbetalda = Math.max(0, balances['1790'] || 0)
