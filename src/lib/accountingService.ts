@@ -669,7 +669,17 @@ export async function getNEData(year: number) {
   const R12 = ejAvdr
   const R14 = Math.round((R11 + R12) * 100) / 100
 
-  const IB_kapital = balances['2010'] || 0
+  // Konto 2010 är kreditnormalt (klass 2, precis som 2018 och 2650 ovan/nedan) -
+  // ett verkligt positivt eget kapital ger ett NEGATIVT rått värde i
+  // debet-minus-kredit-konventionen. Utan tecken-vändningen nedan skulle ett
+  // företag med t.ex. 50 000 kr i ingående kapital visa IB_kapital = -50 000,
+  // vilket halverar B10 fel håll (differens = 2x kapitalbeloppet).
+  //
+  // OBS: till skillnad från insattningar/avräkningsskuld nedan/ovan klipper vi
+  // INTE till 0 vid "fel" riktning - ett företag kan legitimt starta året med
+  // NEGATIVT eget kapital (efter ett förlustår), och det ska synas som ett
+  // negativt IB_kapital, inte döljas som 0.
+  const IB_kapital = -(balances['2010'] || 0)
   const uttag = Math.max(0, balances['2013'] || 0)
   const insattningar = Math.max(0, -(balances['2018'] || 0))
   const B10_total = Math.round((IB_kapital + bokfRes + insattningar - uttag) * 100) / 100
