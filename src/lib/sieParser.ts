@@ -70,6 +70,16 @@ export interface SieAccount {
     end: string
   }
   
+  /** En ingående balans-rad från en #IB-post (endast innevarande räkenskapsår, index 0). */
+  export interface SieOpeningBalance {
+    /** Kontonummer. */
+    accountNumber: string
+    /**
+     * Belopp enligt samma konvention som #TRANS: positivt = debet, negativt = kredit.
+     */
+    amount: number
+  }
+  
   /** Resultatet av parseSieFile. */
   export interface SieParseResult {
     companyName: string | null
@@ -79,6 +89,12 @@ export interface SieAccount {
     fiscalYears: SieFiscalYear[]
     accounts: SieAccount[]
     verifications: SieVer[]
+    /**
+     * Ingående balans från #IB-poster för innevarande räkenskapsår (index 0).
+     * #IB för andra index (-1, -2, ...) är jämförelseår och parsas inte -
+     * de hör inte till den balans som ska skrivas in i bokföringen nu.
+     */
+    openingBalances: SieOpeningBalance[]
     /** accounts.length, för bekvämlighet. */
     accountCount: number
     /** verifications.length, för bekvämlighet. */
@@ -393,6 +409,7 @@ export interface SieAccount {
     const accounts = new Map<string, SieAccount>()
     const verifications: SieVer[] = []
     const fiscalYears: SieFiscalYear[] = []
+    const openingBalances: SieOpeningBalance[] = []
     const referencedAccounts = new Set<string>()
   
     let companyName: string | null = null
@@ -457,6 +474,40 @@ export interface SieAccount {
           break
         }
   
+        case '#IB': {
+          // #IB <arsnr> <kontonr> <belopp> [<objektlista>]
+          // Bara arsnr "0" (innevarande räkenskapsår) är relevant för en import -
+          // andra index (-1, -2, ...) är jämförelseår för tidigare perioder,
+          // inte den öppningsbalans som ska skrivas in i bokföringen nu.
+          const arsnrRaw = tokens[1]?.value
+          const accountNumber = tokens[2]?.value
+          const amountRaw = tokens[3]?.value
+  
+          if (arsnrRaw === undefined || accountNumber === undefined || amountRaw === undefined) {
+            warnings.push(`Ofullständig #IB-rad, hoppar över: "${trimmed}"`)
+            i++
+            break
+          }
+  
+          if (arsnrRaw !== '0') {
+            i++
+            break
+          }
+  
+          const ibAmount = parseSieAmount(amountRaw)
+          if (ibAmount === null) {
+            warnings.push(
+              `Ogiltigt belopp "${amountRaw}" på #IB-rad för konto ${accountNumber}, hoppar över.`
+            )
+            i++
+            break
+          }
+  
+          openingBalances.push({ accountNumber, amount: ibAmount })
+          i++
+          break
+        }
+  
         case '#VER': {
           const { ver, nextIndex } = parseVerBlock(lines, i, tokens, warnings)
           if (ver) {
@@ -468,7 +519,7 @@ export interface SieAccount {
         }
   
         default: {
-          // Kända men ej stödda taggar i v1 (#IB, #UB, #RES, #DIM, #OBJEKT, #KTYP,
+          // Kända men ej stödda taggar i v1 (#UB, #RES, #DIM, #OBJEKT, #KTYP,
           // #SRU, #PROGRAM, #GEN, #ADRESS, #FNR, #TAXAR, #KPTYP, #VALUTA, #FLAGGA,
           // #FORMAT, #SIETYP, m.fl.) ignoreras medvetet – filen ska inte
           // underkännas bara för att de förekommer.
@@ -512,6 +563,20 @@ export interface SieAccount {
       errors.push(`Hela filen balanserar inte: total differens ${totalBalanceDiff.toFixed(2)} kr.`)
     }
   
+    // ── Balanskontroll för ingående balans (#IB) ──────────────
+    // En giltig ingående balans MÅSTE balansera (tillgångar = skulder + eget
+    // kapital är bokföringens grundekvation) - gör den inte det är filen
+    // trasig eller manuellt felredigerad. Hålls separat från verifikationernas
+    // balanskontroll ovan eftersom #IB inte hör till någon enskild verifikation.
+    if (openingBalances.length > 0) {
+      const openingBalanceDiff = openingBalances.reduce((sum, ob) => sum + ob.amount, 0)
+      if (Math.abs(openingBalanceDiff) > BALANCE_EPSILON) {
+        errors.push(
+          `Ingående balans (#IB) balanserar inte: differens ${openingBalanceDiff.toFixed(2)} kr.`
+        )
+      }
+    }
+  
     return {
       companyName,
       orgNr,
@@ -519,6 +584,7 @@ export interface SieAccount {
       fiscalYears,
       accounts: Array.from(accounts.values()).sort((a, b) => Number(a.number) - Number(b.number)),
       verifications,
+      openingBalances,
       accountCount: accounts.size,
       verificationCount: verifications.length,
       totalBalanceDiff,

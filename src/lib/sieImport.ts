@@ -19,6 +19,7 @@ export interface ImportSieBatchResult {
   importBatchId: string
   verificationCount: number
   importedCount: number
+  openingBalanceImported: boolean
 }
 
 /**
@@ -66,6 +67,10 @@ export async function importSieBatch(
     company_name: parseResult.companyName,
     org_nr: parseResult.orgNr,
     fiscal_year: parseResult.year,
+    opening_balances: parseResult.openingBalances.map((ob) => ({
+      account_number: ob.accountNumber,
+      amount: ob.amount,
+    })),
     verifications: parseResult.verifications.map((v) => ({
       series: v.series,
       ver_number: v.verNumber,
@@ -97,6 +102,7 @@ export async function importSieBatch(
     importBatchId: data.import_batch_id,
     verificationCount: data.verification_count,
     importedCount: data.imported_count,
+    openingBalanceImported: data.opening_balance_imported ?? false,
   }
 }
 
@@ -111,6 +117,10 @@ export async function importSieBatch(
  * vilken ordning filen råkar lista verifikationer/rader.
  */
 async function computeCanonicalHash(parseResult: SieParseResult): Promise<string> {
+  const openingBalanceLines = parseResult.openingBalances
+    .map((ob) => `${ob.accountNumber}:${ob.amount.toFixed(2)}`)
+    .sort()
+
   const verificationLines = parseResult.verifications
     .map((v) => {
       const rows = v.transactions
@@ -125,6 +135,7 @@ async function computeCanonicalHash(parseResult: SieParseResult): Promise<string
     parseResult.companyName ?? '',
     parseResult.orgNr ?? '',
     String(parseResult.year ?? ''),
+    ...openingBalanceLines,
     ...verificationLines,
   ].join('\n')
 
