@@ -273,8 +273,16 @@ export default function TransactionTable({
                         rad och kan inte visa/ändra en N-radig SIE-verifikation
                         eller en ingående balans korrekt - döljs därför helt
                         istället för att visa ett formulär som tyst tappar data.
-                        Korrigering (nedan) fungerar generiskt oavsett antal
-                        rader och lämnas kvar. */}
+                    {/* Redigeringsformuläret representerar en enskild kategoriserad
+                        rad och kan inte visa/ändra en N-radig SIE-verifikation
+                        eller en ingående balans korrekt - döljs därför helt
+                        istället för att visa ett formulär som tyst tappar data.
+                        Korrigering döljs nu också för importerad data och
+                        ingående balans - SIE-data ska förbli den historiska
+                        källrapportens speglade sanning, inte redigeras rad för
+                        rad via appens vanliga korrigeringsflöde. En hel
+                        importomgång kan istället tas bort/ångras separat (se
+                        import_batches) den dagen den funktionen byggs. */}
                     {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
                       <button
                         onClick={() => onEdit(tx)}
@@ -284,7 +292,7 @@ export default function TransactionTable({
                         ✎
                       </button>
                     )}
-                    {!isCorrection && !isNeutralized && !isYearLocked && (
+                    {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
                       <button
                         onClick={() => onDelete(tx)}
                         className="text-red-100 hover:text-red-500 font-bold transition-colors"
@@ -422,16 +430,16 @@ export default function TransactionTable({
             </div>
 
             {/* ── ÅTGÄRDER (riktiga touch-knappar, inte bara ikoner) ── */}
-            {!isCorrection && !isNeutralized && !isYearLocked && (
+            {/* Hela raden döljs för importerad data och ingående balans - se
+                motsvarande kommentar i desktopvyn ovan för resonemanget. */}
+            {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
               <div className="flex gap-2 pt-3 border-t border-gray-100">
-                {!isImported && !isOpeningBalance && (
-                  <button
-                    onClick={() => onEdit(tx)}
-                    className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
-                  >
-                    ✎ Redigera
-                  </button>
-                )}
+                <button
+                  onClick={() => onEdit(tx)}
+                  className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
+                >
+                  ✎ Redigera
+                </button>
                 <button
                   onClick={() => onDelete(tx)}
                   className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-500 font-black text-[10px] uppercase tracking-wide transition-colors"
