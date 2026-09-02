@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 interface TransactionTableProps {
@@ -24,6 +25,10 @@ export default function TransactionTable({
   onDelete,
   onFavorite,
 }: TransactionTableProps) {
+
+  // Paginering: visa 50 rader åt gången istället för att rendera en
+  // potentiellt tusentals rader lång lista (t.ex. efter en stor SIE-import).
+  const [visibleCount, setVisibleCount] = useState(50)
 
   // Bygg ett set av alla ver_nr som har blivit korrigerade
   const neutralizedVerNrs = new Set(
@@ -150,7 +155,7 @@ export default function TransactionTable({
           </thead>
 
           <tbody className="divide-y divide-gray-50">
-            {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, isOpeningBalance, accountDef, isIncome, rowClass, textClass, verClass, amountClass, badgeClass }) => (
+            {enriched.slice(0, visibleCount).map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, isOpeningBalance, accountDef, isIncome, rowClass, textClass, verClass, amountClass, badgeClass }) => (
               <tr key={tx.id} className={`transition-colors ${rowClass}`}>
 
                 {/* ── DATUM / VER ── */}
@@ -233,7 +238,7 @@ export default function TransactionTable({
                 </td>
 
                 {/* ── BELOPP ── */}
-                <td className={`p-8 text-right font-black text-lg ${amountClass}`}>
+                <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${amountClass}`}>
                   {/* Inget +/- tecken för importer eller ingående balans: ingen av
                       dem har en entydig inkomst/utgift-riktning. */}
                   {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -312,7 +317,7 @@ export default function TransactionTable({
 
       {/* ══════════════════════ MOBIL: KORTLISTA (under md) ══════════════════════ */}
       <div className="md:hidden flex flex-col gap-3">
-        {enriched.map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, isOpeningBalance, accountDef, isIncome, textClass, verClass, amountClass, badgeClass }) => (
+        {enriched.slice(0, visibleCount).map(({ tx, journal, isCorrection, verNr, isNeutralized, isImported, isOpeningBalance, accountDef, isIncome, textClass, verClass, amountClass, badgeClass }) => (
           <div
             key={tx.id}
             className={`rounded-[1.75rem] border p-5 shadow-sm transition-colors ${
@@ -451,6 +456,19 @@ export default function TransactionTable({
           </div>
         ))}
       </div>
+
+      {/* "Visa fler" - gäller båda vyerna eftersom desktop/mobil bara skiljs
+          åt med CSS (hidden md:block / md:hidden), inte villkorad rendering. */}
+      {enriched.length > visibleCount && (
+        <div className="flex justify-center pt-6 pb-2">
+          <button
+            onClick={() => setVisibleCount(prev => prev + 50)}
+            className="px-8 h-11 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-500 font-black text-[10px] uppercase tracking-wider transition-colors border border-gray-100"
+          >
+            Visa fler ({enriched.length - visibleCount} kvar)
+          </button>
+        </div>
+      )}
     </>
   )
 }
