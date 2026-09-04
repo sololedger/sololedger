@@ -697,6 +697,10 @@ export async function closeYear(year: number): Promise<void> {
 
 export async function getNEData(year: number) {
   const balances = await getAccountBalances(year)
+  // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
+  // kumulativt saldo istället för årets egna rörelse. Används inte för
+  // något annat fält i denna funktion i detta steg.
+  const balanceSheetBalances = await getBalanceSheetBalances(year)
 
   const sumRange = (start: number, end: number, exclude: string[] = []) => {
     const sum = Object.entries(balances)
@@ -754,7 +758,9 @@ export async function getNEData(year: number) {
   const B16 = Math.round((utgMoms - ingMoms + avräkningsskuld) * 100) / 100
 
   const bank = balances['1930'] || 0
-  const B13_forutbetalda = Math.max(0, balances['1790'] || 0)
+  // Steg 3: kumulativt saldo (getBalanceSheetBalances) istället för årets
+  // egna rörelse på 1790 - allt annat i funktionen är oförändrat.
+  const B13_forutbetalda = Math.max(0, balanceSheetBalances['1790'] || 0)
 
   return {
     R1, R2, R5, R6, R7, R8,

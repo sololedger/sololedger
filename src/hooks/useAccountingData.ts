@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed, getMomsBreakdown } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
@@ -28,6 +28,14 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const [journalMap, setJournalMap] = useState<any>({})
   const [kontoplan, setKontoplan] = useState<any[]>([])
   const [momsBreakdown, setMomsBreakdown] = useState({ utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
+
+  // Håller alltid det SENAST valda året, oavsett hur gammal closure ett
+  // pågående async-anrop (load() eller refreshData()) bär med sig. Sätts
+  // vid varje render - en vanlig variabel/closure hade istället frusit
+  // vid det ögonblick funktionen skapades, vilket är precis det som
+  // orsakade stale-data-buggen (år 2028:s svar skrev över 2027:s state).
+  const latestYearRef = useRef(selectedYear)
+  latestYearRef.current = selectedYear
 
   async function loadKontoplanOptions() {
     try {
@@ -59,6 +67,11 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   }
 
   async function refreshData() {
+    // Vilket år detta anrop startades för - jämförs mot latestYearRef.current
+    // strax innan vi skriver till state, så ett gammalt anrop (t.ex. för
+    // 2028) aldrig kan skriva över nyare state efter att användaren redan
+    // bytt till ett annat år (t.ex. 2027).
+    const startedYear = selectedYear
     try {
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
@@ -84,6 +97,11 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
           jMap[row.transaction_id].push(row)
         })
       }
+
+      // Skriv bara till state om det året vi hämtade för fortfarande är
+      // det aktuella valda året.
+      if (startedYear !== latestYearRef.current) return
+
       setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
       setBalances(balanceData || {})
       setBalanceSheetBalances(balanceSheetData || {})
@@ -106,6 +124,10 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
     async function load() {
       if (!user?.id) return
+      // Samma princip som i refreshData(): vilket år detta load()-anrop
+      // startades för. Läggs till utöver det befintliga cancelled-skyddet
+      // nedan, inte istället för det.
+      const startedYear = selectedYear
       try {
         const { data, error } = await supabase
           .from('accounts')
@@ -153,6 +175,10 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         }
 
         if (cancelled) return
+
+        // Extra lager utöver cancelled: skriv bara om det här fortfarande
+        // är det senast valda året.
+        if (startedYear !== latestYearRef.current) return
 
         setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
         setBalances(balanceData || {})
