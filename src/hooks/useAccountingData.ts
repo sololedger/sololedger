@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { getAccountBalances, getNEData, isYearClosed, getMomsBreakdown } from '@/lib/accountingService'
+import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed, getMomsBreakdown } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 
 // Sorterar transaktioner: nyaste datum överst, och vid samma datum
@@ -23,6 +23,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const [isYearLocked, setIsYearLocked] = useState(false)
   const [transactions, setTransactions] = useState<any[]>([])
   const [balances, setBalances] = useState<any>({})
+  const [balanceSheetBalances, setBalanceSheetBalances] = useState<any>({})
   const [neData, setNeData] = useState<any>(null)
   const [journalMap, setJournalMap] = useState<any>({})
   const [kontoplan, setKontoplan] = useState<any[]>([])
@@ -61,12 +62,13 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     try {
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
-      const [txData, balanceData, neRes, momsRes] = await Promise.all([
+      const [txData, balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
         supabase.from('transactions').select('*')
           .eq('user_id', user.id)
           .gte('date', startDate).lte('date', endDate)
           .order('date', { ascending: false }),
         getAccountBalances(selectedYear),
+        getBalanceSheetBalances(selectedYear),
         getNEData(selectedYear),
         getMomsBreakdown(startDate, endDate)
       ])
@@ -84,6 +86,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       }
       setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
       setBalances(balanceData || {})
+      setBalanceSheetBalances(balanceSheetData || {})
       setJournalMap(jMap)
       setNeData(neRes)
       setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
@@ -121,12 +124,13 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         const startDate = `${selectedYear}-01-01`
         const endDate   = `${selectedYear}-12-31`
 
-        const [txData, balanceData, neRes, momsRes] = await Promise.all([
+        const [txData, balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
           supabase.from('transactions').select('*')
             .eq('user_id', user.id)
             .gte('date', startDate).lte('date', endDate)
             .order('date', { ascending: false }),
           getAccountBalances(selectedYear),
+          getBalanceSheetBalances(selectedYear),
           getNEData(selectedYear),
           getMomsBreakdown(startDate, endDate)
         ])
@@ -152,6 +156,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
         setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
         setBalances(balanceData || {})
+        setBalanceSheetBalances(balanceSheetData || {})
         setJournalMap(jMap)
         setNeData(neRes)
         setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
@@ -186,6 +191,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   return {
     transactions,
     balances,
+    balanceSheetBalances,
     neData,
     journalMap,
     kontoplan,

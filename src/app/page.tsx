@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, deleteTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
-import { calculateDashboard } from '@/lib/calculations'
+import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -50,6 +50,7 @@ export default function Home() {
   const {
     transactions,
     balances,
+    balanceSheetBalances,
     neData,
     journalMap,
     kontoplan,
@@ -335,6 +336,19 @@ export default function Home() {
   }
 
   const data = calculateDashboard(balances, taxRate, momsBreakdown)
+  // Steg 2 av carry-forward-arbetet: ENDAST Bank-kortet ska visa kumulativt
+  // saldo (balanceSheetBalances, se getBalanceSheetBalances()) istället för
+  // årets egna rörelse. Allt annat i "data" (bl.a. sakertUttag) kommer
+  // fortsatt från calculateDashboard() ovan och är medvetet oförändrat i
+  // detta steg - se separat beslut om när/hur sakertUttag ska följa med.
+  data.bankSaldo = getBankSaldo(balanceSheetBalances)
+  // Steg 2b: Säkert uttag räknas om med samma formel som calculateDashboard()
+  // redan använder (calculations.ts), men med det nu kumulativa
+  // data.bankSaldo istället för årets egna bankrörelse. skattReserv och
+  // momsNetto kommer fortfarande oförändrade från calculateDashboard().
+  data.sakertUttag = Math.round(
+    (data.bankSaldo - data.skattReserv - (data.momsNetto > 0 ? data.momsNetto : 0)) * 100
+  ) / 100
 
 
   const hasActiveSubscription =

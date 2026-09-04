@@ -226,6 +226,60 @@ export async function getAccountBalances(year: number) {
 }
 
 /**
+ * Kumulativ balans för balanskonton (1xxx-2xxx), från bokföringens start
+ * till och med 31 december angivet år - till skillnad från
+ * getAccountBalances() som bara summerar det angivna kalenderårets egna
+ * rörelser.
+ *
+ * Steg 1 av carry-forward-arbetet: helt fristående funktion. Används INTE
+ * av någon befintlig konsument ännu - getAccountBalances() och alla dess
+ * nuvarande anropare (Dashboard, NE-bilagan, SIE-export m.fl.) är oförändrade.
+ *
+ * Samma saldokonvention (debit - credit per konto) och samma dubbla
+ * user_id-filtrering (transactions + journal_entries) som
+ * getAccountBalances() - se den funktionen för bakgrund.
+ */
+export async function getBalanceSheetBalances(year: number) {
+  const endDate = `${year}-12-31`
+  const userId = await getUserId()
+
+  // Ingen nedre datumgräns - det är hela poängen: alla transaktioner
+  // sedan bokföringens start, inte bara det valda kalenderåret.
+  const { data: txs, error: txError } = await supabase
+    .from('transactions')
+    .select('id')
+    .lte('date', endDate)
+    .eq('user_id', userId)
+  if (txError) throw txError
+
+  const ids = txs?.map(t => t.id) || []
+  if (ids.length === 0) return {}
+
+  // SÄKERHETSBÄLTE: samma dubbla user_id-filtrering som getAccountBalances()
+  const { data: entries, error: entryError } = await supabase
+    .from('journal_entries')
+    .select('account_number, debit, credit')
+    .in('transaction_id', ids)
+    .eq('user_id', userId)
+  if (entryError) throw entryError
+
+  const balances: Record<string, number> = {}
+  entries?.forEach(e => {
+    const acc = e.account_number.toString()
+
+    // Endast balanskonton (1xxx-2xxx). Resultatkonton (3xxx-8xxx) hanteras
+    // fortsatt uteslutande av getAccountBalances() och ska inte vara
+    // kumulativa.
+    if (!acc.startsWith('1') && !acc.startsWith('2')) return
+
+    balances[acc] = Math.round(
+      ((balances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
+    ) / 100
+  })
+  return balances
+}
+
+/**
  * Beräknar utgående/ingående moms och netto för en period ("Alternativ E", låst arkitekturbeslut).
  *
  * Summerar rörelser på momskonton (261x/262x/263x utgående, 264x ingående) inom
