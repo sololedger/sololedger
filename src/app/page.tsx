@@ -383,7 +383,7 @@ export default function Home() {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
-  // Om användaren kom hit via en klickad återställningslänk: visa en
+  // Om användaren kom hit  via en klickad återställningslänk: visa en
   // dedikerad "sätt nytt lösenord"-skärm direkt, istället för att tyst
   // släppa in dem i vanliga appen där det inte är uppenbart varför de
   // egentligen är inloggade.
