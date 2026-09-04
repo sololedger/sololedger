@@ -1,20 +1,36 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16' as any,
 })
 
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
 export async function POST(req: Request) {
   try {
-    // Vi läser direkt från bodyn – detta fungerar ALLTID på localhost!
-    const body = await req.json()
-    const userId = body.userId
-    const userEmail = body.userEmail
+    // Identiteten hämtas ALLTID server-side ur access-token, aldrig ur body.
+    // Body innehåller inte längre userId/userEmail - klienten kan inte
+    // längre bestämma vilket konto som uppgraderas.
+    const authHeader = req.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Inte inloggad eller ogiltig session (userId saknas)' }, { status: 401 })
+    if (!token) {
+      return NextResponse.json({ error: 'Ingen giltig session (saknar Authorization-token).' }, { status: 401 })
     }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Ogiltig eller utgången session.' }, { status: 401 })
+    }
+
+    const userId = user.id
+    const userEmail = user.email
 
     const stripeSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

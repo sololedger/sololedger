@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 interface SubscribeButtonProps {
   user?: any
@@ -10,17 +11,23 @@ export default function SubscribeButton({ user }: SubscribeButtonProps) {
 
   async function handleSubscribe() {
     setLoading(true)
-    
+
     try {
-      const res = await fetch('/api/checkout', { 
+      // Skickar inte längre user.id/user.email i body - servern hämtar
+      // och verifierar identiteten själv ur access-token.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        alert('Din session har gått ut. Ladda om sidan och försök igen.')
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          userId: user?.id,
-          userEmail: user?.email
-        })
       })
       const data = await res.json()
 

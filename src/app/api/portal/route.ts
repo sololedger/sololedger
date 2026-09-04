@@ -13,16 +13,26 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json()
+    // Samma princip som /api/checkout: identiteten kommer ALDRIG från
+    // request-body. Utan detta kunde vem som helst som kände till en
+    // annan användares Supabase-UUID få en Stripe-portallänk för det kontot.
+    const authHeader = req.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId saknas' }, { status: 400 })
+    if (!token) {
+      return NextResponse.json({ error: 'Ingen giltig session (saknar Authorization-token).' }, { status: 401 })
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Ogiltig eller utgången session.' }, { status: 401 })
     }
 
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
       .select('stripe_customer_id')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle()
 
     if (error || !profile?.stripe_customer_id) {

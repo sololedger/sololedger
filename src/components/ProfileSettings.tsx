@@ -80,13 +80,23 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   }
 
   async function handlePortal() {
-    if (!user?.id) return
     setPortalLoading(true)
     try {
+      // Skickar inte längre userId i body - servern hämtar och verifierar
+      // identiteten själv ur access-token (se /api/portal).
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        alert('Din session har gått ut. Ladda om sidan och försök igen.')
+        setPortalLoading(false)
+        return
+      }
+
       const res = await fetch('/api/portal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
       })
       const data = await res.json()
       if (data.url) {
