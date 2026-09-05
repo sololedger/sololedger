@@ -393,9 +393,6 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   const userId = await getUserId()
   const today = new Date().toISOString().split('T')[0]
 
-  // Säkerställ att innevarande år är öppet för att kunna skriva en korrigering idag
-  await assertYearOpen(today)
-
   // SÄKERHETSBÄLTE: Hämta originaltransaktionen och kräv att den tillhör den inloggade
   const { data: originalTx, error: txError } = await supabase
     .from('transactions')
@@ -404,6 +401,17 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
     .eq('user_id', userId)
     .single()
   if (txError || !originalTx) throw new Error("Kunde inte hämta originaltransaktionen.")
+
+  // Korrigeringen får aldrig dateras före originalverifikationen. Normalfallet
+  // (originalet ligger bakåt i tiden) ger dagens datum, precis som tidigare.
+  // Om originalet av misstag ligger framåt i tiden (t.ex. felskriven framtida
+  // datering) används istället originalets datum, så korrigeringen aldrig
+  // hamnar kronologiskt före det den korrigerar.
+  const correctionDate = today > originalTx.date ? today : originalTx.date
+
+  // Säkerställ att ÅRET FÖR DEN FAKTISKA KORRIGERINGSDATERINGEN är öppet -
+  // inte nödvändigtvis dagens år, om originalet låg framåt i tiden.
+  await assertYearOpen(correctionDate)
 
   // SÄKERHETSBÄLTE: Hämta originalets journalposter och kräv att de tillhör den inloggade
   const { data: originalEntries, error: entriesError } = await supabase
@@ -425,7 +433,7 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   const { data: corrTx, error: corrTxError } = await supabase
     .from('transactions')
     .insert([{
-      date: today,
+      date: correctionDate,
       description: `↩ Korrigering av VER-${originalVerNr} (${originalTx.description})`,
       amount: originalTx.amount,
       type: originalTx.type,
@@ -447,7 +455,7 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
     debit: e.credit,
     credit: e.debit,
     description: `Korrigering av VER-${originalVerNr}: ${e.description}`,
-    date: today,
+    date: correctionDate,
     user_id: userId,
   }))
 
@@ -742,8 +750,8 @@ export async function getNEData(year: number) {
   const insattningar = Math.max(0, -(balances['2018'] || 0))
   const B10_total = Math.round((IB_kapital + bokfRes + insattningar - uttag) * 100) / 100
 
-  const utgMoms = Math.abs(balances['2611'] || 0)
-  const ingMoms = Math.abs(balances['2641'] || 0)
+  const utgMoms = Math.abs(balanceSheetBalances['2611'] || 0)
+  const ingMoms = Math.abs(balanceSheetBalances['2641'] || 0)
   // Kvarvarande, obetald skuld på momsavräkningskontot (265x, t.ex. 2650) vid
   // årsskiftet. Krävs eftersom källbokföring (t.ex. importerad SIE) gör
   // löpande momsombokningar som nollar ut 2611/2641 långt innan bokslutet -
@@ -752,7 +760,7 @@ export async function getNEData(year: number) {
   // istället för korrekt 46 867 kr). max(0, ...) förhindrar att en eventuell
   // överbetalning (2650 i debetsaldo, en fordran snarare än en skuld) av
   // misstag skulle ge B16 ett negativt värde.
-  const avräkningsskuld = Object.entries(balances)
+  const avräkningsskuld = Object.entries(balanceSheetBalances)
     .filter(([acc]) => acc.startsWith('265'))
     .reduce((sum, [, v]) => sum + Math.max(0, -(v as number)), 0)
   const B16 = Math.round((utgMoms - ingMoms + avräkningsskuld) * 100) / 100
