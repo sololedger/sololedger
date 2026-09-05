@@ -703,13 +703,14 @@ export async function closeYear(year: number): Promise<void> {
   if (error) throw new Error('Kunde inte låsa räkenskapsåret: ' + error.message)
 }
 
-export async function getNEData(year: number) {
-  const balances = await getAccountBalances(year)
-  // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
-  // kumulativt saldo istället för årets egna rörelse. Används inte för
-  // något annat fält i denna funktion i detta steg.
-  const balanceSheetBalances = await getBalanceSheetBalances(year)
-
+/**
+ * Steg 1 av B10-arbetet: ren, fristående resultatformel - extraherad ur
+ * getNEData() utan någon beteendeförändring. Tar emot VILKET balansobjekt
+ * som helst (idag: årsvist balances från getAccountBalances; i ett senare
+ * steg: ett kumulativt balansobjekt) och returnerar samma R1-R8/R11-R14
+ * som tidigare låg inline. Ingen kumulativ logik här - bara en flytt.
+ */
+function computeResultat(balances: Record<string, number>) {
   const sumRange = (start: number, end: number, exclude: string[] = []) => {
     const sum = Object.entries(balances)
       .filter(([acc]) => {
@@ -735,20 +736,106 @@ export async function getNEData(year: number) {
   const R12 = ejAvdr
   const R14 = Math.round((R11 + R12) * 100) / 100
 
+  return { R1, R2, R5, R6, R7, R8, ejAvdr, bokfRes, R11, R12, R14 }
+}
+
+/**
+ * Steg 2 av B10-arbetet: kumulativt bokfört resultat (R1-R8/R11-R14) för
+ * ALLA resultatkonton (3xxx-8xxx), från bokföringens start t.o.m. 31
+ * december angivet år - till skillnad från getAccountBalances(year) som
+ * bara summerar det angivna kalenderåret.
+ *
+ * Bygger INGEN egen R1-R8-logik. Bygger bara ett kumulativt balansobjekt,
+ * exakt samma mönster som getBalanceSheetBalances() (ingen nedre
+ * datumgräns, samma dubbla user_id-filtrering, samma debit-credit-
+ * konvention), men utan kontoprefix-filter - computeResultat() läser
+ * ändå bara de resultatkonton (3xxx-8xxx) den bryr sig om, så en äkta
+ * öppningsbalans (som bara innehåller balanskonton, t.ex. 1930/2010)
+ * påverkar aldrig detta resultat, oavsett dess source/type.
+ *
+ * Returnerar HELA computeResultat()-resultatet (inte bara bokfRes), så att
+ * R1-R8-nedbrytningen också går att inspektera isolerat vid verifiering -
+ * kostar inget extra eftersom computeResultat() redan räknar ut alla
+ * fälten tillsammans.
+ *
+ * Ännu inte kopplad till getNEData/B10 eller någon UI - helt fristående
+ * i detta steg.
+ */
+export async function getCumulativeResultat(year: number) {
+  const endDate = `${year}-12-31`
+  const userId = await getUserId()
+
+  const { data: txs, error: txError } = await supabase
+    .from('transactions')
+    .select('id')
+    .lte('date', endDate)
+    .eq('user_id', userId)
+  if (txError) throw txError
+
+  const ids = txs?.map(t => t.id) || []
+  if (ids.length === 0) return computeResultat({})
+
+  // SÄKERHETSBÄLTE: samma dubbla user_id-filtrering som getBalanceSheetBalances()
+  const { data: entries, error: entryError } = await supabase
+    .from('journal_entries')
+    .select('account_number, debit, credit')
+    .in('transaction_id', ids)
+    .eq('user_id', userId)
+  if (entryError) throw entryError
+
+  const cumulativeBalances: Record<string, number> = {}
+  entries?.forEach(e => {
+    const acc = e.account_number.toString()
+    cumulativeBalances[acc] = Math.round(
+      ((cumulativeBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
+    ) / 100
+  })
+
+  return computeResultat(cumulativeBalances)
+}
+
+export async function getNEData(year: number) {
+  const balances = await getAccountBalances(year)
+  // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
+  // kumulativt saldo istället för årets egna rörelse. Används inte för
+  // något annat fält i denna funktion i detta steg.
+  const balanceSheetBalances = await getBalanceSheetBalances(year)
+
+  const { R1, R2, R5, R6, R7, R8, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
+
+  // B10 är kumulativt (steg 3 av carry-forward-arbetet): 2010/2013/2018/2019
+  // läses nu från balanceSheetBalances (kumulativt sedan bokföringens start)
+  // istället för balances (årsvist), och resultat-termen kommer från
+  // getCumulativeResultat(year) - summan av VARJE års resultat sedan start -
+  // inte den årsvisa "bokfRes" ovan (som fortfarande används oförändrat för
+  // R11/R14/bokfortResultat, se return-satsen nedan).
+  //
   // Konto 2010 är kreditnormalt (klass 2, precis som 2018 och 2650 ovan/nedan) -
   // ett verkligt positivt eget kapital ger ett NEGATIVT rått värde i
   // debet-minus-kredit-konventionen. Utan tecken-vändningen nedan skulle ett
   // företag med t.ex. 50 000 kr i ingående kapital visa IB_kapital = -50 000,
-  // vilket halverar B10 fel håll (differens = 2x kapitalbeloppet).
+  // vilket halverar B10 fel håll (differens = 2x kapitalbeloppet). Konto 2019
+  // ("Årets resultat") behandlas identiskt - kan förekomma via en importerad
+  // öppningsbalans och representerar då samma sak som 2010: ackumulerat,
+  // ej ännu omfört resultat. Inget eget UI-fält för 2019 i detta steg -
+  // IB_kapital representerar summan av båda kontona.
   //
   // OBS: till skillnad från insattningar/avräkningsskuld nedan/ovan klipper vi
-  // INTE till 0 vid "fel" riktning - ett företag kan legitimt starta året med
-  // NEGATIVT eget kapital (efter ett förlustår), och det ska synas som ett
+  // INTE till 0 vid "fel" riktning på eget kapital - ett företag kan legitimt
+  // ha NEGATIVT eget kapital (efter förlustår), och det ska synas som ett
   // negativt IB_kapital, inte döljas som 0.
-  const IB_kapital = -(balances['2010'] || 0)
-  const uttag = Math.max(0, balances['2013'] || 0)
-  const insattningar = Math.max(0, -(balances['2018'] || 0))
-  const B10_total = Math.round((IB_kapital + bokfRes + insattningar - uttag) * 100) / 100
+  const kumulativtEgetKapitalStart =
+    -(balanceSheetBalances['2010'] || 0) - (balanceSheetBalances['2019'] || 0)
+  const kumulativInsattningar = Math.max(0, -(balanceSheetBalances['2018'] || 0))
+  const kumulativUttag = Math.max(0, balanceSheetBalances['2013'] || 0)
+  const cumulativeResult = await getCumulativeResultat(year)
+
+  const IB_kapital = kumulativtEgetKapitalStart
+  const uttag = kumulativUttag
+  const insattningar = kumulativInsattningar
+  const B10_total = Math.round(
+    (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
+  ) / 100
 
   const utgMoms = Math.abs(balanceSheetBalances['2611'] || 0)
   const ingMoms = Math.abs(balanceSheetBalances['2641'] || 0)
@@ -765,7 +852,7 @@ export async function getNEData(year: number) {
     .reduce((sum, [, v]) => sum + Math.max(0, -(v as number)), 0)
   const B16 = Math.round((utgMoms - ingMoms + avräkningsskuld) * 100) / 100
 
-  const bank = balances['1930'] || 0
+  const bank = balanceSheetBalances['1930'] || 0
   // Steg 3: kumulativt saldo (getBalanceSheetBalances) istället för årets
   // egna rörelse på 1790 - allt annat i funktionen är oförändrat.
   const B13_forutbetalda = Math.max(0, balanceSheetBalances['1790'] || 0)
