@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { getAccountBalances } from './accountingService'
+import { getBalanceSheetBalances } from './accountingService'
 
 function formatDate(date: string) {
   return date.replaceAll('-', '')
@@ -27,7 +27,7 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // Hämta data parallellt
   // ───────────────────────────────
-  const [{ data: entries, error }, { data: accounts }, { data: profile }] = await Promise.all([
+  const [{ data: entries, error }, { data: accounts }, { data: profile }, { data: jan1Transactions }] = await Promise.all([
     supabase
       .from('journal_entries')
       .select('*')
@@ -46,15 +46,48 @@ export async function exportSIE(year: number) {
       .from('profiles')
       .select('company_name, org_nr')
       .eq('id', user.id)
-      .maybeSingle()
+      .maybeSingle(),
+
+    // Kandidater för öppningsbalans - bara transaktioner daterade exakt
+    // årets första dag behöver kontrolleras mot källa/beskrivning nedan.
+    supabase
+      .from('transactions')
+      .select('id, source, description')
+      .eq('user_id', user.id)
+      .eq('date', `${year}-01-01`)
   ])
 
   if (error) throw error
 
+  // ───────────────────────────────
+  // Identifiera öppningsbalans-transaktioner (explicita signaler ENDAST -
+  // ingen strukturell gissning i detta steg, se kommentar nedan).
+  // ───────────────────────────────
+  // Signal 1: nya importflödet (import_sie_batch) sätter source direkt.
+  // Signal 2: äldre/legacy-import sätter source='sie_import' men har den
+  // fasta beskrivningen 'Öppningsbalans' som koden själv alltid skrivit -
+  // inte en fritt inmatad användartext.
+  //
+  // Medvetet UTESLUTET i detta steg: en strukturell fallback (t.ex. "första
+  // transaktionen + 1 januari + bara balanskonton + balanserad") för att
+  // fånga ännu okänd, omärkt historisk data. En sådan regel riskerar att
+  // tyst exkludera en äkta affärshändelse ur exporten. Det får istället bli
+  // en separat, senare detekterings-/varningsfunktion - inte automatisk
+  // exkludering här.
+  const openingBalanceTxIds = new Set(
+    (jan1Transactions || [])
+      .filter(t =>
+        t.source === 'sie_opening_balance' ||
+        (t.source === 'sie_import' && t.description === 'Öppningsbalans')
+      )
+      .map(t => t.id)
+  )
+
+  const openingBalanceEntries = (entries || []).filter(e => openingBalanceTxIds.has(e.transaction_id))
+  const regularEntries = (entries || []).filter(e => !openingBalanceTxIds.has(e.transaction_id))
+
   const companyName = profile?.company_name || 'SoloLedger Användare'
   const orgNr = profile?.org_nr || '000000-0000'
-
-  const grouped = groupByVer(entries || [])
 
   let sie = ''
 
@@ -116,10 +149,28 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // BALANS (#IB / #UB)
   // ───────────────────────────────
-  const prevYearBalances = await getAccountBalances(year - 1)
-  const currentBalances = await getAccountBalances(year)
+  const prevYearBalances = await getBalanceSheetBalances(year - 1)
+  const currentBalances = await getBalanceSheetBalances(year)
 
-  Object.entries(prevYearBalances || {}).forEach(([konto, value]) => {
+  // #IB = föregående års kumulativa balans (1xxx-2xxx, sedan bokföringens
+  // start) PLUS eventuella explicit identifierade öppningsbalans-poster
+  // daterade exakt årets första dag. Det senare ledet är 0 för alla år
+  // utom det där en sådan post faktiskt finns - formeln är alltså
+  // självutslocknande och kräver ingen särlogik för "vanliga" år.
+  const ibBalances: Record<string, number> = { ...prevYearBalances }
+  openingBalanceEntries.forEach(e => {
+    const acc = e.account_number.toString()
+    // Endast balanskonton (1xxx-2xxx) - samma begränsning som
+    // getBalanceSheetBalances redan tillämpar för prevYearBalances/
+    // currentBalances, som en säkerhetsåtgärd om en öppningsbalans-flaggad
+    // transaktion mot förmodan skulle innehålla en rad utanför den klassen.
+    if (!acc.startsWith('1') && !acc.startsWith('2')) return
+    ibBalances[acc] = Math.round(
+      ((ibBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
+    ) / 100
+  })
+
+  Object.entries(ibBalances || {}).forEach(([konto, value]) => {
     if (value !== 0) {
       sie += `#IB 0 ${konto} ${Number(value).toFixed(2)}\n`
     }
@@ -136,6 +187,8 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // VERIFIKATIONER
   // ───────────────────────────────
+  const grouped = groupByVer(regularEntries)
+
   grouped.forEach(v => {
     const first = v.rows[0]
 
