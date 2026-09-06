@@ -27,15 +27,18 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // Hämta data parallellt
   // ───────────────────────────────
-  const [{ data: entries, error }, { data: accounts }, { data: profile }, { data: jan1Transactions }] = await Promise.all([
+  // P0-fix: urvalet av VILKA VERIFIKATIONER som hör till exportåret sker nu
+  // via transactions.date (hela verifikationen som en enhet) - inte längre
+  // via journal_entries.date rad för rad. Se motivering vid #VER-utskriften
+  // nedan. Samma mönster som redan används i accountingService.ts
+  // (getAccountBalances/getBalanceSheetBalances).
+  const [{ data: yearTransactions, error: txError }, { data: accounts }, { data: profile }, { data: jan1Transactions }] = await Promise.all([
     supabase
-      .from('journal_entries')
-      .select('*')
+      .from('transactions')
+      .select('id, date')
       .eq('user_id', user.id)
       .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
-      .order('date', { ascending: true })
-      .order('ver_nr', { ascending: true }),
+      .lte('date', `${year}-12-31`),
 
     supabase
       .from('accounts')
@@ -57,7 +60,32 @@ export async function exportSIE(year: number) {
       .eq('date', `${year}-01-01`)
   ])
 
-  if (error) throw error
+  if (txError) throw txError
+
+  const yearTransactionIds = (yearTransactions || []).map(t => t.id)
+
+  // transaction_id -> transactions.date, används för #VER-datumet nedan.
+  const transactionDateById = new Map<string, string>(
+    (yearTransactions || []).map(t => [t.id, t.date])
+  )
+
+  // Hämta ALLA journal_entries för dessa transaktioner, utan eget
+  // datumfilter på journal_entries.date - en enskild rad kan legitimt ha
+  // ett annat transdat än sin verifikations eget datum (se P0-analysen),
+  // men det ska aldrig påverka VILKET ÅRS export hela verifikationen hamnar
+  // i. Undviker en tom/ogiltig .in()-fråga om året saknar transaktioner.
+  let entries: any[] = []
+  if (yearTransactionIds.length > 0) {
+    const { data: yearEntries, error: entriesError } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('transaction_id', yearTransactionIds)
+      .order('date', { ascending: true })
+      .order('ver_nr', { ascending: true })
+    if (entriesError) throw entriesError
+    entries = yearEntries || []
+  }
 
   // ───────────────────────────────
   // Identifiera öppningsbalans-transaktioner (explicita signaler ENDAST -
@@ -226,10 +254,17 @@ export async function exportSIE(year: number) {
       ? `Korrigering av VER-${first.corrects_ver_nr}: ${first.description || ''}`.trim()
       : first.description || `VER-${v.ver_nr}`
 
-    // Sortera rader efter datum (hanterar periodisering över årsskifte)
+    // Sortera rader efter datum för läsbar #TRANS-ordning i utskriften
+    // (t.ex. periodisering över årsskifte) - påverkar INTE vilket datum
+    // #VER självt får, se nedan.
     v.rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    const date = formatDate(v.rows[0].date)
+    // #VER-datumet hämtas från transactions.date - INTE från någon enskild
+    // journal_entries-rad. En importerad #TRANS-rad kan legitimt ha ett
+    // eget transdat skilt från sin verifikations eget datum (se P0-analysen
+    // om SIE-specifikationen); det ska aldrig påverka vilket datum
+    // verifikationen SOM HELHET redovisas med i #VER.
+    const date = formatDate(transactionDateById.get(first.transaction_id) || first.date)
 
     sie += `#VER A ${v.ver_nr} ${date} "${description}" ${date}\n{\n`
 
@@ -237,6 +272,7 @@ export async function exportSIE(year: number) {
       const amount = Number(row.debit) > 0
         ? Number(row.debit)
         : -Number(row.credit)
+      // Radens EGET datum bevaras oförändrat som #TRANS eget transdat.
       sie += `#TRANS ${row.account_number} {} ${amount.toFixed(2)} ${formatDate(row.date)} ""\n`
     })
 
