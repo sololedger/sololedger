@@ -185,6 +185,35 @@ export async function exportSIE(year: number) {
   sie += '\n'
 
   // ───────────────────────────────
+  // RESULTAT (#RES) - saldo per enskilt resultatkonto (3000-8999)
+  // ───────────────────────────────
+  // Ren saldosammanfattning per konto - ersätter INTE #VER/#TRANS, som
+  // fortfarande exporteras oförändrat nedan. Byggs lokalt ur samma års-
+  // entries som redan hämtats ovan (entries), ingen ny databasfråga och
+  // ingen ändring i accountingService.ts. Samma debet-minus-kredit-
+  // konvention som #IB/#UB, medvetet UTAN Math.abs() - kreditsaldo ska
+  // förbli negativt, precis som SIE-specifikationen kräver för #RES.
+  // Ingen NE-bilaga-logik (R1-R14) inblandad - det här är en helt separat,
+  // per-konto uppräkning, inte en aggregering.
+  const resBalances: Record<string, number> = {}
+  ;(entries || []).forEach(e => {
+    const acc = e.account_number.toString()
+    const n = parseInt(acc)
+    if (n < 3000 || n > 8999) return
+    resBalances[acc] = Math.round(
+      ((resBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
+    ) / 100
+  })
+
+  Object.entries(resBalances)
+    .filter(([, value]) => value !== 0)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .forEach(([konto, value]) => {
+      sie += `#RES 0 ${konto} ${Number(value).toFixed(2)}\n`
+    })
+  sie += '\n'
+
+  // ───────────────────────────────
   // VERIFIKATIONER
   // ───────────────────────────────
   const grouped = groupByVer(regularEntries)
