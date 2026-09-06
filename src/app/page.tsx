@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, deleteTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
+import { encodeCP437 } from '@/lib/cp437'
 import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
@@ -131,7 +132,12 @@ export default function Home() {
   async function handleExportSIE() {
     try {
       const content = await exportSIE(selectedYear)
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      // #FORMAT PC8 i filens header kräver enligt SIE-specifikationen att
+      // filens faktiska bytes är kodade som IBM Extended 8-bit ASCII
+      // (codepage 437) - inte UTF-8, som new Blob([content]) annars skulle
+      // ge implicit. Konverteringen sker HELT separat i src/lib/cp437.ts.
+      const bytes = encodeCP437(content)
+      const blob = new Blob([bytes], { type: 'application/octet-stream' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -383,7 +389,7 @@ export default function Home() {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
-  // Om användaren kom hit  via en klickad återställningslänk: visa en
+  // Om användaren kom hit via en klickad återställningslänk: visa en
   // dedikerad "sätt nytt lösenord"-skärm direkt, istället för att tyst
   // släppa in dem i vanliga appen där det inte är uppenbart varför de
   // egentligen är inloggade.
