@@ -5,17 +5,34 @@ function formatDate(date: string) {
   return date.replaceAll('-', '')
 }
 
-function groupByVer(entries: any[]) {
-  const map: Record<string, any[]> = {}
+function groupByTransaction(entries: any[]) {
+  const map = new Map<string, any[]>()
+
   entries.forEach(e => {
-    const key = e.ver_nr
-    if (!map[key]) map[key] = []
-    map[key].push(e)
+    // En verifikation är en transaction med flera journal_entries.
+    // Gruppera därför på transaction_id, inte enbart på ver_nr.
+    // Om importerad/historisk data mot förmodan innehåller dubbla ver_nr
+    // får de förbli två separata #VER-poster i exporten i stället för att
+    // deras bokföringsrader tyst slås ihop till en enda verifikation.
+    const key = e.transaction_id?.toString()
+    if (!key) {
+      throw new Error('Journalrad saknar transaction_id och kan inte exporteras säkert till SIE')
+    }
+
+    const rows = map.get(key)
+    if (rows) {
+      rows.push(e)
+    } else {
+      map.set(key, [e])
+    }
   })
-  return Object.entries(map).map(([ver_nr, rows]) => ({
-    ver_nr: Number(ver_nr),
-    rows
-  }))
+
+  return Array.from(map.values())
+    .map(rows => ({
+      ver_nr: Number(rows[0].ver_nr),
+      rows
+    }))
+    .sort((a, b) => a.ver_nr - b.ver_nr)
 }
 
 /**
@@ -368,7 +385,7 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // VERIFIKATIONER
   // ───────────────────────────────
-  const grouped = groupByVer(regularEntries)
+  const grouped = groupByTransaction(regularEntries)
 
   grouped.forEach(v => {
     const first = v.rows[0]
