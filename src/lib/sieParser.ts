@@ -727,7 +727,7 @@ function parseVerBlock(
     const rowTag = rowTokens[0]?.value ?? ''
 
     if (rowTag === '#TRANS') {
-      const trans = parseTransLine(rowTokens, warnings, `${series}${verNumber}`)
+      const trans = parseTransLine(rowTokens, warnings, errors, `${series}${verNumber}`)
       if (trans) transactions.push(trans)
     } else if (rowTag === '#BTRANS' || rowTag === '#RTRANS') {
       // Budget- respektive saldoförda transaktioner – utanför scope i v1.
@@ -742,6 +742,12 @@ function parseVerBlock(
 
   if (!closed) {
     errors.push(`Verifikation ${series}${verNumber} saknar avslutande klammer "}", kan inte importera säkert.`)
+  }
+
+  if (transactions.length === 0) {
+    errors.push(
+      `Verifikation ${series}${verNumber} innehåller inga giltiga #TRANS-rader och kan inte importeras.`
+    )
   }
 
   const balanceDiff = transactions.reduce((sum, t) => sum + t.amount, 0)
@@ -780,20 +786,25 @@ function skipToBlockEnd(lines: string[], from: number): number {
  * positionella och valfria, vilket kräver sekventiell tolkning eftersom
  * verkliga filer blandar korta (4 fält) och långa (7-10 fält) TRANS-rader.
  */
-function parseTransLine(tokens: SieToken[], warnings: string[], verLabel: string): SieTrans | null {
+function parseTransLine(
+  tokens: SieToken[],
+  warnings: string[],
+  errors: string[],
+  verLabel: string
+): SieTrans | null {
   const accountNumber = tokens[1]?.value
   const objectToken = tokens[2]
   const amountRaw = tokens[3]?.value
 
   if (accountNumber === undefined || amountRaw === undefined) {
-    warnings.push(`Ofullständig #TRANS-rad i verifikation ${verLabel}, hoppar över raden.`)
+    errors.push(`Ofullständig #TRANS-rad i verifikation ${verLabel}, kan inte importera säkert.`)
     return null
   }
 
   const amount = parseSieAmount(amountRaw)
   if (amount === null) {
-    warnings.push(
-      `Ogiltigt belopp "${amountRaw}" på konto ${accountNumber} i verifikation ${verLabel}, hoppar över raden.`
+    errors.push(
+      `Ogiltigt belopp "${amountRaw}" på konto ${accountNumber} i verifikation ${verLabel}, kan inte importera säkert.`
     )
     return null
   }
