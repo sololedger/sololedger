@@ -156,6 +156,19 @@ export async function exportSIE(year: number) {
 
   const prevYearTransactionIds = (prevYearTransactions || []).map(t => t.id)
 
+  // Hämta föregående års journalrader redan här så att konton som endast
+  // förekommer i #RES -1 också kan deklareras med #KONTO innan saldoposterna skrivs.
+  let prevYearEntries: any[] = []
+  if (prevYearTransactionIds.length > 0) {
+    const { data: previousEntries, error: prevEntriesError } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('transaction_id', prevYearTransactionIds)
+    if (prevEntriesError) throw prevEntriesError
+    prevYearEntries = previousEntries || []
+  }
+
   // P1-fix (SIE 4C): föregående räkenskapsår räknas som "finns" om det
   // antingen har egna transaktioner (oavsett typ) ELLER om det finns
   // kumulativ balansdata som visar att året ingår i bokföringshistoriken
@@ -206,10 +219,33 @@ export async function exportSIE(year: number) {
     }
   })
   
-  // Säkring: lägg till konton från journalrader som saknas i kontoplanen
+  // Säkring: lägg till konton från innevarande års journalrader som saknas i kontoplanen
   entries?.forEach(e => {
-    if (!konton.has(e.account_number)) {
-      konton.set(e.account_number, `Konto ${e.account_number}`)
+    const accountNumber = e.account_number.toString()
+    if (!konton.has(accountNumber)) {
+      konton.set(accountNumber, `Konto ${accountNumber}`)
+    }
+  })
+
+  // SIE 4C kräver att samtliga använda konton exporteras som #KONTO.
+  // Därför måste även konton som bara syns i #IB/#UB eller i föregående års
+  // resultatdata (#RES -1) finnas i kontolistan, även om de saknar aktivitet
+  // innevarande år och inte längre finns i accounts-tabellen.
+  ;[
+    ...Object.keys(prevYearBalances || {}),
+    ...Object.keys(currentBalances || {})
+  ].forEach(accountNumber => {
+    if (!konton.has(accountNumber)) {
+      konton.set(accountNumber, `Konto ${accountNumber}`)
+    }
+  })
+
+  prevYearEntries.forEach(e => {
+    const accountNumber = e.account_number.toString()
+    const n = parseInt(accountNumber)
+    if (n < 3000 || n > 8999) return
+    if (!konton.has(accountNumber)) {
+      konton.set(accountNumber, `Konto ${accountNumber}`)
     }
   })
 
@@ -310,13 +346,6 @@ export async function exportSIE(year: number) {
   // -sektionen nedan, som fortsatt bara exporterar exportårets verifikationer.
   // Undviker en tom/ogiltig .in()-fråga om föregående år saknar transaktioner.
   if (previousYearExists && prevYearTransactionIds.length > 0) {
-    const { data: prevYearEntries, error: prevEntriesError } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('transaction_id', prevYearTransactionIds)
-    if (prevEntriesError) throw prevEntriesError
-
     const prevResBalances: Record<string, number> = {}
     ;(prevYearEntries || []).forEach(e => {
       const acc = e.account_number.toString()
