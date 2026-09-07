@@ -32,7 +32,7 @@ export async function exportSIE(year: number) {
   // via journal_entries.date rad för rad. Se motivering vid #VER-utskriften
   // nedan. Samma mönster som redan används i accountingService.ts
   // (getAccountBalances/getBalanceSheetBalances).
-  const [{ data: yearTransactions, error: txError }, { data: accounts }, { data: profile }, { data: jan1Transactions }] = await Promise.all([
+  const [{ data: yearTransactions, error: txError }, { data: accounts }, { data: profile }, { data: jan1Transactions }, { data: prevYearTransactions, error: prevTxError }] = await Promise.all([
     supabase
       .from('transactions')
       .select('id, date')
@@ -57,10 +57,20 @@ export async function exportSIE(year: number) {
       .from('transactions')
       .select('id, source, description')
       .eq('user_id', user.id)
-      .eq('date', `${year}-01-01`)
+      .eq('date', `${year}-01-01`),
+
+    // P1-fix (SIE 4C, jämförelseår): behövs för att avgöra om föregående
+    // räkenskapsår "finns" samt som underlag för #RES -1 nedan.
+    supabase
+      .from('transactions')
+      .select('id, date')
+      .eq('user_id', user.id)
+      .gte('date', `${year - 1}-01-01`)
+      .lte('date', `${year - 1}-12-31`)
   ])
 
   if (txError) throw txError
+  if (prevTxError) throw prevTxError
 
   const yearTransactionIds = (yearTransactions || []).map(t => t.id)
 
@@ -114,6 +124,23 @@ export async function exportSIE(year: number) {
   const openingBalanceEntries = (entries || []).filter(e => openingBalanceTxIds.has(e.transaction_id))
   const regularEntries = (entries || []).filter(e => !openingBalanceTxIds.has(e.transaction_id))
 
+  // Flyttat hit (oförändrad kod, se tidigare BALANS-sektion) - behövs redan
+  // här för att avgöra om #RAR -1 ska skrivas, innan headern byggs.
+  const prevYearBalances = await getBalanceSheetBalances(year - 1)
+  const currentBalances = await getBalanceSheetBalances(year)
+
+  const prevYearTransactionIds = (prevYearTransactions || []).map(t => t.id)
+
+  // P1-fix (SIE 4C): föregående räkenskapsår räknas som "finns" om det
+  // antingen har egna transaktioner (oavsett typ) ELLER om det finns
+  // kumulativ balansdata som visar att året ingår i bokföringshistoriken
+  // (t.ex. en öppningsbalans/importerad historik utan egna verifikationer
+  // det specifika året). Ett företag vars första bokföringsår är "year"
+  // ger tomt på BÅDA signalerna, och #RAR -1/#RES -1 skrivs då inte alls.
+  const previousYearExists =
+    prevYearTransactionIds.length > 0 ||
+    Object.keys(prevYearBalances).length > 0
+
   const companyName = profile?.company_name || 'SoloLedger Användare'
   const orgNr = profile?.org_nr || '000000-0000'
 
@@ -130,7 +157,14 @@ export async function exportSIE(year: number) {
   sie += '#VALUTA SEK\n\n'
   sie += `#FNAMN "${companyName}"\n`
   sie += `#ORGNR "${orgNr}"\n\n`
-  sie += `#RAR 0 ${year}0101 ${year}1231\n\n`
+  sie += `#RAR 0 ${year}0101 ${year}1231\n`
+  // P1-fix (SIE 4C, † - "poster ska finnas för både innevarande och
+  // föregående räkenskapsår, om föregående år saknas kan dock poster för
+  // detta utelämnas"): skrivs bara om föregående år faktiskt finns.
+  if (previousYearExists) {
+    sie += `#RAR -1 ${year - 1}0101 ${year - 1}1231\n`
+  }
+  sie += '\n'
 
   // ───────────────────────────────
   // KONTOPLAN (#KONTO)
@@ -177,8 +211,8 @@ export async function exportSIE(year: number) {
   // ───────────────────────────────
   // BALANS (#IB / #UB)
   // ───────────────────────────────
-  const prevYearBalances = await getBalanceSheetBalances(year - 1)
-  const currentBalances = await getBalanceSheetBalances(year)
+  // prevYearBalances/currentBalances hämtas numera tidigare (se ovan) - de
+  // behövdes redan innan headern skrevs för att avgöra #RAR -1.
 
   // #IB = föregående års kumulativa balans (1xxx-2xxx, sedan bokföringens
   // start) PLUS eventuella explicit identifierade öppningsbalans-poster
@@ -240,6 +274,42 @@ export async function exportSIE(year: number) {
       sie += `#RES 0 ${konto} ${Number(value).toFixed(2)}\n`
     })
   sie += '\n'
+
+  // ───────────────────────────────
+  // RESULTAT FÖREGÅENDE ÅR (#RES -1) - endast om föregående år finns
+  // ───────────────────────────────
+  // Exakt samma princip som #RES 0 ovan (3000-8999, debet-kredit, samma
+  // avrundning, nollsaldo utelämnas, numerisk sortering) - men beräknad
+  // uteslutande från föregående års EGNA transaktioner. Används ENDAST för
+  // #RES -1 - year-1s transaktioner/journalrader rörs aldrig av #VER/#TRANS
+  // -sektionen nedan, som fortsatt bara exporterar exportårets verifikationer.
+  // Undviker en tom/ogiltig .in()-fråga om föregående år saknar transaktioner.
+  if (previousYearExists && prevYearTransactionIds.length > 0) {
+    const { data: prevYearEntries, error: prevEntriesError } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('transaction_id', prevYearTransactionIds)
+    if (prevEntriesError) throw prevEntriesError
+
+    const prevResBalances: Record<string, number> = {}
+    ;(prevYearEntries || []).forEach(e => {
+      const acc = e.account_number.toString()
+      const n = parseInt(acc)
+      if (n < 3000 || n > 8999) return
+      prevResBalances[acc] = Math.round(
+        ((prevResBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
+      ) / 100
+    })
+
+    Object.entries(prevResBalances)
+      .filter(([, value]) => value !== 0)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .forEach(([konto, value]) => {
+        sie += `#RES -1 ${konto} ${Number(value).toFixed(2)}\n`
+      })
+    sie += '\n'
+  }
 
   // ───────────────────────────────
   // VERIFIKATIONER
