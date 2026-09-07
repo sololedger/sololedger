@@ -27,7 +27,7 @@ export interface ImportSieBatchResult {
  * på "redan importerad" (kan visas som info) och andra fel (bör visas som fel).
  */
 export class SieImportError extends Error {
-  code: 'ALREADY_IMPORTED' | 'VALIDATION_FAILED' | 'IMPORT_FAILED'
+  code: 'ALREADY_IMPORTED' | 'OPENING_BALANCE_EXISTS' | 'VALIDATION_FAILED' | 'IMPORT_FAILED'
 
   constructor(message: string, code: SieImportError['code']) {
     super(message)
@@ -71,6 +71,10 @@ export async function importSieBatch(
       account_number: ob.accountNumber,
       amount: ob.amount,
     })),
+    previous_year_result_balances: parseResult.previousYearResultBalances.map((res) => ({
+      account_number: res.accountNumber,
+      amount: res.amount,
+    })),
     verifications: parseResult.verifications.map((v) => ({
       series: v.series,
       ver_number: v.verNumber,
@@ -90,6 +94,12 @@ export async function importSieBatch(
   if (error) {
     if (error.code === '23505') {
       throw new SieImportError('Den här filen är redan importerad tidigare.', 'ALREADY_IMPORTED')
+    }
+    if (error.code === 'P2001') {
+      throw new SieImportError(
+        error.message || 'Det finns redan en ingående balans för räkenskapsåret. Importen avbröts.',
+        'OPENING_BALANCE_EXISTS'
+      )
     }
     throw new SieImportError('Importen misslyckades och rullades tillbaka: ' + error.message, 'IMPORT_FAILED')
   }
