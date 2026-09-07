@@ -18,6 +18,31 @@ function groupByVer(entries: any[]) {
   }))
 }
 
+/**
+ * Gör en sträng säker att interpolera i ett citerat SIE-textfält
+ * (#FNAMN, #ORGNR, #KONTO:s kontonamn, #VER:s beskrivning).
+ *
+ * SIE filformat 4C, avsnitt 5.7:
+ *   "Om ett citationstecken förekommer inuti ett fält ska det i
+ *    exportfilen föregås av en backslash (ASCII 92). Kontrolltecken får
+ *    ej förekomma inom en textsträng. Med kontrolltecken avses ASCII 0
+ *    till och med ASCII 31 samt ASCII 127."
+ *
+ * Körs INNAN CP437-kodningen (som sker separat, i page.tsx, på hela den
+ * färdigbyggda filen) - rör bara " och kontrolltecken, aldrig
+ * teckenkodningen eller i övrigt vanlig text (inklusive Å/Ä/Ö).
+ */
+function escapeSIEText(text: string): string {
+  return text
+    // 1. Citationstecken escapas med en föregående backslash - INTE
+    //    dubbleras. Vanlig backslash i texten rörs inte.
+    .replace(/"/g, '\\"')
+    // 2. Kontrolltecken (ASCII 0-31, 127) får inte förekomma i en
+    //    textsträng - en hel kedja (t.ex. "\r\n") ersätts med ETT
+    //    mellanslag, inte flera.
+    .replace(/[\x00-\x1F\x7F]+/g, ' ')
+}
+
 export async function exportSIE(year: number) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Inte inloggad")
@@ -155,8 +180,8 @@ export async function exportSIE(year: number) {
   sie += '#FORMAT PC8\n'
   sie += '#SIETYP 4\n'
   sie += '#VALUTA SEK\n\n'
-  sie += `#FNAMN "${companyName}"\n`
-  sie += `#ORGNR "${orgNr}"\n\n`
+  sie += `#FNAMN "${escapeSIEText(companyName)}"\n`
+  sie += `#ORGNR "${escapeSIEText(orgNr)}"\n\n`
   sie += `#RAR 0 ${year}0101 ${year}1231\n`
   // P1-fix (SIE 4C, † - "poster ska finnas för både innevarande och
   // föregående räkenskapsår, om föregående år saknas kan dock poster för
@@ -204,7 +229,7 @@ export async function exportSIE(year: number) {
   Array.from(konton.entries())
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .forEach(([konto, name]) => {
-      sie += `#KONTO ${konto} "${name}"\n`
+      sie += `#KONTO ${konto} "${escapeSIEText(name)}"\n`
     })
   sie += '\n'
 
@@ -336,7 +361,7 @@ export async function exportSIE(year: number) {
     // verifikationen SOM HELHET redovisas med i #VER.
     const date = formatDate(transactionDateById.get(first.transaction_id) || first.date)
 
-    sie += `#VER A ${v.ver_nr} ${date} "${description}" ${date}\n{\n`
+    sie += `#VER A ${v.ver_nr} ${date} "${escapeSIEText(description)}" ${date}\n{\n`
 
     v.rows.forEach(row => {
       const amount = Number(row.debit) > 0
