@@ -4,10 +4,14 @@ import { useState } from 'react'
 interface NEData {
   R1: number;
   R2: number;
+  R3: number;
+  R4: number;
   R5: number;
   R6: number;
   R7: number;
   R8: number;
+  R9: number;
+  R10: number;
   R11: number;
   R12: number;
   R14: number;
@@ -16,6 +20,18 @@ interface NEData {
   uttag: number;
   bank: number;
   B10_total: number;
+  B1: number;
+  B2: number;
+  B3: number;
+  B4: number;
+  B5: number;
+  B6: number;
+  B7: number;
+  B8: number;
+  B9: number;
+  B13: number;
+  B14: number;
+  B15: number;
   B16: number;
   B13_forutbetalda: number;
 }
@@ -61,6 +77,7 @@ function Tooltip({ text }: { text: string }) {
 }
 
 export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYear }: NEBilagaProps) {
+  const [showAllNERows, setShowAllNERows] = useState(false)
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
   const R14 = neData.R14 ?? 0
@@ -70,15 +87,17 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
   // Balanskontroll ska alltid köras, även om bankkontot är 0 eller negativt.
   // Ett negativt banksaldo är fortfarande en del av balansräkningen och får
   // inte dölja en faktisk obalans.
-  const bank = neData.bank ?? 0
-  const b10 = neData.B10_total ?? 0
-  const b16 = neData.B16 ?? 0
-  const b13_periodiserat = neData.B13_forutbetalda ?? 0
+  const tillgangar =
+    (neData.B1 ?? 0) + (neData.B2 ?? 0) + (neData.B3 ?? 0) + (neData.B4 ?? 0) +
+    (neData.B5 ?? 0) + (neData.B6 ?? 0) + (neData.B7 ?? 0) + (neData.B8 ?? 0) +
+    (neData.B9 ?? 0)
 
-  // Tillgångar minus eget kapital/skulder.
-  const balansDiff = Math.round(
-    ((bank + b13_periodiserat) - (b10 + b16)) * 100
-  ) / 100
+  const kapitalOchSkulder =
+    (neData.B10_total ?? 0) + (neData.B13 ?? 0) + (neData.B14 ?? 0) +
+    (neData.B15 ?? 0) + (neData.B16 ?? 0)
+
+  // Full NE-balanskontroll: B1-B9 = B10 + B13-B16.
+  const balansDiff = Math.round((tillgangar - kapitalOchSkulder) * 100) / 100
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -89,7 +108,7 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
 
         {Math.abs(balansDiff) > 1 && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
-            ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Banken matchar inte kapitalet.
+            ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Tillgångar matchar inte eget kapital och skulder.
           </div>
         )}
 
@@ -100,35 +119,66 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
               Resultat (R)
             </h3>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span>R1 Nettoomsättning</span>
+            <div className={`${!showAllNERows && Math.abs(neData.R1 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R1 Momspliktiga intäkter</span>
               <span className="whitespace-nowrap">{fmt(neData.R1)}</span>
             </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span>R2 Övriga intäkter</span>
+            <div className={`${!showAllNERows && Math.abs(neData.R2 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R2 Momsfria intäkter</span>
               <span className="whitespace-nowrap">{fmt(neData.R2)}</span>
             </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span>R5 Varukostnader</span>
+            <div className={`${!showAllNERows && Math.abs(neData.R3 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R3 Bil- och bostadsförmån m.m.</span>
+              <span className="whitespace-nowrap">{fmt(neData.R3)}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R4 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R4 Ränteintäkter m.m.</span>
+              <span className="whitespace-nowrap">{fmt(neData.R4)}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R5 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R5 Varor, material och tjänster</span>
               <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R5 ?? 0))}</span>
             </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+            <div className={`${!showAllNERows && Math.abs(neData.R6 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R6 Övriga externa kostnader</span>
               <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R6 ?? 0))}</span>
             </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span>R7 Personalkostnader</span>
+            <div className={`${!showAllNERows && Math.abs(neData.R7 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span className="flex items-center flex-wrap">
+                R7 Anställd personal
+                <Tooltip text="SoloLedger är avsett för enskild firma utan anställda. Denna ruta ska därför normalt vara 0 kr." />
+              </span>
               <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R7 ?? 0))}</span>
             </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
-              <span>R8 Avskrivningar</span>
+            <div className={`${!showAllNERows && Math.abs(neData.R8 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R8 Räntekostnader m.m.</span>
               <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R8 ?? 0))}</span>
             </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R9 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R9 Avskrivningar byggnader/mark</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R9 ?? 0))}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R10 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R10 Avskrivningar inventarier m.m.</span>
+              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R10 ?? 0))}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAllNERows(v => !v)}
+              className="w-full mt-2 mb-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              {showAllNERows ? '− Dölj tomma deklarationsrutor' : '+ Visa alla deklarationsrutor'}
+            </button>
+
 
             <div className="my-3 border-t-2 border-dashed border-gray-300" />
 
@@ -155,60 +205,137 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
           </div>
 
           {/* HÖGER KOLUMN: BALANS (B) */}
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4 italic underline">
-              Balans & Kapital (B)
-            </h3>
+          <div className="space-y-4">
+            <div className="flex items-end justify-between gap-3 mb-4">
+              <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest italic underline">
+                Balans (B)
+              </h3>
+              <span className="text-[9px] text-gray-400 font-bold italic">
+                NE förenklat årsbokslut
+              </span>
+            </div>
 
-            <div className="p-4 sm:p-6 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm">
-              <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 border-b border-gray-200 pb-3 mb-3 text-sm font-black uppercase tracking-tighter italic">
-                <span className="flex items-center flex-wrap">
-                  B10 Eget Kapital
-                  <Tooltip text="Eget kapital = IB + årets resultat + insättningar - uttag." />
-                </span>
-                <span className="text-emerald-600 whitespace-nowrap">{fmt(neData.B10_total)}</span>
+            <div className="rounded-3xl border border-gray-100 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                Tillgångar
               </div>
-              <div className="space-y-2 opacity-70 text-[9px] font-black uppercase tracking-tighter">
-                <div className="flex flex-wrap justify-between gap-x-3 italic">
-                  <span>IB Kapital (2010):</span>
-                  <span className="whitespace-nowrap">{fmt(neData.IB_kapital)}</span>
+
+              {[
+                ['B1', 'Immateriella anläggningstillgångar', neData.B1],
+                ['B2', 'Byggnader och markanläggningar', neData.B2],
+                ['B3', 'Mark och andra tillgångar som inte får skrivas av', neData.B3],
+                ['B4', 'Maskiner och inventarier', neData.B4],
+                ['B5', 'Övriga anläggningstillgångar', neData.B5],
+                ['B6', 'Varulager', neData.B6],
+                ['B7', 'Kundfordringar', neData.B7],
+                ['B8', 'Övriga fordringar', neData.B8],
+                ['B9', 'Kassa och bank', neData.B9],
+              ].filter(([, , value]) => showAllNERows || Math.abs(Number(value ?? 0)) >= 0.005).map(([code, label, value]) => (
+                <div
+                  key={String(code)}
+                  className="flex flex-wrap justify-between gap-x-3 border-t border-gray-100 px-4 py-2.5 text-sm italic font-bold text-gray-600"
+                >
+                  <span><strong className="text-gray-800">{code}</strong> {label}</span>
+                  <span className="whitespace-nowrap">{fmt(Number(value ?? 0))}</span>
                 </div>
-                <div className="flex flex-wrap justify-between gap-x-3 italic">
-                  <span>Årets bokförda resultat:</span>
-                  <span className={`whitespace-nowrap ${neData.R11 < 0 ? 'text-red-500' : ''}`}>{fmt(neData.R11)}</span>
-                </div>
-                <div className="flex flex-wrap justify-between gap-x-3 text-emerald-600 italic">
-                  <span>Privata insättningar (2018):</span>
-                  <span className="whitespace-nowrap">+{fmt(neData.insattningar)}</span>
-                </div>
-                <div className="flex flex-wrap justify-between gap-x-3 text-orange-600 italic">
+              ))}
+
+              <div className="flex flex-wrap justify-between gap-x-3 border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-black uppercase italic text-gray-500">
+                <span>Summa tillgångar</span>
+                <span className="whitespace-nowrap">{fmt(tillgangar)}</span>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-100 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                Eget kapital & skulder
+              </div>
+
+              <div className="border-t border-gray-100 p-4 bg-emerald-50/30">
+                <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 text-sm font-black italic">
                   <span className="flex items-center flex-wrap">
-                    Uttag & skatteavräkning (2012/2013):
-                    <Tooltip text="Omfattar privata uttag på 2013 samt skatter och avgifter som bokats via konto 2012. Båda minskar eget kapital." />
+                    B10 Eget kapital
+                    <Tooltip text="Eget kapital = kapital vid årets början + ackumulerat resultat + egna insättningar − egna uttag/skatteavräkning." />
                   </span>
-                  <span className="whitespace-nowrap">{fmt(-Math.abs(neData.uttag ?? 0))}</span>
+                  <span className="text-emerald-600 whitespace-nowrap">{fmt(neData.B10_total)}</span>
+                </div>
+
+                <div className="mt-3 space-y-1.5 text-[9px] font-black uppercase tracking-tighter opacity-70">
+                  <div className="flex flex-wrap justify-between gap-x-3 italic">
+                    <span>IB kapital (2010/2019):</span>
+                    <span>{fmt(neData.IB_kapital)}</span>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-3 italic">
+                    <span>Ackumulerat resultat:</span>
+                    <span>{fmt((neData.B10_total ?? 0) - (neData.IB_kapital ?? 0) - (neData.insattningar ?? 0) + (neData.uttag ?? 0))}</span>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-emerald-600 italic">
+                    <span>Egna insättningar (2018):</span>
+                    <span>+{fmt(neData.insattningar)}</span>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-orange-600 italic">
+                    <span className="flex items-center flex-wrap">
+                      Uttag & skatteavräkning (2012/2013)
+                      <Tooltip text="Privata uttag samt ägarens skatter och avgifter minskar eget kapital." />
+                    </span>
+                    <span>{fmt(-Math.abs(neData.uttag ?? 0))}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
-              <span>B13 Kassa och bank</span>
-              <span className="text-gray-500 whitespace-nowrap">{fmt(neData.bank)}</span>
-            </div>
-
-            {(neData.B13_forutbetalda ?? 0) > 0 && (
-              <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase font-black">
-                <span className="flex items-center flex-wrap text-blue-500">
-                  B13 Förutbetalda kostnader (1790)
-                  <Tooltip text="Utgifter betalda i år men som avser nästa år (periodisering). Dessa är en tillgång tills de aktiveras nästa räkenskapsår via konto 1790." />
+              <div className={`${!showAllNERows ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-t border-gray-100 px-4 py-2.5 text-sm italic font-bold text-gray-300 bg-gray-50/50`}>
+                <span className="flex items-center">
+                  B11 Obeskattade reserver
+                  <Tooltip text="B11 fylls inte i när du upprättar förenklat årsbokslut." />
                 </span>
-                <span className="text-blue-600 whitespace-nowrap">{fmt(neData.B13_forutbetalda)}</span>
+                <span>—</span>
               </div>
-            )}
 
-            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 text-sm italic tracking-tight uppercase text-gray-400 font-black">
-              <span>B16 Skulder (Moms m.m.)</span>
-              <span className="text-gray-700 whitespace-nowrap">{fmt(neData.B16)}</span>
+              <div className={`${!showAllNERows ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-t border-gray-100 px-4 py-2.5 text-sm italic font-bold text-gray-300 bg-gray-50/50`}>
+                <span className="flex items-center">
+                  B12 Avsättningar
+                  <Tooltip text="B12 fylls inte i när du upprättar förenklat årsbokslut." />
+                </span>
+                <span>—</span>
+              </div>
+
+              {[
+                ['B13', 'Låneskulder', neData.B13],
+                ['B14', 'Skatteskulder', neData.B14],
+                ['B15', 'Leverantörsskulder', neData.B15],
+                ['B16', 'Övriga skulder', neData.B16],
+              ].filter(([, , value]) => showAllNERows || Math.abs(Number(value ?? 0)) >= 0.005).map(([code, label, value]) => (
+                <div
+                  key={String(code)}
+                  className="flex flex-wrap justify-between gap-x-3 border-t border-gray-100 px-4 py-2.5 text-sm italic font-bold text-gray-600"
+                >
+                  <span><strong className="text-gray-800">{code}</strong> {label}</span>
+                  <span className="whitespace-nowrap">{fmt(Number(value ?? 0))}</span>
+                </div>
+              ))}
+
+              <div className="flex flex-wrap justify-between gap-x-3 border-t-2 border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-black uppercase italic text-gray-500">
+                <span>Summa eget kapital & skulder</span>
+                <span className="whitespace-nowrap">{fmt(kapitalOchSkulder)}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAllNERows(v => !v)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              {showAllNERows ? '− Dölj tomma deklarationsrutor' : '+ Visa alla deklarationsrutor'}
+            </button>
+
+            <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
+              Math.abs(balansDiff) <= 1
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-600'
+            }`}>
+              {Math.abs(balansDiff) <= 1
+                ? '✓ Balansräkningen balanserar'
+                : `⚠ Balansdifferens ${fmt(balansDiff)}`}
             </div>
           </div>
         </div>

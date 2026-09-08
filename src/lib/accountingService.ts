@@ -617,32 +617,89 @@ export async function closeYear(year: number): Promise<void> {
  * som tidigare låg inline. Ingen kumulativ logik här - bara en flytt.
  */
 function computeResultat(balances: Record<string, number>) {
-  const sumRange = (start: number, end: number, exclude: string[] = []) => {
+  const sumRange = (start: number, end: number) => {
     const sum = Object.entries(balances)
       .filter(([acc]) => {
         const n = parseInt(acc)
-        return n >= start && n <= end && !exclude.includes(acc)
+        return Number.isInteger(n) && n >= start && n <= end
       })
       .reduce((s, [_, v]) => s + (v as number), 0)
+
     return Math.round(sum * 100) / 100
   }
 
-  const R1 = Math.abs(sumRange(3000, 3999))
-  const R2 = 0
+  const sumAccounts = (accounts: string[]) => {
+    const sum = accounts.reduce((s, acc) => s + (balances[acc] || 0), 0)
+    return Math.round(sum * 100) / 100
+  }
+
+  // NE/K1-mappning för SoloLedgers målgrupp:
+  // R1 momspliktiga intäkter
+  // R2 momsfria/övriga intäkter
+  // R3 bil- och bostadsförmån m.m.
+  // R4 ränteintäkter m.m.
+  // R5 varor, material och tjänster
+  // R6 övriga externa kostnader
+  // R7 anställd personal
+  // R8 räntekostnader m.m.
+  // R9 avskrivningar byggnader/markanläggningar
+  // R10 avskrivningar maskiner/inventarier/immateriella tillgångar
+  //
+  // 3700/3900 och 7700/7980 kan enligt BAS K1 behöva fördelas mellan flera
+  // NE-rader beroende på innehåll. SoloLedger använder inte dessa som
+  // standardkonton och gissar därför inte automatiskt på dem här.
+
+  const R1 = Math.abs(
+    Math.round((sumRange(3000, 3099) + sumRange(3500, 3599)) * 100) / 100
+  )
+
+  const R2 = Math.abs(
+    Math.round(
+      (
+        sumRange(3100, 3199) +
+        sumRange(3970, 3989)
+      ) * 100
+    ) / 100
+  )
+
+  const R3 = Math.abs(sumRange(3200, 3299))
+
+  const R4 = Math.abs(
+    Math.round((sumRange(8310, 8319) + sumRange(8330, 8339)) * 100) / 100
+  )
+
   const R5 = Math.abs(sumRange(4000, 4999))
 
-  const avskrivningsKonton = Array.from({ length: 100 }, (_, i) => String(7800 + i))
-  const R6 = Math.abs(sumRange(5000, 7999, ['6992', ...avskrivningsKonton]))
-  const R7 = 0
-  const R8 = Math.abs(sumRange(7800, 7899))
+  // 6992 hör fortfarande till bokföringens externa kostnader och ska därför
+  // ingå i R6/R11. Den läggs sedan tillbaka skattemässigt i R12.
+  const R6 = Math.abs(sumRange(5000, 6999))
+
+  const R7 = Math.abs(sumRange(7000, 7699))
+
+  const R8 = Math.abs(
+    Math.round((sumRange(8410, 8419) + sumRange(8430, 8439)) * 100) / 100
+  )
+
+  const R9 = Math.abs(sumRange(7820, 7829))
+
+  const R10 = Math.abs(
+    Math.round((sumRange(7810, 7819) + sumRange(7830, 7839)) * 100) / 100
+  )
+
   const ejAvdr = Math.abs(balances['6992'] || 0)
 
-  const bokfRes = Math.round((R1 + R2 - R5 - R6 - R7 - R8 - ejAvdr) * 100) / 100
+  const bokfRes = Math.round(
+    (R1 + R2 + R3 + R4 - R5 - R6 - R7 - R8 - R9 - R10) * 100
+  ) / 100
+
   const R11 = bokfRes
   const R12 = ejAvdr
   const R14 = Math.round((R11 + R12) * 100) / 100
 
-  return { R1, R2, R5, R6, R7, R8, ejAvdr, bokfRes, R11, R12, R14 }
+  return {
+    R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
+    ejAvdr, bokfRes, R11, R12, R14
+  }
 }
 
 /**
@@ -707,7 +764,7 @@ export async function getNEData(year: number) {
   // något annat fält i denna funktion i detta steg.
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
-  const { R1, R2, R5, R6, R7, R8, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
+  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
 
   // B10 är kumulativt: 2010/2012/2013/2018/2019
   // läses nu från balanceSheetBalances (kumulativt sedan bokföringens start)
@@ -759,44 +816,73 @@ export async function getNEData(year: number) {
     (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
   ) / 100
 
-  // Utgående moms kan ligga på olika BAS-konton beroende på momssats:
-  // 261x = 25 %, 262x = 12 %, 263x = 6 %.
-  const utgMomsRaw = Object.entries(balanceSheetBalances)
-    .filter(([acc]) => acc.startsWith('261') || acc.startsWith('262') || acc.startsWith('263'))
-    .reduce((sum, [, v]) => sum + (v as number), 0)
-  const utgMoms = Math.abs(utgMomsRaw)
+  // --- BALANSRÄKNING / NE B1-B16 (förenklat årsbokslut, K1) ---
+  //
+  // getBalanceSheetBalances() använder debet-minus-kredit:
+  //   tillgångar -> normalt positiva
+  //   skulder/eget kapital -> normalt negativa
+  //
+  // För förenklat årsbokslut fylls B1-B10 och B13-B16 i.
+  // B11 och B12 används inte i den förenklade NE-balansen.
 
-  // Ingående moms kan ligga på 264x. I dagens manuella flöde används 2641,
-  // men importerad bokföring kan använda andra 264x-konton.
-  const ingMomsRaw = Object.entries(balanceSheetBalances)
-    .filter(([acc]) => acc.startsWith('264'))
-    .reduce((sum, [, v]) => sum + (v as number), 0)
-  const ingMoms = Math.abs(ingMomsRaw)
-  // Kvarvarande, obetald skuld på momsavräkningskontot (265x, t.ex. 2650) vid
-  // årsskiftet. Krävs eftersom källbokföring (t.ex. importerad SIE) gör
-  // löpande momsombokningar som nollar ut 2611/2641 långt innan bokslutet -
-  // utan denna term missar B16 hela skulden så fort det sker (verifierat
-  // mot Visma-exempelfilen: 2611=0, 2641=0, 2650=-46 867 kr => B16 blev 0 kr
-  // istället för korrekt 46 867 kr). max(0, ...) förhindrar att en eventuell
-  // överbetalning (2650 i debetsaldo, en fordran snarare än en skuld) av
-  // misstag skulle ge B16 ett negativt värde.
-  const avräkningsskuld = Object.entries(balanceSheetBalances)
-    .filter(([acc]) => acc.startsWith('265'))
-    .reduce((sum, [, v]) => sum + Math.max(0, -(v as number)), 0)
-  const B16 = Math.round((utgMoms - ingMoms + avräkningsskuld) * 100) / 100
+  const sumBalanceRange = (start: number, end: number) =>
+    Object.entries(balanceSheetBalances)
+      .filter(([acc]) => {
+        const n = parseInt(acc)
+        return Number.isInteger(n) && n >= start && n <= end
+      })
+      .reduce((sum, [, value]) => sum + (value as number), 0)
 
-  const bank = balanceSheetBalances['1930'] || 0
-  // Steg 3: kumulativt saldo (getBalanceSheetBalances) istället för årets
-  // egna rörelse på 1790 - allt annat i funktionen är oförändrat.
-  const B13_forutbetalda = Math.max(0, balanceSheetBalances['1790'] || 0)
+  const sumBalanceAccounts = (prefixes: string[]) =>
+    Object.entries(balanceSheetBalances)
+      .filter(([acc]) => prefixes.some(prefix => acc.startsWith(prefix)))
+      .reduce((sum, [, value]) => sum + (value as number), 0)
+
+  const round2 = (value: number) => Math.round(value * 100) / 100
+  const assetValue = (value: number) => round2(Math.max(0, value))
+  const liabilityValue = (value: number) => round2(Math.max(0, -value))
+
+  // Tillgångar
+  const B1 = assetValue(sumBalanceRange(1000, 1099)) // Immateriella anläggningstillgångar
+  const B2 = assetValue(
+    sumBalanceRange(1110, 1119) + sumBalanceRange(1150, 1159)
+  ) // Byggnader och markanläggningar
+  const B3 = assetValue(
+    sumBalanceRange(1130, 1139) + sumBalanceRange(1180, 1189)
+  ) // Mark och andra ej avskrivningsbara tillgångar
+  const B4 = assetValue(sumBalanceRange(1220, 1249)) // Maskiner och inventarier
+  const B5 = assetValue(sumBalanceRange(1300, 1399)) // Övriga anläggningstillgångar
+  const B6 = assetValue(sumBalanceRange(1400, 1499)) // Varulager
+  const B7 = assetValue(sumBalanceRange(1500, 1599)) // Kundfordringar
+
+  // B8 omfattar övriga fordringar, inklusive periodiseringar som 1790.
+  // Om moms-/skatteområdet netto har debetsaldo är det också en fordran.
+  const taxRaw = sumBalanceAccounts(['261', '262', '263', '264', '265', '266', '271', '273'])
+  const taxReceivable = Math.max(0, taxRaw)
+  const B8 = assetValue(sumBalanceRange(1600, 1899) + taxReceivable)
+
+  const B9 = assetValue(sumBalanceRange(1900, 1999)) // Kassa och bank
+
+  // Skulder
+  const B13 = liabilityValue(sumBalanceRange(2300, 2399)) // Låneskulder
+  const B14 = liabilityValue(taxRaw) // Skatteskulder / nettomoms m.m.
+  const B15 = liabilityValue(sumBalanceRange(2440, 2449)) // Leverantörsskulder
+  const B16 = liabilityValue(sumBalanceRange(2900, 2999)) // Övriga skulder
+
+  // Behåll dessa alias under övergången så att annan befintlig UI-kod inte
+  // behöver gå sönder medan NE-vyn flyttas till korrekta B-rutor.
+  const bank = B9
+  const B13_forutbetalda = assetValue(balanceSheetBalances['1790'] || 0)
 
   return {
-    R1, R2, R5, R6, R7, R8,
+    R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
     R11, R12, R14,
     IB_kapital, insattningar, uttag,
-    bank, B10_total, B16,
+    bank, B10_total,
+    B1, B2, B3, B4, B5, B6, B7, B8, B9,
+    B13, B14, B15, B16,
     B13_forutbetalda,
   }
 }
