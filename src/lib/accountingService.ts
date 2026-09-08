@@ -442,151 +442,42 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
  * Periodisering: Bokför en utgift som sträcker sig över ett nyårsskifte.
  */
 export async function bookPeriodizedTransaction(tx: any) {
-  const userId = await getUserId()
+  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
-  // Säkerställ att BÅDA åren (utgiftsåret samt vändningsåret) är öppna
-  await assertYearOpen(tx.date)
-  await assertYearOpen(tx.future_date)
-
-  // SÄKERHETSBÄLTE: Verifiera att kontot existerar och tillhör användaren
-  const { data: acc, error: accError } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('id', tx.type)
-    .eq('user_id', userId)
-    .single()
-  if (accError || !acc) throw new Error("Konto saknas eller tillhör inte användaren: " + tx.type)
-
-  const vatRate = tx.vat_rate || 0
-  const vatAmount = vatRate > 0
-    ? Math.round((tx.amount - (tx.amount / (1 + vatRate / 100))) * 100) / 100
-    : 0
-  const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
-
-  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
-  const { data: verNrData2, error: verNrError2 } = await supabase
-    .rpc('get_next_ver_nr', { p_user_id: userId })
-  if (verNrError2 || verNrData2 === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError2?.message)
-  const currentVerNr = verNrData2 as number
-
-  const periodizationGroupId = crypto.randomUUID()
-
-  // ── FIX: Tvinga periodiseringsgrunden till årets sista dag (31 december) ──
-  const yearEnd = `${tx.date.slice(0, 4)}-12-31`
-
-  // ── TRANSAKTION 1: Innevarande år (Bokslutsdagen) ──────────────────────────
-  const { data: insertedTx1, error: errorTx1 } = await supabase
-    .from('transactions')
-    .insert([{
-      user_id: userId,
-      date: yearEnd, // ✅ APPLICERAD FIX: Sparas nu säkert på bokslutsdagen istället för mitt i kvartalet
-      description: `[Periodisering 1/2] ${tx.description}`,
-      amount: tx.amount,
-      type: tx.type,
-      vat_rate: vatRate,
-      file_url: tx.file_url || null,
-      booked: true,
-      is_periodized: true,
-      is_periodized_reversal: false,
-      periodized_future_date: tx.future_date,
-      periodization_group_id: periodizationGroupId,
-    }])
-    .select()
-    .single()
-  if (errorTx1) throw errorTx1
-
-  const tx1Journal: any[] = [
-    {
-      transaction_id: insertedTx1.id,
-      ver_nr: currentVerNr,
-      account_number: acc.credit_account,
-      debit: 0,
-      credit: tx.amount,
-      description: `Förutbetald kostnad (Bank): ${tx.description}`,
-      date: yearEnd, // ✅ Synkad med transaktionen
-      user_id: userId,
-    },
-    {
-      transaction_id: insertedTx1.id,
-      ver_nr: currentVerNr,
-      account_number: '1790',
-      debit: netAmount,
-      credit: 0,
-      description: `Förutbetald kostnad (Netto): ${tx.description}`,
-      date: yearEnd, // ✅ Synkad med transaktionen
-      user_id: userId,
-    },
-  ]
-  if (vatAmount > 0) {
-    tx1Journal.push({
-      transaction_id: insertedTx1.id,
-      ver_nr: currentVerNr,
-      account_number: '2641',
-      debit: vatAmount,
-      credit: 0,
-      description: `Ingående moms (Periodisering): ${tx.description}`,
-      date: yearEnd, // ✅ Synkad med transaktionen
-      user_id: userId,
-    })
+  // Hela periodiseringen sker nu atomärt i databasen:
+  // båda transactions, båda verifikationsnumren och samtliga journalrader
+  // skapas i samma PostgreSQL-transaktion. Om något steg misslyckas
+  // rullas HELA periodiseringen tillbaka.
+  const payload = {
+    date: tx.date,
+    future_date: tx.future_date,
+    description: tx.description,
+    amount: tx.amount,
+    type: tx.type,
+    vat_rate: tx.vat_rate ?? 0,
+    file_url: tx.file_url ?? null,
   }
 
-  const { error: jError1 } = await supabase.from('journal_entries').insert(tx1Journal)
-  if (jError1) throw jError1
+  const { data, error } = await supabase.rpc('book_periodized_transaction_atomic', {
+    p_payload: payload,
+  })
 
-  // Hämta eget ver_nr för reversal-transaktionen — bokföringsmässigt separat verifikat
-  const { data: verNrData2b, error: verNrError2b } = await supabase
-    .rpc('get_next_ver_nr', { p_user_id: userId })
-  if (verNrError2b || verNrData2b === null) throw new Error('Kunde inte generera ver_nr för reversal: ' + verNrError2b?.message)
-  const reversalVerNr = verNrData2b as number
+  if (error) {
+    throw new Error('Periodiseringen misslyckades och rullades tillbaka: ' + error.message)
+  }
 
-  // ── TRANSAKTION 2: Nästa år (vändningsverifikat) ───────────────────────────
-  const { data: insertedTx2, error: errorTx2 } = await supabase
-    .from('transactions')
-    .insert([{
-      user_id: userId,
-      date: tx.future_date,
-      description: `[Periodisering 2/2] ${tx.description}`,
-      amount: netAmount,
-      type: tx.type,
-      vat_rate: 0,
-      file_url: tx.file_url || null,
-      booked: true,
-      is_periodized: true,
-      is_periodized_reversal: true,
-      periodized_future_date: null,
-      periodization_group_id: periodizationGroupId,
-    }])
-    .select()
-    .single()
-  if (errorTx2) throw errorTx2
+  if (!data?.success) {
+    throw new Error('Periodiseringen misslyckades av okänd anledning.')
+  }
 
-  const tx2Journal: any[] = [
-    {
-      transaction_id: insertedTx2.id,
-      ver_nr: reversalVerNr,
-      account_number: '1790',
-      debit: 0,
-      credit: netAmount,
-      description: `Förutbetald kostnad upplöst: ${tx.description}`,
-      date: tx.future_date,
-      user_id: userId,
-    },
-    {
-      transaction_id: insertedTx2.id,
-      ver_nr: reversalVerNr,
-      account_number: acc.debit_account,
-      debit: netAmount,
-      credit: 0,
-      description: `Periodiserad kostnad aktiveras: ${tx.description}`,
-      date: tx.future_date,
-      user_id: userId,
-    },
-  ]
-
-  const { error: jError2 } = await supabase.from('journal_entries').insert(tx2Journal)
-  if (jError2) throw jError2
-
-  return { success: true, ver_nr: currentVerNr }
+  return {
+    success: true,
+    ver_nr: Number(data.ver_nr),
+    reversal_ver_nr: Number(data.reversal_ver_nr),
+    transaction_id: data.transaction_id as string,
+    reversal_transaction_id: data.reversal_transaction_id as string,
+    periodization_group_id: data.periodization_group_id as string,
+  }
 }
 
 // ── RÄKENSKAPSÅRSLÅSNING ───────────────────────────────────────────────────
