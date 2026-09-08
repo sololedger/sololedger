@@ -373,37 +373,6 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   }
 }
 
-export async function deleteTransaction(id: string) {
-  const userId = await getUserId()
-
-  // SÄKERHETSBÄLTE: Hämta transaktionen först för att veta vilket datum/år den tillhör
-  const { data: tx, error: fetchError } = await supabase
-    .from('transactions')
-    .select('date')
-    .eq('id', id)
-    .eq('user_id', userId)
-    .single()
-  if (fetchError || !tx) throw new Error("Transaktionen hittades inte.")
-  
-  // Säkerställ att året är öppet innan radering sker
-  await assertYearOpen(tx.date)
-
-  // SÄKERHETSBÄLTE: Tillåt bara radering av egna journalrader och transaktioner
-  const { error: journalError } = await supabase
-    .from('journal_entries')
-    .delete()
-    .eq('transaction_id', id)
-    .eq('user_id', userId)
-  if (journalError) throw new Error("Kunde inte radera bokföringsposter: " + journalError.message)
-
-  const { error: txError } = await supabase
-    .from('transactions')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', userId)
-  if (txError) throw new Error("Kunde inte radera transaktionen: " + txError.message)
-}
-
 export async function createCorrectionTransaction(originalTxId: string): Promise<number> {
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 

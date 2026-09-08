@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, deleteTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
+import { bookTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { encodeCP437 } from '@/lib/cp437'
 import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
