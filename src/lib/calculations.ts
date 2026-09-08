@@ -31,9 +31,15 @@ export interface DashboardBalances {
   }
   
   export function getKostnader(balances: DashboardBalances): number {
-    return Object.entries(balances)
+    // Summera först hela kostnadsintervallet och ta absolutbeloppet EFTERÅT.
+    // Detta följer samma princip som NE-beräkningen (computeResultat):
+    // kreditposter/korrigeringar på kostnadskonton ska minska kostnaden,
+    // inte förstoras genom Math.abs() konto för konto.
+    const sum = Object.entries(balances)
       .filter(([acc]) => ['4', '5', '6', '7'].some(p => acc.startsWith(p)))
-      .reduce((sum, [_, val]) => sum + Math.abs(val), 0)
+      .reduce((total, [_, val]) => total + val, 0)
+
+    return Math.abs(Math.round(sum * 100) / 100)
   }
   
   // momsNetto beräknas INTE längre internt här - den kräver verifikationsnivå-
