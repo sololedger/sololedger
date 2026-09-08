@@ -24,7 +24,18 @@ export default function Momsrapport() {
   const [period, setPeriod]                 = useState<Period>('Q1')
   const [loading, setLoading]               = useState(false)
   const [fetched, setFetched]               = useState(false)
-  const [breakdown, setBreakdown] = useState<MomsBreakdown>({ utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
+  const [breakdown, setBreakdown] = useState<MomsBreakdown>({
+    utgaendeMoms: 0,
+    ingaendeMoms: 0,
+    momsNetto: 0,
+    utgaendeMoms25: 0,
+    utgaendeMoms12: 0,
+    utgaendeMoms6: 0,
+    momspliktigForsaljning25: 0,
+    momspliktigForsaljning12: 0,
+    momspliktigForsaljning6: 0,
+    momspliktigForsaljning: 0,
+  })
 
   // Hämtar tillgängliga år en gång vid montering
   const loadAvailableYears = useCallback(async () => {
@@ -149,19 +160,78 @@ export default function Momsrapport() {
             {year} / {periodLabel}
           </p>
 
-          {/* Ruta 05 — Utgående moms */}
+          {/* Ruta 05 — momspliktig försäljning exklusive moms */}
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 05</p>
-                <p className="text-xs font-black uppercase text-gray-600">Utgående moms</p>
-                <p className="text-[9px] text-gray-400 font-medium mt-1">Moms på din försäljning (261x/262x/263x)</p>
+                <p className="text-xs font-black uppercase text-gray-600">Momspliktig försäljning exkl. moms</p>
+                <p className="text-[9px] text-gray-400 font-medium mt-1">
+                  Försäljningsunderlag för vanlig momspliktig försäljning i Sverige
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-black text-red-500 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.utgaendeMoms)} kr
+                <p className="text-2xl font-black text-gray-700 tabular-nums whitespace-nowrap">
+                  {fmt(breakdown.momspliktigForsaljning ?? 0)} kr
                 </p>
-                <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Ska betalas in</p>
+                <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Exkl. moms</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-5 pt-4 border-t border-dashed border-gray-100">
+              <div className="bg-gray-50 rounded-xl px-3 py-2">
+                <p className="text-[8px] font-black uppercase text-gray-400">25 % underlag</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning25 ?? 0)} kr</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl px-3 py-2">
+                <p className="text-[8px] font-black uppercase text-gray-400">12 % underlag</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning12 ?? 0)} kr</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl px-3 py-2">
+                <p className="text-[8px] font-black uppercase text-gray-400">6 % underlag</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning6 ?? 0)} kr</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ruta 10–12 — utgående moms per momssats */}
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
+            <div className="mb-4">
+              <p className="text-xs font-black uppercase text-gray-600">Utgående moms</p>
+              <p className="text-[9px] text-gray-400 font-medium mt-1">
+                Fördelad enligt momssats
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 10</p>
+                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 25 %</p>
+                </div>
+                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
+                  {fmt(breakdown.utgaendeMoms25 ?? 0)} kr
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 11</p>
+                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 12 %</p>
+                </div>
+                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
+                  {fmt(breakdown.utgaendeMoms12 ?? 0)} kr
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 12</p>
+                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 6 %</p>
+                </div>
+                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
+                  {fmt(breakdown.utgaendeMoms6 ?? 0)} kr
+                </p>
               </div>
             </div>
           </div>
@@ -225,7 +295,7 @@ export default function Momsrapport() {
 
           {/* Footer note */}
           <p className="text-[9px] text-gray-300 font-bold text-center px-4 pb-2">
-            Beloppen är beräknade ur bokförda verifikationer, exklusive interna momsombokningar. Kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
+            Beloppen är beräknade ur bokförda verifikationer, exklusive interna momsombokningar. Rapporten visar vanlig svensk momspliktig försäljning och ingående moms; kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
           </p>
         </div>
       )}

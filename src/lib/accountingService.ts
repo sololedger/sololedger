@@ -215,57 +215,162 @@ export interface MomsBreakdown {
   utgaendeMoms: number
   ingaendeMoms: number
   momsNetto: number
+
+  // För momsrapport/SKV 4700. Optional för bakåtkompatibilitet med befintliga
+  // initialvärden i Dashboard/useAccountingData tills UI-steget är uppdaterat.
+  utgaendeMoms25?: number
+  utgaendeMoms12?: number
+  utgaendeMoms6?: number
+  momspliktigForsaljning25?: number
+  momspliktigForsaljning12?: number
+  momspliktigForsaljning6?: number
+  momspliktigForsaljning?: number
 }
 
 export async function getMomsBreakdown(startDate: string, endDate: string): Promise<MomsBreakdown> {
   const userId = await getUserId()
-
-  const { data: entries, error } = await supabase
-    .from('journal_entries')
-    .select('account_number, debit, credit, transaction_id')
-    .eq('user_id', userId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .like('account_number', '26%')
-  if (error) throw error
 
   const isUtgåendeMomskonto = (acc: string) =>
     acc.startsWith('261') || acc.startsWith('262') || acc.startsWith('263')
   const isIngåendeMomskonto = (acc: string) => acc.startsWith('264')
   const isAvräkningskonto = (acc: string) => acc.startsWith('265')
 
-  // Gruppera på verifikation (transaction_id) för att kunna avgöra om en
-  // momsrad hör till en ombokning - dvs. om SAMMA verifikation även har en
-  // rad på ett avräkningskonto.
-  const byTransaction: Record<string, { account_number: string; debit: number; credit: number }[]> = {}
-  entries?.forEach(e => {
+  const vatRateForAccount = (acc: string): 25 | 12 | 6 | null => {
+    if (acc.startsWith('261')) return 25
+    if (acc.startsWith('262')) return 12
+    if (acc.startsWith('263')) return 6
+    return null
+  }
+
+  // STEG 1: hitta de verifikationer som faktiskt har en momsrad (261x–264x)
+  // vars EGET raddatum ligger i vald period.
+  //
+  // Viktigt: vi använder inte detta begränsade resultat för att avgöra om
+  // verifikationen är en intern momsombokning. En SIE-verifikation kan ha olika
+  // datum på sina #TRANS-rader och 265x-raden kan därför ligga precis utanför
+  // perioden. Det var den tidigare periodgränsbuggen.
+  const { data: period26Rows, error: periodError } = await supabase
+    .from('journal_entries')
+    .select('account_number, transaction_id')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .like('account_number', '26%')
+  if (periodError) throw periodError
+
+  const candidateTransactionIds = Array.from(new Set(
+    (period26Rows || [])
+      .filter(r => isUtgåendeMomskonto(r.account_number) || isIngåendeMomskonto(r.account_number))
+      .map(r => r.transaction_id)
+  ))
+
+  if (candidateTransactionIds.length === 0) {
+    return {
+      utgaendeMoms: 0,
+      ingaendeMoms: 0,
+      momsNetto: 0,
+      utgaendeMoms25: 0,
+      utgaendeMoms12: 0,
+      utgaendeMoms6: 0,
+      momspliktigForsaljning25: 0,
+      momspliktigForsaljning12: 0,
+      momspliktigForsaljning6: 0,
+      momspliktigForsaljning: 0,
+    }
+  }
+
+  // STEG 2: hämta SAMTLIGA 26xx-rader för kandidatverifikationerna, oavsett
+  // raddatum. Dessa fullständiga verifikationer används bara för att upptäcka
+  // om en 265x-rad finns någonstans i samma verifikation.
+  //
+  // Själva momsbeloppen summeras fortfarande ENDAST från rader vars datum
+  // ligger inom [startDate, endDate].
+  const { data: all26Rows, error: allRowsError } = await supabase
+    .from('journal_entries')
+    .select('account_number, debit, credit, transaction_id, date')
+    .eq('user_id', userId)
+    .in('transaction_id', candidateTransactionIds)
+    .like('account_number', '26%')
+  if (allRowsError) throw allRowsError
+
+  const byTransaction: Record<
+    string,
+    { account_number: string; debit: number; credit: number; date: string }[]
+  > = {}
+
+  all26Rows?.forEach(e => {
     const key = e.transaction_id
     if (!byTransaction[key]) byTransaction[key] = []
-    byTransaction[key].push(e)
+    byTransaction[key].push({
+      account_number: e.account_number,
+      debit: Number(e.debit),
+      credit: Number(e.credit),
+      date: e.date,
+    })
   })
 
-  let utgaendeMoms = 0
+  let utgaendeMoms25 = 0
+  let utgaendeMoms12 = 0
+  let utgaendeMoms6 = 0
   let ingaendeMoms = 0
 
   Object.values(byTransaction).forEach(rows => {
+    // Om SAMMA verifikation innehåller 265x är det en intern momsombokning.
+    // Detta kontrolleras nu över hela verifikationen, även om 265x-raden ligger
+    // utanför rapportperioden.
     const ärOmföring = rows.some(r => isAvräkningskonto(r.account_number))
-    if (ärOmföring) return // hela verifikationens momsrader exkluderas
+    if (ärOmföring) return
 
     rows.forEach(r => {
-      const net = Number(r.credit) - Number(r.debit)
+      // Bara momsradens eget datum avgör om beloppet hör till vald period.
+      if (r.date < startDate || r.date > endDate) return
+
+      const netCredit = r.credit - r.debit
+
       if (isUtgåendeMomskonto(r.account_number)) {
-        utgaendeMoms += net
+        const rate = vatRateForAccount(r.account_number)
+        if (rate === 25) utgaendeMoms25 += netCredit
+        if (rate === 12) utgaendeMoms12 += netCredit
+        if (rate === 6) utgaendeMoms6 += netCredit
       } else if (isIngåendeMomskonto(r.account_number)) {
-        ingaendeMoms += -net // avdragsperspektiv: debetöverskott på 264x = positivt avdrag
+        // Avdragsperspektiv: debetöverskott på 264x = positiv ingående moms.
+        ingaendeMoms += -netCredit
       }
     })
   })
 
-  utgaendeMoms = Math.round(utgaendeMoms * 100) / 100
-  ingaendeMoms = Math.round(ingaendeMoms * 100) / 100
-  const momsNetto = Math.round((utgaendeMoms - ingaendeMoms) * 100) / 100
+  const round2 = (n: number) => Math.round(n * 100) / 100
 
-  return { utgaendeMoms, ingaendeMoms, momsNetto }
+  utgaendeMoms25 = round2(utgaendeMoms25)
+  utgaendeMoms12 = round2(utgaendeMoms12)
+  utgaendeMoms6 = round2(utgaendeMoms6)
+  ingaendeMoms = round2(ingaendeMoms)
+
+  const utgaendeMoms = round2(utgaendeMoms25 + utgaendeMoms12 + utgaendeMoms6)
+  const momsNetto = round2(utgaendeMoms - ingaendeMoms)
+
+  // Försäljningsunderlaget kan härledas direkt från utgående moms när kontot
+  // anger skattesatsen (261x=25 %, 262x=12 %, 263x=6 %). Det gör att även
+  // importerad SIE-data utan transactions.vat_rate kan presenteras korrekt.
+  const momspliktigForsaljning25 = round2(utgaendeMoms25 / 0.25)
+  const momspliktigForsaljning12 = round2(utgaendeMoms12 / 0.12)
+  const momspliktigForsaljning6 = round2(utgaendeMoms6 / 0.06)
+  const momspliktigForsaljning = round2(
+    momspliktigForsaljning25 + momspliktigForsaljning12 + momspliktigForsaljning6
+  )
+
+  return {
+    utgaendeMoms,
+    ingaendeMoms,
+    momsNetto,
+    utgaendeMoms25,
+    utgaendeMoms12,
+    utgaendeMoms6,
+    momspliktigForsaljning25,
+    momspliktigForsaljning12,
+    momspliktigForsaljning6,
+    momspliktigForsaljning,
+  }
 }
 
 export async function deleteTransaction(id: string) {
@@ -654,8 +759,19 @@ export async function getNEData(year: number) {
     (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
   ) / 100
 
-  const utgMoms = Math.abs(balanceSheetBalances['2611'] || 0)
-  const ingMoms = Math.abs(balanceSheetBalances['2641'] || 0)
+  // Utgående moms kan ligga på olika BAS-konton beroende på momssats:
+  // 261x = 25 %, 262x = 12 %, 263x = 6 %.
+  const utgMomsRaw = Object.entries(balanceSheetBalances)
+    .filter(([acc]) => acc.startsWith('261') || acc.startsWith('262') || acc.startsWith('263'))
+    .reduce((sum, [, v]) => sum + (v as number), 0)
+  const utgMoms = Math.abs(utgMomsRaw)
+
+  // Ingående moms kan ligga på 264x. I dagens manuella flöde används 2641,
+  // men importerad bokföring kan använda andra 264x-konton.
+  const ingMomsRaw = Object.entries(balanceSheetBalances)
+    .filter(([acc]) => acc.startsWith('264'))
+    .reduce((sum, [, v]) => sum + (v as number), 0)
+  const ingMoms = Math.abs(ingMomsRaw)
   // Kvarvarande, obetald skuld på momsavräkningskontot (265x, t.ex. 2650) vid
   // årsskiftet. Krävs eftersom källbokföring (t.ex. importerad SIE) gör
   // löpande momsombokningar som nollar ut 2611/2641 långt innan bokslutet -
