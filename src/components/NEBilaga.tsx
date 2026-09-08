@@ -181,7 +181,10 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
                   <span className="whitespace-nowrap">+{fmt(neData.insattningar)}</span>
                 </div>
                 <div className="flex flex-wrap justify-between gap-x-3 text-orange-600 italic">
-                  <span>Privata uttag (2013):</span>
+                  <span className="flex items-center flex-wrap">
+                    Uttag & skatteavräkning (2012/2013):
+                    <Tooltip text="Omfattar privata uttag på 2013 samt skatter och avgifter som bokats via konto 2012. Båda minskar eget kapital." />
+                  </span>
                   <span className="whitespace-nowrap">{fmt(-Math.abs(neData.uttag ?? 0))}</span>
                 </div>
               </div>

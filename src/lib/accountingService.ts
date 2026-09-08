@@ -604,7 +604,7 @@ export async function getNEData(year: number) {
 
   const { R1, R2, R5, R6, R7, R8, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
 
-  // B10 är kumulativt (steg 3 av carry-forward-arbetet): 2010/2013/2018/2019
+  // B10 är kumulativt: 2010/2012/2013/2018/2019
   // läses nu från balanceSheetBalances (kumulativt sedan bokföringens start)
   // istället för balances (årsvist), och resultat-termen kommer från
   // getCumulativeResultat(year) - summan av VARJE års resultat sedan start -
@@ -628,11 +628,27 @@ export async function getNEData(year: number) {
   const kumulativtEgetKapitalStart =
     -(balanceSheetBalances['2010'] || 0) - (balanceSheetBalances['2019'] || 0)
   const kumulativInsattningar = Math.max(0, -(balanceSheetBalances['2018'] || 0))
-  const kumulativUttag = Math.max(0, balanceSheetBalances['2013'] || 0)
+  const kumulativUttag2013 = Math.max(0, balanceSheetBalances['2013'] || 0)
+
+  // 2012 = Avräkning för skatter och avgifter i enskild firma.
+  // I SoloLedgers standardkategori bokas en utbetalning från företagsbanken
+  // som DEBET 2012 / KREDIT 1930. I vår debit-minus-credit-konvention blir
+  // därför ett betalt privat skattebelopp POSITIVT på 2012 och ska minska
+  // eget kapital på samma sätt som ett eget uttag.
+  //
+  // Vi klipper INTE 2012 till >= 0: ett kreditsaldo (t.ex. återbetalning)
+  // ska gå åt motsatt håll och öka eget kapital. På så sätt bevaras även
+  // balansidentiteten istället för att en motpost "försvinner".
+  const kumulativSkatteavrakning2012 = balanceSheetBalances['2012'] || 0
+
   const cumulativeResult = await getCumulativeResultat(year)
 
   const IB_kapital = kumulativtEgetKapitalStart
-  const uttag = kumulativUttag
+  // Behåll ett enda "uttag"-fält till NE-komponenten, men låt det nu omfatta
+  // både vanliga privata uttag (2013) och skatteavräkning (2012).
+  const uttag = Math.round(
+    (kumulativUttag2013 + kumulativSkatteavrakning2012) * 100
+  ) / 100
   const insattningar = kumulativInsattningar
   const B10_total = Math.round(
     (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
