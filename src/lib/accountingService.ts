@@ -405,142 +405,25 @@ export async function deleteTransaction(id: string) {
 }
 
 export async function createCorrectionTransaction(originalTxId: string): Promise<number> {
-  const userId = await getUserId()
-  const today = new Date().toISOString().split('T')[0]
+  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
-  // SÄKERHETSBÄLTE: Hämta originaltransaktionen och kräv att den tillhör den inloggade
-  const { data: originalTx, error: txError } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('id', originalTxId)
-    .eq('user_id', userId)
-    .single()
-  if (txError || !originalTx) throw new Error("Kunde inte hämta originaltransaktionen.")
+  // Hela korrigeringsflödet sker nu atomärt i databasen:
+  // korrigeringstransaktion + ver_nr + spegelvända journalrader och,
+  // vid periodisering, även korrigering av vändningsverifikationen.
+  // Om något steg misslyckas rullas ALLT tillbaka.
+  const { data, error } = await supabase.rpc('create_correction_transaction_atomic', {
+    p_original_tx_id: originalTxId,
+  })
 
-  // Korrigeringen får aldrig dateras före originalverifikationen. Normalfallet
-  // (originalet ligger bakåt i tiden) ger dagens datum, precis som tidigare.
-  // Om originalet av misstag ligger framåt i tiden (t.ex. felskriven framtida
-  // datering) används istället originalets datum, så korrigeringen aldrig
-  // hamnar kronologiskt före det den korrigerar.
-  const correctionDate = today > originalTx.date ? today : originalTx.date
-
-  // Säkerställ att ÅRET FÖR DEN FAKTISKA KORRIGERINGSDATERINGEN är öppet -
-  // inte nödvändigtvis dagens år, om originalet låg framåt i tiden.
-  await assertYearOpen(correctionDate)
-
-  // SÄKERHETSBÄLTE: Hämta originalets journalposter och kräv att de tillhör den inloggade
-  const { data: originalEntries, error: entriesError } = await supabase
-    .from('journal_entries')
-    .select('*')
-    .eq('transaction_id', originalTxId)
-    .eq('user_id', userId)
-  if (entriesError || !originalEntries?.length) throw new Error("Kunde inte hämta originalbokföringen.")
-
-  const originalVerNr = originalEntries[0].ver_nr
-
-  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
-  const { data: verNrData3, error: verNrError3 } = await supabase
-    .rpc('get_next_ver_nr', { p_user_id: userId })
-  if (verNrError3 || verNrData3 === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError3?.message)
-  const nextVerNr = verNrData3 as number
-
-  // Skapa korrigeringstransaktionen
-  const { data: corrTx, error: corrTxError } = await supabase
-    .from('transactions')
-    .insert([{
-      date: correctionDate,
-      description: `↩ Korrigering av VER-${originalVerNr} (${originalTx.description})`,
-      amount: originalTx.amount,
-      type: originalTx.type,
-      vat_rate: originalTx.vat_rate,
-      booked: true,
-      is_correction: true,
-      corrects_ver_nr: originalVerNr,
-      user_id: userId,
-    }])
-    .select()
-    .single()
-  if (corrTxError || !corrTx) throw new Error("Kunde inte skapa korrigeringstransaktion: " + corrTxError?.message)
-
-  // Skapa spegelvända journalposter (debet↔kredit byter plats)
-  const correctionEntries = originalEntries.map((e: any) => ({
-    transaction_id: corrTx.id,
-    ver_nr: nextVerNr,
-    account_number: e.account_number,
-    debit: e.credit,
-    credit: e.debit,
-    description: `Korrigering av VER-${originalVerNr}: ${e.description}`,
-    date: correctionDate,
-    user_id: userId,
-  }))
-
-  const { error: insertError } = await supabase.from('journal_entries').insert(correctionEntries)
-  if (insertError) throw new Error("Kunde inte skapa korrigeringsposter: " + insertError.message)
-
-  // ── PERIODISERINGSKORRIGERING ──────────────────────────────────────────────
-  if (originalTx.periodization_group_id && !originalTx.is_periodized_reversal) {
-    const { data: reversalTx, error: reversalTxError } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('periodization_group_id', originalTx.periodization_group_id)
-      .eq('is_periodized_reversal', true)
-      .eq('user_id', userId)
-      .single()
-
-    if (!reversalTxError && reversalTx) {
-      await assertYearOpen(reversalTx.date)
-
-      const { data: reversalEntries, error: reversalEntriesError } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .eq('transaction_id', reversalTx.id)
-        .eq('user_id', userId)
-      if (reversalEntriesError || !reversalEntries?.length)
-        throw new Error("Kunde inte hämta vändningsverifikatets journalposter.")
-
-      const reversalVerNr = reversalEntries[0].ver_nr
-
-      const { data: verNrData4, error: verNrError4 } = await supabase
-        .rpc('get_next_ver_nr', { p_user_id: userId })
-      if (verNrError4 || verNrData4 === null) throw new Error('Kunde inte generera ver_nr för reversalkorrigering: ' + verNrError4?.message)
-      const nextVerNr2 = verNrData4 as number
-
-      const { data: corrReversalTx, error: corrReversalTxError } = await supabase
-        .from('transactions')
-        .insert([{
-          date: reversalTx.date,
-          description: `↩ Korrigering av VER-${reversalVerNr} (${reversalTx.description})`,
-          amount: reversalTx.amount,
-          type: reversalTx.type,
-          vat_rate: reversalTx.vat_rate,
-          booked: true,
-          is_correction: true,
-          corrects_ver_nr: reversalVerNr,
-          user_id: userId,
-        }])
-        .select()
-        .single()
-      if (corrReversalTxError || !corrReversalTx)
-        throw new Error("Kunde inte skapa korrigering av vändningsverifikat: " + corrReversalTxError?.message)
-
-      const corrReversalEntries = reversalEntries.map((e: any) => ({
-        transaction_id: corrReversalTx.id,
-        ver_nr: nextVerNr2,
-        account_number: e.account_number,
-        debit: e.credit,
-        credit: e.debit,
-        description: `Korrigering av VER-${reversalVerNr}: ${e.description}`,
-        date: reversalTx.date,
-        user_id: userId,
-      }))
-
-      const { error: insertReversalError } = await supabase.from('journal_entries').insert(corrReversalEntries)
-      if (insertReversalError)
-        throw new Error("Kunde inte skapa korrigeringsposter för vändningsverifikat: " + insertReversalError.message)
-    }
+  if (error) {
+    throw new Error('Korrigeringen misslyckades och rullades tillbaka: ' + error.message)
   }
 
-  return nextVerNr
+  if (!data?.success) {
+    throw new Error('Korrigeringen misslyckades av okänd anledning.')
+  }
+
+  return Number(data.ver_nr)
 }
 
 /**
