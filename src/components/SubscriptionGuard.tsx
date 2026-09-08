@@ -14,26 +14,16 @@ interface GuardProps {
 }
 
 export default function SubscriptionGuard({ user, profile, requiredLevel, fallback, children }: GuardProps) {
-  // Vänta tills vi vet om användaren är inloggad.
-  // Viktigt: kolla BARA user här, inte profile — profile kan vara null
-  // temporärt medan den laddas (async delay), och det ska inte blockera rendering.
   if (!user) {
     return null
   }
 
-  // Om profile inte laddat klart ännu: behandla som free-användare.
-  // Detta är korrekt UX — en betalande användare som ser paywall i 200ms
-  // är bättre än en tom skärm. Profile laddas alltid in getSession-blocket
-  // INNAN authLoading sätts till false, så i praktiken är profile alltid
-  // satt när vi når den här komponenten. Fallbacken är ett extra säkerhetsnät.
   const userProfile = profile ?? { subscription_type: 'free', subscription_end: null }
 
-  // Admin har alltid tillgång till allt
   if (userProfile.subscription_type === 'admin') {
     return <>{children}</>
   }
 
-  // Om nivån kräver administratör men användaren saknar det
   if (requiredLevel === 'admin' && userProfile.subscription_type !== 'admin') {
     return (
       <div className="p-6 sm:p-8 text-center bg-red-50 rounded-[2rem] border border-red-200">
@@ -42,7 +32,6 @@ export default function SubscriptionGuard({ user, profile, requiredLevel, fallba
     )
   }
 
-  // Dubbelriktad tidskontroll (säkrar upp om webhooks laggar eller missas)
   const isActive =
     (userProfile.subscription_type === 'paid' || userProfile.subscription_type === 'trial') &&
     (!userProfile.subscription_end || new Date(userProfile.subscription_end).getTime() > Date.now())

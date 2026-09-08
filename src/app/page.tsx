@@ -23,7 +23,7 @@ import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Paywall from '@/components/Paywall'
 import AdminPanel from '@/components/AdminPanel'
 
-import { canCreateTransaction, FREE_TRANSACTION_LIMIT } from '@/lib/subscriptionLimits'
+import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 
@@ -66,6 +66,7 @@ export default function Home() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
   const [showLimitPaywall, setShowLimitPaywall] = useState(false)
+  const [freeUsageCount, setFreeUsageCount] = useState(0)
 
   // SSR-säkert: alltid 45 vid server-render, synkas med localStorage i useEffect nedan
   const [taxRate, setTaxRate] = useState(45)
@@ -107,6 +108,37 @@ export default function Home() {
   }, [])
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
+
+  async function refreshFreeUsageCount(): Promise<number> {
+    if (!user?.id) {
+      setFreeUsageCount(0)
+      return 0
+    }
+
+    const count = await getFreeTransactionUsage(user.id)
+    setFreeUsageCount(count)
+    return count
+  }
+
+  // Gratisgränsen gäller TOTALT över alla år, inte bara valt räkenskapsår.
+  useEffect(() => {
+    let cancelled = false
+
+    if (!user?.id) {
+      setFreeUsageCount(0)
+      return
+    }
+
+    getFreeTransactionUsage(user.id)
+      .then(count => {
+        if (!cancelled) setFreeUsageCount(count)
+      })
+      .catch(err => console.error('Kunde inte läsa gratisanvändning:', err))
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   // Lås bakgrundsscrollen när betalväggen visas
   useEffect(() => {
@@ -182,18 +214,27 @@ export default function Home() {
     e.preventDefault()
     if (isYearLocked) return
 
-    if (!editingId) {
-      const allowed = canCreateTransaction(profile ?? { subscription_type: 'free', subscription_end: null }, transactions.length)
-      if (!allowed) {
-        setShowLimitPaywall(true)
-        return
-      }
-    }
-
     if (submitInFlightRef.current) return
     submitInFlightRef.current = true
     setUploading(true)
+
     try {
+      if (!editingId) {
+        const currentUsage = await refreshFreeUsageCount()
+        // En vanlig bokning skapar 1 VER. En periodisering skapar 2 riktiga VER
+        // (ursprungsverifikation + framtida vändningsverifikation).
+        const verificationsToCreate = periodisera ? 2 : 1
+        const allowed = canCreateTransactions(
+          profile ?? { subscription_type: 'free', subscription_end: null },
+          currentUsage,
+          verificationsToCreate
+        )
+
+        if (!allowed) {
+          setShowLimitPaywall(true)
+          return
+        }
+      }
       const targetYear = parseInt(formData.date.slice(0, 4))
       const isTargetYearClosed = await isYearClosed(targetYear)
       if (isTargetYearClosed) {
@@ -257,6 +298,7 @@ export default function Home() {
       }))
       setPeriodisera(false)
       await refreshData()
+      await refreshFreeUsageCount()
     } catch (err: any) {
       console.error('Fel vid bokföring:', err)
       alert('Fel: ' + err.message)
@@ -623,6 +665,13 @@ export default function Home() {
         isOpen={showSieImport}
         onClose={() => setShowSieImport(false)}
         refreshData={refreshData}
+        userId={user.id}
+        profile={profile}
+        onLimitReached={() => {
+          setShowSieImport(false)
+          setShowLimitPaywall(true)
+        }}
+        onUsageChanged={async () => { await refreshFreeUsageCount() }}
       />
 
 <div className="flex flex-col gap-4 mb-8 px-4 sm:px-6 lg:px-8 md:flex-row md:justify-between md:items-center">
@@ -640,7 +689,7 @@ export default function Home() {
                   (Gratisplan — Uppgradera för obegränsat)
                 </span>
                 <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm w-fit">
-                  📊 {transactions.length} / {FREE_TRANSACTION_LIMIT} transaktioner använda
+                  📊 {freeUsageCount} / {FREE_TRANSACTION_LIMIT} transaktioner använda
                 </span>
               </div>
             )}

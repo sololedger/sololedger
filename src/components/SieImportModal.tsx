@@ -4,16 +4,33 @@ import { decodeSieBuffer, parseSieFile } from '@/lib/sieParser'
 import type { SieParseResult } from '@/lib/sieParser'
 import { importSieBatch, SieImportError } from '@/lib/sieImport'
 import type { ImportSieBatchResult } from '@/lib/sieImport'
+import { canCreateTransactions, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 
 interface SieImportModalProps {
   isOpen: boolean
   onClose: () => void
   refreshData: () => void | Promise<void>
+  userId: string
+  profile: {
+    subscription_type: string
+    subscription_end: string | null
+  } | null
+  onLimitReached: () => void
+  onUsageChanged: () => void | Promise<void>
 }
 
 type Step = 'select' | 'parsing' | 'preview' | 'importing' | 'done'
 
-export default function SieImportModal({ isOpen, onClose, refreshData }: SieImportModalProps) {
+export default function SieImportModal({
+  isOpen,
+  onClose,
+  refreshData,
+  userId,
+  profile,
+  onLimitReached,
+  onUsageChanged
+}: SieImportModalProps) {
+  
   const [step, setStep] = useState<Step>('select')
   const [isDragging, setIsDragging] = useState(false)
   const [filename, setFilename] = useState<string>('')
@@ -79,10 +96,28 @@ export default function SieImportModal({ isOpen, onClose, refreshData }: SieImpo
     setStep('importing')
     setImportErrorMessage(null)
     setImportErrorIsInfo(false)
+
     try {
+      // Gratisgränsen gäller totalt över alla år.
+      // Varje #VER i SIE-filen räknas som en riktig verifikation.
+      // #IB räknas inte, eftersom den skapas separat som teknisk ingående balans.
+      const currentUsage = await getFreeTransactionUsage(userId)
+      const allowed = canCreateTransactions(
+        profile ?? { subscription_type: 'free', subscription_end: null },
+        currentUsage,
+        parseResult.verificationCount
+      )
+
+      if (!allowed) {
+        reset()
+        onLimitReached()
+        return
+      }
+
       const result = await importSieBatch(parseResult, filename)
       setImportResult(result)
       await refreshData()
+      await onUsageChanged()
       setStep('done')
     } catch (err) {
       if (err instanceof SieImportError) {
