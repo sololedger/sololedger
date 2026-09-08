@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, deleteTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
@@ -71,6 +71,10 @@ export default function Home() {
   const [taxRate, setTaxRate] = useState(45)
 
   const [uploading, setUploading] = useState(false)
+  // Synchronous guard: React-state hinner inte alltid disable:a knappen mellan
+  // två extremt snabba submit-events. Ref:en sätts direkt och stoppar ett andra
+  // anrop innan något async-arbete eller databasanrop startas.
+  const submitInFlightRef = useRef(false)
   const [showSieImport, setShowSieImport] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
@@ -137,7 +141,7 @@ export default function Home() {
       // (codepage 437) - inte UTF-8, som new Blob([content]) annars skulle
       // ge implicit. Konverteringen sker HELT separat i src/lib/cp437.ts.
       const bytes = encodeCP437(content)
-      const blob = new Blob([bytes], { type: 'application/octet-stream' })
+      const blob = new Blob( [bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], { type: 'application/octet-stream' } )
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -186,6 +190,8 @@ export default function Home() {
       }
     }
 
+    if (submitInFlightRef.current) return
+    submitInFlightRef.current = true
     setUploading(true)
     try {
       const targetYear = parseInt(formData.date.slice(0, 4))
@@ -228,21 +234,16 @@ export default function Home() {
             file_url: fileUrl || null,
           })
         } else {
-          const { data: newTx, error: insertError } = await supabase
-            .from('transactions')
-            .insert([{
-              date: formData.date,
-              description: formData.description,
-              amount: Number(formData.amount),
-              type: formData.type,
-              vat_rate: formData.vatRate,
-              file_url: fileUrl || null,
-              user_id: user.id
-            }])
-            .select()
-            .single()
-          if (insertError) throw insertError
-          await bookTransaction(newTx)
+          // Vanlig bokföring sker i ett enda atomärt RPC-anrop.
+          // Frontend skapar inte längre först en "halv" transaction.
+          await bookTransaction({
+            date: formData.date,
+            description: formData.description,
+            amount: Number(formData.amount),
+            type: formData.type,
+            vat_rate: formData.vatRate,
+            file_url: fileUrl || null,
+          })
         }
       }
 
@@ -260,6 +261,7 @@ export default function Home() {
       console.error('Fel vid bokföring:', err)
       alert('Fel: ' + err.message)
     } finally {
+      submitInFlightRef.current = false
       setUploading(false)
     }
   }

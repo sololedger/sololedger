@@ -18,127 +18,37 @@ async function assertYearOpen(date: string) {
 }
 
 export async function bookTransaction(tx: any) {
-  const userId = await getUserId()
+  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
-  // ── SÄKERHETSBÄLTE: Förhindra dubbelbokning vid dubbelklick ──
-  const { data: existingTx } = await supabase
-    .from('transactions')
-    .select('booked')
-    .eq('id', tx.id)
-    .eq('user_id', userId)
-    .single()
-  if (existingTx?.booked) {
-    throw new Error('Transaktionen är redan bokförd. Dubbelbokning förhindrad.')
+  // Hela den vanliga bokningen sker nu atomärt i databasen:
+  // transaction + ver_nr + journal_entries skapas i samma PostgreSQL-transaktion.
+  // Om något steg misslyckas rullas allt tillbaka.
+  const payload = {
+    date: tx.date,
+    description: tx.description,
+    amount: tx.amount,
+    type: tx.type,
+    vat_rate: tx.vat_rate ?? 0,
+    file_url: tx.file_url ?? null,
   }
 
-  // Säkerställ att året är öppet innan bokföring sker
-  await assertYearOpen(tx.date)
+  const { data, error } = await supabase.rpc('book_transaction_atomic', {
+    p_payload: payload,
+  })
 
-  // SÄKERHETSBÄLTE: Filtrera kontohämtning på användarens eget ID
-  const { data: acc, error: accError } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('id', tx.type)
-    .eq('user_id', userId)
-    .single()
-  if (accError || !acc) throw new Error("Konto saknas eller tillhör inte användaren: " + tx.type)
-
-  const vatRate = tx.vat_rate || 0
-  const vatAmount = vatRate > 0
-    ? Math.round((tx.amount - (tx.amount / (1 + vatRate / 100))) * 100) / 100
-    : 0
-  const netAmount = Math.round((tx.amount - vatAmount) * 100) / 100
-
-  // Hämta nästa ver_nr atomärt via databas-sekvens (race-condition-säker)
-  const { data: verNrData, error: verNrError } = await supabase
-    .rpc('get_next_ver_nr', { p_user_id: userId })
-  if (verNrError || verNrData === null) throw new Error('Kunde inte generera ver_nr: ' + verNrError?.message)
-  const nextVerNr = verNrData as number
-
-  const isIncome = acc.credit_account?.startsWith('3')
-  let entries: any[]
-
-  if (isIncome) {
-    entries = [
-      {
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: acc.debit_account,
-        debit: tx.amount,
-        credit: 0,
-        description: tx.description,
-        date: tx.date,
-        user_id: userId
-      },
-      {
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: acc.credit_account,
-        debit: 0,
-        credit: netAmount,
-        description: tx.description,
-        date: tx.date,
-        user_id: userId
-      }
-    ]
-    if (vatAmount > 0) {
-      entries.push({
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: '2611',
-        debit: 0,
-        credit: vatAmount,
-        description: `Utgående moms på ${tx.description}`,
-        date: tx.date,
-        user_id: userId
-      })
-    }
-  } else {
-    entries = [
-      {
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: acc.debit_account,
-        debit: netAmount,
-        credit: 0,
-        description: tx.description,
-        date: tx.date,
-        user_id: userId
-      },
-      {
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: acc.credit_account,
-        debit: 0,
-        credit: tx.amount,
-        description: tx.description,
-        date: tx.date,
-        user_id: userId
-      }
-    ]
-    if (vatAmount > 0) {
-      entries.push({
-        transaction_id: tx.id,
-        ver_nr: nextVerNr,
-        account_number: '2641',
-        debit: vatAmount,
-        credit: 0,
-        description: `Ingående moms på ${tx.description}`,
-        date: tx.date,
-        user_id: userId
-      })
-    }
+  if (error) {
+    throw new Error('Bokföringen misslyckades och rullades tillbaka: ' + error.message)
   }
 
-  const { error: insertError } = await supabase.from('journal_entries').insert(entries)
-  if (insertError) throw insertError
+  if (!data?.success) {
+    throw new Error('Bokföringen misslyckades av okänd anledning.')
+  }
 
-  const { error: updateError } = await supabase
-    .from('transactions')
-    .update({ booked: true })
-    .eq('id', tx.id)
-    .eq('user_id', userId)
-  if (updateError) throw updateError
+  return {
+    success: true,
+    transactionId: data.transaction_id as string,
+    verNr: Number(data.ver_nr),
+  }
 }
 
 // BACKEND-SKYDD FÖR REDIGERING: Helt skyddad mot payload-manipulation och otillåtna ändringar
