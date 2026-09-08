@@ -67,17 +67,18 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
   const r14Color = R14 > 0 ? 'text-green-600' : R14 < 0 ? 'text-red-500' : 'text-gray-400'
   const r14Bg   = R14 > 0 ? 'bg-green-50 border-green-200' : R14 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
 
-// Balanskontroll — triggar bara när bank är positivt (pengar inne).
-  // Vid negativt resultat/bank är matematiken korrekt och ska ej varna.
+  // Balanskontroll ska alltid köras, även om bankkontot är 0 eller negativt.
+  // Ett negativt banksaldo är fortfarande en del av balansräkningen och får
+  // inte dölja en faktisk obalans.
   const bank = neData.bank ?? 0
   const b10 = neData.B10_total ?? 0
   const b16 = neData.B16 ?? 0
-  const b13_periodiserat = neData.B13_forutbetalda ?? 0 // <-- Hämtar din periodisering (konto 1790)
+  const b13_periodiserat = neData.B13_forutbetalda ?? 0
 
-  // Plussa ihop bank + periodisering på tillgångssidan innan skulder/kapital dras av
-  const balansDiff = bank > 0
-    ? Math.round(((bank + b13_periodiserat) - (b10 + b16)) * 100) / 100
-    : 0
+  // Tillgångar minus eget kapital/skulder.
+  const balansDiff = Math.round(
+    ((bank + b13_periodiserat) - (b10 + b16)) * 100
+  ) / 100
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
