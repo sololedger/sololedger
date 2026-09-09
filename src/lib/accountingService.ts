@@ -618,52 +618,50 @@ export async function getNEData(year: number) {
 
   const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
 
-  // B10 är kumulativt: 2010/2012/2013/2018/2019
-  // läses nu från balanceSheetBalances (kumulativt sedan bokföringens start)
-  // istället för balances (årsvist), och resultat-termen kommer från
-  // getCumulativeResultat(year) - summan av VARJE års resultat sedan start -
-  // inte den årsvisa "bokfRes" ovan (som fortfarande används oförändrat för
-  // R11/R14/bokfortResultat, se return-satsen nedan).
+  // B10 är kumulativt och ska följa K1:s eget-kapital-konton för
+  // enskild näringsverksamhet. BAS K1 placerar 2010, 2011, 2012, 2013,
+  // 2014, 2017 och 2019 i B10. SoloLedger använder dessutom 2018
+  // ("Övriga egna insättningar"), som i nuvarande BAS också tillhör
+  // eget-kapitalgruppen.
   //
-  // Konto 2010 är kreditnormalt (klass 2, precis som 2018 och 2650 ovan/nedan) -
-  // ett verkligt positivt eget kapital ger ett NEGATIVT rått värde i
-  // debet-minus-kredit-konventionen. Utan tecken-vändningen nedan skulle ett
-  // företag med t.ex. 50 000 kr i ingående kapital visa IB_kapital = -50 000,
-  // vilket halverar B10 fel håll (differens = 2x kapitalbeloppet). Konto 2019
-  // ("Årets resultat") behandlas identiskt - kan förekomma via en importerad
-  // öppningsbalans och representerar då samma sak som 2010: ackumulerat,
-  // ej ännu omfört resultat. Inget eget UI-fält för 2019 i detta steg -
-  // IB_kapital representerar summan av båda kontona.
+  // Vi behåller den redan verifierade carry-forward-modellen:
+  //   kapital/start + kumulativt bokfört resultat + insättningar - uttag.
+  // Skillnaden här är att alla relevanta K1-konton nu fångas upp.
   //
-  // OBS: till skillnad från insattningar/avräkningsskuld nedan/ovan klipper vi
-  // INTE till 0 vid "fel" riktning på eget kapital - ett företag kan legitimt
-  // ha NEGATIVT eget kapital (efter förlustår), och det ska synas som ett
-  // negativt IB_kapital, inte döljas som 0.
+  // Viktigt: vi klipper inte längre uttag/insättningar till >= 0. En kredit
+  // på ett uttagskonto eller en debet på ett insättningskonto kan vara en
+  // legitim rättning/återföring och ska då påverka B10 åt motsatt håll.
+  // Det bevarar även balansidentiteten.
   const kumulativtEgetKapitalStart =
-    -(balanceSheetBalances['2010'] || 0) - (balanceSheetBalances['2019'] || 0)
-  const kumulativInsattningar = Math.max(0, -(balanceSheetBalances['2018'] || 0))
-  const kumulativUttag2013 = Math.max(0, balanceSheetBalances['2013'] || 0)
+    -(balanceSheetBalances['2010'] || 0) -
+    (balanceSheetBalances['2019'] || 0)
 
-  // 2012 = Avräkning för skatter och avgifter i enskild firma.
-  // I SoloLedgers standardkategori bokas en utbetalning från företagsbanken
-  // som DEBET 2012 / KREDIT 1930. I vår debit-minus-credit-konvention blir
-  // därför ett betalt privat skattebelopp POSITIVT på 2012 och ska minska
-  // eget kapital på samma sätt som ett eget uttag.
-  //
-  // Vi klipper INTE 2012 till >= 0: ett kreditsaldo (t.ex. återbetalning)
-  // ska gå åt motsatt håll och öka eget kapital. På så sätt bevaras även
-  // balansidentiteten istället för att en motpost "försvinner".
-  const kumulativSkatteavrakning2012 = balanceSheetBalances['2012'] || 0
+  // Uttagskonton i K1:
+  // 2011 Egna varuuttag
+  // 2012 Avräkning för skatter och avgifter
+  // 2013 Övriga egna uttag
+  // 2014 Uttag förmåner
+  const kumulativaUttag =
+    (balanceSheetBalances['2011'] || 0) +
+    (balanceSheetBalances['2012'] || 0) +
+    (balanceSheetBalances['2013'] || 0) +
+    (balanceSheetBalances['2014'] || 0)
+
+  // Insättningskonton:
+  // 2017 Egna insättningar / Årets kapitaltillskott (K1/BAS)
+  // 2018 Övriga egna insättningar (SoloLedgers standard och nuvarande BAS)
+  // Båda är kreditnormala i vår debet-minus-kredit-konvention och vänds därför.
+  const kumulativaInsattningar =
+    -(
+      (balanceSheetBalances['2017'] || 0) +
+      (balanceSheetBalances['2018'] || 0)
+    )
 
   const cumulativeResult = await getCumulativeResultat(year)
 
-  const IB_kapital = kumulativtEgetKapitalStart
-  // Behåll ett enda "uttag"-fält till NE-komponenten, men låt det nu omfatta
-  // både vanliga privata uttag (2013) och skatteavräkning (2012).
-  const uttag = Math.round(
-    (kumulativUttag2013 + kumulativSkatteavrakning2012) * 100
-  ) / 100
-  const insattningar = kumulativInsattningar
+  const IB_kapital = Math.round(kumulativtEgetKapitalStart * 100) / 100
+  const uttag = Math.round(kumulativaUttag * 100) / 100
+  const insattningar = Math.round(kumulativaInsattningar * 100) / 100
   const B10_total = Math.round(
     (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
   ) / 100
