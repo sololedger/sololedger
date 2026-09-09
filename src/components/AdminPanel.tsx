@@ -18,6 +18,8 @@ interface DryRunResult {
   counts: {
     transactions: number
     journal_entries: number
+    favorites: number
+    import_batches: number
     accounts: number
     closed_years: number
     ver_nr_sequences: number
@@ -56,34 +58,48 @@ export default function AdminPanel() {
   async function handleDryRun(user: UserRow) {
     setDryRun(null)
     setMessage(null)
-    try {
-      const [
-        { count: txCount },
-        { count: journalCount },
-        { count: accountCount },
-        { count: closedCount },
-        { count: verCount },
-      ] = await Promise.all([
-        supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('journal_entries').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('accounts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('closed_years').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('ver_nr_sequences').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-      ])
 
-      const { data: files } = await supabase.storage.from('attachments').list(user.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Ingen giltig inloggningssession hittades')
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'dry-run',
+            userId: user.id,
+          }),
+        }
+      )
+
+      const json = await res.json()
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Okänt fel')
+      }
 
       setDryRun({
-        userId: user.id,
-        email: user.email,
+        userId: json.userId,
+        email: json.email,
         counts: {
-          transactions: txCount || 0,
-          journal_entries: journalCount || 0,
-          accounts: accountCount || 0,
-          closed_years: closedCount || 0,
-          ver_nr_sequences: verCount || 0,
-          attachments: files?.length || 0,
-        }
+          transactions: json.counts?.transactions ?? 0,
+          journal_entries: json.counts?.journal_entries ?? 0,
+          favorites: json.counts?.favorites ?? 0,
+          import_batches: json.counts?.import_batches ?? 0,
+          accounts: json.counts?.accounts ?? 0,
+          closed_years: json.counts?.closed_years ?? 0,
+          ver_nr_sequences: json.counts?.ver_nr_sequences ?? 0,
+          attachments: json.counts?.attachments ?? 0,
+        },
       })
     } catch (err: any) {
       setMessage({ text: 'Torrkörning misslyckades: ' + err.message, type: 'error' })
@@ -104,7 +120,7 @@ export default function AdminPanel() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ userId: dryRun.userId }),
+          body: JSON.stringify({ action: 'delete', userId: dryRun.userId }),
         }
       )
       const json = await res.json()
@@ -181,6 +197,8 @@ export default function AdminPanel() {
                   <ul className="text-[11px] text-red-600 font-bold space-y-0.5 mb-3">
                     <li>• {dryRun.counts.transactions} transaktioner</li>
                     <li>• {dryRun.counts.journal_entries} journalposter</li>
+                    <li>• {dryRun.counts.favorites} favoriter</li>
+                    <li>• {dryRun.counts.import_batches} SIE-importer</li>
                     <li>• {dryRun.counts.accounts} konton</li>
                     <li>• {dryRun.counts.ver_nr_sequences} verifikationsnummer</li>
                     <li>• {dryRun.counts.closed_years} låsta år</li>
