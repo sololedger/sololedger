@@ -10,19 +10,18 @@ interface PaywallProps {
 const FEATURE_DESCRIPTIONS: Record<string, { icon: string; description: string; bullets: string[] }> = {
   'Momsrapport': {
     icon: '🧾',
-    description: 'Generera din momsrapport automatiskt och exportera den för inlämning till Skatteverket.',
-    bullets: ['Automatisk beräkning av ingående/utgående moms', 'Export till Skatteverket-format', 'Historik per period'],
+    description: 'Få en tydlig momsrapport baserad på din bokföring som underlag för momsdeklarationen.',
+    bullets: ['Automatisk beräkning av ingående och utgående moms', 'Tydligt underlag för momsdeklarationen', 'Historik per period'],
   },
   'NE-Bilaga': {
     icon: '📋',
-    description: 'Fyll i din NE-bilaga automatiskt baserat på årets bokföring.',
-    bullets: ['Förberäknade fält från din bokföring', 'Export som PDF', 'Stöd för flera räkenskapsår'],
+    description: 'Få ett NE-underlag sammanställt automatiskt utifrån din bokföring.',
+    bullets: ['Förberäknade R- och B-rutor från din bokföring', 'Balans- och resultatkontroll', 'Stöd för flera räkenskapsår'],
   },
-  // ✅ Lägger till en snygg beskrivning för din nya transaktionsspärr också!
   'Obegränsat antal transaktioner': {
     icon: '📊',
-    description: 'Du har nått gratisgränsen på 15 transaktioner. Uppgradera för att fortsätta bokföra obegränsat.',
-    bullets: ['Lås upp obegränsad bokföring direkt', 'Spara alla dina verifikationer säkert', 'Inga dolda avgifter eller bindningstider'],
+    description: 'Du har nått gratisgränsen på 15 bokföringsverifikationer. Uppgradera för att fortsätta bokföra utan denna gräns.',
+    bullets: ['Obegränsat antal bokföringsverifikationer', 'Fortsätt använda alla Premium-funktioner', 'Inga dolda avgifter eller bindningstider'],
   },
 }
 
@@ -67,9 +66,8 @@ export default function Paywall({ feature, user }: PaywallProps) {
           </ul>
         )}
 
-        {/* 🔥 Urgency-text för högre konvertering */}
         <p className="text-xs text-amber-600 font-bold mb-3">
-          ⚡️ Lås upp denna funktion och slipp det manuella arbetet direkt!
+          ⚡️ Lås upp funktionen och fortsätt arbeta direkt i SoloLedger!
         </p>
 
         {/* ✅ Vi skickar med user-objektet ner till knappen så den kan skicka ID:t till Stripe */}

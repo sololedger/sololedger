@@ -689,7 +689,7 @@ export default function Home() {
                   (Gratisplan — Uppgradera för obegränsat)
                 </span>
                 <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-full border border-amber-200 shadow-sm w-fit">
-                  📊 {freeUsageCount} / {FREE_TRANSACTION_LIMIT} transaktioner använda
+                  📊 {freeUsageCount} / {FREE_TRANSACTION_LIMIT} verifikationer använda
                 </span>
               </div>
             )}
