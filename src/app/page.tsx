@@ -832,6 +832,7 @@ export default function Home() {
           profile={profile} 
           onProfileUpdate={(updated) => setProfile(updated)} 
           onUpdatePassword={updatePassword}
+          onBookkeepingChanged={refreshData}
         />
       ) : activeTab === 'admin' && isAdmin ? (
         <AdminPanel />

@@ -7,14 +7,31 @@ interface Props {
   profile: any
   onProfileUpdate: (updated: any) => void
   onUpdatePassword: (newPassword: string) => Promise<{ success: true } | { success: false; error: string }>
+  onBookkeepingChanged?: () => Promise<void> | void
 }
 
-export default function ProfileSettings({ user, profile, onProfileUpdate, onUpdatePassword }: Props) {
+interface SieImportBatch {
+  id: string
+  filename: string
+  fiscal_year: number | null
+  status: string
+  verification_count: number
+  imported_count: number
+  completed_at: string | null
+  undone_at: string | null
+}
+
+export default function ProfileSettings({ user, profile, onProfileUpdate, onUpdatePassword, onBookkeepingChanged }: Props) {
   const [companyName, setCompanyName] = useState(profile?.company_name || '')
   const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [sieImports, setSieImports] = useState<SieImportBatch[]>([])
+  const [sieImportsLoading, setSieImportsLoading] = useState(true)
+  const [sieImportsError, setSieImportsError] = useState<string | null>(null)
+  const [undoingImportId, setUndoingImportId] = useState<string | null>(null)
+  const [sieUndoNotice, setSieUndoNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -26,6 +43,94 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
     if (profile?.company_name) setCompanyName(profile.company_name)
     if (profile?.org_nr) setOrgNr(profile.org_nr)
   }, [profile])
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSieImports([])
+      setSieImportsLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    async function loadSieImports() {
+      setSieImportsLoading(true)
+      setSieImportsError(null)
+
+      const { data, error } = await supabase
+        .from('import_batches')
+        .select('id, filename, fiscal_year, status, verification_count, imported_count, completed_at, undone_at')
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false, nullsFirst: false })
+
+      if (cancelled) return
+
+      if (error) {
+        setSieImports([])
+        setSieImportsError('Kunde inte ladda SIE-importhistoriken.')
+      } else {
+        setSieImports((data || []) as SieImportBatch[])
+      }
+
+      setSieImportsLoading(false)
+    }
+
+    loadSieImports()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+
+  async function handleUndoSieImport(item: SieImportBatch) {
+    if (item.status !== 'completed') return
+
+    const ok = window.confirm(
+      `Ångra SIE-importen "${item.filename}"?\n\n` +
+      `${item.imported_count ?? item.verification_count ?? 0} importerade verifikationer kommer att rättas automatiskt med KORRVER. ` +
+      `Originalverifikationerna ligger kvar för spårbarhet.\n\n` +
+      `Ångringen kan stoppas om räkenskapsåret är låst eller om någon importerad verifikation redan har korrigerats.`
+    )
+
+    if (!ok) return
+
+    setUndoingImportId(item.id)
+    setSieUndoNotice(null)
+
+    try {
+      const { data, error } = await supabase.rpc('undo_sie_import_atomic', {
+        p_import_batch_id: item.id,
+      })
+
+      if (error) throw error
+      if (!data?.success) throw new Error('Ångringen misslyckades av okänd anledning.')
+
+      setSieImports((current) =>
+        current.map((batch) =>
+          batch.id === item.id
+            ? { ...batch, status: 'undone', undone_at: data.undone_at ?? new Date().toISOString() }
+            : batch
+        )
+      )
+
+      // Uppdatera även bokföringsdata/NE/dashboard direkt så användaren
+      // slipper göra en hard refresh efter en lyckad SIE-ångring.
+      await onBookkeepingChanged?.()
+
+      setSieUndoNotice({
+        type: 'success',
+        text: `✓ Importen "${item.filename}" är ångrad. ${data.correction_count ?? 0} rättelseverifikationer skapades automatiskt.`,
+      })
+    } catch (err: any) {
+      setSieUndoNotice({
+        type: 'error',
+        text: err?.message || 'Kunde inte ångra SIE-importen.',
+      })
+    } finally {
+      setUndoingImportId(null)
+    }
+  }
 
   async function handleSave(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -190,6 +295,94 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
             {saving ? 'Sparar...' : saved ? '✓ Sparat!' : 'Spara ändringar'}
           </button>
         </form>
+      </div>
+
+      {/* SIE-importhistorik */}
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">SIE-importer</h2>
+            <p className="text-[10px] text-gray-400 font-bold mt-1">Historik över SIE-filer som importerats till ditt konto.</p>
+          </div>
+          {!sieImportsLoading && sieImports.length > 0 && (
+            <span className="shrink-0 text-[10px] font-black text-gray-500 bg-gray-100 rounded-full px-2.5 py-1">
+              {sieImports.length} {sieImports.length === 1 ? 'import' : 'importer'}
+            </span>
+          )}
+        </div>
+
+        {sieUndoNotice && (
+          <div className={`mb-4 rounded-xl px-4 py-3 text-[11px] font-bold ${
+            sieUndoNotice.type === 'error'
+              ? 'bg-red-50 text-red-600 border border-red-200'
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`}>
+            {sieUndoNotice.text}
+          </div>
+        )}
+
+        {sieImportsLoading ? (
+          <p className="text-[11px] text-gray-400 font-bold">Laddar importhistorik...</p>
+        ) : sieImportsError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[11px] font-bold text-red-600">
+            {sieImportsError}
+          </div>
+        ) : sieImports.length === 0 ? (
+          <div className="rounded-xl bg-gray-50 px-4 py-4">
+            <p className="text-[11px] font-bold text-gray-500">Inga SIE-filer har importerats ännu.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sieImports.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-gray-700 truncate" title={item.filename}>
+                      {item.filename || 'SIE-fil'}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] font-bold text-gray-400">
+                      <span>Räkenskapsår: {item.fiscal_year ?? '—'}</span>
+                      <span>{item.imported_count ?? item.verification_count ?? 0} verifikationer</span>
+                      {item.completed_at && (
+                        <span>Importerad {new Date(item.completed_at).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      )}
+                      {item.status === 'undone' && item.undone_at && (
+                        <span>Ångrad {new Date(item.undone_at).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2 self-start sm:self-auto">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                      item.status === 'completed'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : item.status === 'undone'
+                          ? 'bg-gray-100 text-gray-600 border-gray-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}>
+                      {item.status === 'completed' ? 'Importerad' : item.status === 'undone' ? 'Ångrad' : item.status}
+                    </span>
+
+                    {item.status === 'completed' && (
+                      <button
+                        type="button"
+                        onClick={() => handleUndoSieImport(item)}
+                        disabled={undoingImportId !== null}
+                        className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {undoingImportId === item.id ? 'Ångrar...' : 'Ångra import'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-[10px] text-gray-400 font-bold mt-4">
+          En ångrad import ligger kvar i historiken. SoloLedger skapar automatiska rättelseverifikationer i stället för att radera bokföring.
+        </p>
       </div>
 
       {/* Byt lösenord */}
