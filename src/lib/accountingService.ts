@@ -51,54 +51,24 @@ export async function bookTransaction(tx: any) {
   }
 }
 
-// BACKEND-SKYDD FÖR REDIGERING: Helt skyddad mot payload-manipulation och otillåtna ändringar
+// BACKEND-SKYDD FÖR REDIGERING:
+// All validering och själva UPDATE sker i databasen via en atomisk, server-side RPC.
+// Klienten får därför inte själv avgöra ägarskap, låsta år eller vilka fält som får ändras.
 export async function updateTransaction(txId: string, updates: any) {
-  const userId = await getUserId()
+  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
-  // Hämta befintlig transaktion från databasen
-  const { data: existing, error: fetchError } = await supabase
-    .from('transactions')
-    .select('date, user_id, booked')
-    .eq('id', txId)
-    .eq('user_id', userId)
-    .single()
+  const { data, error } = await supabase.rpc('update_transaction_safe', {
+    p_tx_id: txId,
+    p_updates: updates ?? {},
+  })
 
-  if (fetchError || !existing) throw new Error("Transaktionen hittades inte eller tillhör inte dig.")
-
-  // 1. Kontrollera att det befintliga datumets år är öppet
-  await assertYearOpen(existing.date)
-  
-  // 2. Kontrollera att det nya önskade datumets år också är öppet (om datumet ändras)
-  if (updates.date) {
-    await assertYearOpen(updates.date)
+  if (error) {
+    throw new Error('Kunde inte uppdatera transaktionen: ' + error.message)
   }
 
-  // 3. REVISIONSKONTROLL (GPT-5): Om transaktionen redan är bokförd, tillåt INTE ändring av ekonomisk data
-  if (existing.booked && (
-    updates.amount !== undefined ||
-    updates.type !== undefined ||
-    updates.vat_rate !== undefined
-  )) {
-    throw new Error("Bokförda och låsta transaktioner får inte ändras i belopp, kategori eller moms.")
+  if (!data?.success) {
+    throw new Error('Kunde inte uppdatera transaktionen av okänd anledning.')
   }
-
-  // 4. WHITELISTING PAYLOAD (GPT-5): Filtrera bort eventuellt skadliga fält som injicerats (t.ex. user_id eller booked)
-  const safeUpdates: any = {}
-  if (updates.date !== undefined) safeUpdates.date = updates.date
-  if (updates.description !== undefined) safeUpdates.description = updates.description
-  if (updates.amount !== undefined) safeUpdates.amount = updates.amount
-  if (updates.type !== undefined) safeUpdates.type = updates.type
-  if (updates.vat_rate !== undefined) safeUpdates.vat_rate = updates.vat_rate
-  if (updates.file_url !== undefined) safeUpdates.file_url = updates.file_url
-
-  // Utför den säkra uppdateringen
-  const { error: updateError } = await supabase
-    .from('transactions')
-    .update(safeUpdates)
-    .eq('id', txId)
-    .eq('user_id', userId)
-
-  if (updateError) throw updateError
 }
 
 export async function getAccountBalances(year: number) {
