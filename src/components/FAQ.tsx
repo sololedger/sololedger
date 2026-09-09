@@ -41,37 +41,32 @@ export default function FAQ() {
           Hjälp & FAQ
         </h2>
         <p className="text-sm text-gray-400 font-medium mb-10 border-b border-gray-100 pb-6">
-          SoloLedger — guiden för dig som driver enskild firma
+          SoloLedger — för dig som driver enskild firma utan anställda
         </p>
 
         <div className="space-y-10">
 
-          {/* IB */}
+          {/* NYTT ÅR / BALANSER */}
           <Section
             icon="🚀"
             iconColor="text-emerald-500"
-            title="Nytt räkenskapsår & Ingående Balans (IB)"
+            title="Nytt räkenskapsår & ingående balanser"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Varje nytt year måste balansräkningen föras vidare från föregående year.
-                  Du gör detta genom <span className="font-bold text-gray-800">en enda manuell bokföringsrad</span>.
+                  När du går vidare till ett nytt räkenskapsår behöver du <span className="font-bold text-gray-800">inte skapa någon manuell IB-bokning</span> i SoloLedger.
+                  Balanskonton (1xxx–2xxx), till exempel bank, eget kapital och skulder, förs vidare automatiskt från tidigare år.
                 </p>
 
                 <CodeBox>
-                  <p className="font-bold text-gray-700 mb-1">Gör så här den 1 januari:</p>
-                  <p>1. Kontrollera vad <Tag>B10 (Eget kapital)</Tag> slutade på.</p>
-                  <p>2. Byt till det nya året i appen.</p>
-                  <p>3. Välj <Tag>"Ingående balans - Eget kapital"</Tag> och ange beloppet.</p>
-                  <p>Systemet bokar automatiskt konto <Tag>2010</Tag> mot konto <Tag>1930</Tag>.</p>
+                  <p className="font-bold text-gray-700 mb-1">Så fungerar årsskiftet:</p>
+                  <p>• <Tag>Balanskonton 1xxx–2xxx</Tag> fortsätter med sina ackumulerade saldon.</p>
+                  <p>• <Tag>Resultatkonton 3xxx–8xxx</Tag> räknas per räkenskapsår.</p>
+                  <p>• Du ska alltså inte boka <Tag>1930 mot 2010</Tag> bara för att ett nytt år börjar.</p>
                 </CodeBox>
 
                 <p className="text-xs italic text-gray-400">
-                  Dette är en teknisk startbokning för att få balans i systemet — den påverkar inte dina faktiska pengar.
-                </p>
-
-                <p className="text-xs italic text-gray-400">
-                  Resultaträkningen (R-rader) nollställs automatiskt varje year.
+                  Om du börjar använda SoloLedger med en redan pågående verksamhet kan ingående balanser i stället följa med via en korrekt SIE-import.
                 </p>
               </div>
             }
@@ -83,7 +78,7 @@ export default function FAQ() {
           <Section
             icon="📊"
             iconColor="text-emerald-500"
-            title="Skatt i Enskild Firma"
+            title="Skatt i enskild firma"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
@@ -93,24 +88,23 @@ export default function FAQ() {
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Beskattning:</b> Vinsten beskattas med ca 40–45% totalt. Detta inkluderar både din kommunala inkomstskatt och dina egenavgifter (sociala avgifter).</span>
+                    <span><b>Beskattning:</b> Det är verksamhetens skattemässiga överskott som beskattas — inte hur mycket pengar du tar ut. Den faktiska skatten varierar bland annat med din övriga inkomst, kommunalskatt och egenavgifter.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Hur betalas skatten?</b> Du betalar oftast ett schablonbelopp varje månad (preliminärskatt) till ditt skattekonto, eller så betalar du allt i efterhand vid deklarationen.</span>
+                    <span><b>Preliminärskatt:</b> Debiterad F-skatt är privat och är inte en kostnad i firman.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Bokföring:</b> Eftersom skatten är personlig är det <u>inte</u> en kostnad i firman. Varje gång du tar pengar från företagskontot för att betala din skatt bokför du det som ett vanligt <Tag>Privat uttag (2013)</Tag>.</span>
+                    <span><b>SoloLedger:</b> Betalningar från företagskontot till ditt skattekonto kan bokföras via <Tag>2012 Avräkning för skatter och avgifter</Tag>. Kontot ingår i eget kapital och påverkar inte företagets resultat.</span>
                   </li>
                 </ul>
 
                 <CodeBox>
-                  <p className="font-bold text-gray-700 mb-1">Exempel — Du för över 5 000 kr till ditt skattekonto:</p>
-                  <p>• <b>Kategori:</b> Välj kontot för Privata uttag (Konto 2013 mot 1930)</p>
-                  <p>• <b>Belopp:</b> 5000 kr</p>
-                  <p>• <b>Moms %:</b> 0%</p>
-                  <p className="mt-2 text-gray-400 italic">Resultatet i firman ändras inte, men ditt banksaldo minskar och ditt privata uttag registreras korrekt.</p>
+                  <p className="font-bold text-gray-700 mb-1">Exempel — 5 000 kr förs från företagsbanken till skattekontot:</p>
+                  <p>• <b>Bank 1930:</b> minskar med 5 000 kr</p>
+                  <p>• <b>2012:</b> registrerar skatteavräkningen/eget uttag</p>
+                  <p>• <b>Resultat:</b> påverkas inte</p>
                 </CodeBox>
               </div>
             }
@@ -133,7 +127,7 @@ export default function FAQ() {
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Momsöversikten:</b> Det vita momskortet på förstasidan visar alltid hela årets ackumulerade moms. Det stora gröna kortet <Tag>Säkert uttag</Tag> drar automatiskt av dina obetalda momsskulder så att du aldrig råkar ta ut skattepengar privat.</span>
+                    <span><b>Momsöversikten:</b> Det vita momskortet på förstasidan visar alltid hela årets ackumulerade moms. Det stora gröna kortet <Tag>Säkert uttag</Tag> tar hänsyn till beräknad skatt och moms för att ge en försiktig uppskattning av hur mycket som kan tas ut.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
@@ -145,11 +139,11 @@ export default function FAQ() {
                   <p className="font-bold text-gray-700 mb-1">Bokföring av momsregleringen via kategorin "Skattekonto (2012)":</p>
                   <p className="mb-2">
                     <b>1. Om du ska BETALA moms (Skuld):</b><br />
-                    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2500.00</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Skulden raderas ur ditt säkra uttag.
+                    När du för över pengar från din bank till Skatteverket för att reglera din moms, bokför du summan som ett <b>positivt</b> belopp (t.ex. <Tag>2500.00</Tag>). Systemet drar pengarna från banken (1930) och registrerar överföringen till ditt skattekonto (2012). Betalningen tas då med i SoloLedgers saldo- och momsberäkningar.
                   </p>
                   <p>
                     <b>2. Om du får TILLBAKA moms (Återbäring):</b><br />
-                    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och balanserar upp ditt skattekonto (2012) helt automatiskt.
+                    När Skatteverket sätter in momspengar på ditt konto, bokför du summan med ett <b>minusbelopp</b> (t.ex. <Tag>-1500.00</Tag>). Systemet ökar pengarna på banken (1930) och registrerar återbetalningen i SoloLedgers saldo- och momsberäkningar.
                   </p>
                 </CodeBox>
               </div>
@@ -171,7 +165,7 @@ export default function FAQ() {
                 <CodeBox>
                   <p className="font-bold text-gray-700 mb-1">Hur det bokförs:</p>
                   <p>Utgiften ska fortfarande dras som en vanlig kostnad i företaget. Skillnaden är att motkontot blir en <Tag>Egen insättning (2018)</Tag> istället för företagets bankkonto (<Tag>1930</Tag>).</p>
-                  <p className="mt-2 text-gray-500"><i>Tips: Lägg till et konto i din Kontoplan (t.ex. "Privat utlägg") inställt på ditt önskade kostnadskonto som Debet, och konto 2018 som Kredit.</i></p>
+                  <p className="mt-2 text-gray-500"><i>Tips: Lägg till ett konto i din Kontoplan (t.ex. "Privat utlägg") inställt på ditt önskade kostnadskonto som Debet, och konto 2018 som Kredit.</i></p>
                 </CodeBox>
               </div>
             }
@@ -206,6 +200,32 @@ export default function FAQ() {
 
           <hr className="border-gray-100" />
 
+          {/* SIE IMPORT */}
+          <Section
+            icon="📥"
+            iconColor="text-sky-500"
+            title="SIE-import, importhistorik & ångra import"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Har du bokföring från ett annat system kan du importera en <Tag>SIE-fil</Tag>. SoloLedger läser in verifikationerna och kopplar dem till den importerade batchen så att importen går att följa i efterhand.
+                </p>
+
+                <CodeBox>
+                  <p><b>Importhistorik:</b> Under <Tag>Profil</Tag> ser du vilka SIE-filer som importerats, räkenskapsår, antal verifikationer, importtid och status.</p>
+                  <p><b>Ångra import:</b> Om en import blev fel kan du välja <Tag>Ångra import</Tag>. SoloLedger skapar då automatiska rättelseverifikationer i stället för att radera bokföringshistoriken.</p>
+                  <p><b>Spårbarhet:</b> I transaktionslistan grupperas en ångrad SIE-import kompakt. Du kan välja <Tag>Visa detaljer</Tag> för att se samtliga skapade KORRVER.</p>
+                </CodeBox>
+
+                <p className="text-xs italic text-gray-400">
+                  Automatisk ångring kan stoppas om räkenskapsåret är låst eller om någon av de importerade verifikationerna redan har korrigerats. Då behöver bokföringen hanteras med vanliga rättelser i stället.
+                </p>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
           {/* KORRIGERING */}
           <Section
             icon="↩️"
@@ -218,8 +238,8 @@ export default function FAQ() {
                 </p>
                 <CodeBox>
                   <p>1. Leta upp den felaktiga raden i din transaktionslista.</p>
-                  <p>2. Klicka på krysset (<Tag>✕</Tag>) längst till höger där det står <i>"Skapa korrigeringsverifikation"</i> när du för musen över.</p>
-                  <p>3. Systemet skapar nu automatiskt en exakt spegelvänd transaktion som helt nollar ut det gamla felet och stryker texten.</p>
+                  <p>2. Klicka på krysset (<Tag>✕</Tag>) längst till höger där det står <i>"Korrigera"</i> när du för musen över.</p>
+                  <p>3. Systemet skapar automatiskt en spegelvänd KORRVER som neutraliserar den felaktiga verifikationen. Originalet ligger kvar, men markeras som rättat.</p>
                   <p>4. Lägg därefter in transaktionen på nytt via formuläret med helt korrekta uppgifter.</p>
                 </CodeBox>
               </div>
@@ -232,20 +252,20 @@ export default function FAQ() {
           <Section
             icon="📑"
             iconColor="text-emerald-500"
-            title="Bilagor och Kvittokrav"
+            title="Bilagor, kvitton & arkivering"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Alla transaktioner i bokföringen måste ha ett tillhörande underlag (kvitto eller faktura).
+                  Affärshändelser ska kunna styrkas med verifikationer, till exempel kvitto, faktura eller annat underlag.
                 </p>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Digitala kvitton räcker:</b> Tack vare moderniseringen av Bokföringslagen behöver du inte längre spara fysiska papperskvitton.</span>
+                    <span><b>Papperskvitton kan digitaliseras:</b> Ett mottaget papperskvitto får kastas efter fotografering eller skanning om överföringen görs på ett sådant sätt att räkenskapsinformationen inte riskerar att förändras eller försvinna.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Gör så här:</b> Fota papperskvittot eller spara digitala PDF-fakturor. Ladda upp filen som bilaga direkt i ditt bokföringsformulär. När filen är sparad i systemet kan du kasta papperslappen!</span>
+                    <span><b>Spara underlagen:</b> Räkenskapsinformation ska normalt bevaras i sju år efter utgången av det kalenderår då räkenskapsåret avslutades. Se därför till att dina digitala underlag är läsbara och bevaras under hela arkiveringstiden.</span>
                   </li>
                 </ul>
               </div>
@@ -302,7 +322,7 @@ export default function FAQ() {
               <div className="space-y-3">
                 <CodeBox>
                   <p>Resultat (<Tag>R14</Tag>) = vad du tjänat</p>
-                  <p>Bank (<Tag>B13</Tag>) = faktiska pengar</p>
+                  <p>Bank (<Tag>B9</Tag>) = bokfört saldo på kassa och bank</p>
                 </CodeBox>
 
                 <p className="text-xs italic text-gray-400">
@@ -322,10 +342,12 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex gap-2">❌ Glömmer IB (Ingående Balans) vid nytt year</li>
+                  <li className="flex gap-2">❌ Skapar en extra manuell IB-bokning vid varje nytt år trots att balanskontona redan förs vidare</li>
                   <li className="flex gap-2">❌ Bokför privata köp som kostnader i firman</li>
                   <li className="flex gap-2">❌ Tror att den personliga skatten är en företagskostnad</li>
-                  <li className="flex gap-2">❌ Blandar ihop vad som är en ren intäkt och en egen insättning</li>
+                  <li className="flex gap-2">❌ Blandar ihop intäkt, egen insättning och eget uttag</li>
+                  <li className="flex gap-2">❌ Raderar eller försöker skriva över en bokförd verifikation i stället för att skapa en KORRVER</li>
+                  <li className="flex gap-2">❌ Importerar samma SIE-underlag flera gånger utan att kontrollera importhistoriken</li>
                 </ul>
               </div>
             }
@@ -337,20 +359,47 @@ export default function FAQ() {
           <Section
             icon="📝"
             iconColor="text-orange-500"
-            title="Inför Deklarationen"
+            title="Inför deklarationen"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Använd NE-bilagan i appen som facit.
+                  NE-bilagan i SoloLedger sammanställer bokföringen till relevanta R- och B-rutor och hjälper dig att stämma av balans- och resultaträkningen inför deklarationen.
                 </p>
 
                 <CodeBox>
-                  <p>Kopiera: R1, R5, R6, R14, B10 osv</p>
+                  <p>• Kontrollera att årets bokföring, moms och eventuella rättelser är klara.</p>
+                  <p>• Kontrollera att balansräkningen balanserar.</p>
+                  <p>• Använd SoloLedgers R- och B-rutor som underlag när du fyller i NE-bilagan.</p>
+                  <p>• Tänk på att vissa skattemässiga justeringar kan bero på din egen situation och behöver kontrolleras separat.</p>
                 </CodeBox>
 
                 <p className="text-xs italic text-gray-400">
-                  Du behöver inte räkna om något manuellt.
+                  SoloLedger är ett bokföringshjälpmedel och ersätter inte individuell skatte- eller redovisningsrådgivning.
                 </p>
+              </div>
+            }
+          />
+
+          <hr className="border-gray-100" />
+
+          {/* MÅLGRUPP & KONTAKT */}
+          <Section
+            icon="💚"
+            iconColor="text-emerald-600"
+            title="Vem är SoloLedger till för?"
+            content={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  SoloLedger är byggt för <span className="font-bold text-gray-800">enskild firma utan anställda</span> och fokuserar på enkel löpande bokföring, moms, eget kapital, NE-underlag och SIE.
+                </p>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Har verksamheten anställda, mer avancerad lönehantering eller andra redovisningsbehov som ligger utanför appens funktioner bör du använda ett system som stödjer det eller ta hjälp av en redovisningskonsult.
+                </p>
+
+                <CodeBox>
+                  <p><b>Frågor, problem eller feedback?</b></p>
+                  <p>Kontakta oss på <Tag>sololedger2026@gmail.com</Tag></p>
+                </CodeBox>
               </div>
             }
           />
@@ -361,29 +410,29 @@ export default function FAQ() {
           <Section
             icon="🛡️"
             iconColor="text-emerald-600"
-            title="Säkerhet, Integritet & Dataskydd"
+            title="Säkerhet, integritet & dataskydd"
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Vi tar din datasäkerhet på största allvar. SoloLedger är byggt med modern infrastruktur i bankklass för att säkerställa att din finansiella historik förblir helt privat, intakt och skyddad.
+                  SoloLedger använder flera lager av åtkomstkontroll för att skydda bokföringsdata och begränsa åtkomsten till den inloggade användarens uppgifter.
                 </p>
 
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Isolerad databehandling (Row-Level Security):</b> Genom strikt verifiering via Supabase är din data helt avskärmad från andra användare. Det är tekniskt omöjligt för obehöriga att se eller komma åt din bokföring.</span>
+                    <span><b>Row-Level Security:</b> Databasregler begränsar åtkomsten så att en vanlig användare bara kan läsa sin egen bokföringsdata.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Kryptering hela vägen:</b> All information som skickas mellan din webbläsare och appen skyddas av SSL/TLS-kryptering. Din data krypteras även vid lagring i databasen.</span>
+                    <span><b>Skyddad anslutning:</b> Trafiken mellan webbläsaren och tjänsten skickas över HTTPS/TLS.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Säkra sessioner:</b> Lösenord hanteras aldrig i klartext. Inloggningar skyddas med krypterade säkerhetstokens som valideras i realtid på servernivå vid varje enskilt klick.</span>
+                    <span><b>Autentisering:</b> Inloggade sessioner verifieras innan skyddade bokföringsfunktioner får användas.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Serververifierat bokföringsskydd:</b> Systemet verifierar alltid ditt unika användar-ID i bakgrunden innan en rad sparas eller ändras. När du låser ett räkenskapsår fryses datan permanent på servernivå mot efterföljande payload-manipulation.</span>
+                    <span><b>Serverstyrda bokföringsflöden:</b> Centrala bokföringsåtgärder, rättelser, periodiseringar och SIE-importer hanteras genom kontrollerade serverfunktioner. Låsta räkenskapsår skyddas mot nya bokföringsändringar.</span>
                   </li>
                 </ul>
               </div>
