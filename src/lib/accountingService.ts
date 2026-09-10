@@ -435,7 +435,7 @@ export async function closeYear(year: number): Promise<void> {
  * Steg 1 av B10-arbetet: ren, fristående resultatformel - extraherad ur
  * getNEData() utan någon beteendeförändring. Tar emot VILKET balansobjekt
  * som helst (idag: årsvist balances från getAccountBalances; i ett senare
- * steg: ett kumulativt balansobjekt) och returnerar samma R1-R8/R11-R14
+ * steg: ett kumulativt balansobjekt) och returnerar samma R1-R10/R11-R17
  * som tidigare låg inline. Ingen kumulativ logik här - bara en flytt.
  */
 function computeResultat(balances: Record<string, number>) {
@@ -493,7 +493,7 @@ function computeResultat(balances: Record<string, number>) {
   const R5 = Math.abs(sumRange(4000, 4999))
 
   // 6992 hör fortfarande till bokföringens externa kostnader och ska därför
-  // ingå i R6/R11. Den läggs sedan tillbaka skattemässigt i R12.
+  // ingå i R6/R11. Den läggs sedan tillbaka skattemässigt i R13.
   const R6 = Math.abs(sumRange(5000, 6999))
 
   const R7 = Math.abs(sumRange(7000, 7699))
@@ -514,18 +514,32 @@ function computeResultat(balances: Record<string, number>) {
     (R1 + R2 + R3 + R4 - R5 - R6 - R7 - R8 - R9 - R10) * 100
   ) / 100
 
+  // NE sida 2 – skattemässiga justeringar:
+  // R12 = bokfört resultat från R11
+  // R13 = bokförda kostnader som inte ska dras av
+  // R14 = bokförda intäkter som inte ska tas upp
+  // R15 = intäkter som inte bokförts men ska tas upp
+  // R16 = kostnader som inte bokförts men ska dras av
+  // R17 = sammanlagt resultat
+  //
+  // SoloLedger har i nuläget automatisk mappning för R13 via konto 6992.
+  // R14–R16 sätts därför till 0 tills särskilt stöd finns för de justeringarna.
   const R11 = bokfRes
-  const R12 = ejAvdr
-  const R14 = Math.round((R11 + R12) * 100) / 100
+  const R12 = R11
+  const R13 = ejAvdr
+  const R14 = 0
+  const R15 = 0
+  const R16 = 0
+  const R17 = Math.round((R12 + R13 - R14 + R15 - R16) * 100) / 100
 
   return {
     R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
-    ejAvdr, bokfRes, R11, R12, R14
+    ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17
   }
 }
 
 /**
- * Steg 2 av B10-arbetet: kumulativt bokfört resultat (R1-R8/R11-R14) för
+ * Steg 2 av B10-arbetet: kumulativt bokfört resultat (R1-R10/R11-R17) för
  * ALLA resultatkonton (3xxx-8xxx), från bokföringens start t.o.m. 31
  * december angivet år - till skillnad från getAccountBalances(year) som
  * bara summerar det angivna kalenderåret.
@@ -586,7 +600,7 @@ export async function getNEData(year: number) {
   // något annat fält i denna funktion i detta steg.
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
-  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R14 } = computeResultat(balances)
+  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17 } = computeResultat(balances)
 
   // B10 är kumulativt och ska följa K1:s eget-kapital-konton för
   // enskild näringsverksamhet. BAS K1 placerar 2010, 2011, 2012, 2013,
@@ -698,7 +712,7 @@ export async function getNEData(year: number) {
     R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
-    R11, R12, R14,
+    R11, R12, R13, R14, R15, R16, R17,
     IB_kapital, insattningar, uttag,
     bank, B10_total,
     B1, B2, B3, B4, B5, B6, B7, B8, B9,

@@ -14,7 +14,11 @@ interface NEData {
   R10: number;
   R11: number;
   R12: number;
+  R13: number;
   R14: number;
+  R15: number;
+  R16: number;
+  R17: number;
   IB_kapital: number;
   insattningar: number;
   uttag: number;
@@ -80,9 +84,9 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
   const [showAllNERows, setShowAllNERows] = useState(false)
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
-  const R14 = neData.R14 ?? 0
-  const r14Color = R14 > 0 ? 'text-green-600' : R14 < 0 ? 'text-red-500' : 'text-gray-400'
-  const r14Bg   = R14 > 0 ? 'bg-green-50 border-green-200' : R14 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+  const R17 = neData.R17 ?? 0
+  const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
+  const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
 
   // Balanskontroll ska alltid köras, även om bankkontot är 0 eller negativt.
   // Ett negativt banksaldo är fortfarande en del av balansräkningen och får
@@ -189,18 +193,41 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span className="flex items-center flex-wrap">
-                R12 Ej avdragsgilla kostnader
-                <Tooltip text="Detta är kostnader som inte är skattemässigt avdragsgilla, t.ex. konto 6992." />
+                R12 Bokfört resultat (överfört från R11)
+                <Tooltip text="R12 är samma bokförda resultat som R11 och är startpunkten för de skattemässiga justeringarna på NE-bilagans sida 2." />
               </span>
               <span className="whitespace-nowrap">{fmt(neData.R12)}</span>
             </div>
 
-            <div className={`mt-4 p-4 sm:p-6 rounded-2xl border flex flex-wrap justify-between items-center gap-3 font-black italic ${r14Bg}`}>
-              <span className={`text-xs uppercase flex items-center flex-wrap ${r14Color}`}>
-                R14 Skattemässigt resultat
-                <Tooltip text="Detta är ditt skattemässiga resultat (R14 i NE-bilagan)." />
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
+              <span className="flex items-center flex-wrap">
+                R13 Ej avdragsgilla kostnader
+                <Tooltip text="Bokförda kostnader som inte ska dras av skattemässigt, t.ex. konto 6992." />
               </span>
-              <span className={`text-2xl tracking-tighter whitespace-nowrap ${r14Color}`}>{fmt(R14)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R13)}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R14 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R14 Bokförda intäkter som inte ska tas upp</span>
+              <span className="whitespace-nowrap">{fmt(neData.R14)}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R15 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R15 Intäkter som inte bokförts men ska tas upp</span>
+              <span className="whitespace-nowrap">{fmt(neData.R15)}</span>
+            </div>
+
+            <div className={`${!showAllNERows && Math.abs(neData.R16 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+              <span>R16 Kostnader som inte bokförts men ska dras av</span>
+              <span className="whitespace-nowrap">{fmt(neData.R16)}</span>
+            </div>
+
+            <div className={`mt-4 p-4 sm:p-6 rounded-2xl border flex flex-wrap justify-between items-center gap-3 font-black italic ${r17Bg}`}>
+              <span className={`text-xs uppercase flex items-center flex-wrap ${r17Color}`}>
+                R17 Sammanlagt resultat
+                <Tooltip text="R17 är resultatet efter skattemässiga justeringar: R12 + R13 − R14 + R15 − R16." />
+              </span>
+              <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{fmt(R17)}</span>
             </div>
           </div>
 
