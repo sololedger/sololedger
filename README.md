@@ -1,40 +1,128 @@
 # SoloLedger
 
-## 🚀 Projektstatus
+SoloLedger är en Next.js + Supabase-applikation för enkel bokföring i svensk **enskild firma utan anställda**.
 
-Detta är en Next.js + Supabase SaaS-applikationsplattform för bokföring.
+Projektet innehåller bokföring, verifikationer, momsrapport, NE-underlag, SIE import/export, bilagor, årslåsning samt prenumerationshantering via Stripe.
 
-### ✅ Stripe- & Profilintegration (Klart & Verifierat)
-Hela prenumerations- och profilflödet är fullt implementerat och verifierat i utvecklingsmiljön.
+## Projektstatus
 
-**Funktionalitet:**
-* **Stripe Checkout:** Hanterar både premium-prenumerationer och 14 dagars testperioder (trial).
-* **Stripe Webhooks:** Lyssnar på events från Stripe och synkar data till databasen i realtid.
-* **Stripe Customer Portal:** Integrerad länk på profilsidan där användare säkert kan hantera kortuppgifter, se fakturahistorik eller avsluta prenumerationer.
-* **Profilhantering:** Automatisk synkronisering av företagsuppgifter (Företagsnamn och Organisationsnummer) till och från Supabase som laddas blixtsnabbt vid F5 utan fördröjning.
-* **Säkerhet & Access:** `SubscriptionGuard` skyddar premiumfunktioner och kontrollerar giltighetstider, transaktionsgränser för gratisplaner samt blockerar/släpper igenom användare baserat på aktiv status.
+Kärnflödena är implementerade och har testats löpande i utvecklings- och produktionsmiljö. Databasändringar hanteras med migrationsfiler under `supabase/migrations/`.
 
----
+## Huvudfunktioner
 
-## 💾 Databasstruktur (`profiles`)
+### Bokföring
+- Vanliga intäkter och kostnader bokförs via atomiska PostgreSQL-RPC:er.
+- Verifikationsnummer skapas server-side och sekventiellt per användare.
+- Bokförda transaktioner hårdraderas inte i normala användarflöden.
+- Felaktiga verifikationer rättas med separat korrigeringsverifikation (KORRVER).
+- Samma originalverifikation kan endast korrigeras en gång.
+- Bokföringsdatum och ekonomiska kärnfält på en bokförd transaktion kan inte ändras i efterhand.
+- Periodisering över årsskifte skapar original- och vändningsverifikation atomiskt.
+- Låsta räkenskapsår blockerar relevanta bokföringsändringar.
 
-Din Supabase-tabell `profiles` innehåller nu följande kolumner för att hålla reda på användarnas abonnemang och företagsspecifik data:
+### Moms och NE
+- Moms stöds för 25 %, 12 %, 6 % och 0 %.
+- Utgående moms routas till 261x/262x/263x och ingående moms till 264x enligt appens bokföringsmodell.
+- Momsrapporten bygger på journalrader och hanterar interna momsombokningar.
+- NE-vyn visar resultat- och balansrader för förenklat årsbokslut.
+- Balanskonton beräknas kumulativt medan resultatkonton beräknas per räkenskapsår.
+- NE-underlaget är ett hjälpmedel för deklarationen och ersätter inte Skatteverkets deklarationstjänst.
 
-| Kolumn | Typ | Beskrivning |
-| :--- | :--- | :--- |
-| `id` | `uuid` (Primary Key) | Matchar användarens unika ID från Supabase Auth. |
-| `subscription_type` | `text` | Kan vara `free`, `trial`, `paid` eller `admin`. |
-| `stripe_customer_id` | `text` | Unikt kund-ID genererat av Stripe. |
-| `stripe_subscription_id`| `text` | ID för användarens aktiva prenumation i Stripe. |
-| `subscription_end` | `timestamp` | Slutdatum för testperiod eller nästa förnyelsedatum. |
-| `company_name` | `text` | Företagets namn (används i rapporter och SIE-export). |
-| `org_nr` | `text` | Organisationsnummer (används i rapporter och SIE-export). |
+### SIE
+- Import av SIE med verifikationer, ingående balans och resultathantering.
+- Importen sker atomiskt: en felaktig import ska inte lämna ett halvt importerat underlag.
+- Importhistorik sparas i `import_batches`.
+- En orörd genomförd import kan ångras genom korrigeringsverifikationer; importerad bokföringshistorik hårdraderas inte.
+- SIE-export genereras från bokförda verifikationer och journalrader.
 
----
+### Kontoplan och historik
+- Varje användare har sin egen kontoplan.
+- Konton/kategorier som redan används av bokförda transaktioner kan inte tas bort.
+- Historiska transaktioner presenteras utifrån de journalrader som faktiskt bokfördes, inte en senare ändrad kontoplansdefinition.
 
-## 🛠️ Starta projektet
+### Bilagor
+- Kvitton och andra bilagor kan lagras i Supabase Storage.
+- Tillåtna filtyper i appen är JPG, PNG, WebP och PDF.
+- Storage-bucketens server-side begränsningar dokumenteras i `Architecture.md`.
 
-Kör utvecklingsservern lokalt på din maskin:
+## Prenumerationer
+
+SoloLedger har stöd för `free`, `trial`, `paid` och administratörsbehörighet.
+
+- Gratisversionen tillåter totalt 15 räknade bokföringsverifikationer per konto.
+- Korrigeringsverifikationer och teknisk SIE-ingående balans räknas inte mot gratisgränsen.
+- Trial är 14 dagar.
+- Stripe Checkout används för att starta prenumeration.
+- Stripe Customer Portal används för hantering av prenumerationen.
+- Stripe-webhooks synkroniserar relevanta prenumerationshändelser till `profiles`, inklusive subscription updates.
+
+> Prenumerations-/gratisgränsen är i nuläget främst ett produkt- och UI-skydd. Bokföringsintegritet och användarisolering skyddas separat i databasen med RLS, grants och server-side RPC-validering.
+
+## Säkerhetsmodell
+
+SoloLedger använder Supabase Auth och Row Level Security.
+
+- Bokföringsdata isoleras per `user_id`.
+- Direkta klientskrivningar till centrala bokföringstabeller är begränsade; känsliga flöden går via server-side PostgreSQL-RPC:er.
+- Profilfält med behörighets- och prenumerationsdata kan inte ändras av en vanlig användare genom klienten.
+- Adminbehörighet verifieras server-side/databas-side.
+- Stripe Checkout och Customer Portal verifierar Supabase-sessionen på servern.
+- Bilagor skyddas med Storage RLS till användarens egen mapp.
+
+En verifierad produktionssnapshot av databasschemat finns under:
+
+`supabase/baseline/20260910_production_schema_baseline.sql`
+
+Baselinen är dokumentation/audit-underlag och ersätter inte migrationshistoriken.
+
+## Admin och användarradering
+
+Adminpanelen kan göra dry-run och permanent radering av användare.
+
+Raderingsflödet hanterar:
+1. Stripe-prenumeration när sådan finns.
+2. Användarens bilagor i Storage.
+3. Appdata genom atomisk PostgreSQL-RPC.
+4. Supabase Auth-kontot sist.
+
+Databasdelen är atomisk. Eftersom Stripe, Storage, PostgreSQL och Auth är separata system är hela kedjan inte en enda global transaktion.
+
+Self-service-radering för slutanvändare är inte implementerad; permanent radering hanteras tills vidare av admin.
+
+## Viktiga mappar
+
+```text
+src/app/                 Next.js-sidor och API-routes
+src/components/          UI-komponenter
+src/hooks/               Auth- och bokföringshooks
+src/lib/                 Bokföring, beräkningar, SIE, limits och Supabase-klient
+supabase/functions/      Supabase Edge Functions
+supabase/migrations/     Databasmigrationer
+supabase/baseline/       Verifierad schema-snapshot för audit/recovery
+```
+
+Mer detaljer finns i `Architecture.md`.
+
+## Databas – centrala tabeller
+
+| Tabell | Ansvar |
+|---|---|
+| `profiles` | Profil, företag, roll och prenumerationsdata |
+| `transactions` | Transaktioner/verifikationer och korrigeringsmetadata |
+| `journal_entries` | Debet-/kreditrader per transaktion |
+| `accounts` | Användarens kontoplan |
+| `favorites` | Sparade bokföringsfavoriter |
+| `closed_years` | Låsta räkenskapsår |
+| `import_batches` | Historik och status för SIE-importer |
+| `ver_nr_sequences` | Server-side räknare för verifikationsnummer |
+
+## Lokal utveckling
+
+Installera dependencies och starta utvecklingsservern:
 
 ```bash
+npm install
 npm run dev
+```
+
+Supabase- och Stripe-konfiguration kräver projektets egna miljövariabler/secrets. Hemligheter ska inte committas till Git.
