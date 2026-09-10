@@ -216,11 +216,34 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(`Radera kontot "${id}"? Det påverkar inte redan bokförda transaktioner.`)) return
-
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) throw new Error('Hittade ingen inloggad användare.')
+
+      // H6: ett konto/kategori-ID som redan används av en bokförd transaktion
+      // får inte tas bort. Backend-triggern är det slutliga skyddet; kontrollen här
+      // ger bara användaren ett tydligt meddelande innan DELETE-försöket.
+      const { count: usageCount, error: usageError } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('type', id)
+        .eq('booked', true)
+
+      if (usageError) {
+        throw new Error(`Kunde inte kontrollera om kontot används: ${usageError.message}`)
+      }
+
+      if ((usageCount ?? 0) > 0) {
+        alert(
+          `Kontot "${id}" används i ${usageCount} bokförd${usageCount === 1 ? '' : 'a'} ` +
+          `transaktion${usageCount === 1 ? '' : 'er'} och kan därför inte raderas. ` +
+          `Historiken måste bevaras.`
+        )
+        return
+      }
+
+      if (!confirm(`Radera det oanvända kontot "${id}"?`)) return
 
       const { error } = await supabase
         .from('accounts')
@@ -242,6 +265,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       }
     } catch (err: any) {
       console.error(err)
+      alert(err?.message || 'Kunde inte radera kontot.')
     }
   }
 

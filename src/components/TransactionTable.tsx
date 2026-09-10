@@ -87,11 +87,18 @@ export default function TransactionTable({
     const isSieUndo = tx.source === 'sie_import_undo'
     const accountDef = kontoplan.find(k => k.id === tx.type)
 
+    // H5: historisk visning ska bygga på det som faktiskt bokfördes,
+    // inte på hur kategorin ser ut i dagens kontoplan.
     const isIncome =
       !isImported &&
       !isOpeningBalance &&
       !isSieUndo &&
-      ((accountDef?.credit_account?.startsWith('3') || tx.type === 'egen_insättning') ?? false)
+      (
+        journal.some((e: any) =>
+          String(e.account_number || '').startsWith('3') && Number(e.credit) > 0
+        ) ||
+        tx.type === 'egen_insättning'
+      )
 
     // En KORRVER är i sig en giltig ny bokföringspost. Därför stryks inte
     // korrigeringsraden längre över. Det är ORIGINALVERIFIKATIONEN som
