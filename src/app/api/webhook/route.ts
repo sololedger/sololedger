@@ -21,6 +21,12 @@ function parseEndDate(rawEnd: any): string {
   return new Date(rawEnd).toISOString()
 }
 
+function mapSubscriptionType(status: string): 'trial' | 'paid' | 'free' {
+  if (status === 'trialing') return 'trial'
+  if (status === 'active') return 'paid'
+  return 'free'
+}
+
 export async function POST(req: Request) {
   const body = await req.text()
   const headerList = await headers()
@@ -56,7 +62,7 @@ export async function POST(req: Request) {
       await supabaseAdmin
         .from('profiles')
         .update({
-          subscription_type: subscription.status === 'trialing' ? 'trial' : 'paid',
+          subscription_type: mapSubscriptionType(subscription.status),
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           subscription_end: endDate,
@@ -77,14 +83,30 @@ export async function POST(req: Request) {
       await supabaseAdmin
         .from('profiles')
         .update({
-          subscription_type: subscription.status === 'trialing' ? 'trial' : 'paid',
+          subscription_type: mapSubscriptionType(subscription.status),
           subscription_end: endDate,
         })
         .eq('stripe_subscription_id', subscriptionId)
     }
   }
 
-  // 3. Prenumeration avslutas permanent
+  // 3. Prenumeration ändras (t.ex. trial -> active, cancel_at_period_end,
+  // statusändring eller nytt current_period_end)
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as any
+    const subscriptionId = subscription.id
+    const endDate = parseEndDate(subscription.current_period_end)
+
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        subscription_type: mapSubscriptionType(subscription.status),
+        subscription_end: endDate,
+      })
+      .eq('stripe_subscription_id', subscriptionId)
+  }
+
+  // 4. Prenumeration avslutas permanent
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as any
     const subscriptionId = subscription.id
