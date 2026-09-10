@@ -178,6 +178,33 @@ Deno.serve(async (req) => {
       throw new Error(`Kunde inte radera användardata atomiskt: ${dbDeleteError.message}`)
     }
 
+    // H4: gör en andra Storage-svepning efter DB-raderingen.
+    // Detta fångar filer som kan ha laddats upp efter den första listningen/raderingen
+    // men innan användarens DB-data togs bort. Storage, Postgres och Auth är separata
+    // system, så detta eliminerar inte all teoretisk TOCTOU-risk men minskar race-fönstret.
+    const lateAttachmentPaths = await listAllAttachmentPaths(supabaseAdmin, userId)
+
+    if (lateAttachmentPaths.length > 0) {
+      const { error: lateStorageError } = await supabaseAdmin.storage
+        .from('attachments')
+        .remove(lateAttachmentPaths)
+
+      if (lateStorageError) {
+        throw new Error(
+          `Kunde inte radera nytillkomna bilagor efter DB-radering: ${lateStorageError.message}`
+        )
+      }
+
+      // Verifiera att användarens Storage-mapp verkligen är tom innan Auth tas bort.
+      const remainingAttachmentPaths = await listAllAttachmentPaths(supabaseAdmin, userId)
+
+      if (remainingAttachmentPaths.length > 0) {
+        throw new Error(
+          `Bilagor finns fortfarande kvar efter radering (${remainingAttachmentPaths.length} st). Auth-användaren har därför inte raderats.`
+        )
+      }
+    }
+
     // Auth-användaren raderas allra sist.
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
