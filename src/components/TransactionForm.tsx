@@ -91,9 +91,9 @@ export default function TransactionForm({
             <input
               type="date"
               value={formData.date}
-              disabled={isYearLocked}
+              disabled={editingBooked || isYearLocked}
               onChange={e => setFormData({ ...formData, date: e.target.value })}
-              className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`p-3 rounded-xl outline-none font-bold text-xs ${editingBooked || isYearLocked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-50'} ${isYearLocked ? 'opacity-40' : ''}`}
               required
             />
           </div>
