@@ -77,7 +77,7 @@ export async function exportSIE(year: number) {
   const [{ data: yearTransactions, error: txError }, { data: accounts }, { data: profile }, { data: jan1Transactions }, { data: prevYearTransactions, error: prevTxError }] = await Promise.all([
     supabase
       .from('transactions')
-      .select('id, date')
+      .select('id, date, description, is_correction, corrects_ver_nr')
       .eq('user_id', user.id)
       .gte('date', `${year}-01-01`)
       .lte('date', `${year}-12-31`),
@@ -117,6 +117,10 @@ export async function exportSIE(year: number) {
   const yearTransactionIds = (yearTransactions || []).map(t => t.id)
 
   // transaction_id -> transactions.date, används för #VER-datumet nedan.
+  const transactionById = new Map<string, any>(
+    (yearTransactions || []).map(t => [t.id, t])
+  )
+
   const transactionDateById = new Map<string, string>(
     (yearTransactions || []).map(t => [t.id, t.date])
   )
@@ -389,11 +393,23 @@ export async function exportSIE(year: number) {
 
   grouped.forEach(v => {
     const first = v.rows[0]
+    const tx = transactionById.get(first.transaction_id)
 
-    // Korrigeringsverifikat får tydlig beskrivning, annars används radtexten
-    const description = first.is_correction
-      ? `Korrigering av VER-${first.corrects_ver_nr}: ${first.description || ''}`.trim()
-      : first.description || `VER-${v.ver_nr}`
+    // M1-fix: korrigeringsmetadata och verifikationsbeskrivning hör hemma på
+    // transactions, inte journal_entries. #TRANS-raderna kommer fortsatt från
+    // journal_entries oförändrat.
+    const rawDescription = tx?.is_correction
+      // Korrigeringsflödet sparar redan en komplett beskrivning på transactions.
+      // Använd den direkt så att vi inte dubblerar "Korrigering av VER-..." i SIE.
+      ? tx?.description || `Korrigering av VER-${tx.corrects_ver_nr}`
+      : tx?.description || first.description || `VER-${v.ver_nr}`
+
+    // Korrigeringsbeskrivningen kan börja med en UI-symbol/emoji som inte kan
+    // representeras i SIE:s CP437-kodning. Ta bara bort inledande symboler före
+    // den välkända korrigeringstexten; vanlig användartext lämnas orörd.
+    const description = tx?.is_correction
+      ? rawDescription.replace(/^.*?(?=Korrigering av VER-)/, '').trim()
+      : rawDescription
 
     // Sortera rader efter datum för läsbar #TRANS-ordning i utskriften
     // (t.ex. periodisering över årsskifte) - påverkar INTE vilket datum
