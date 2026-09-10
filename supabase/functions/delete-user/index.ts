@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'https://esm.sh/stripe@14?target=denonext'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +35,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
 
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return jsonResponse({ error: 'Server configuration saknas' }, 500)
@@ -94,7 +96,7 @@ Deno.serve(async (req) => {
     // Kontrollera att målprofilen finns och hämta e-post för adminvyn.
     const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, role')
+      .select('id, email, role, stripe_subscription_id')
       .eq('id', userId)
       .single()
 
@@ -116,6 +118,7 @@ Deno.serve(async (req) => {
         ...counts,
         attachments: attachmentPaths.length,
       },
+      hasStripeSubscription: Boolean(targetProfile.stripe_subscription_id),
     }
 
     if (action === 'dry-run') {
@@ -124,6 +127,35 @@ Deno.serve(async (req) => {
         action: 'dry-run',
         ...summary,
       })
+    }
+
+    // Avsluta eventuell Stripe-prenumeration innan något användardata raderas.
+    // Om Stripe inte kan bekräfta avslutet avbryts raderingen så att vi inte
+    // riskerar att ta bort SoloLedger-kontot medan debiteringen fortsätter.
+    if (targetProfile.stripe_subscription_id) {
+      if (!stripeSecretKey) {
+        throw new Error(
+          'Stripe-konfiguration saknas. Användaren har en Stripe-prenumeration och kan därför inte raderas säkert.'
+        )
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16' as any,
+      })
+
+      try {
+        await stripe.subscriptions.cancel(targetProfile.stripe_subscription_id)
+      } catch (stripeError: any) {
+        // Om prenumerationen redan är borttagen finns inget kvar att debitera.
+        // Stripe returnerar normalt resource_missing för ett saknat subscription-ID.
+        if (stripeError?.code !== 'resource_missing') {
+          throw new Error(
+            `Kunde inte avsluta Stripe-prenumerationen. Användaren har inte raderats: ${
+              stripeError?.message || 'Okänt Stripe-fel'
+            }`
+          )
+        }
+      }
     }
 
     // Storage först. Om borttagningen misslyckas lämnas DB/Auth orörda.
