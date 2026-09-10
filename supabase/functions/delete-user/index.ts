@@ -169,24 +169,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Databasen raderas i beroendeordning.
-    // journal_entries före transactions, och transactions före import_batches.
-    await deleteByUserId(supabaseAdmin, 'journal_entries', userId)
-    await deleteByUserId(supabaseAdmin, 'transactions', userId)
-    await deleteByUserId(supabaseAdmin, 'favorites', userId)
-    await deleteByUserId(supabaseAdmin, 'import_batches', userId)
-    await deleteByUserId(supabaseAdmin, 'accounts', userId)
-    await deleteByUserId(supabaseAdmin, 'closed_years', userId)
-    await deleteByUserId(supabaseAdmin, 'ver_nr_sequences', userId)
+    // H3: alla public DB-rader tas nu bort i EN PostgreSQL-transaktion.
+    // Om någon DELETE misslyckas rullas hela DB-raderingen tillbaka.
+    const { data: dbDeleteResult, error: dbDeleteError } = await supabaseAdmin
+      .rpc('delete_user_data_atomic', { p_user_id: userId })
 
-    // Profilen sist av DB-raderna.
-    const { error: profileDeleteError } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
-
-    if (profileDeleteError) {
-      throw new Error(`Kunde inte radera profil: ${profileDeleteError.message}`)
+    if (dbDeleteError) {
+      throw new Error(`Kunde inte radera användardata atomiskt: ${dbDeleteError.message}`)
     }
 
     // Auth-användaren raderas allra sist.
@@ -200,6 +189,7 @@ Deno.serve(async (req) => {
       success: true,
       action: 'delete',
       ...summary,
+      databaseDelete: dbDeleteResult,
     })
   } catch (err: any) {
     return jsonResponse(
@@ -226,21 +216,6 @@ async function getUserCounts(supabaseAdmin: any, userId: string) {
   )
 
   return Object.fromEntries(results) as Record<(typeof TABLES)[number], number>
-}
-
-async function deleteByUserId(
-  supabaseAdmin: any,
-  table: string,
-  userId: string
-) {
-  const { error } = await supabaseAdmin
-    .from(table)
-    .delete()
-    .eq('user_id', userId)
-
-  if (error) {
-    throw new Error(`Kunde inte radera ${table}: ${error.message}`)
-  }
 }
 
 async function listAllAttachmentPaths(
