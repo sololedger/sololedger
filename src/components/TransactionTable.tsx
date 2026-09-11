@@ -111,7 +111,7 @@ export default function TransactionTable({
       ? 'bg-amber-50/50'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50/40 hover:bg-sky-50/60'
-      : 'hover:bg-gray-50/50'
+      : 'hover:bg-emerald-50/30'
 
     const textClass = isCorrection
       ? 'text-amber-700'
@@ -231,7 +231,7 @@ export default function TransactionTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100">
             {visibleItems.map((displayItem) => {
               if (displayItem.kind === 'sieUndoGroup') {
                 const { batchId, items } = displayItem
@@ -354,7 +354,7 @@ export default function TransactionTable({
               } = displayItem.item
 
               return (
-                <tr key={tx.id} className={`transition-colors ${rowClass}`}>
+                <tr key={tx.id} className={`group transition-all duration-150 ${rowClass}`}>
                   <td className="p-8 font-bold text-gray-400 text-sm">
                     <span className={isCorrection ? 'text-amber-600' : isNeutralized ? 'text-gray-400' : ''}>
                       {tx.date}
@@ -463,11 +463,11 @@ export default function TransactionTable({
                   </td>
 
                   <td className="p-8 text-right pr-12">
-                    <div className="flex items-center justify-end gap-4">
+                    <div className="flex items-center justify-end gap-1">
                       {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
                         <button
                           onClick={() => onEdit(tx)}
-                          className="text-gray-200 hover:text-emerald-600 transition-colors"
+                          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
                           title={tx.booked ? "Hantera bilaga" : "Redigera"}
                         >
                           ✎
@@ -476,7 +476,7 @@ export default function TransactionTable({
                       {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
                         <button
                           onClick={() => onDelete(tx)}
-                          className="text-red-100 hover:text-red-500 font-bold transition-colors"
+                          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all font-bold"
                           title="Korrigera"
                         >
                           ✕
