@@ -158,12 +158,6 @@ export function useAuth() {
   // med en tillfällig "recovery"-session — de landar då i appen redan
   // inloggade och kan sätta ett nytt lösenord via Profil → Byt lösenord.
   const resetPassword = useCallback(async (email: string) => {
-    // 🔍 TILLFÄLLIG FELSÖKNING: Ta bort denna rad när vi vet vad som
-    // faktiskt anropar resetPassword() och när. Om detta INTE loggas
-    // direkt vid klick på "Glömt lösenord?" (utan först vid klick på
-    // "Skicka återställningslänk"), så är funktionen oskyldig och felet
-    // ligger någon annanstans.
-
     setAuthNotice(null)
     if (!email) {
       setAuthNotice({ type: 'error', text: 'Fyll i din e-postadress för att återställa lösenordet.' })
