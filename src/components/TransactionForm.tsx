@@ -83,6 +83,20 @@ export default function TransactionForm({
       )}
 
       <form onSubmit={onSubmit}>
+        {editingBooked ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wide text-amber-600">Hantera bilaga</p>
+              <p className="mt-1 text-[10px] font-medium text-gray-500">
+                Verifikationen är bokförd och låst. Här kan du komplettera eller byta bilaga.
+              </p>
+            </div>
+            <button type="button" onClick={onCancelEdit}
+              className="text-[10px] font-black uppercase text-gray-400 hover:text-gray-600 transition-colors">
+              Avbryt
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-4">
 
           {/* Datum */}
@@ -207,6 +221,7 @@ export default function TransactionForm({
             </div>
           </div>
         </div>
+        )}
 
         {/* Bilaga */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t border-gray-50">
@@ -222,6 +237,20 @@ export default function TransactionForm({
             <span className="text-[9px] text-emerald-500 font-bold truncate max-w-[160px] sm:max-w-none">{formData.file.name}</span>
           )}
         </div>
+
+        {editingBooked && (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={uploading || isYearLocked}
+              className={`h-[42px] px-5 rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
+                uploading ? 'bg-gray-400' : isYearLocked ? 'bg-gray-300 opacity-40 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600'
+              }`}
+            >
+              {uploading ? '...' : 'Spara bilaga'}
+            </button>
+          </div>
+        )}
 
         {/* Periodisering — visas bara när man inte redigerar */}
         {!editingId && (

@@ -234,7 +234,7 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Bokförda verifikat är låsta och ska inte raderas eller ändras direkt i efterhand enligt god redovisningssed.
+                  Bokförda verifikat är låsta och ska inte raderas eller ändras direkt i efterhand enligt god redovisningssed. Om datum, beskrivning, belopp, kategori eller moms är fel använder du en korrigeringsverifikation (KORRVER).
                 </p>
                 <CodeBox>
                   <p>1. Leta upp den felaktiga raden i din transaktionslista.</p>
@@ -256,7 +256,7 @@ export default function FAQ() {
             content={
               <div className="space-y-3">
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Affärshändelser ska kunna styrkas med verifikationer, till exempel kvitto, faktura eller annat underlag.
+                  Affärshändelser ska kunna styrkas med verifikationer, till exempel kvitto, faktura eller annat underlag. På en bokförd verifikation kan du använda <Tag>Hantera bilaga</Tag> för att komplettera eller byta bilagan utan att ändra själva bokföringen.
                 </p>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">

@@ -468,7 +468,7 @@ export default function TransactionTable({
                         <button
                           onClick={() => onEdit(tx)}
                           className="text-gray-200 hover:text-emerald-600 transition-colors"
-                          title="Redigera"
+                          title={tx.booked ? "Hantera bilaga" : "Redigera"}
                         >
                           ✎
                         </button>
@@ -695,7 +695,7 @@ export default function TransactionTable({
                     onClick={() => onEdit(tx)}
                     className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
                   >
-                    ✎ Redigera
+                    ✎ {tx.booked ? "Hantera bilaga" : "Redigera"}
                   </button>
                   <button
                     onClick={() => onDelete(tx)}
