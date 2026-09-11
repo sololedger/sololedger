@@ -14,15 +14,21 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
     <main className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-gray-50/50 min-h-screen">
       {/* HEADER / NAVIGATION */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 bg-white p-4 rounded-3xl border shadow-sm">
-        <div className="flex items-center gap-3 shrink-0">
-          {/* S-Loggan med grön smaragdprofil */}
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-lg shadow-emerald-200">
-            S
-          </div>
-          <h1 className="text-xl font-black italic uppercase tracking-tighter text-gray-800">
-            SoloLedger
-          </h1>
-        </div>
+      <div className="flex items-center gap-3 shrink-0">
+  {/* SoloLedger-logga */}
+  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-lg shadow-emerald-200">
+    S
+  </div>
+
+  <div className="flex flex-col">
+    <h1 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 leading-none">
+      SoloLedger
+    </h1>
+    <span className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1">
+      Bokföring för enskild firma – utan anställda
+    </span>
+  </div>
+</div>
 
         <nav className="flex gap-2 bg-gray-100 p-1 rounded-xl items-center overflow-x-auto snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-1">
           <button 
