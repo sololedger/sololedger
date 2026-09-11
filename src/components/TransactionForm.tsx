@@ -223,20 +223,51 @@ export default function TransactionForm({
         </div>
         )}
 
-        {/* Bilaga */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t border-gray-50">
-          <label className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">📎 Bilaga:</label>
-          <input
-            type="file"
-            accept="image/*,.pdf"
-            disabled={isYearLocked}
-            onChange={e => setFormData({ ...formData, file: e.target.files?.[0] || null })}
-            className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:bg-gray-100 file:text-gray-500 hover:file:bg-gray-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          />
-          {formData.file && (
-            <span className="text-[9px] text-emerald-500 font-bold truncate max-w-[160px] sm:max-w-none">{formData.file.name}</span>
-          )}
-        </div>
+{/* Bilaga */}
+<div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-50">
+  <span className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">
+    Bilaga:
+  </span>
+
+  <label
+    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wide transition-all shadow-sm
+      ${
+        isYearLocked
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+          : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer hover:shadow-md'
+      }`}
+  >
+    <span>＋</span>
+    <span>Välj fil</span>
+
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp,application/pdf"
+      disabled={isYearLocked}
+      onChange={e =>
+        setFormData({
+          ...formData,
+          file: e.target.files?.[0] || null
+        })
+      }
+      className="hidden"
+    />
+  </label>
+
+  <span
+    className={`text-[10px] font-medium truncate max-w-[220px] sm:max-w-md ${
+      formData.file ? 'text-emerald-600 font-bold' : 'text-gray-400'
+    }`}
+  >
+    {formData.file ? (
+      <>
+        {formData.file.name} <span className="text-emerald-500">✓</span>
+      </>
+    ) : (
+      'Ingen fil vald'
+    )}
+  </span>
+</div>
 
         {editingBooked && (
           <div className="mt-4 flex justify-end">
