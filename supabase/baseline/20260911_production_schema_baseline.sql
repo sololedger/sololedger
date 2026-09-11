@@ -1,7 +1,7 @@
 -- WARNING: BASELINE SNAPSHOT ONLY.
--- This file documents the verified deployed SoloLedger public schema as of 2026-09-10.
+-- This file documents the verified deployed SoloLedger database snapshot as of 2026-09-11.
 -- DO NOT run this file against the existing production database.
--- See README.md in this folder before using it for recovery/reconstruction.
+-- See README.md in this folder before using it for audit/recovery/reconstruction.
 
 -- =====================================================================
 -- 1. TABLES / CONSTRAINTS
@@ -138,7 +138,7 @@ ALTER TABLE public.ver_nr_sequences ENABLE ROW LEVEL SECURITY;
 -- 3. DEPLOYED PUBLIC FUNCTIONS / RPCs
 -- =====================================================================
 
--- book_periodized_transaction_atomic(jsonb)
+-- book_periodized_transaction_atomic(p_payload jsonb)
 CREATE OR REPLACE FUNCTION public.book_periodized_transaction_atomic(p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -176,7 +176,7 @@ BEGIN
       USING ERRCODE = '28000';
   END IF;
 
-  -- ── Grundvalidering ──────────────────────────────────────────
+  -- Grundvalidering
   IF p_payload->>'date' IS NULL
      OR p_payload->>'date' !~ '^\d{4}-\d{2}-\d{2}$' THEN
     RAISE EXCEPTION 'Ogiltigt eller saknat bokföringsdatum.'
@@ -197,8 +197,6 @@ BEGIN
       USING ERRCODE = '22023';
   END;
 
-  -- Samma beteende som tidigare klientkod:
-  -- första verifikationen läggs alltid på årets sista dag.
   v_year_end := make_date(extract(year from v_original_date)::int, 12, 31);
 
   v_description := btrim(coalesce(p_payload->>'description', ''));
@@ -229,9 +227,15 @@ BEGIN
     v_vat_rate := (p_payload->>'vat_rate')::numeric;
   END IF;
 
+  -- Server-side whitelist for supported VAT rates.
+  IF v_vat_rate NOT IN (0, 6, 12, 25) THEN
+    RAISE EXCEPTION
+      'Ogiltig momssats. Tillåtna momssatser är 0, 6, 12 eller 25 procent.'
+      USING ERRCODE = '22023';
+  END IF;
+
   v_file_url := nullif(p_payload->>'file_url', '');
 
-  -- Periodisering ska vändas efter bokslutsdagen, inte bakåt i tiden.
   IF v_future_date <= v_year_end THEN
     RAISE EXCEPTION
       'Vändningsdatumet (%) måste ligga efter bokslutsdagen (%).',
@@ -239,7 +243,6 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- ── BÅDA berörda åren måste vara öppna, server-side ─────────
   IF EXISTS (
     SELECT 1
     FROM public.closed_years
@@ -262,7 +265,6 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
-  -- ── Konto måste finnas och tillhöra användaren ──────────────
   SELECT debit_account, credit_account
     INTO v_debit_account, v_credit_account
   FROM public.accounts
@@ -280,8 +282,6 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
-  -- Periodiseringsflödet är byggt för kostnader:
-  -- kostnadskonto i debet och betalningskonto i kredit.
   IF left(v_debit_account, 1) NOT IN ('4', '5', '6', '7', '8') THEN
     RAISE EXCEPTION
       'Kontotyp % kan inte periodiseras som kostnad (debetkonto %).',
@@ -298,7 +298,6 @@ BEGIN
 
   v_net_amount := round((v_amount - v_vat_amount)::numeric, 2);
 
-  -- ── VER 1: bokslutsdagen ────────────────────────────────────
   SELECT public.get_next_ver_nr(v_user_id) INTO v_ver_nr;
 
   IF v_ver_nr IS NULL THEN
@@ -365,7 +364,6 @@ BEGIN
     );
   END IF;
 
-  -- ── VER 2: vändningsdatum ───────────────────────────────────
   SELECT public.get_next_ver_nr(v_user_id) INTO v_reversal_ver_nr;
 
   IF v_reversal_ver_nr IS NULL THEN
@@ -430,7 +428,7 @@ BEGIN
 END;
 $function$
 
--- book_transaction_atomic(jsonb)
+-- book_transaction_atomic(p_payload jsonb)
 CREATE OR REPLACE FUNCTION public.book_transaction_atomic(p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -462,7 +460,7 @@ BEGIN
       USING ERRCODE = '28000';
   END IF;
 
-  -- ── Grundvalidering av payload ───────────────────────────────
+  -- Grundvalidering av payload
   IF p_payload->>'date' IS NULL
      OR p_payload->>'date' !~ '^\d{4}-\d{2}-\d{2}$' THEN
     RAISE EXCEPTION 'Ogiltigt eller saknat bokföringsdatum.'
@@ -504,9 +502,18 @@ BEGIN
     v_vat_rate := (p_payload->>'vat_rate')::numeric;
   END IF;
 
+  -- Server-side whitelist: UI supports only 0, 6, 12 and 25 percent VAT.
+  -- Enforce the same rule even for direct RPC calls.
+  IF v_vat_rate NOT IN (0, 6, 12, 25) THEN
+    RAISE EXCEPTION
+      'Momssatsen % stöds inte. Tillåtna satser är 0, 6, 12 och 25 procent.',
+      v_vat_rate
+      USING ERRCODE = '22023';
+  END IF;
+
   v_file_url := nullif(p_payload->>'file_url', '');
 
-  -- ── Årslåsning, server-side ─────────────────────────────────
+  -- Årslåsning, server-side
   IF EXISTS (
     SELECT 1
     FROM public.closed_years
@@ -518,7 +525,7 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
-  -- ── Konto måste finnas och tillhöra användaren ──────────────
+  -- Konto måste finnas och tillhöra användaren
   SELECT debit_account, credit_account
     INTO v_debit_account, v_credit_account
   FROM public.accounts
@@ -536,7 +543,6 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
-  -- Samma beräkning som tidigare låg i accountingService.ts.
   v_vat_amount :=
     CASE
       WHEN v_vat_rate > 0
@@ -565,14 +571,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- Verifikationsnummer hämtas inne i samma transaktion.
   SELECT public.get_next_ver_nr(v_user_id) INTO v_ver_nr;
 
   IF v_ver_nr IS NULL THEN
     RAISE EXCEPTION 'Kunde inte generera verifikationsnummer.';
   END IF;
 
-  -- ── Skapa transaction direkt som bokförd ────────────────────
   INSERT INTO public.transactions (
     user_id,
     date,
@@ -594,7 +598,6 @@ BEGIN
   )
   RETURNING id INTO v_tx_id;
 
-  -- ── Journalrader ─────────────────────────────────────────────
   IF v_is_income THEN
     INSERT INTO public.journal_entries (
       transaction_id, ver_nr, account_number,
@@ -660,7 +663,7 @@ BEGIN
 END;
 $function$
 
--- create_correction_transaction_atomic(uuid)
+-- create_correction_transaction_atomic(p_original_tx_id uuid)
 CREATE OR REPLACE FUNCTION public.create_correction_transaction_atomic(p_original_tx_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -925,7 +928,86 @@ BEGIN
 END;
 $function$
 
--- get_next_ver_nr(uuid)
+-- delete_user_data_atomic(p_user_id uuid)
+CREATE OR REPLACE FUNCTION public.delete_user_data_atomic(p_user_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_role text;
+  v_journal_entries integer := 0;
+  v_transactions integer := 0;
+  v_favorites integer := 0;
+  v_import_batches integer := 0;
+  v_accounts integer := 0;
+  v_closed_years integer := 0;
+  v_ver_nr_sequences integer := 0;
+  v_profiles integer := 0;
+BEGIN
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'user_id krävs.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT role INTO v_role
+  FROM public.profiles
+  WHERE id = p_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Användaren hittades inte.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_role = 'admin' THEN
+    RAISE EXCEPTION 'Admin-konton kan inte raderas här.' USING ERRCODE = '42501';
+  END IF;
+
+  DELETE FROM public.journal_entries WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_journal_entries = ROW_COUNT;
+
+  DELETE FROM public.transactions WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_transactions = ROW_COUNT;
+
+  DELETE FROM public.favorites WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_favorites = ROW_COUNT;
+
+  DELETE FROM public.import_batches WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_import_batches = ROW_COUNT;
+
+  DELETE FROM public.accounts WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_accounts = ROW_COUNT;
+
+  DELETE FROM public.closed_years WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_closed_years = ROW_COUNT;
+
+  DELETE FROM public.ver_nr_sequences WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_ver_nr_sequences = ROW_COUNT;
+
+  DELETE FROM public.profiles WHERE id = p_user_id;
+  GET DIAGNOSTICS v_profiles = ROW_COUNT;
+
+  IF v_profiles <> 1 THEN
+    RAISE EXCEPTION 'Profilraderingen gav oväntat resultat.' USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'user_id', p_user_id,
+    'deleted', jsonb_build_object(
+      'journal_entries', v_journal_entries,
+      'transactions', v_transactions,
+      'favorites', v_favorites,
+      'import_batches', v_import_batches,
+      'accounts', v_accounts,
+      'closed_years', v_closed_years,
+      'ver_nr_sequences', v_ver_nr_sequences,
+      'profiles', v_profiles
+    )
+  );
+END;
+$function$
+
+-- get_next_ver_nr(p_user_id uuid)
 CREATE OR REPLACE FUNCTION public.get_next_ver_nr(p_user_id uuid)
  RETURNS integer
  LANGUAGE plpgsql
@@ -970,7 +1052,7 @@ BEGIN
 END;
 $function$
 
--- import_sie_batch(jsonb)
+-- import_sie_batch(p_payload jsonb)
 CREATE OR REPLACE FUNCTION public.import_sie_batch(p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1368,6 +1450,30 @@ AS $function$
   );
 $function$
 
+-- prevent_deleting_used_account()
+CREATE OR REPLACE FUNCTION public.prevent_deleting_used_account()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.transactions t
+    WHERE t.user_id = OLD.user_id
+      AND t.type = OLD.id
+      AND t.booked = true
+  ) THEN
+    RAISE EXCEPTION
+      'Kontot "%" används i bokförda transaktioner och kan inte raderas.',
+      OLD.id
+      USING ERRCODE = '23503';
+  END IF;
+
+  RETURN OLD;
+END;
+$function$
+
 -- rls_auto_enable()
 CREATE OR REPLACE FUNCTION public.rls_auto_enable()
  RETURNS event_trigger
@@ -1399,7 +1505,7 @@ BEGIN
 END;
 $function$
 
--- undo_sie_import_atomic(uuid)
+-- undo_sie_import_atomic(p_import_batch_id uuid)
 CREATE OR REPLACE FUNCTION public.undo_sie_import_atomic(p_import_batch_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1694,7 +1800,7 @@ BEGIN
 END;
 $function$
 
--- update_transaction_safe(uuid,jsonb)
+-- update_transaction_safe(p_tx_id uuid, p_updates jsonb)
 CREATE OR REPLACE FUNCTION public.update_transaction_safe(p_tx_id uuid, p_updates jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1775,18 +1881,22 @@ BEGIN
   END IF;
 
   -- Bokförd verifikation: bokföringspåverkande fält får aldrig ändras direkt.
-  -- Datum kontrolleras mot befintligt värde eftersom klienten får skicka med
-  -- samma datum utan att detta ska räknas som en ändring.
+  -- Datum och beskrivning jämförs mot befintliga värden eftersom klienten får
+  -- skicka med samma värden utan att detta ska räknas som en ändring.
   IF COALESCE(v_tx.booked, false)
      AND (
        (p_updates ? 'date' AND v_new_date IS DISTINCT FROM v_tx.date)
+       OR (
+         p_updates ? 'description'
+         AND (p_updates->>'description') IS DISTINCT FROM v_tx.description
+       )
        OR p_updates ? 'amount'
        OR p_updates ? 'type'
        OR p_updates ? 'vat_rate'
      )
   THEN
     RAISE EXCEPTION
-      'Bokförda transaktioner får inte ändras i datum, belopp, kategori eller moms. Använd korrigeringsverifikation.'
+      'Bokförda transaktioner får inte ändras i datum, beskrivning, belopp, kategori eller moms. Använd korrigeringsverifikation.'
       USING ERRCODE = '42501';
   END IF;
 
@@ -1827,168 +1937,215 @@ BEGIN
 END;
 $function$
 
-
 -- =====================================================================
--- 4. RLS POLICIES
+-- 4. RLS POLICIES (PUBLIC + STORAGE)
 -- =====================================================================
 
-CREATE POLICY "Användare raderar bara egna konton"
-  ON public.accounts
-  AS PERMISSIVE
-  FOR DELETE
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare raderar bara egna konton" ON public.accounts
+AS PERMISSIVE
+FOR DELETE
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "Användare ser bara sina egna konton"
-  ON public.accounts
-  AS PERMISSIVE
-  FOR SELECT
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare ser bara sina egna konton" ON public.accounts
+AS PERMISSIVE
+FOR SELECT
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "Användare skapar bara egna konton"
-  ON public.accounts
-  AS PERMISSIVE
-  FOR INSERT
-  TO public
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Användare skapar bara egna konton" ON public.accounts
+AS PERMISSIVE
+FOR INSERT
+TO public
+WITH CHECK ((auth.uid() = user_id));
 
-CREATE POLICY "Användare uppdaterar bara egna konton"
-  ON public.accounts
-  AS PERMISSIVE
-  FOR UPDATE
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare uppdaterar bara egna konton" ON public.accounts
+AS PERMISSIVE
+FOR UPDATE
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "Användare kan bara låsa sina egna år"
-  ON public.closed_years
-  AS PERMISSIVE
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Användare kan bara låsa sina egna år" ON public.closed_years
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK ((auth.uid() = user_id));
 
-CREATE POLICY "Användare ser bara sina egna låsta år"
-  ON public.closed_years
-  AS PERMISSIVE
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare ser bara sina egna låsta år" ON public.closed_years
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "favorites_self_access"
-  ON public.favorites
-  AS PERMISSIVE
-  FOR ALL
-  TO public
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "favorites_self_access" ON public.favorites
+AS PERMISSIVE
+FOR ALL
+TO public
+USING ((user_id = auth.uid()))
+WITH CHECK ((user_id = auth.uid()));
 
-CREATE POLICY "import_batches_self_access"
-  ON public.import_batches
-  AS PERMISSIVE
-  FOR ALL
-  TO public
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "import_batches_self_access" ON public.import_batches
+AS PERMISSIVE
+FOR ALL
+TO public
+USING ((user_id = auth.uid()))
+WITH CHECK ((user_id = auth.uid()));
 
-CREATE POLICY "Användare ser bara sina egna journalposter"
-  ON public.journal_entries
-  AS PERMISSIVE
-  FOR SELECT
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare ser bara sina egna journalposter" ON public.journal_entries
+AS PERMISSIVE
+FOR SELECT
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "admin_read_all_profiles"
-  ON public.profiles
-  AS PERMISSIVE
-  FOR SELECT
-  TO authenticated
-  USING ((auth.uid() = id) OR is_admin());
+CREATE POLICY "admin_read_all_profiles" ON public.profiles
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (((auth.uid() = id) OR is_admin()));
 
-CREATE POLICY "profiles_self_access"
-  ON public.profiles
-  AS PERMISSIVE
-  FOR ALL
-  TO public
-  USING (id = auth.uid())
-  WITH CHECK (id = auth.uid());
+CREATE POLICY "profiles_self_access" ON public.profiles
+AS PERMISSIVE
+FOR ALL
+TO public
+USING ((id = auth.uid()))
+WITH CHECK ((id = auth.uid()));
 
-CREATE POLICY "Användare ser bara sina egna transaktioner"
-  ON public.transactions
-  AS PERMISSIVE
-  FOR SELECT
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Användare ser bara sina egna transaktioner" ON public.transactions
+AS PERMISSIVE
+FOR SELECT
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "Users can update own ver_nr sequence"
-  ON public.ver_nr_sequences
-  AS PERMISSIVE
-  FOR UPDATE
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own ver_nr sequence" ON public.ver_nr_sequences
+AS PERMISSIVE
+FOR UPDATE
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "Users can view own ver_nr sequence"
-  ON public.ver_nr_sequences
-  AS PERMISSIVE
-  FOR SELECT
-  TO public
-  USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own ver_nr sequence" ON public.ver_nr_sequences
+AS PERMISSIVE
+FOR SELECT
+TO public
+USING ((auth.uid() = user_id));
 
-CREATE POLICY "ver_nr_sequences_owner"
-  ON public.ver_nr_sequences
-  AS PERMISSIVE
-  FOR ALL
-  TO public
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "ver_nr_sequences_owner" ON public.ver_nr_sequences
+AS PERMISSIVE
+FOR ALL
+TO public
+USING ((user_id = auth.uid()))
+WITH CHECK ((user_id = auth.uid()));
 
+CREATE POLICY "Användare kan ladda upp sina egna bilagor" ON storage.objects
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK (((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+
+CREATE POLICY "Användare kan läsa sina egna bilagor" ON storage.objects
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+
+CREATE POLICY "Användare kan radera sina egna bilagor" ON storage.objects
+AS PERMISSIVE
+FOR DELETE
+TO authenticated
+USING (((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text)));
+
+CREATE POLICY "Give users access to own folder 1mt4rzk_0" ON storage.objects
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (((bucket_id = 'attachments'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
+
+CREATE POLICY "Give users access to own folder 1mt4rzk_1" ON storage.objects
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK (((bucket_id = 'attachments'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
 
 -- =====================================================================
 -- 5. TABLE PRIVILEGES / GRANTS
 -- =====================================================================
 
-REVOKE ALL ON TABLE public.accounts FROM anon, authenticated;
-REVOKE ALL ON TABLE public.closed_years FROM anon, authenticated;
-REVOKE ALL ON TABLE public.favorites FROM anon, authenticated;
-REVOKE ALL ON TABLE public.import_batches FROM anon, authenticated;
-REVOKE ALL ON TABLE public.journal_entries FROM anon, authenticated;
-REVOKE ALL ON TABLE public.profiles FROM anon, authenticated;
-REVOKE ALL ON TABLE public.transactions FROM anon, authenticated;
-REVOKE ALL ON TABLE public.ver_nr_sequences FROM anon, authenticated;
-
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.accounts TO authenticated;
-GRANT INSERT, SELECT ON TABLE public.closed_years TO authenticated;
-GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.favorites TO authenticated;
-GRANT SELECT ON TABLE public.import_batches TO authenticated;
-GRANT SELECT ON TABLE public.journal_entries TO authenticated;
-GRANT SELECT ON TABLE public.profiles TO authenticated;
-GRANT SELECT ON TABLE public.transactions TO authenticated;
-GRANT SELECT ON TABLE public.ver_nr_sequences TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.accounts TO service_role;
+GRANT INSERT, SELECT ON TABLE public.closed_years TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.closed_years TO service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.favorites TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.favorites TO service_role;
+GRANT SELECT ON TABLE public.import_batches TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.import_batches TO service_role;
+GRANT SELECT ON TABLE public.journal_entries TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.journal_entries TO service_role;
+GRANT SELECT ON TABLE public.profiles TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.profiles TO service_role;
+GRANT SELECT ON TABLE public.transactions TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.transactions TO service_role;
+GRANT SELECT ON TABLE public.ver_nr_sequences TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.ver_nr_sequences TO service_role;
 
--- profiles has intentionally restricted UPDATE rights for normal users.
--- Verified deployed state: authenticated may update company_name and org_nr only.
+-- Verified column-level UPDATE restriction for normal users:
 GRANT UPDATE (company_name, org_nr) ON TABLE public.profiles TO authenticated;
-
 -- No table grants for anon were present in the verified export.
 
 -- =====================================================================
--- 6. KNOWN SNAPSHOT BOUNDARIES
+-- 6. PUBLIC INDEXES
 -- =====================================================================
--- The supplied Supabase exports did not include:
---   * auth-schema trigger definitions (e.g. the trigger that may call handle_new_user())
---   * event-trigger definitions (if rls_auto_enable() is attached to one)
---   * Storage bucket configuration / Storage RLS policies
---   * non-PK/FK indexes
---   * per-function EXECUTE grants / revokes
---   * extensions / project-level Supabase configuration
+
+CREATE UNIQUE INDEX accounts_pkey ON public.accounts USING btree (id, user_id);
+CREATE UNIQUE INDEX closed_years_pkey ON public.closed_years USING btree (id);
+CREATE UNIQUE INDEX closed_years_user_id_year_key ON public.closed_years USING btree (user_id, year);
+CREATE INDEX idx_closed_years_user_year ON public.closed_years USING btree (user_id, year);
+CREATE UNIQUE INDEX favorites_pkey ON public.favorites USING btree (id);
+CREATE UNIQUE INDEX import_batches_pkey ON public.import_batches USING btree (id);
+CREATE UNIQUE INDEX import_batches_user_id_file_hash_key ON public.import_batches USING btree (user_id, file_hash);
+CREATE INDEX idx_journal_entries_account_number ON public.journal_entries USING btree (account_number);
+CREATE INDEX idx_journal_entries_transaction_id ON public.journal_entries USING btree (transaction_id);
+CREATE INDEX idx_journal_entries_user_id ON public.journal_entries USING btree (user_id);
+CREATE UNIQUE INDEX journal_entries_pkey ON public.journal_entries USING btree (id);
+CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
+CREATE INDEX idx_transactions_user_date ON public.transactions USING btree (user_id, date);
+CREATE UNIQUE INDEX transactions_one_correction_per_original ON public.transactions USING btree (user_id, corrects_ver_nr) WHERE ((is_correction = true) AND (corrects_ver_nr IS NOT NULL));
+CREATE UNIQUE INDEX transactions_pkey ON public.transactions USING btree (id);
+CREATE UNIQUE INDEX ver_nr_sequences_pkey ON public.ver_nr_sequences USING btree (user_id);
+CREATE UNIQUE INDEX ver_nr_sequences_user_unique ON public.ver_nr_sequences USING btree (user_id);
+
+-- =====================================================================
+-- 7. PUBLIC TRIGGERS
+-- =====================================================================
+
+CREATE TRIGGER prevent_deleting_used_account BEFORE DELETE ON accounts FOR EACH ROW EXECUTE FUNCTION prevent_deleting_used_account();
+
+-- =====================================================================
+-- 8. STORAGE BUCKET CONFIGURATION
+-- =====================================================================
+
+-- Verified live bucket state (2026-09-11):
+-- id/name: attachments / attachments
+-- public: false
+-- file_size_limit: 10485760 bytes (10 MiB)
+-- allowed_mime_types: ["image/jpeg","image/png","image/webp","application/pdf"]
 --
--- Because of those boundaries, treat this file as an audited production-state
--- baseline for the public schema, not yet as a one-command fresh-project installer.
--- Future reconstruction should verify the missing items before execution.
+-- Bucket creation/configuration is intentionally documented rather than executed here.
+-- Storage RLS policies themselves are captured in section 4 from pg_policies.
+
+-- =====================================================================
+-- 9. KNOWN SNAPSHOT BOUNDARIES
+-- =====================================================================
+-- This 2026-09-11 snapshot now includes the live public tables/constraints,
+-- public RLS state, public + Storage RLS policies, public table grants,
+-- the verified profiles column-level UPDATE restriction, all 12 live public
+-- functions/RPCs, public indexes, the live public non-internal trigger, and
+-- the verified attachments bucket configuration.
+--
+-- It still does not prove or recreate:
+--   * auth-schema trigger bindings (for example a trigger calling handle_new_user())
+--   * event-trigger bindings, if any, for rls_auto_enable()
+--   * per-function EXECUTE grants/revokes
+--   * extensions and project-level Supabase configuration
+--
+-- Treat this as an audited production-state baseline, not as a script to run
+-- against the existing production database. Test any future clean rebuild in
+-- a disposable Supabase project before relying on it for disaster recovery.
