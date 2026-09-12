@@ -28,24 +28,26 @@ export default function OverviewCards({
   return (
     <>
       {/* ── ÖVERSIKTSKORT ─────────────────────────────────────────── */}
-      <div className="border border-gray-100 rounded-[2.5rem] p-6 bg-white shadow-sm mb-6">
+      <div className="border border-gray-100 rounded-[2.5rem] p-4 sm:p-6 bg-white shadow-sm mb-6">
         <h2 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-5 px-2">
           Översikt
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
 
           {/* Bank */}
           <button
             onClick={() => setActiveModal('bank')}
-            className="group p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all text-left"
+            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
               Bank · 1930
             </p>
+
             <p className={`text-xl font-black tabular-nums ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {data.bankSaldo.toLocaleString('sv-SE')} kr
             </p>
+
             <p className="text-xs text-emerald-400 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa historik ↗
             </p>
@@ -54,14 +56,16 @@ export default function OverviewCards({
           {/* Skatt */}
           <button
             onClick={() => setActiveModal('skatt')}
-            className="group p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-orange-200 hover:shadow-md transition-all text-left"
+            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-orange-200 hover:shadow-md transition-all text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
               Skatt · {taxRate}%
             </p>
+
             <p className="text-xl font-black tabular-nums text-orange-500">
               −{data.skattReserv.toLocaleString('sv-SE')} kr
             </p>
+
             <p className="text-xs text-orange-300 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa beräkning ↗
             </p>
@@ -70,14 +74,16 @@ export default function OverviewCards({
           {/* Moms */}
           <button
             onClick={() => setActiveModal('moms')}
-            className="group p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-green-200 hover:shadow-md transition-all text-left"
+            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-green-200 hover:shadow-md transition-all text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
               Moms
             </p>
+
             <p className={`text-xl font-black tabular-nums ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {data.momsNetto.toLocaleString('sv-SE')} kr
             </p>
+
             <p className="text-xs text-green-400 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa detaljer ↗
             </p>
@@ -86,24 +92,27 @@ export default function OverviewCards({
           {/* Resultat */}
           <button
             onClick={() => setActiveModal('resultat')}
-            className="group p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-gray-300 hover:shadow-md transition-all text-left"
+            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-gray-300 hover:shadow-md transition-all text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
               Resultat
             </p>
+
             <p className={`text-xl font-black tabular-nums ${data.bokfortResultat >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {data.bokfortResultat.toLocaleString('sv-SE')} kr
             </p>
+
             <p className="text-xs text-gray-400 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa resultaträkning ↗
             </p>
           </button>
 
           {/* Säkert uttag — accent-kort */}
-          <div className="p-6 rounded-[1.75rem] bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg flex flex-col justify-between">
+          <div className="col-span-2 md:col-span-1 p-5 sm:p-6 rounded-[1.75rem] bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg flex flex-col justify-between">
             <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">
               Säkert uttag
             </p>
+
             <p className="text-3xl font-black tabular-nums leading-none">
               {data.sakertUttag.toLocaleString('sv-SE')} kr
             </p>
@@ -135,6 +144,7 @@ export default function OverviewCards({
                 <h2 className="text-xl font-black uppercase italic tracking-tighter text-emerald-600 mb-1">
                   Bank (1930)
                 </h2>
+
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
                   Transaktionshistorik
                 </p>
@@ -173,8 +183,12 @@ export default function OverviewCards({
                               ? `↩ ${tx.description.replace('↩ ', '')}`
                               : tx.description}
                           </p>
-                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">{tx.date}</p>
+
+                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                            {tx.date}
+                          </p>
                         </div>
+
                         <span className={`font-black text-sm tabular-nums ${
                           isCorrection
                             ? 'text-amber-400 line-through'
@@ -184,7 +198,8 @@ export default function OverviewCards({
                             ? 'text-emerald-600'
                             : 'text-red-500'
                         }`}>
-                          {amount >= 0 ? '+' : ''}{amount.toLocaleString('sv-SE')} kr
+                          {amount >= 0 ? '+' : ''}
+                          {amount.toLocaleString('sv-SE')} kr
                         </span>
                       </div>
                     )
@@ -192,7 +207,10 @@ export default function OverviewCards({
                 </div>
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2 font-black uppercase tracking-tighter">
-                  <span className="text-[11px] text-gray-500">Aktuellt Saldo</span>
+                  <span className="text-[11px] text-gray-500">
+                    Aktuellt Saldo
+                  </span>
+
                   <span className={`text-xl font-black ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {data.bankSaldo.toLocaleString('sv-SE')} kr
                   </span>
@@ -206,41 +224,65 @@ export default function OverviewCards({
                 <h2 className="text-xl font-black uppercase italic tracking-tighter text-orange-500 mb-1">
                   Skattreservat
                 </h2>
+
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
                   Hur skatten beräknas
                 </p>
+
                 <div className="space-y-3">
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
-                    <span className="text-xs font-black text-gray-500 uppercase">Total Försäljning (3xxx)</span>
-                    <span className="font-black text-emerald-600">+{data.intakter.toLocaleString('sv-SE')} kr</span>
+                    <span className="text-xs font-black text-gray-500 uppercase">
+                      Total Försäljning (3xxx)
+                    </span>
+                    <span className="font-black text-emerald-600">
+                      +{data.intakter.toLocaleString('sv-SE')} kr
+                    </span>
                   </div>
+
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
-                    <span className="text-xs font-black text-gray-500 uppercase">Totala Kostnader (4–7xxx)</span>
-                    <span className="font-black text-red-500">−{data.kostnader.toLocaleString('sv-SE')} kr</span>
+                    <span className="text-xs font-black text-gray-500 uppercase">
+                      Totala Kostnader (4–7xxx)
+                    </span>
+                    <span className="font-black text-red-500">
+                      −{data.kostnader.toLocaleString('sv-SE')} kr
+                    </span>
                   </div>
+
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
-                    <span className="text-xs font-black text-gray-500 uppercase">Bokfört resultat</span>
+                    <span className="text-xs font-black text-gray-500 uppercase">
+                      Bokfört resultat
+                    </span>
                     <span className={`font-black ${data.bokfortResultat >= 0 ? 'text-gray-700' : 'text-red-500'}`}>
                       {data.bokfortResultat.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
+
                   {data.ejAvdragsgillt > 0 && (
                     <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
-                      <span className="text-xs font-black text-orange-500 uppercase">+ Ej avdragsgilla (6992)</span>
-                      <span className="font-black text-orange-500">+{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr</span>
+                      <span className="text-xs font-black text-orange-500 uppercase">
+                        + Ej avdragsgilla (6992)
+                      </span>
+                      <span className="font-black text-orange-500">
+                        +{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
+                      </span>
                     </div>
                   )}
+
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3 border border-orange-200">
-                    <span className="text-xs font-black text-orange-600 uppercase">Skattemässigt resultat</span>
+                    <span className="text-xs font-black text-orange-600 uppercase">
+                      Skattemässigt resultat
+                    </span>
                     <span className="font-black text-orange-600">
                       {data.skattemassigVinst.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                 </div>
+
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     {data.skattemassigVinst.toLocaleString('sv-SE')} kr × {taxRate}%
                   </span>
+
                   <span className="text-2xl font-black text-orange-500">
                     −{data.skattReserv.toLocaleString('sv-SE')} kr
                   </span>
@@ -254,37 +296,48 @@ export default function OverviewCards({
                 <h2 className="text-xl font-black uppercase italic tracking-tighter text-emerald-600 mb-1">
                   Momsberäkning
                 </h2>
+
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
                   Hur momsen beräknas
                 </p>
+
                 <div className="space-y-3">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-red-50 rounded-2xl px-5 py-3">
                     <div>
-                      <p className="text-xs font-black text-red-600 uppercase">Utgående moms (261x/262x/263x)</p>
+                      <p className="text-xs font-black text-red-600 uppercase">
+                        Utgående moms (261x/262x/263x)
+                      </p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
                         Moms på din försäljning — ska betalas in
                       </p>
                     </div>
+
                     <span className="font-black text-red-500">
                       +{data.utgaendeMoms.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
+
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3">
                     <div>
-                      <p className="text-xs font-black text-emerald-600 uppercase">Ingående moms (264x)</p>
+                      <p className="text-xs font-black text-emerald-600 uppercase">
+                        Ingående moms (264x)
+                      </p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
                         Moms du betalat på kostnader — dras av
                       </p>
                     </div>
+
                     <span className="font-black text-emerald-600">
                       −{data.ingaendeMoms.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
                 </div>
+
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     Momsbalans (Utgående − Ingående)
                   </span>
+
                   <span className={`text-2xl font-black ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {data.momsNetto <= 0 ? 'Få tillbaka: ' : 'Att betala: '}
                     {Math.abs(data.momsNetto).toLocaleString('sv-SE')} kr
@@ -299,9 +352,11 @@ export default function OverviewCards({
                 <h2 className="text-xl font-black uppercase italic tracking-tighter text-gray-800 mb-1">
                   Resultaträkning
                 </h2>
+
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
                   Översikt av intäkter och kostnader
                 </p>
+
                 <div className="space-y-3">
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3 border border-emerald-100">
                     <span className="text-xs font-black text-emerald-700 uppercase">
@@ -311,6 +366,7 @@ export default function OverviewCards({
                       +{data.intakter.toLocaleString('sv-SE')} kr
                     </span>
                   </div>
+
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-rose-50 rounded-2xl px-5 py-3 border border-rose-100">
                     <span className="text-xs font-black text-rose-700 uppercase">
                       Totala Kostnader (4–7xxx)
@@ -320,10 +376,12 @@ export default function OverviewCards({
                     </span>
                   </div>
                 </div>
+
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
                     Verksamhetens Resultat
                   </span>
+
                   <span className={`text-2xl font-black ${data.bokfortResultat >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {data.bokfortResultat.toLocaleString('sv-SE')} kr
                   </span>
