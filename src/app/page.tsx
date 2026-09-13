@@ -15,6 +15,7 @@ import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
 import ProfileSettings from '@/components/ProfileSettings'
 import TransactionTable from '@/components/TransactionTable'
+import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
 import SieImportModal from '@/components/SieImportModal'
@@ -823,18 +824,24 @@ export default function Home() {
             />
           </div>
 
-          <TransactionTable
-            transactions={transactions}
-            journalMap={journalMap}
-            kontoplan={kontoplan}
-            isYearLocked={isYearLocked}
-            editingId={editingId}
-            selectedYear={selectedYear}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onFavorite={handleFavorite}
-          />
-        </>
+          {!dataLoading && transactions.length === 0 ? (
+  <EmptyBookkeepingState
+    selectedYear={selectedYear}
+    onImportSIE={() => setShowSieImport(true)}
+  />
+) : (
+  <TransactionTable
+    transactions={transactions}
+    journalMap={journalMap}
+    kontoplan={kontoplan}
+    isYearLocked={isYearLocked}
+    editingId={editingId}
+    selectedYear={selectedYear}
+    onEdit={handleEdit}
+    onDelete={handleDelete}
+    onFavorite={handleFavorite}
+  />
+)}        </>
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={refreshData} />
       ) : activeTab === 'moms' ? (
