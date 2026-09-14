@@ -464,7 +464,44 @@ const unknown3300 = calculateBusinessResult({
     'Okänt 3300 stämmer av trots saknad NE-rad'
   )
   
+// ---------------------------------------------------------
+// TEKNISKA BOKSLUTSKONTON 899x
+// ---------------------------------------------------------
 
+const technical8999 = calculateBusinessResult({
+    '3010': -100000,
+    '6570': 5000,
+    '8999': 95000,
+  })
+  
+  assertEqual(
+    technical8999.bokfortResultat,
+    95000,
+    '8999 påverkar inte bokfört resultat'
+  )
+  
+  assertEqual(
+    technical8999.unresolvedResultEffect,
+    0,
+    '8999 hamnar inte i olöst resultatpåverkan'
+  )
+  
+  const technical8990 = calculateBusinessResult({
+    '3010': -100000,
+    '8990': 100000,
+  })
+  
+  assertEqual(
+    technical8990.bokfortResultat,
+    100000,
+    '8990 påverkar inte bokfört resultat'
+  )
+  
+  assertEqual(
+    technical8990.unresolvedResultEffect,
+    0,
+    '8990 hamnar inte i olöst resultatpåverkan'
+  )
   // ---------------------------------------------------------
   // SLUTRESULTAT
   // ---------------------------------------------------------

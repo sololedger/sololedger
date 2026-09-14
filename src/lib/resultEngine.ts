@@ -380,6 +380,14 @@ function isPotentialResultAccount(accountNumber: string): boolean {
 }
 
 /**
+ * 899x är tekniska bokslutskonton som representerar årets resultat.
+ * De får inte räknas som en ytterligare resultatpåverkande affärshändelse.
+ */
+function isTechnicalResultAccount(accountNumber: string): boolean {
+  return /^899\d$/.test(accountNumber)
+}
+
+/**
  * Beräknar resultat utifrån årsvisa kontosaldon.
  *
  * Förväntad balanskonvention:
@@ -405,6 +413,12 @@ export function calculateBusinessResult(
     const balance = Number(rawBalance)
 
     if (!Number.isFinite(balance) || balance === 0) {
+      continue
+    }
+
+    // 899x är tekniska bokslutskonton och ska aldrig räknas in
+    // en gång till i verksamhetens bokförda resultat.
+    if (isTechnicalResultAccount(accountNumber)) {
       continue
     }
 
@@ -440,10 +454,9 @@ export function calculateBusinessResult(
         continue
       }
 
-    const resultEffect =
-      classification.resultType === 'income'
-        ? -balance
-        : -balance
+    // Med debit-minus-credit-konventionen är resultatpåverkan alltid
+    // -balance, både för intäkts- och kostnadskonton.
+    const resultEffect = -balance
 
     /**
      * Resultateffekten är matematiskt alltid -balance eftersom
