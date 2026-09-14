@@ -232,7 +232,7 @@ export default function OverviewCards({
                 <div className="space-y-3">
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">
-                      Total Försäljning (3xxx)
+                      Bokförda intäkter
                     </span>
                     <span className="font-black text-emerald-600">
                       +{data.intakter.toLocaleString('sv-SE')} kr
@@ -241,7 +241,7 @@ export default function OverviewCards({
 
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">
-                      Totala Kostnader (4–7xxx)
+                      Bokförda kostnader
                     </span>
                     <span className="font-black text-red-500">
                       −{data.kostnader.toLocaleString('sv-SE')} kr
@@ -360,7 +360,7 @@ export default function OverviewCards({
                 <div className="space-y-3">
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3 border border-emerald-100">
                     <span className="text-xs font-black text-emerald-700 uppercase">
-                      Total Försäljning (3xxx)
+                      Bokförda intäkter
                     </span>
                     <span className="font-black text-emerald-700">
                       +{data.intakter.toLocaleString('sv-SE')} kr
@@ -369,7 +369,7 @@ export default function OverviewCards({
 
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-rose-50 rounded-2xl px-5 py-3 border border-rose-100">
                     <span className="text-xs font-black text-rose-700 uppercase">
-                      Totala Kostnader (4–7xxx)
+                      Bokförda kostnader
                     </span>
                     <span className="font-black text-rose-700">
                       −{data.kostnader.toLocaleString('sv-SE')} kr
