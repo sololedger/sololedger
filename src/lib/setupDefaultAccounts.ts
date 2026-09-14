@@ -1,127 +1,18 @@
 import { supabase } from '@/lib/supabaseClient'
+import { getDefaultAccountPresets } from '@/lib/accountingKnowledge'
 
 export async function setupDefaultAccounts(userId: string) {
   // SoloLedger är avsett för enskild firma utan anställda.
-  // Kontoplanen är därför medvetet liten och fokuserad på vanliga händelser.
-  const defaultAccounts = [
-    {
-      id: 'avskrivning_inventarier',
-      name: 'Avskrivning på inventarier',
-      debit_account: '7830',
-      credit_account: '1220',
-      default_vat_rate: 0,
-      comment: 'Avskrivning på inventarier som bokförts som tillgång',
-      user_id: userId,
-    },
-    {
-      id: 'bankavgift',
-      name: 'Bankavgift',
-      debit_account: '6570',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'Bank- och betaltjänstkostnader',
-      user_id: userId,
-    },
-    {
-      id: 'egen_insättning',
-      name: 'Egen insättning',
-      debit_account: '1930',
-      credit_account: '2018',
-      default_vat_rate: 0,
-      comment: 'När du sätter in privata pengar i firman',
-      user_id: userId,
-    },
-    {
-      id: 'eget_uttag',
-      name: 'Eget uttag',
-      debit_account: '2013',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'När du tar ut pengar från firman privat – inte lön',
-      user_id: userId,
-    },
-    {
-      id: 'ej_avdragsgillt',
-      name: 'Ej avdragsgilla kostnader',
-      debit_account: '6992',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'T.ex. böter och förseningsavgifter som inte är skattemässigt avdragsgilla',
-      user_id: userId,
-    },
-    {
-      id: 'försäljning',
-      name: 'Försäljning',
-      debit_account: '1930',
-      credit_account: '3010',
-      default_vat_rate: 25,
-      comment: 'Vanlig momspliktig försäljning. Ändra momssats vid behov.',
-      user_id: userId,
-    },
-    {
-      id: 'ingående_balans',
-      name: 'Eget kapital, ingående balans (IB)',
-      debit_account: '1930',
-      credit_account: '2010',
-      default_vat_rate: 0,
-      comment: 'Tekniskt konto för ingående eget kapital – använd inte för vanliga egna insättningar',
-      user_id: userId,
-    },
-    {
-      id: 'kurser',
-      name: 'Kurser & fortbildning',
-      debit_account: '6991',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'Utbildning med tydlig koppling till den verksamhet du redan bedriver',
-      user_id: userId,
-    },
-    {
-      id: 'prenumerationer',
-      name: 'Prenumerationer & programvaror',
-      debit_account: '5420',
-      credit_account: '1930',
-      default_vat_rate: 25,
-      comment: 'T.ex. Adobe och andra programvaror/SaaS',
-      user_id: userId,
-    },
-    {
-      id: 'privat_utlägg',
-      name: 'Privat utlägg för firman',
-      debit_account: '5410',
-      credit_account: '2018',
-      default_vat_rate: 25,
-      comment: 'När du privat har betalat ett inköp som hör till firman',
-      user_id: userId,
-    },
-    {
-      id: 'resor',
-      name: 'Resor',
-      debit_account: '5800',
-      credit_account: '1930',
-      default_vat_rate: 6,
-      comment: 'T.ex. tåg, kollektivtrafik och taxi – kontrollera momsen på underlaget',
-      user_id: userId,
-    },
-    {
-      id: 'periodisering',
-      name: 'Förutbetalda kostnader',
-      debit_account: '1790',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'Används automatiskt av SoloLedger vid periodisering över årsskifte',
-      user_id: userId,
-    },
-    {
-      id: 'skattekonto_default',
-      name: 'Skatter & avgifter (eget uttag)',
-      debit_account: '2012',
-      credit_account: '1930',
-      default_vat_rate: 0,
-      comment: 'När firmans pengar används för ägarens F-skatt och andra privata skatter/avgifter',
-      user_id: userId,
-    },
-  ]
+  // Standardkontona hämtas från den gemensamma knowledge-källan.
+  const defaultAccounts = getDefaultAccountPresets().map(preset => ({
+    id: preset.id,
+    name: preset.name,
+    debit_account: preset.debit_account,
+    credit_account: preset.credit_account,
+    default_vat_rate: preset.default_vat_rate,
+    comment: preset.comment,
+    user_id: userId,
+  }))
 
   const { error } = await supabase.from('accounts').insert(defaultAccounts)
   if (error) console.error('Kunde inte skapa standardkonton:', error)

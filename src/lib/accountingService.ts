@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { calculateBusinessResult } from './resultEngine'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -438,81 +439,34 @@ export async function closeYear(year: number): Promise<void> {
  * steg: ett kumulativt balansobjekt) och returnerar samma R1-R10/R11-R17
  * som tidigare låg inline. Ingen kumulativ logik här - bara en flytt.
  */
+/**
+ * Gemensam resultatmotor för SoloLedger.
+ *
+ * Själva klassificeringen av resultatkonton, teckenhanteringen och
+ * NE-raderna R1-R10 finns i resultEngine.ts.
+ *
+ * Den här adaptern behåller accountingService.ts befintliga returformat
+ * så att getNEData(), getCumulativeResultat() och B10-logiken kan fortsätta
+ * fungera utan andra ändringar i detta steg.
+ */
 function computeResultat(balances: Record<string, number>) {
-  const sumRange = (start: number, end: number) => {
-    const sum = Object.entries(balances)
-      .filter(([acc]) => {
-        const n = parseInt(acc)
-        return Number.isInteger(n) && n >= start && n <= end
-      })
-      .reduce((s, [_, v]) => s + (v as number), 0)
+  const result = calculateBusinessResult(balances)
 
-    return Math.round(sum * 100) / 100
-  }
+  const {
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+  } = result.neRows
 
-  const sumAccounts = (accounts: string[]) => {
-    const sum = accounts.reduce((s, acc) => s + (balances[acc] || 0), 0)
-    return Math.round(sum * 100) / 100
-  }
-
-  // NE/K1-mappning för SoloLedgers målgrupp:
-  // R1 momspliktiga intäkter
-  // R2 momsfria/övriga intäkter
-  // R3 bil- och bostadsförmån m.m.
-  // R4 ränteintäkter m.m.
-  // R5 varor, material och tjänster
-  // R6 övriga externa kostnader
-  // R7 anställd personal
-  // R8 räntekostnader m.m.
-  // R9 avskrivningar byggnader/markanläggningar
-  // R10 avskrivningar maskiner/inventarier/immateriella tillgångar
-  //
-  // 3700/3900 och 7700/7980 kan enligt BAS K1 behöva fördelas mellan flera
-  // NE-rader beroende på innehåll. SoloLedger använder inte dessa som
-  // standardkonton och gissar därför inte automatiskt på dem här.
-
-  const R1 = Math.abs(
-    Math.round((sumRange(3000, 3099) + sumRange(3500, 3599)) * 100) / 100
-  )
-
-  const R2 = Math.abs(
-    Math.round(
-      (
-        sumRange(3100, 3199) +
-        sumRange(3970, 3989)
-      ) * 100
-    ) / 100
-  )
-
-  const R3 = Math.abs(sumRange(3200, 3299))
-
-  const R4 = Math.abs(
-    Math.round((sumRange(8310, 8319) + sumRange(8330, 8339)) * 100) / 100
-  )
-
-  const R5 = Math.abs(sumRange(4000, 4999))
-
-  // 6992 hör fortfarande till bokföringens externa kostnader och ska därför
-  // ingå i R6/R11. Den läggs sedan tillbaka skattemässigt i R13.
-  const R6 = Math.abs(sumRange(5000, 6999))
-
-  const R7 = Math.abs(sumRange(7000, 7699))
-
-  const R8 = Math.abs(
-    Math.round((sumRange(8410, 8419) + sumRange(8430, 8439)) * 100) / 100
-  )
-
-  const R9 = Math.abs(sumRange(7820, 7829))
-
-  const R10 = Math.abs(
-    Math.round((sumRange(7810, 7819) + sumRange(7830, 7839)) * 100) / 100
-  )
-
-  const ejAvdr = Math.abs(balances['6992'] || 0)
-
-  const bokfRes = Math.round(
-    (R1 + R2 + R3 + R4 - R5 - R6 - R7 - R8 - R9 - R10) * 100
-  ) / 100
+  const bokfRes = result.bokfortResultat
+  const ejAvdr = result.ejAvdragsgillt
 
   // NE sida 2 – skattemässiga justeringar:
   // R12 = bokfört resultat från R11
@@ -520,21 +474,42 @@ function computeResultat(balances: Record<string, number>) {
   // R14 = bokförda intäkter som inte ska tas upp
   // R15 = intäkter som inte bokförts men ska tas upp
   // R16 = kostnader som inte bokförts men ska dras av
-  // R17 = sammanlagt resultat
   //
   // SoloLedger har i nuläget automatisk mappning för R13 via konto 6992.
-  // R14–R16 sätts därför till 0 tills särskilt stöd finns för de justeringarna.
+  // R14–R16 är fortsatt 0 tills särskilt stöd finns.
   const R11 = bokfRes
   const R12 = R11
   const R13 = ejAvdr
   const R14 = 0
   const R15 = 0
   const R16 = 0
-  const R17 = Math.round((R12 + R13 - R14 + R15 - R16) * 100) / 100
+  const R17 = result.skattemassigtResultat
 
   return {
-    R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
-    ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+    ejAvdr,
+    bokfRes,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    R16,
+    R17,
+
+    // Behålls internt för kommande varnings-/avstämningssteg.
+    warnings: result.warnings,
+    unresolvedResultEffect: result.unresolvedResultEffect,
+    reconciliationDifference: result.reconciliationDifference,
   }
 }
 

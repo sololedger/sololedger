@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { getBasAccountHelp, getQuickAccountSuggestions, } from '@/lib/accountingKnowledge'
 
 interface KontoplanProps {
   onAccountCreated?: () => Promise<void> | void
@@ -28,43 +29,6 @@ const EMPTY_ACCOUNT: AccountForm = {
   comment: '',
 }
 
-// Liten, kuraterad BAS-hjälp för de konton SoloLedger använder oftast.
-// Detta är medvetet INTE en full BAS-kontoplan.
-const BAS_HELP: Record<string, string> = {
-  '1790': 'Övriga förutbetalda kostnader och upplupna intäkter',
-  '1930': 'Företagskonto / checkkonto / affärskonto',
-  '2010': 'Eget kapital',
-  '2011': 'Egna varuuttag',
-  '2012': 'Avräkning för skatter och avgifter',
-  '2013': 'Övriga egna uttag',
-  '2014': 'Uttag förmåner',
-  '2017': 'Egna insättningar / årets kapitaltillskott',
-  '2018': 'Övriga egna insättningar',
-  '2019': 'Årets resultat',
-  '2611': 'Utgående moms 25 %',
-  '2621': 'Utgående moms 12 %',
-  '2631': 'Utgående moms 6 %',
-  '2641': 'Debiterad ingående moms',
-  '2650': 'Redovisningskonto för moms',
-  '3010': 'Försäljning',
-  '5010': 'Lokalhyra',
-  '5410': 'Förbrukningsinventarier',
-  '5420': 'Programvaror',
-  '5710': 'Frakter och transporter',
-  '5800': 'Resekostnader',
-  '5900': 'Reklam och PR',
-  '6230': 'Datakommunikation',
-  '6310': 'Företagsförsäkringar',
-  '6570': 'Bankkostnader',
-  '6992': 'Övriga externa kostnader, ej avdragsgilla',
-  '7830': 'Avskrivningar på maskiner och inventarier',
-}
-
-function basHelp(accountNumber: string) {
-  const nr = accountNumber.trim()
-  return BAS_HELP[nr] ?? null
-}
-
 function isPersonnelAccount(accountNumber: string) {
   const nr = Number(accountNumber.trim())
   return Number.isInteger(nr) && nr >= 7000 && nr <= 7699
@@ -82,17 +46,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const kontoforslag = [
-    { id: 'lokalhyra', name: 'Lokalhyra', debit: '5010', credit: '1930', vat: 0, comment: 'Hyra för kontor, studio eller lager' },
-    { id: 'el-lokal', name: 'El för lokal', debit: '5020', credit: '1930', vat: 25, comment: 'Separat elavtal för arbetsplatsen' },
-    { id: 'reklam', name: 'Reklam & Annonsering', debit: '5900', credit: '1930', vat: 25, comment: 'Google Ads, Meta-annonser, trycksaker' },
-    { id: 'hemsida', name: 'Hemsida & Verktyg', debit: '6230', credit: '1930', vat: 25, comment: 'Webbhotell, domäner och programvaror (SaaS)' },
-    { id: 'frakt', name: 'Frakt & Porto', debit: '5710', credit: '1930', vat: 25, comment: 'PostNord, DHL och fraktkostnader' },
-    { id: 'forsakring', name: 'Företagsförsäkring', debit: '6310', credit: '1930', vat: 0, comment: 'Ansvars- och sakförsäkring för firman' },
-    { id: 'materialinkop', name: 'Inköp av material (Utrustning)', debit: '5410', credit: '1930', vat: 25, comment: 'Blixtar, objektiv, studiobakgrunder och tillbehör' },
-    { id: 'milersattning', name: 'Milersättning (Egen bil)', debit: '5843', credit: '2018', vat: 0, comment: 'När du kör privat bil i tjänsten' },
-  ]
-
+  const kontoforslag = getQuickAccountSuggestions()
   const befintligaIds = new Set(kontoplan.map(acc => acc.id))
   const tillgangligaForslag = kontoforslag.filter(forslag => !befintligaIds.has(forslag.id))
 
@@ -122,14 +76,21 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     }
   }
 
-  function applyForslag(forslag: any) {
+  function applyForslag(forslag: {
+    id: string
+    name: string
+    debit_account: string
+    credit_account: string
+    default_vat_rate: number
+    comment: string
+  }) {
     setEditingId(null)
     setNewAccount({
       id: forslag.id,
       name: forslag.name,
-      debit_account: forslag.debit,
-      credit_account: forslag.credit,
-      default_vat_rate: forslag.vat,
+      debit_account: forslag.debit_account,
+      credit_account: forslag.credit_account,
+      default_vat_rate: forslag.default_vat_rate,
       comment: forslag.comment,
     })
   }
@@ -269,8 +230,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     }
   }
 
-  const debitHelp = basHelp(newAccount.debit_account)
-  const creditHelp = basHelp(newAccount.credit_account)
+  const debitHelp = getBasAccountHelp(newAccount.debit_account)
+  const creditHelp = getBasAccountHelp(newAccount.credit_account)
   const debitPersonnelWarning = personnelAccountWarning(newAccount.debit_account)
   const creditPersonnelWarning = personnelAccountWarning(newAccount.credit_account)
 
@@ -481,8 +442,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     <span>{acc.debit_account}</span>
                     <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
                   </span>
-                  {basHelp(acc.debit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{basHelp(acc.debit_account)}</p>
+                  {getBasAccountHelp(acc.debit_account) && (
+                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{getBasAccountHelp(acc.debit_account)}</p>
                   )}
                 </td>
 
@@ -491,8 +452,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     <span>{acc.credit_account}</span>
                     <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
                   </span>
-                  {basHelp(acc.credit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{basHelp(acc.credit_account)}</p>
+                  {getBasAccountHelp(acc.credit_account) && (
+                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{getBasAccountHelp(acc.credit_account)}</p>
                   )}
                 </td>
 
@@ -584,10 +545,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 )}
               </div>
 
-              {(basHelp(acc.debit_account) || basHelp(acc.credit_account)) && (
+              {(getBasAccountHelp(acc.debit_account) || getBasAccountHelp(acc.credit_account)) && (
                 <div className="text-[9px] text-gray-400 mb-2 space-y-0.5">
-                  {basHelp(acc.debit_account) && <p>D {acc.debit_account}: {basHelp(acc.debit_account)}</p>}
-                  {basHelp(acc.credit_account) && <p>K {acc.credit_account}: {basHelp(acc.credit_account)}</p>}
+                  {getBasAccountHelp(acc.debit_account) && <p>D {acc.debit_account}: {getBasAccountHelp(acc.debit_account)}</p>}
+                  {getBasAccountHelp(acc.credit_account) && <p>K {acc.credit_account}: {getBasAccountHelp(acc.credit_account)}</p>}
                 </div>
               )}
 
