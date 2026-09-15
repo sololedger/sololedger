@@ -1,7 +1,12 @@
 'use client'
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { getBasAccountHelp, getQuickAccountSuggestions, } from '@/lib/accountingKnowledge'
+import {
+  ACCOUNT_PRESETS,
+  getBasAccountHelp,
+  getQuickAccountSuggestions,
+} from '@/lib/accountingKnowledge'
 
 interface KontoplanProps {
   onAccountCreated?: () => Promise<void> | void
@@ -48,7 +53,14 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   const kontoforslag = getQuickAccountSuggestions()
   const befintligaIds = new Set(kontoplan.map(acc => acc.id))
-  const tillgangligaForslag = kontoforslag.filter(forslag => !befintligaIds.has(forslag.id))
+  const tillgangligaForslag = kontoforslag.filter(
+    forslag => !befintligaIds.has(forslag.id)
+  )
+
+  const selectedPreset = ACCOUNT_PRESETS.find(
+    preset => preset.id === newAccount.id
+  )
+  const guidance = selectedPreset?.guidance ?? null
 
   useEffect(() => {
     loadKontoplan()
@@ -56,7 +68,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   async function loadKontoplan() {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) return
 
       const { data, error } = await supabase
@@ -105,6 +120,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       default_vat_rate: Number(acc.default_vat_rate ?? 0),
       comment: acc.comment ?? '',
     })
+
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -115,14 +131,21 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   function validateAccountNumber(value: string, label: string) {
     if (!/^\d{4}$/.test(value.trim())) {
-      throw new Error(`${label} måste bestå av exakt fyra siffror, t.ex. 1930.`)
+      throw new Error(
+        `${label} måste bestå av exakt fyra siffror, t.ex. 1930.`
+      )
     }
   }
 
   async function handleSaveAccount(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!newAccount.id || !newAccount.name || !newAccount.debit_account || !newAccount.credit_account) {
+    if (
+      !newAccount.id ||
+      !newAccount.name ||
+      !newAccount.debit_account ||
+      !newAccount.credit_account
+    ) {
       alert('Fyll i ID, namn, debitkonto och kreditkonto.')
       return
     }
@@ -133,8 +156,14 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       validateAccountNumber(newAccount.debit_account, 'Debitkonto')
       validateAccountNumber(newAccount.credit_account, 'Kreditkonto')
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) throw new Error('Hittade ingen inloggad användare.')
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError || !user) {
+        throw new Error('Hittade ingen inloggad användare.')
+      }
 
       const payload = {
         name: newAccount.name.trim(),
@@ -153,11 +182,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
         if (error) throw error
       } else {
-        const { error } = await supabase.from('accounts').insert([{
-          id: newAccount.id.toLowerCase().trim(),
-          ...payload,
-          user_id: user.id,
-        }])
+        const { error } = await supabase.from('accounts').insert([
+          {
+            id: newAccount.id.toLowerCase().trim(),
+            ...payload,
+            user_id: user.id,
+          },
+        ])
 
         if (error) throw error
       }
@@ -170,7 +201,9 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       }
     } catch (err: any) {
       console.error(err)
-      alert(`Kunde inte ${editingId ? 'uppdatera' : 'spara'} konto: ${err.message}`)
+      alert(
+        `Kunde inte ${editingId ? 'uppdatera' : 'spara'} konto: ${err.message}`
+      )
     } finally {
       setSaving(false)
     }
@@ -178,8 +211,14 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   async function handleDelete(id: string) {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) throw new Error('Hittade ingen inloggad användare.')
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError || !user) {
+        throw new Error('Hittade ingen inloggad användare.')
+      }
 
       // H6: ett konto/kategori-ID som redan används av en bokförd transaktion
       // får inte tas bort. Backend-triggern är det slutliga skyddet; kontrollen här
@@ -192,14 +231,17 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
         .eq('booked', true)
 
       if (usageError) {
-        throw new Error(`Kunde inte kontrollera om kontot används: ${usageError.message}`)
+        throw new Error(
+          `Kunde inte kontrollera om kontot används: ${usageError.message}`
+        )
       }
 
       if ((usageCount ?? 0) > 0) {
         alert(
-          `Kontot "${id}" används i ${usageCount} bokförd${usageCount === 1 ? '' : 'a'} ` +
-          `transaktion${usageCount === 1 ? '' : 'er'} och kan därför inte raderas. ` +
-          `Historiken måste bevaras.`
+          `Kontot "${id}" används i ${usageCount} bokförd${
+            usageCount === 1 ? '' : 'a'
+          } transaktion${usageCount === 1 ? '' : 'er'} och kan därför inte raderas. ` +
+            `Historiken måste bevaras.`
         )
         return
       }
@@ -232,8 +274,12 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   const debitHelp = getBasAccountHelp(newAccount.debit_account)
   const creditHelp = getBasAccountHelp(newAccount.credit_account)
-  const debitPersonnelWarning = personnelAccountWarning(newAccount.debit_account)
-  const creditPersonnelWarning = personnelAccountWarning(newAccount.credit_account)
+  const debitPersonnelWarning = personnelAccountWarning(
+    newAccount.debit_account
+  )
+  const creditPersonnelWarning = personnelAccountWarning(
+    newAccount.credit_account
+  )
 
   return (
     <div className="space-y-8">
@@ -243,9 +289,11 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             <h2 className="text-sm font-black uppercase text-emerald-600 tracking-widest">
               {editingId ? 'Redigera konto' : 'Lägg till konto'}
             </h2>
+
             <p className="text-[10px] text-gray-400 font-medium mt-1 max-w-2xl">
-              SoloLedger använder en förenklad kontoplan för enskild firma utan personal.
-              Du kan komplettera den med egna bokföringskategorier vid behov.
+              SoloLedger använder en förenklad kontoplan för enskild firma utan
+              personal. Du kan komplettera den med egna bokföringskategorier vid
+              behov.
             </p>
           </div>
 
@@ -293,10 +341,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
               <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
                 ID {editingId ? '(kan inte ändras)' : '(t.ex. resor)'}
               </label>
+
               <input
                 type="text"
                 value={newAccount.id}
-                onChange={e => setNewAccount({ ...newAccount, id: e.target.value })}
+                onChange={e =>
+                  setNewAccount({ ...newAccount, id: e.target.value })
+                }
                 placeholder="resor"
                 disabled={Boolean(editingId)}
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -305,11 +356,16 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Namn</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                Namn
+              </label>
+
               <input
                 type="text"
                 value={newAccount.name}
-                onChange={e => setNewAccount({ ...newAccount, name: e.target.value })}
+                onChange={e =>
+                  setNewAccount({ ...newAccount, name: e.target.value })
+                }
                 placeholder="Resor"
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
@@ -317,38 +373,135 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Kommentar</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                Kommentar
+              </label>
+
               <input
                 type="text"
                 value={newAccount.comment}
-                onChange={e => setNewAccount({ ...newAccount, comment: e.target.value })}
+                onChange={e =>
+                  setNewAccount({ ...newAccount, comment: e.target.value })
+                }
                 placeholder="T.ex. tåg, taxi, parkering"
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
               />
             </div>
           </div>
 
+          {guidance && (
+            <div
+              className={`mb-4 rounded-2xl border px-4 py-4 ${
+                guidance.status === 'conditional'
+                  ? 'border-amber-200 bg-amber-50'
+                  : guidance.status === 'technical'
+                    ? 'border-sky-200 bg-sky-50'
+                    : 'border-emerald-200 bg-emerald-50'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
+                    guidance.status === 'conditional'
+                      ? 'bg-amber-100'
+                      : guidance.status === 'technical'
+                        ? 'bg-sky-100'
+                        : 'bg-emerald-100'
+                  }`}
+                >
+                  {guidance.status === 'conditional'
+                    ? '⚠'
+                    : guidance.status === 'technical'
+                      ? '⚙'
+                      : '✓'}
+                </div>
+
+                <div className="min-w-0">
+                  <p
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      guidance.status === 'conditional'
+                        ? 'text-amber-700'
+                        : guidance.status === 'technical'
+                          ? 'text-sky-700'
+                          : 'text-emerald-700'
+                    }`}
+                  >
+                    {guidance.status === 'conditional'
+                      ? 'Kontrollera först'
+                      : guidance.status === 'technical'
+                        ? 'Teknisk kategori'
+                        : 'SoloLedger-guide'}
+                  </p>
+
+                  <p className="mt-1 text-xs font-semibold text-gray-700 leading-relaxed">
+                    {guidance.summary}
+                  </p>
+
+                  {guidance.suitableWhen && (
+                    <div className="mt-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+                        Passar när
+                      </span>
+                      <p className="mt-0.5 text-[10px] text-gray-600 leading-relaxed">
+                        {guidance.suitableWhen}
+                      </p>
+                    </div>
+                  )}
+
+                  {guidance.warning && (
+                    <div
+                      className={`mt-2 rounded-xl px-3 py-2 ${
+                        guidance.status === 'conditional'
+                          ? 'bg-amber-100/70'
+                          : 'bg-white/60'
+                      }`}
+                    >
+                      <p className="text-[10px] text-gray-600 leading-relaxed">
+                        {guidance.warning}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Debitkonto</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                Debitkonto
+              </label>
+
               <input
                 type="text"
                 inputMode="numeric"
                 maxLength={4}
                 value={newAccount.debit_account}
-                onChange={e => setNewAccount({ ...newAccount, debit_account: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                onChange={e =>
+                  setNewAccount({
+                    ...newAccount,
+                    debit_account: e.target.value
+                      .replace(/\D/g, '')
+                      .slice(0, 4),
+                  })
+                }
                 placeholder="5800"
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
+
               {debitHelp && (
-                <p className="text-[9px] text-emerald-600 font-bold ml-1">BAS: {debitHelp}</p>
+                <p className="text-[9px] text-emerald-600 font-bold ml-1">
+                  BAS: {debitHelp}
+                </p>
               )}
+
               {debitPersonnelWarning && (
                 <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
                     ⚠ Personalkonto
                   </p>
+
                   <p className="text-[9px] leading-relaxed text-amber-700">
                     {debitPersonnelWarning}
                   </p>
@@ -357,25 +510,40 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Kreditkonto</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                Kreditkonto
+              </label>
+
               <input
                 type="text"
                 inputMode="numeric"
                 maxLength={4}
                 value={newAccount.credit_account}
-                onChange={e => setNewAccount({ ...newAccount, credit_account: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                onChange={e =>
+                  setNewAccount({
+                    ...newAccount,
+                    credit_account: e.target.value
+                      .replace(/\D/g, '')
+                      .slice(0, 4),
+                  })
+                }
                 placeholder="1930"
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
                 required
               />
+
               {creditHelp && (
-                <p className="text-[9px] text-orange-600 font-bold ml-1">BAS: {creditHelp}</p>
+                <p className="text-[9px] text-orange-600 font-bold ml-1">
+                  BAS: {creditHelp}
+                </p>
               )}
+
               {creditPersonnelWarning && (
                 <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
                     ⚠ Personalkonto
                   </p>
+
                   <p className="text-[9px] leading-relaxed text-amber-700">
                     {creditPersonnelWarning}
                   </p>
@@ -384,10 +552,18 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">Standard moms %</label>
+              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                Standard moms %
+              </label>
+
               <select
                 value={newAccount.default_vat_rate}
-                onChange={e => setNewAccount({ ...newAccount, default_vat_rate: Number(e.target.value) })}
+                onChange={e =>
+                  setNewAccount({
+                    ...newAccount,
+                    default_vat_rate: Number(e.target.value),
+                  })
+                }
                 className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
               >
                 <option value={0}>0%</option>
@@ -402,7 +578,11 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
               disabled={saving}
               className="bg-emerald-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
             >
-              {saving ? '...' : editingId ? 'Spara ändringar' : 'Spara konto'}
+              {saving
+                ? '...'
+                : editingId
+                  ? 'Spara ändringar'
+                  : 'Spara konto'}
             </button>
           </div>
         </form>
@@ -423,11 +603,18 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
           <tbody className="divide-y divide-gray-50">
             {kontoplan.map(acc => (
-              <tr key={acc.id} className="hover:bg-gray-50/50 transition-all">
+              <tr
+                key={acc.id}
+                className="hover:bg-gray-50/50 transition-all"
+              >
                 <td className="p-6">
                   <p className="font-black text-gray-800">{acc.name}</p>
-                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
-                  {(isPersonnelAccount(acc.debit_account) || isPersonnelAccount(acc.credit_account)) && (
+                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">
+                    {acc.id}
+                  </p>
+
+                  {(isPersonnelAccount(acc.debit_account) ||
+                    isPersonnelAccount(acc.credit_account)) && (
                     <span
                       className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
                       title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
@@ -440,28 +627,42 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                     <span>{acc.debit_account}</span>
-                    <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
+                    <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">
+                      D
+                    </span>
                   </span>
+
                   {getBasAccountHelp(acc.debit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{getBasAccountHelp(acc.debit_account)}</p>
+                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">
+                      {getBasAccountHelp(acc.debit_account)}
+                    </p>
                   )}
                 </td>
 
                 <td className="p-6">
                   <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                     <span>{acc.credit_account}</span>
-                    <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
+                    <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">
+                      K
+                    </span>
                   </span>
+
                   {getBasAccountHelp(acc.credit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">{getBasAccountHelp(acc.credit_account)}</p>
+                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">
+                      {getBasAccountHelp(acc.credit_account)}
+                    </p>
                   )}
                 </td>
 
                 <td className="p-6 font-bold text-gray-400 text-xs">
-                  {acc.default_vat_rate > 0 ? `${acc.default_vat_rate}%` : '—'}
+                  {acc.default_vat_rate > 0
+                    ? `${acc.default_vat_rate}%`
+                    : '—'}
                 </td>
 
-                <td className="p-6 text-xs text-gray-400 italic">{acc.comment || '—'}</td>
+                <td className="p-6 text-xs text-gray-400 italic">
+                  {acc.comment || '—'}
+                </td>
 
                 <td className="p-6 text-right pr-8">
                   <div className="inline-flex items-center gap-2">
@@ -472,6 +673,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     >
                       ✎
                     </button>
+
                     <button
                       onClick={() => handleDelete(acc.id)}
                       className="text-red-100 hover:text-red-400 font-bold transition-colors text-sm"
@@ -494,12 +696,19 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
           </div>
         ) : (
           kontoplan.map(acc => (
-            <div key={acc.id} className="bg-white rounded-[1.75rem] border p-5 shadow-sm">
+            <div
+              key={acc.id}
+              className="bg-white rounded-[1.75rem] border p-5 shadow-sm"
+            >
               <div className="flex justify-between items-start gap-3 mb-3">
                 <div>
                   <p className="font-black text-gray-800">{acc.name}</p>
-                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">{acc.id}</p>
-                  {(isPersonnelAccount(acc.debit_account) || isPersonnelAccount(acc.credit_account)) && (
+                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">
+                    {acc.id}
+                  </p>
+
+                  {(isPersonnelAccount(acc.debit_account) ||
+                    isPersonnelAccount(acc.credit_account)) && (
                     <span
                       className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
                       title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
@@ -517,6 +726,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                   >
                     ✎
                   </button>
+
                   <button
                     onClick={() => handleDelete(acc.id)}
                     className="shrink-0 text-red-300 hover:text-red-500 font-bold transition-colors text-sm w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50"
@@ -530,12 +740,16 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                   <span>{acc.debit_account}</span>
-                  <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">D</span>
+                  <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">
+                    D
+                  </span>
                 </span>
 
                 <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                   <span>{acc.credit_account}</span>
-                  <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">K</span>
+                  <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">
+                    K
+                  </span>
                 </span>
 
                 {acc.default_vat_rate > 0 && (
@@ -545,15 +759,29 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 )}
               </div>
 
-              {(getBasAccountHelp(acc.debit_account) || getBasAccountHelp(acc.credit_account)) && (
+              {(getBasAccountHelp(acc.debit_account) ||
+                getBasAccountHelp(acc.credit_account)) && (
                 <div className="text-[9px] text-gray-400 mb-2 space-y-0.5">
-                  {getBasAccountHelp(acc.debit_account) && <p>D {acc.debit_account}: {getBasAccountHelp(acc.debit_account)}</p>}
-                  {getBasAccountHelp(acc.credit_account) && <p>K {acc.credit_account}: {getBasAccountHelp(acc.credit_account)}</p>}
+                  {getBasAccountHelp(acc.debit_account) && (
+                    <p>
+                      D {acc.debit_account}:{' '}
+                      {getBasAccountHelp(acc.debit_account)}
+                    </p>
+                  )}
+
+                  {getBasAccountHelp(acc.credit_account) && (
+                    <p>
+                      K {acc.credit_account}:{' '}
+                      {getBasAccountHelp(acc.credit_account)}
+                    </p>
+                  )}
                 </div>
               )}
 
               {acc.comment && (
-                <p className="text-xs text-gray-400 italic">{acc.comment}</p>
+                <p className="text-xs text-gray-400 italic">
+                  {acc.comment}
+                </p>
               )}
             </div>
           ))

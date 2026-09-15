@@ -145,12 +145,12 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
 
             <div className={`${!showAllNERows && Math.abs(neData.R5 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R5 Varor, material och tjänster</span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R5 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R5 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R6 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R6 Övriga externa kostnader</span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R6 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R6 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R7 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
@@ -158,23 +158,24 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
                 R7 Anställd personal
                 <Tooltip text="SoloLedger är avsett för enskild firma utan anställda. Denna ruta ska därför normalt vara 0 kr." />
               </span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R7 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R7 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R8 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R8 Räntekostnader m.m.</span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R8 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R8 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R9 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R9 Avskrivningar byggnader/mark</span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R9 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R9 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R10 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R10 Avskrivningar inventarier m.m.</span>
-              <span className="whitespace-nowrap">{fmt(-Math.abs(neData.R10 ?? 0))}</span>
+              <span className="whitespace-nowrap">{fmt(-(neData.R10 ?? 0))}</span>
             </div>
+
             <button
               type="button"
               onClick={() => setShowAllNERows(v => !v)}
@@ -182,7 +183,6 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
             >
               {showAllNERows ? '− Dölj tomma deklarationsrutor' : '+ Visa alla deklarationsrutor'}
             </button>
-
 
             <div className="my-3 border-t-2 border-dashed border-gray-300" />
 
@@ -292,20 +292,23 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
                     <span>IB kapital (2010/2019):</span>
                     <span>{fmt(neData.IB_kapital)}</span>
                   </div>
+
                   <div className="flex flex-wrap justify-between gap-x-3 italic">
                     <span>Ackumulerat resultat:</span>
                     <span>{fmt((neData.B10_total ?? 0) - (neData.IB_kapital ?? 0) - (neData.insattningar ?? 0) + (neData.uttag ?? 0))}</span>
                   </div>
+
                   <div className="flex flex-wrap justify-between gap-x-3 text-emerald-600 italic">
-                    <span>Egna insättningar (2018):</span>
+                    <span>Egna insättningar (2017/2018):</span>
                     <span>+{fmt(neData.insattningar)}</span>
                   </div>
+
                   <div className="flex flex-wrap justify-between gap-x-3 text-orange-600 italic">
                     <span className="flex items-center flex-wrap">
                       Uttag & skatteavräkning (2012/2013)
                       <Tooltip text="Privata uttag samt ägarens skatter och avgifter minskar eget kapital." />
                     </span>
-                    <span>{fmt(-Math.abs(neData.uttag ?? 0))}</span>
+                    <span>{fmt(-(neData.uttag ?? 0))}</span>
                   </div>
                 </div>
               </div>
@@ -388,7 +391,6 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
             </button>
           )}
         </div>
-
       </div>
     </div>
   )
