@@ -1,10 +1,10 @@
 import { supabase } from '@/lib/supabaseClient'
-import { getDefaultAccountPresets } from '@/lib/accountingKnowledge'
+import { getDefaultAccountPresetsV1 } from './accountingKnowledge'
 
 export async function setupDefaultAccounts(userId: string) {
-  // SoloLedger är avsett för enskild firma utan anställda.
-  // Standardkontona hämtas från den gemensamma knowledge-källan.
-  const defaultAccounts = getDefaultAccountPresets().map(preset => ({
+// SoloLedger är avsett för enskild firma utan anställda.
+// Grundkontoplan v1 skapar de användarkategorier som ska finnas från start.
+  const defaultAccounts = getDefaultAccountPresetsV1().map(preset => ({
     id: preset.id,
     name: preset.name,
     debit_account: preset.debit_account,
