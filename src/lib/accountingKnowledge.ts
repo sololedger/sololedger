@@ -137,6 +137,23 @@ export interface VatGuidance {
   warning?: string
 }
 
+/**
+ * Tillfällig kompatibilitetsbrygga till SoloLedgers nuvarande
+ * AccountPreset-modell.
+ *
+ * Detta beskriver hur kategorin kan representeras i dagens förenklade
+ * debit/kredit/moms-mall. Det är INTE kategorins framtida bokföringsregel.
+ *
+ * När bokföringsflödet fullt ut skiljer på VAD, HUR och MOMS kan denna
+ * kompatibilitetsmodell tas bort.
+ */
+export interface LegacyPresetMapping {
+  debitAccount: string
+  creditAccount: string
+  defaultVatRate: number
+  comment: string
+}
+
 export interface BookingCategory {
   /**
    * Stabilt internt id för SoloLedger-kategorin.
@@ -204,6 +221,14 @@ export interface BookingCategory {
    * av eventuell villkorad guidning.
    */
   examples?: string[]
+
+  /**
+   * Tillfällig representation för nuvarande AccountPreset-baserade flöde.
+   *
+   * Ska inte användas som generell bokföringsregel. Motkonto och moms
+   * kan i verkligheten bero på transaktionens betalningssätt och scenario.
+   */
+  legacyPreset?: LegacyPresetMapping
 }
 
 export interface SystemAccount {
@@ -268,6 +293,13 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'income',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '1930',
+      creditAccount: '3010',
+      defaultVatRate: 25,
+      comment:
+        'Vanlig försäljning. Moms och kontering måste anpassas efter den aktuella försäljningen.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -307,6 +339,13 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'equipment',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5410',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment:
+        'Utrustning och inventarier som enligt reglerna får kostnadsföras direkt.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -348,6 +387,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'equipment',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5420',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Programvaror, licenser, appar och digitala abonnemang.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -390,6 +435,13 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'travel',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5800',
+      creditAccount: '1930',
+      defaultVatRate: 6,
+      comment:
+        'Resor i verksamheten. Kontrollera alltid momsbehandlingen på underlaget.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -430,6 +482,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6570',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment: 'Bank- och betaltjänstkostnader.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -464,6 +522,13 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'education',
     availability: 'default',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6991',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment:
+        'Utbildning med tydlig koppling till den verksamhet du redan bedriver.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -501,6 +566,13 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'owner',
     availability: 'default',
     usageType: 'special',
+    legacyPreset: {
+      debitAccount: '2012',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment:
+        'När firmans pengar används för ägarens F-skatt och andra privata skatter eller avgifter.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -533,6 +605,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'owner',
     availability: 'default',
     usageType: 'special',
+    legacyPreset: {
+      debitAccount: '2013',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment: 'När pengar tas ut från firman för privat användning.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -565,6 +643,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'owner',
     availability: 'default',
     usageType: 'special',
+    legacyPreset: {
+      debitAccount: '1930',
+      creditAccount: '2018',
+      defaultVatRate: 0,
+      comment: 'När privata pengar sätts in i firman.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -603,6 +687,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'purchases',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '4010',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Varor och material som köps in för försäljning eller används direkt i det som säljs.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -639,6 +729,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'purchases',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '4600',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Extern tjänst som är en direkt del av ett kunduppdrag.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -676,6 +772,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'premises',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5010',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment: 'Hyra för separat verksamhetslokal – inte vanligt hemmakontor.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -714,6 +816,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'premises',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5020',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'El för separat verksamhetslokal – inte vanlig hushållsel.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -750,6 +858,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'travel',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5710',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Frakt och transport av varor i verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -786,6 +900,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'travel',
     availability: 'quick',
     usageType: 'special',
+    legacyPreset: {
+      debitAccount: '5843',
+      creditAccount: '2018',
+      defaultVatRate: 0,
+      comment: 'Privat bil som används för resor i verksamheten.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -821,6 +941,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'marketing',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '5910',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Reklam och annonsering för verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -862,6 +988,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6110',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Kontorsmaterial som används i verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -901,6 +1033,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6212',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Mobilabonnemang och telefoni som hör till verksamheten.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -938,6 +1076,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6230',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Internet- och datakommunikationstjänster som hör till verksamheten.',
+    },
     categoryGuidance: {
       status: 'conditional',
       summary:
@@ -974,6 +1118,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6250',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Porto och posttjänster som används i verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -1010,6 +1160,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6310',
+      creditAccount: '1930',
+      defaultVatRate: 0,
+      comment: 'Försäkringar som tecknats för verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -1043,6 +1199,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6530',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Extern hjälp med bokföring, redovisning, bokslut och liknande ekonomiadministration.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
@@ -1081,6 +1243,12 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
     group: 'administration',
     availability: 'quick',
     usageType: 'direct',
+    legacyPreset: {
+      debitAccount: '6540',
+      creditAccount: '1930',
+      defaultVatRate: 25,
+      comment: 'Externa IT-tjänster som stödjer den egna verksamheten.',
+    },
     categoryGuidance: {
       status: 'direct',
       summary:
