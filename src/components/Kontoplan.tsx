@@ -50,6 +50,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [newAccount, setNewAccount] = useState<AccountForm>(EMPTY_ACCOUNT)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showManualForm, setShowManualForm] = useState(false)
 
   const kontoforslag = getQuickAccountPresetsV1()
   const befintligaIds = new Set(kontoplan.map(acc => acc.id))
@@ -98,6 +99,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     comment: string
   }) {
     setEditingId(null)
+    setShowManualForm(false)
     setNewAccount({
       id: forslag.id,
       name: forslag.name,
@@ -110,6 +112,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   function startEdit(acc: AccountRow) {
     setEditingId(acc.id)
+    setShowManualForm(true)
     setNewAccount({
       id: acc.id,
       name: acc.name,
@@ -124,6 +127,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   function cancelEdit() {
     setEditingId(null)
+    setShowManualForm(false)
     setNewAccount(EMPTY_ACCOUNT)
   }
 
@@ -284,13 +288,11 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div>
             <h2 className="text-sm font-black uppercase text-emerald-600 tracking-widest">
-              {editingId ? 'Redigera konto' : 'Lägg till konto'}
+              {editingId ? 'Redigera bokföringskategori' : 'Lägg till bokföringskategori'}
             </h2>
-
-            <p className="text-[10px] text-gray-400 font-medium mt-1 max-w-2xl">
-              SoloLedger använder en förenklad kontoplan för enskild firma utan
-              personal. Du kan komplettera den med egna bokföringskategorier vid
-              behov.
+            <p className="text-[10px] text-gray-400 font-medium mt-1 max-w-2xl leading-relaxed">
+              SoloLedger har redan lagt till de vanligaste bokföringskategorierna åt
+              dig. Lägg bara till fler när du behöver dem.
             </p>
           </div>
 
@@ -307,8 +309,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
         {!editingId && (
           <div className="mb-6">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Förslag på vanliga konton
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+              Vanliga kategorier att lägga till
+            </p>
+
+            <p className="text-[10px] text-gray-400 mb-3">
+              Klicka på en kategori för att se vad den används till innan du lägger
+              till den.
             </p>
 
             {tillgangligaForslag.length > 0 ? (
@@ -320,10 +327,17 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     <button
                       key={forslag.id}
                       type="button"
-                      onClick={() => applyForslag(forslag)}
+                      onClick={() => {
+                        if (newAccount.id === forslag.id) {
+                          setNewAccount(EMPTY_ACCOUNT)
+                          setShowManualForm(false)
+                        } else {
+                          applyForslag(forslag)
+                        }
+                      }}
                       className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-all shadow-sm ${isSelected
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800'
                         }`}
                     >
                       {isSelected ? '✓' : '+'} {forslag.name}
@@ -339,253 +353,275 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
           </div>
         )}
 
-        <form onSubmit={handleSaveAccount}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                ID {editingId ? '(kan inte ändras)' : '(t.ex. resor)'}
-              </label>
+        {!editingId && !newAccount.id && (
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={() => {
+                setShowManualForm(current => !current)
 
-              <input
-                type="text"
-                value={newAccount.id}
-                onChange={e =>
-                  setNewAccount({ ...newAccount, id: e.target.value })
+                if (showManualForm) {
+                  setNewAccount(EMPTY_ACCOUNT)
                 }
-                placeholder="resor"
-                disabled={Boolean(editingId)}
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                Namn
-              </label>
-
-              <input
-                type="text"
-                value={newAccount.name}
-                onChange={e =>
-                  setNewAccount({ ...newAccount, name: e.target.value })
-                }
-                placeholder="Resor"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                Kommentar
-              </label>
-
-              <input
-                type="text"
-                value={newAccount.comment}
-                onChange={e =>
-                  setNewAccount({ ...newAccount, comment: e.target.value })
-                }
-                placeholder="T.ex. tåg, taxi, parkering"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
-              />
-            </div>
+              }}
+              className="text-[10px] font-black text-gray-500 hover:text-emerald-700 transition-colors"
+            >
+              {showManualForm
+                ? '− Stäng manuell inmatning'
+                : '+ Lägg till egen kategori manuellt'}
+            </button>
           </div>
+        )}
 
-          {guidance && (
-            <div
-              className={`mb-4 rounded-2xl border px-4 py-4 ${guidance.status === 'conditional'
+        {(newAccount.id || showManualForm || editingId) && (
+          <form onSubmit={handleSaveAccount}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  ID {editingId ? '(kan inte ändras)' : '(t.ex. resor)'}
+                </label>
+
+                <input
+                  type="text"
+                  value={newAccount.id}
+                  onChange={e =>
+                    setNewAccount({ ...newAccount, id: e.target.value })
+                  }
+                  placeholder="resor"
+                  disabled={Boolean(editingId)}
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Namn
+                </label>
+
+                <input
+                  type="text"
+                  value={newAccount.name}
+                  onChange={e =>
+                    setNewAccount({ ...newAccount, name: e.target.value })
+                  }
+                  placeholder="Resor"
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Kommentar
+                </label>
+
+                <input
+                  type="text"
+                  value={newAccount.comment}
+                  onChange={e =>
+                    setNewAccount({ ...newAccount, comment: e.target.value })
+                  }
+                  placeholder="T.ex. tåg, taxi, parkering"
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                />
+              </div>
+            </div>
+
+            {guidance && (
+              <div
+                className={`mb-4 rounded-2xl border px-4 py-4 ${guidance.status === 'conditional'
                   ? 'border-amber-200 bg-amber-50'
                   : guidance.status === 'technical'
                     ? 'border-sky-200 bg-sky-50'
                     : 'border-emerald-200 bg-emerald-50'
-                }`}
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${guidance.status === 'conditional'
+                  }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${guidance.status === 'conditional'
                       ? 'bg-amber-100'
                       : guidance.status === 'technical'
                         ? 'bg-sky-100'
                         : 'bg-emerald-100'
-                    }`}
-                >
-                  {guidance.status === 'conditional'
-                    ? '⚠'
-                    : guidance.status === 'technical'
-                      ? '⚙'
-                      : '✓'}
-                </div>
+                      }`}
+                  >
+                    {guidance.status === 'conditional'
+                      ? '⚠'
+                      : guidance.status === 'technical'
+                        ? '⚙'
+                        : '✓'}
+                  </div>
 
-                <div className="min-w-0">
-                  <p
-                    className={`text-[10px] font-black uppercase tracking-wider ${guidance.status === 'conditional'
+                  <div className="min-w-0">
+                    <p
+                      className={`text-[10px] font-black uppercase tracking-wider ${guidance.status === 'conditional'
                         ? 'text-amber-700'
                         : guidance.status === 'technical'
                           ? 'text-sky-700'
                           : 'text-emerald-700'
-                      }`}
-                  >
-                    {guidance.status === 'conditional'
-                      ? 'Kontrollera först'
-                      : guidance.status === 'technical'
-                        ? 'Teknisk kategori'
-                        : 'SoloLedger-guide'}
-                  </p>
-
-                  <p className="mt-1 text-xs font-semibold text-gray-700 leading-relaxed">
-                    {guidance.summary}
-                  </p>
-
-                  {guidance.suitableWhen && (
-                    <div className="mt-2">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">
-                        Passar när
-                      </span>
-                      <p className="mt-0.5 text-[10px] text-gray-600 leading-relaxed">
-                        {guidance.suitableWhen}
-                      </p>
-                    </div>
-                  )}
-
-                  {guidance.warning && (
-                    <div
-                      className={`mt-2 rounded-xl px-3 py-2 ${guidance.status === 'conditional'
-                          ? 'bg-amber-100/70'
-                          : 'bg-white/60'
                         }`}
                     >
-                      <p className="text-[10px] text-gray-600 leading-relaxed">
-                        {guidance.warning}
-                      </p>
-                    </div>
-                  )}
+                      {guidance.status === 'conditional'
+                        ? 'Kontrollera först'
+                        : guidance.status === 'technical'
+                          ? 'Teknisk kategori'
+                          : 'SoloLedger-guide'}
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold text-gray-700 leading-relaxed">
+                      {guidance.summary}
+                    </p>
+
+                    {guidance.suitableWhen && (
+                      <div className="mt-2">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+                          Passar när
+                        </span>
+                        <p className="mt-0.5 text-[10px] text-gray-600 leading-relaxed">
+                          {guidance.suitableWhen}
+                        </p>
+                      </div>
+                    )}
+
+                    {guidance.warning && (
+                      <div
+                        className={`mt-2 rounded-xl px-3 py-2 ${guidance.status === 'conditional'
+                          ? 'bg-amber-100/70'
+                          : 'bg-white/60'
+                          }`}
+                      >
+                        <p className="text-[10px] text-gray-600 leading-relaxed">
+                          {guidance.warning}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                Debitkonto
-              </label>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Debitkonto
+                </label>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={4}
-                value={newAccount.debit_account}
-                onChange={e =>
-                  setNewAccount({
-                    ...newAccount,
-                    debit_account: e.target.value
-                      .replace(/\D/g, '')
-                      .slice(0, 4),
-                  })
-                }
-                placeholder="5800"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
-                required
-              />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newAccount.debit_account}
+                  onChange={e =>
+                    setNewAccount({
+                      ...newAccount,
+                      debit_account: e.target.value
+                        .replace(/\D/g, '')
+                        .slice(0, 4),
+                    })
+                  }
+                  placeholder="5800"
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                  required
+                />
 
-              {debitHelp && (
-                <p className="text-[9px] text-emerald-600 font-bold ml-1">
-                  BAS: {debitHelp}
-                </p>
-              )}
-
-              {debitPersonnelWarning && (
-                <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
-                    ⚠ Personalkonto
+                {debitHelp && (
+                  <p className="text-[9px] text-emerald-600 font-bold ml-1">
+                    BAS: {debitHelp}
                   </p>
+                )}
 
-                  <p className="text-[9px] leading-relaxed text-amber-700">
-                    {debitPersonnelWarning}
+                {debitPersonnelWarning && (
+                  <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                      ⚠ Personalkonto
+                    </p>
+
+                    <p className="text-[9px] leading-relaxed text-amber-700">
+                      {debitPersonnelWarning}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Kreditkonto
+                </label>
+
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newAccount.credit_account}
+                  onChange={e =>
+                    setNewAccount({
+                      ...newAccount,
+                      credit_account: e.target.value
+                        .replace(/\D/g, '')
+                        .slice(0, 4),
+                    })
+                  }
+                  placeholder="1930"
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                  required
+                />
+
+                {creditHelp && (
+                  <p className="text-[9px] text-orange-600 font-bold ml-1">
+                    BAS: {creditHelp}
                   </p>
-                </div>
-              )}
-            </div>
+                )}
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                Kreditkonto
-              </label>
+                {creditPersonnelWarning && (
+                  <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                      ⚠ Personalkonto
+                    </p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={4}
-                value={newAccount.credit_account}
-                onChange={e =>
-                  setNewAccount({
-                    ...newAccount,
-                    credit_account: e.target.value
-                      .replace(/\D/g, '')
-                      .slice(0, 4),
-                  })
-                }
-                placeholder="1930"
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
-                required
-              />
+                    <p className="text-[9px] leading-relaxed text-amber-700">
+                      {creditPersonnelWarning}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-              {creditHelp && (
-                <p className="text-[9px] text-orange-600 font-bold ml-1">
-                  BAS: {creditHelp}
-                </p>
-              )}
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Standard moms %
+                </label>
 
-              {creditPersonnelWarning && (
-                <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
-                    ⚠ Personalkonto
-                  </p>
+                <select
+                  value={newAccount.default_vat_rate}
+                  onChange={e =>
+                    setNewAccount({
+                      ...newAccount,
+                      default_vat_rate: Number(e.target.value),
+                    })
+                  }
+                  className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
+                >
+                  <option value={0}>0%</option>
+                  <option value={6}>6%</option>
+                  <option value={12}>12%</option>
+                  <option value={25}>25%</option>
+                </select>
+              </div>
 
-                  <p className="text-[9px] leading-relaxed text-amber-700">
-                    {creditPersonnelWarning}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                Standard moms %
-              </label>
-
-              <select
-                value={newAccount.default_vat_rate}
-                onChange={e =>
-                  setNewAccount({
-                    ...newAccount,
-                    default_vat_rate: Number(e.target.value),
-                  })
-                }
-                className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
+              <button
+                type="submit"
+                disabled={saving}
+                className="bg-emerald-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
               >
-                <option value={0}>0%</option>
-                <option value={6}>6%</option>
-                <option value={12}>12%</option>
-                <option value={25}>25%</option>
-              </select>
+                {saving
+                  ? '...'
+                  : editingId
+                    ? 'Spara ändringar'
+                    : 'Spara konto'}
+              </button>
             </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-emerald-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
-            >
-              {saving
-                ? '...'
-                : editingId
-                  ? 'Spara ändringar'
-                  : 'Spara konto'}
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
       </div>
 
       <div className="hidden md:block bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
