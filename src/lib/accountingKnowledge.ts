@@ -1919,3 +1919,52 @@ export function getGuidedBookingCategories() {
 export function getBookingCategory(id: string) {
   return BOOKING_CATEGORIES.find(category => category.id === id) ?? null
 }
+
+/**
+ * Översätter en kategori i Grundkontoplan v1 till den AccountPreset-form
+ * som nuvarande SoloLedger fortfarande använder.
+ *
+ * Detta är en tillfällig kompatibilitetsbrygga. Motkonto och moms här
+ * representerar dagens förenklade preset-flöde och ska inte betraktas
+ * som permanenta bokföringsregler.
+ */
+export function bookingCategoryToAccountPreset(
+  category: BookingCategory
+): AccountPreset | null {
+  const mapping = category.legacyPreset
+
+  if (!mapping) {
+    return null
+  }
+
+  return {
+    id: category.id,
+    name: category.name,
+    debit_account: mapping.debitAccount,
+    credit_account: mapping.creditAccount,
+    default_vat_rate: mapping.defaultVatRate,
+    comment: mapping.comment,
+    seedDefault: category.availability === 'default',
+    quickSuggestion: category.availability === 'quick',
+  }
+}
+
+/**
+ * AccountPreset-kompatibla kategorier som ska ingå i
+ * SoloLedgers grundkontoplan för nya användare.
+ */
+export function getDefaultAccountPresetsV1(): AccountPreset[] {
+  return getDefaultBookingCategories()
+    .map(bookingCategoryToAccountPreset)
+    .filter((preset): preset is AccountPreset => preset !== null)
+}
+
+/**
+ * AccountPreset-kompatibla kategorier som ska visas som
+ * snabbförslag i Kontoplan.
+ */
+export function getQuickAccountPresetsV1(): AccountPreset[] {
+  return getQuickBookingCategories()
+    .map(bookingCategoryToAccountPreset)
+    .filter((preset): preset is AccountPreset => preset !== null)
+}
