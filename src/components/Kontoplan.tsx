@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
-  ACCOUNT_PRESETS,
   getBasAccountHelp,
-  getQuickAccountSuggestions,
+  getBookingCategory,
+  getQuickAccountPresetsV1,
 } from '@/lib/accountingKnowledge'
 
 interface KontoplanProps {
@@ -51,16 +51,14 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const kontoforslag = getQuickAccountSuggestions()
+  const kontoforslag = getQuickAccountPresetsV1()
   const befintligaIds = new Set(kontoplan.map(acc => acc.id))
   const tillgangligaForslag = kontoforslag.filter(
     forslag => !befintligaIds.has(forslag.id)
   )
 
-  const selectedPreset = ACCOUNT_PRESETS.find(
-    preset => preset.id === newAccount.id
-  )
-  const guidance = selectedPreset?.guidance ?? null
+  const selectedCategory = getBookingCategory(newAccount.id)
+  const guidance = selectedCategory?.categoryGuidance ?? null
 
   useEffect(() => {
     loadKontoplan()
@@ -238,10 +236,9 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
       if ((usageCount ?? 0) > 0) {
         alert(
-          `Kontot "${id}" används i ${usageCount} bokförd${
-            usageCount === 1 ? '' : 'a'
+          `Kontot "${id}" används i ${usageCount} bokförd${usageCount === 1 ? '' : 'a'
           } transaktion${usageCount === 1 ? '' : 'er'} och kan därför inte raderas. ` +
-            `Historiken måste bevaras.`
+          `Historiken måste bevaras.`
         )
         return
       }
@@ -316,16 +313,23 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
             {tillgangligaForslag.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {tillgangligaForslag.map(forslag => (
-                  <button
-                    key={forslag.id}
-                    type="button"
-                    onClick={() => applyForslag(forslag)}
-                    className="text-[11px] font-bold px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800 transition-all shadow-sm"
-                  >
-                    + {forslag.name}
-                  </button>
-                ))}
+                {tillgangligaForslag.map(forslag => {
+                  const isSelected = newAccount.id === forslag.id
+
+                  return (
+                    <button
+                      key={forslag.id}
+                      type="button"
+                      onClick={() => applyForslag(forslag)}
+                      className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-all shadow-sm ${isSelected
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800'
+                        }`}
+                    >
+                      {isSelected ? '✓' : '+'} {forslag.name}
+                    </button>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-[10px] text-gray-400 italic">
@@ -391,23 +395,21 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
           {guidance && (
             <div
-              className={`mb-4 rounded-2xl border px-4 py-4 ${
-                guidance.status === 'conditional'
+              className={`mb-4 rounded-2xl border px-4 py-4 ${guidance.status === 'conditional'
                   ? 'border-amber-200 bg-amber-50'
                   : guidance.status === 'technical'
                     ? 'border-sky-200 bg-sky-50'
                     : 'border-emerald-200 bg-emerald-50'
-              }`}
+                }`}
             >
               <div className="flex items-start gap-3">
                 <div
-                  className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
-                    guidance.status === 'conditional'
+                  className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${guidance.status === 'conditional'
                       ? 'bg-amber-100'
                       : guidance.status === 'technical'
                         ? 'bg-sky-100'
                         : 'bg-emerald-100'
-                  }`}
+                    }`}
                 >
                   {guidance.status === 'conditional'
                     ? '⚠'
@@ -418,13 +420,12 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
                 <div className="min-w-0">
                   <p
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      guidance.status === 'conditional'
+                    className={`text-[10px] font-black uppercase tracking-wider ${guidance.status === 'conditional'
                         ? 'text-amber-700'
                         : guidance.status === 'technical'
                           ? 'text-sky-700'
                           : 'text-emerald-700'
-                    }`}
+                      }`}
                   >
                     {guidance.status === 'conditional'
                       ? 'Kontrollera först'
@@ -450,11 +451,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
                   {guidance.warning && (
                     <div
-                      className={`mt-2 rounded-xl px-3 py-2 ${
-                        guidance.status === 'conditional'
+                      className={`mt-2 rounded-xl px-3 py-2 ${guidance.status === 'conditional'
                           ? 'bg-amber-100/70'
                           : 'bg-white/60'
-                      }`}
+                        }`}
                     >
                       <p className="text-[10px] text-gray-600 leading-relaxed">
                         {guidance.warning}
@@ -615,13 +615,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
                   {(isPersonnelAccount(acc.debit_account) ||
                     isPersonnelAccount(acc.credit_account)) && (
-                    <span
-                      className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
-                      title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
-                    >
-                      ⚠ Personalkonto
-                    </span>
-                  )}
+                      <span
+                        className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
+                        title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
+                      >
+                        ⚠ Personalkonto
+                      </span>
+                    )}
                 </td>
 
                 <td className="p-6">
@@ -709,13 +709,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
                   {(isPersonnelAccount(acc.debit_account) ||
                     isPersonnelAccount(acc.credit_account)) && (
-                    <span
-                      className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
-                      title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
-                    >
-                      ⚠ Personalkonto
-                    </span>
-                  )}
+                      <span
+                        className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
+                        title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
+                      >
+                        ⚠ Personalkonto
+                      </span>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -761,22 +761,22 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
               {(getBasAccountHelp(acc.debit_account) ||
                 getBasAccountHelp(acc.credit_account)) && (
-                <div className="text-[9px] text-gray-400 mb-2 space-y-0.5">
-                  {getBasAccountHelp(acc.debit_account) && (
-                    <p>
-                      D {acc.debit_account}:{' '}
-                      {getBasAccountHelp(acc.debit_account)}
-                    </p>
-                  )}
+                  <div className="text-[9px] text-gray-400 mb-2 space-y-0.5">
+                    {getBasAccountHelp(acc.debit_account) && (
+                      <p>
+                        D {acc.debit_account}:{' '}
+                        {getBasAccountHelp(acc.debit_account)}
+                      </p>
+                    )}
 
-                  {getBasAccountHelp(acc.credit_account) && (
-                    <p>
-                      K {acc.credit_account}:{' '}
-                      {getBasAccountHelp(acc.credit_account)}
-                    </p>
-                  )}
-                </div>
-              )}
+                    {getBasAccountHelp(acc.credit_account) && (
+                      <p>
+                        K {acc.credit_account}:{' '}
+                        {getBasAccountHelp(acc.credit_account)}
+                      </p>
+                    )}
+                  </div>
+                )}
 
               {acc.comment && (
                 <p className="text-xs text-gray-400 italic">
