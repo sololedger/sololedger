@@ -59,6 +59,7 @@ export default function Home() {
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    loadKontoplanOptions,
     momsBreakdown,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
 
@@ -843,7 +844,7 @@ export default function Home() {
   />
 )}        </>
       ) : activeTab === 'kontoplan' ? (
-        <Kontoplan onAccountCreated={refreshData} />
+        <Kontoplan onAccountCreated={loadKontoplanOptions} />
       ) : activeTab === 'moms' ? (
         <SubscriptionGuard
           user={user}

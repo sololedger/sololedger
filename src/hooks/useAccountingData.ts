@@ -224,6 +224,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    loadKontoplanOptions,
     momsBreakdown,
   }
 }
