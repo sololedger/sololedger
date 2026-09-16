@@ -24,6 +24,9 @@ interface SieImportBatch {
 export default function ProfileSettings({ user, profile, onProfileUpdate, onUpdatePassword, onBookkeepingChanged }: Props) {
   const [companyName, setCompanyName] = useState(profile?.company_name || '')
   const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
+  const [vatStatus, setVatStatus] = useState<'registered' | 'not_registered' | 'unknown'>(profile?.vat_status || 'unknown')
+  const [vatPeriodType, setVatPeriodType] = useState<'month' | 'quarter' | 'year' | ''>(profile?.vat_period_type || '')
+  const [vatManagementFrom, setVatManagementFrom] = useState(profile?.vat_management_from || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -38,10 +41,26 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordNotice, setPasswordNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
+  const savedVatStatus = profile?.vat_status || 'unknown'
+  const savedVatPeriodType = profile?.vat_period_type || ''
+  const savedVatManagementFrom = profile?.vat_management_from || ''
+
+  const hasChanges =
+    companyName !== (profile?.company_name || '') ||
+    orgNr !== (profile?.org_nr || '') ||
+    vatStatus !== savedVatStatus ||
+    (vatStatus === 'registered' && (
+      vatPeriodType !== savedVatPeriodType ||
+      vatManagementFrom !== savedVatManagementFrom
+    ))
+
   // 🌟 Synka lokala states när profildatan har landat från Supabase
   useEffect(() => {
     if (profile?.company_name) setCompanyName(profile.company_name)
     if (profile?.org_nr) setOrgNr(profile.org_nr)
+    setVatStatus(profile?.vat_status || 'unknown')
+    setVatPeriodType(profile?.vat_period_type || '')
+    setVatManagementFrom(profile?.vat_management_from || '')
   }, [profile])
 
   useEffect(() => {
@@ -135,18 +154,35 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   async function handleSave(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!user?.id) return
+    if (vatStatus === 'registered' && (!vatPeriodType || !vatManagementFrom)) {
+      alert('Välj hur ofta företaget redovisar moms och från vilket datum SoloLedger ska hantera momsen.')
+      return
+    }
+
     setSaving(true)
     setSaved(false)
+
+    const vatSettings = vatStatus === 'registered'
+      ? {
+          vat_status: vatStatus,
+          vat_period_type: vatPeriodType,
+          vat_management_from: vatManagementFrom,
+        }
+      : {
+          vat_status: vatStatus,
+          vat_period_type: null,
+          vat_management_from: null,
+        }
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ company_name: companyName, org_nr: orgNr })
+        .update({ company_name: companyName, org_nr: orgNr, ...vatSettings })
         .eq('id', user.id)
 
       if (error) throw error
 
-      onProfileUpdate({ ...profile, company_name: companyName, org_nr: orgNr })
+      onProfileUpdate({ ...profile, company_name: companyName, org_nr: orgNr, ...vatSettings })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -287,12 +323,87 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
             />
           </div>
 
+          <div className="border-t border-gray-100 pt-5 mt-5 space-y-4">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Momsregistrering</label>
+              <p className="text-[10px] text-gray-400 font-bold mb-3">Välj det som gäller för företaget hos Skatteverket.</p>
+              <select
+                value={vatStatus}
+                onChange={e => {
+                  const value = e.target.value as 'registered' | 'not_registered' | 'unknown'
+                  setVatStatus(value)
+                  if (value !== 'registered') {
+                    setVatPeriodType('')
+                    setVatManagementFrom('')
+                  }
+                }}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+              >
+                <option value="unknown">Inte angivet ännu</option>
+                <option value="registered">Ja, företaget är momsregistrerat</option>
+                <option value="not_registered">Nej, företaget är inte momsregistrerat</option>
+              </select>
+            </div>
+
+            {vatStatus === 'registered' && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Hur ofta redovisar företaget moms?</label>
+                  <p className="text-[10px] text-gray-400 font-bold mb-3">Välj den redovisningsperiod som företaget är registrerat för hos Skatteverket.</p>
+                  <select
+                    value={vatPeriodType}
+                    onChange={e => setVatPeriodType(e.target.value as 'month' | 'quarter' | 'year' | '')}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+                  >
+                    <option value="">Välj redovisningsperiod</option>
+                    <option value="month">Varje månad</option>
+                    <option value="quarter">Varje kvartal</option>
+                    <option value="year">En gång per år</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">SoloLedger hanterar momsperioder från</label>
+                  <p className="text-[10px] text-gray-400 font-bold mb-3">Från detta datum får SoloLedger skapa och guida nya momsperioder. Importerad historik ändras inte.</p>
+                  <input
+                    type="date"
+                    value={vatManagementFrom}
+                    onChange={e => setVatManagementFrom(e.target.value)}
+                    className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+                  />
+                </div>
+              </>
+            )}
+
+            {vatStatus === 'not_registered' && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <p className="text-[11px] font-bold text-blue-700">Företaget är markerat som inte momsregistrerat. I nästa steg kopplar vi denna inställning till bokföringen så att nya vanliga bokningar inte skapar moms.</p>
+              </div>
+            )}
+
+            {vatStatus === 'unknown' && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <p className="text-[11px] font-bold text-amber-700">SoloLedger vet ännu inte företagets momsstatus. Bokföringen ändras inte av denna inställning förrän momsflödet kopplas in i nästa steg.</p>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
-            disabled={saving}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all shadow-sm disabled:opacity-50"
+            disabled={saving || !hasChanges}
+            className={`w-full rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all shadow-sm disabled:cursor-not-allowed ${
+              hasChanges
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50'
+                : 'bg-gray-100 text-gray-400 shadow-none'
+            }`}
           >
-            {saving ? 'Sparar...' : saved ? '✓ Sparat!' : 'Spara ändringar'}
+            {saving
+              ? 'Sparar...'
+              : saved
+                ? '✓ Sparat!'
+                : hasChanges
+                  ? 'Spara ändringar'
+                  : 'Inga ändringar att spara'}
           </button>
         </form>
       </div>
