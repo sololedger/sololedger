@@ -422,14 +422,13 @@ export async function isYearClosed(year: number): Promise<boolean> {
 }
 
 export async function closeYear(year: number): Promise<void> {
-  const userId = await getUserId()
-  const alreadyClosed = await isYearClosed(year)
-  if (alreadyClosed) throw new Error(`År ${year} är redan låst.`)
+  const { error } = await supabase.rpc('close_year_atomic', {
+    p_year: year,
+  })
 
-  const { error } = await supabase
-    .from('closed_years')
-    .insert([{ user_id: userId, year, closed_at: new Date().toISOString() }])
-  if (error) throw new Error('Kunde inte låsa räkenskapsåret: ' + error.message)
+  if (error) {
+    throw new Error(error.message || 'Kunde inte låsa räkenskapsåret.')
+  }
 }
 
 /**
