@@ -3,7 +3,8 @@
 import { supabase } from './supabaseClient'
 
 // Gratisversionen tillåter totalt 15 riktiga bokföringsverifikationer per konto.
-// Korrigeringsverifikationer och teknisk SIE-ingående balans räknas inte.
+// Korrigeringsverifikationer, teknisk SIE-ingående balans och
+// systemskapade momsavslut räknas inte.
 export const FREE_TRANSACTION_LIMIT = 15
 
 export interface Profile {
@@ -44,6 +45,7 @@ export function isSubscriptionActive(profile: Profile | null): boolean {
  * - korrigeringsverifikationer (is_correction = true)
  * - teknisk ingående balans från SIE (source = 'sie_opening_balance')
  * - legacy-ingående balans från äldre SIE-import
+ * - systemskapat momsavslut (source = 'vat_closing')
  *
  * Vi hämtar bara de få fält som behövs och filtrerar klient-side för att även
  * hantera äldre rader där boolean/source kan vara null.
@@ -61,6 +63,7 @@ export async function getFreeTransactionUsage(userId: string): Promise<number> {
 
   return (data ?? []).filter((tx: any) => {
     if (tx.is_correction === true) return false
+    if (tx.source === 'vat_closing') return false
 
     const isOpeningBalance =
       tx.source === 'sie_opening_balance' ||
