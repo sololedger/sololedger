@@ -26,6 +26,7 @@ interface TransactionFormProps {
   onSubmit: (e: any) => void
   onCancelEdit: () => void
   userId: string
+  vatStatus: 'registered' | 'not_registered' | 'unknown'
   lastSubmitted: { type: string; amount: string; vatRate: number } | null
   onSaveFavorite: (name: string) => Promise<void>
   onDismissFavorite: () => void
@@ -46,6 +47,7 @@ export default function TransactionForm({
   onSubmit,
   onCancelEdit,
   userId,
+  vatStatus,
   lastSubmitted,
   onSaveFavorite,
   onDismissFavorite,
@@ -54,13 +56,14 @@ export default function TransactionForm({
   const [showFavInput, setShowFavInput] = useState(false)
   const [descriptionHighlight, setDescriptionHighlight] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
+  const isNotVatRegistered = vatStatus === 'not_registered'
 
   function handleFavoriteSelect(fav: Favorite) {
     setFormData({
       ...formData,
       type: fav.type,
       amount: fav.amount.toString(),
-      vatRate: fav.vat_rate,
+      vatRate: isNotVatRegistered ? 0 : fav.vat_rate,
       description: '',
     })
     setDescriptionHighlight(true)
@@ -158,8 +161,9 @@ export default function TransactionForm({
                   setFormData({
                     ...formData,
                     type: e.target.value,
-                    vatRate:
-                      Number(acc?.default_vat_rate) || 0,
+                    vatRate: isNotVatRegistered
+                      ? 0
+                      : Number(acc?.default_vat_rate) || 0,
                   })
                 }}
                 disabled={editingBooked || isYearLocked}
@@ -278,12 +282,13 @@ export default function TransactionForm({
                     vatRate: Number(e.target.value),
                   })
                 }
-                disabled={editingBooked || isYearLocked}
+                disabled={editingBooked || isYearLocked || isNotVatRegistered}
                 className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                  editingBooked || isYearLocked
+                  editingBooked || isYearLocked || isNotVatRegistered
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-gray-50 cursor-pointer'
                 } ${isYearLocked ? 'opacity-40' : ''}`}
+                title={isNotVatRegistered ? 'Företaget är markerat som inte momsregistrerat.' : undefined}
               >
                 <option value={25}>25%</option>
                 <option value={12}>12%</option>
@@ -295,7 +300,7 @@ export default function TransactionForm({
             {/* Belopp */}
             <div className="lg:col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                Belopp inkl. moms
+                {isNotVatRegistered ? 'Belopp' : 'Belopp inkl. moms'}
               </label>
 
               <input
@@ -358,6 +363,13 @@ export default function TransactionForm({
                 )}
               </div>
             </div>
+            {isNotVatRegistered && (
+              <div className="col-span-2 lg:col-span-12 -mt-1 px-1">
+                <p className="text-[9px] font-bold text-gray-400">
+                  Företaget är markerat som inte momsregistrerat. Nya bokningar görs därför med 0 % moms.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -504,8 +516,10 @@ export default function TransactionForm({
 
                   <p>
                     📅 <strong>År 1 (idag):</strong>{' '}
-                    Bank krediteras. Moms bokas direkt.
-                    Netto → konto 1790.
+                    Bank krediteras.{' '}
+                    {isNotVatRegistered
+                      ? 'Hela beloppet → konto 1790.'
+                      : 'Moms bokas direkt. Netto → konto 1790.'}
                   </p>
 
                   <p>

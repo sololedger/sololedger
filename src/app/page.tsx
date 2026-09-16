@@ -191,9 +191,23 @@ export default function Home() {
   // motsvarar det som tidigare gjordes inuti loadKontoplanOptions.
   useEffect(() => {
     if (!formData.type && kontoplan[0]) {
-      setFormData(prev => ({ ...prev, type: kontoplan[0].id, vatRate: Number(kontoplan[0].default_vat_rate) || 0 }))
+      setFormData(prev => ({
+        ...prev,
+        type: kontoplan[0].id,
+        vatRate: profile?.vat_status === 'not_registered'
+          ? 0
+          : Number(kontoplan[0].default_vat_rate) || 0,
+      }))
     }
-  }, [kontoplan])
+  }, [kontoplan, profile?.vat_status])
+
+  // UI-skyddet speglar serverregeln: när profilen uttryckligen är markerad
+  // som inte momsregistrerad ska formuläret aldrig bära med sig en momssats.
+  // Databasen är fortfarande den riktiga säkerhetsgränsen.
+  useEffect(() => {
+    if (profile?.vat_status !== 'not_registered') return
+    setFormData(prev => prev.vatRate === 0 ? prev : { ...prev, vatRate: 0 })
+  }, [profile?.vat_status])
 
   async function handleFileUpload(file: File): Promise<string> {
     const ALLOWED_TYPES: Record<string, string> = {
@@ -806,6 +820,7 @@ export default function Home() {
           <div id="transaction-form-section">
             <TransactionForm
               userId={user.id}
+              vatStatus={profile?.vat_status ?? 'unknown'}
               formData={formData}
               setFormData={setFormData}
               kontoplan={kontoplan}
