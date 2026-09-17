@@ -145,3 +145,67 @@ When changing DB behavior:
 - Checkout and portal flows must derive the user from a verified Supabase session server-side.
 - Admin actions must verify admin authorization server-side/database-side.
 - Storage attachments belong in the user's own path and must remain protected by Storage RLS.
+
+## Jira Workflow
+
+- Jira is the source of truth for work queue, issue status, and assignment. It is not a source of truth for code, database implementation, accounting behavior, or live Supabase state.
+- Pontus normally chooses and prioritizes work and assigns it to Codex.
+- Do not start implementing other Jira issues just because they exist.
+- Before using Jira for task tracking, verify the current Jira project, issue type, status, assignee, account IDs, and available transitions from Jira itself. Never guess Jira status, transition, or account IDs.
+- Do not infer the active engineering task from an existing Jira issue unless the user explicitly selects it or the issue is clearly assigned as the current task.
+- Do not auto-link unrelated Jira issues to sensitive bookkeeping, VAT, SIE, or database work.
+- Create, edit, comment on, assign, or transition Jira issues only when the user has requested that Jira action or approved it for the current workflow.
+- If a separate real bug is discovered during other work, first search Jira for a relevant duplicate. If no relevant duplicate exists, a new `Bug` issue may be created when Jira-write is allowed for the workflow. Do not begin implementing that new bug unless Pontus selects, assigns, or approves it.
+- Jira bug reports should be compact and useful. When known, include reproduction, expected behavior, actual behavior, and scope/context.
+- Do not write secrets or real sensitive user data in Jira.
+- When assigned Jira work is implemented and Codex verification is complete but Pontus final testing remains, transition the issue to the verified `In Review` status, assign it to Pontus, and add a short Jira comment with what changed, what Codex verified, exactly what Pontus should test, and known limitations when relevant.
+- Do not set a Jira issue to `Done` as a substitute for Pontus final testing unless Pontus explicitly instructs it.
+- When work comes from Jira, include the issue key in relevant `PROJECT_STATE.md` entries and normally in the commit message.
+- When creating Jira issues for SoloLedger work, prefer small scoped tasks that can be reviewed and verified independently.
+
+## Session State And Handoff
+
+- At the start of a substantive work session, read `AGENTS.md` and `PROJECT_STATE.md` when they exist.
+- Do not read `PROJECT_ARCHIVE.md` by default. Read it only when the current task needs older history or `PROJECT_STATE.md` points to it.
+- If a current Jira issue is listed, read it before acting on that task.
+- Keep `PROJECT_STATE.md` concise and current for active work: branch, checkpoint, dirty files, current focus, verified external connections, and next safe step.
+- Keep `PROJECT_STATE.md` normally under about 150 lines.
+- Use `PROJECT_ARCHIVE.md` only for compact long-term summaries of completed or superseded workstreams. Do not move an active workstream there prematurely.
+- Do not put quickly stale task state in `AGENTS.md`; keep permanent rules here and task-specific state in `PROJECT_STATE.md` or the current prompt.
+- `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md` are navigation and handoff aids. They must never replace the actual implementation, Git history, or live Supabase as source of truth.
+- Verify relevant state claims before sensitive decisions.
+- Do not write secrets or real sensitive user data in `PROJECT_STATE.md` or `PROJECT_ARCHIVE.md`.
+- If project documentation, `PROJECT_STATE.md`, migrations, live DB state, and implementation disagree, report the discrepancy and verify the relevant source of truth before acting.
+
+## Retention
+
+- Check retention during `Prepare handoff` and `Finalize checkpoint`.
+- Move or compress information into `PROJECT_ARCHIVE.md` when it belongs to completed verified/checkpointed work, is a resolved blocker or finding that no longer affects the next step, has been replaced by a later verified decision, or is no longer needed for the Current Objective or Next Step.
+- Do not archive raw prompts, large diffs, or unnecessary reasoning.
+- Do not remove still-relevant information solely to meet the line guideline.
+
+## Prepare Handoff
+
+When Pontus says `Prepare handoff`, or clearly asks for the same action:
+
+- Do not implement new functionality.
+- Verify repo, branch, git status, diff, and latest commit.
+- Check the current Jira issue when relevant.
+- Verify the actual current state before changing handoff files.
+- Run retention.
+- Update `PROJECT_STATE.md`.
+- Update `PROJECT_ARCHIVE.md` only when relevant.
+- Mark uncommitted or incomplete work clearly.
+- State the exact Next Step.
+- Report what changed in handoff/state/archive.
+- Stop.
+
+## Checkpoints And Finalization
+
+- Before a checkpoint commit, verify exactly which files are included and ensure unrelated user changes are not included.
+- A checkpoint commit is local unless the user explicitly approves a push.
+- At the end of a meaningful task, report changed files, checks run, checks not run, current git status, and whether any Jira, Supabase, migration, deploy, commit, or push action was performed.
+- When Pontus says `Finalize checkpoint`, do not start new implementation. Verify the current diff, run relevant checks, verify current Jira/state status, run retention, update `PROJECT_STATE.md` and when needed `PROJECT_ARCHIVE.md` to the verified state, present exactly which files should be included, propose a commit message, and wait for explicit approval.
+- Commit requires explicit approval.
+- Push requires explicit approval unless Pontus explicitly approves commit and push together in the same instruction.
+- Deploys and live Supabase writes continue to require explicit approval under the existing rules.
