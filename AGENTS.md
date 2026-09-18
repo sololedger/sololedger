@@ -207,8 +207,11 @@ When Pontus says `Prepare handoff`, or clearly asks for the same action:
 - Update `PROJECT_ARCHIVE.md` only when relevant.
 - Mark uncommitted or incomplete work clearly.
 - State the exact Next Step.
-- Report what changed in handoff/state/archive.
-- Stop.
+- Show or summarize the handoff diff.
+- Ask for explicit approval before committing or pushing handoff documentation.
+- After approval, commit only the handoff documentation and push to the current branch.
+- Verify the local branch and remote point to the same commit and the working tree is clean.
+- The handoff is complete only after the handoff documentation is committed, pushed, and verified clean.
 
 ## Checkpoints And Finalization
 
