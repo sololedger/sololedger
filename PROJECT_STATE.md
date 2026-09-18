@@ -7,10 +7,10 @@ Last updated: 2026-09-18
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin previously verified as `https://github.com/sololedger/sololedger.git`
-- Latest pushed checkpoint commit: `2efdfa1 KAN-5 add undo SIE VAT concurrency guard`
+- Latest local commit: `8ee64fc KAN-6 add import SIE VAT guard`
 - Local `main` is synced with `origin/main`.
-- Working tree contains the uncommitted KAN-6 checkpoint files listed in Next Safe Step.
-- No commit, push, deploy, Jira Done transition, or KAN-7 work has been performed for this checkpoint.
+- Working tree contains the uncommitted KAN-7 checkpoint files listed in Next Safe Step.
+- No commit, push, deploy, Jira Done transition, or KAN-8 work has been performed for this checkpoint.
 
 ## External Connections
 
@@ -23,53 +23,45 @@ Last updated: 2026-09-18
 
 ## Current Objective
 
-- Current checkpoint being finalized: KAN-6 `3B.5 Import SIE VAT guard`.
-- KAN-6 Jira status: `In Review`, assigned to Pontus.
-- KAN-6 permanent migration is installed in live Supabase and verified read-only after installation.
-- Pontus final IRL/review remains before KAN-6 should be moved to `Done`.
+- Current checkpoint being finalized: KAN-7 `3B.5 close_vat_period_atomic foundation`.
+- KAN-7 Jira status: `In Review`, assigned to Pontus.
+- KAN-7 permanent migration is installed in live Supabase and verified read-only after installation.
+- Pontus final IRL/review remains before KAN-7 should be moved to `Done`.
+- KAN-6 remains `In Review`; Pontus final IRL/review remains before KAN-6 should be moved to `Done`.
 - KAN-5 remains `In Review`; Pontus final IRL/review remains before KAN-5 should be moved to `Done`.
 
-## KAN-6 Verification Snapshot
+## KAN-7 Verification Snapshot
 
-- Migration file: `supabase/migrations/20260918_add_vat_guard_to_import_sie_batch.sql`
-- Migration SHA-256: `096E0825DFF11B7744C8024AF1BD64E0108AD720C54A0D1554C1913FD06BF611`
-- Live `public.import_sie_batch(jsonb)` post-install md5: `13ce699a75462ce1e97cc52755a79376`; length: `18408`.
-- Live definition matches the migration function definition exactly after normalization.
-- Functional/regression rollback DB tests against live: 14/14 PASS.
-- Atomicity/negative cases: PASS.
-- Outer rollback and fixture cleanup: PASS.
-- Empirically executed rollback test artifact before final `\ir` rename-reference SHA-256: `E807AB1BAFC6C19F19BE2DE50881A5B8B8564C0794F22036A50218EB841EFCC6`.
-- Final test file only changes the `\ir` reference to the permanent migration filename.
-- KAN-6 concurrency is DEFERRED / NOT EMPIRICALLY TESTED.
-- KAN-5 concurrency is still DEFERRED / NOT EMPIRICALLY TESTED.
+- Migration file: `supabase/migrations/20260918_add_close_vat_period_atomic.sql`
+- Migration SHA-256: `07EA138C427D07AAAF2E073E9CC3092B60C9A0042CBA56F6FBA605D7EA00B269`
+- Test file: `supabase/tests/kan7_close_vat_period_atomic_candidate.sql`
+- Final test file SHA-256 after permanent `\ir` rename: `14FB0A6C52B26947B28BDCBBC583A96457EBA2C53270BCDED4E7139BCA50840E`
+- Independent adversarial review: READY FOR TEST SCRIPT, BLOCKER 0.
+- Rollback DB tests against live: 18/18 PASS.
+- Rollback postflight: POSTFLIGHT CLEAN.
+- Permanent post-install read-only verification: POST-INSTALL VERIFIED.
+- Live normalized `pg_get_functiondef(public.close_vat_period_atomic(uuid))` matches the migration function definition exactly.
+- Test-user `47d6e49f-a595-4292-9529-78ba731bd9de` has `ver_nr_sequences.last_ver_nr = 22` after rollback/post-install verification.
+- No KAN-7 fixtures or unexpected schema/data changes were found after rollback/post-install checks.
+- True two-session concurrency remains DEFERRED / NOT EMPIRICALLY TESTED.
 
 ## Verified / Implemented VAT Context
 
-- Already implemented and tested guards: `book_transaction_atomic`, `book_periodized_transaction_atomic`, `create_correction_transaction_atomic`, and `undo_sie_import_atomic`.
-- `import_sie_batch` now has the KAN-6 VAT pre-scan, VAT advisory locks, SoloLedger VAT-period state guard, duplicate check after VAT guard, and protected `get_next_ver_nr` ordering.
-- Repo migration `20260917_add_vat_concurrency_helpers.sql` defines VAT sync scope as `261x`, `262x`, `263x`, exact `2641`, and `265x`.
-- Closing balance scope is `261x`, `262x`, `263x`, exact `2641`; `265x` is synchronization/state safety scope, not closing balance scope.
-- VAT locks are transaction-level PostgreSQL advisory locks per calendar month, independent of VAT period type.
-- Multi-month VAT locks are taken in chronological calendar order.
-- Global lock order: all VAT advisory locks -> other advisory locks -> row locks -> protected reads/writes.
-- VAT period blocking applies to `source = 'sololedger'` and status `closed` or `declared`; `imported_history` does not block.
-- Authoritative closed state must not be inferred from 265x activity.
-
-## Decided Design Not Yet Implemented
-
-- KAN-7 `close_vat_period_atomic()` should be atomic, create a real `transactions` row with `source = 'vat_closing'` and journal rows when closing activity exists, use `period_end` as verification date, and base period membership/balances on `journal_entries.date`.
-- `close_vat_period_atomic()` must set `status = 'closed'`, set `closing_amount`, set `closing_transaction_id` when a closing verification exists, and must not set `declared_at`.
-- Special VAT close cases remain as previously decided: no activity means no artificial verification; exact net 0 with activity creates a real closing verification; already-zeroed relevant balances with activity blocks for manual review.
-- KAN-8 handles declared VAT period state: `open -> closed -> declared`.
-- After the VAT track reaches a safe checkpoint, return to Kontoplan guidance for enskild firma users.
+- Implemented VAT write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
+- KAN-7 adds `close_vat_period_atomic(uuid)` with VAT month advisory locks before row locks/protected reads, lock-domain revalidation, `source='sololedger'` / `status='open'` normal close, and idempotent `closed` handling without `get_next_ver_nr`.
+- KAN-7 closing scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
+- `closing_amount = -sum(debit-credit)` over relevant VAT account balances, and net is booked to `2650` only when net is nonzero.
+- No activity closes the VAT period without transaction/ver_nr; activity with zero net but nonzero account balances creates a real closing transaction; activity with all relevant account balances already zero blocks for manual review.
+- `declared_at` is not set by KAN-7; KAN-8 handles declared VAT period state.
+- UI integration caveat: before exposing VAT close to users, `vat_closing` must be treated as a system booking in `TransactionTable`/app flows so ordinary edit/delete/correction controls are not offered for VAT closing transactions.
 
 ## Next Safe Step
 
-- Review the KAN-6 checkpoint diff.
+- Review the KAN-7 checkpoint diff.
 - If approved, commit only:
-  - `supabase/migrations/20260918_add_vat_guard_to_import_sie_batch.sql`
-  - `supabase/tests/kan6_import_sie_vat_guard_candidate.sql`
+  - `supabase/migrations/20260918_add_close_vat_period_atomic.sql`
+  - `supabase/tests/kan7_close_vat_period_atomic_candidate.sql`
   - `PROJECT_STATE.md`
   - `PROJECT_ARCHIVE.md`
-- Suggested commit message: `KAN-6 add import SIE VAT guard`
-- Do not deploy, run migrations, push, move Jira to Done, start KAN-7, or work on any other Jira task without explicit approval.
+- Suggested commit message: `KAN-7 add atomic VAT period closing`
+- Do not deploy, run migrations, push, move Jira to Done, start KAN-8, or work on any other Jira task without explicit approval.

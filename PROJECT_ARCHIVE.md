@@ -29,3 +29,17 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - Empirically executed rollback test artifact before final `\ir` rename-reference SHA-256: `E807AB1BAFC6C19F19BE2DE50881A5B8B8564C0794F22036A50218EB841EFCC6`; final test file differs only by pointing `\ir` to the permanent migration filename.
 - KAN-6 concurrency is DEFERRED / NOT EMPIRICALLY TESTED.
 - KAN-5 concurrency remains DEFERRED / NOT EMPIRICALLY TESTED.
+
+### KAN-7 3B.5 close_vat_period_atomic Foundation
+
+- Checkpoint files were prepared on 2026-09-18 before commit/push approval.
+- Jira KAN-7 was moved to `In Review` and assigned to Pontus; Pontus final IRL/review remains before `Done`.
+- Permanent live migration installed: `supabase/migrations/20260918_add_close_vat_period_atomic.sql`.
+- Migration SHA-256: `07EA138C427D07AAAF2E073E9CC3092B60C9A0042CBA56F6FBA605D7EA00B269`.
+- Test file: `supabase/tests/kan7_close_vat_period_atomic_candidate.sql`; final SHA-256 after permanent `\ir` rename: `14FB0A6C52B26947B28BDCBBC583A96457EBA2C53270BCDED4E7139BCA50840E`.
+- Live `public.close_vat_period_atomic(uuid)` creates atomic VAT closing transactions with `source='vat_closing'`, uses `journal_entries.date` for period membership, closes exact scope `261x/262x/263x/2641`, blocks 265x activity for manual review, does not set `declared_at`, and sets `transactions.amount = total debit`.
+- Rollback DB tests against live: 18/18 PASS; rollback postflight CLEAN.
+- Permanent post-install read-only verification: POST-INSTALL VERIFIED; live normalized `pg_get_functiondef()` matches the migration function definition exactly.
+- Test-user `ver_nr_sequences.last_ver_nr` remained `22`; no fixtures or unexpected schema/data changes were found.
+- True two-session concurrency remains DEFERRED / NOT EMPIRICALLY TESTED.
+- UI/app integration caveat: before exposing VAT close to users, `vat_closing` must be treated as a system booking in TransactionTable/app flows so ordinary edit/delete/correction controls are not offered for VAT closing transactions.
