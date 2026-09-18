@@ -235,7 +235,7 @@ Prenumerations-/free-limit-regler är främst produktregler på klient/UI-nivå.
 
 Verifierad produktionssnapshot:
 
-`supabase/baseline/20260910_production_schema_baseline.sql`
+`supabase/baseline/20260911_production_schema_baseline.sql`
 
 Baselinen dokumenterar det verifierade produktionsläget för audit/recovery. Den är inte tänkt som en garanterat komplett fresh-install migration.
 

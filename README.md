@@ -71,7 +71,7 @@ SoloLedger använder Supabase Auth och Row Level Security.
 
 En verifierad produktionssnapshot av databasschemat finns under:
 
-`supabase/baseline/20260910_production_schema_baseline.sql`
+`supabase/baseline/20260911_production_schema_baseline.sql`
 
 Baselinen är dokumentation/audit-underlag och ersätter inte migrationshistoriken.
 
