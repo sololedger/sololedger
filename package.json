@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:domain": "node scripts/test-result-engine.ts && node scripts/test-accounting-knowledge.ts",
+    "test:e2e": "node scripts/run-playwright-e2e.mjs",
+    "test:regression": "npm run test:domain && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -16,6 +20,7 @@
     "stripe": "^22.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

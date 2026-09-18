@@ -1,7 +1,7 @@
 import {
     getDefaultAccountPresetsV1,
     getQuickAccountPresetsV1,
-  } from '../src/lib/accountingKnowledge'
+  } from '../src/lib/accountingKnowledge.ts'
   
   const defaults = getDefaultAccountPresetsV1()
   const quick = getQuickAccountPresetsV1()

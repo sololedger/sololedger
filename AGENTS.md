@@ -64,6 +64,7 @@ Important repo areas:
 - `src/lib/setupDefaultAccounts.ts` - default accounts for new users.
 - `src/lib/sieParser.ts`, `src/lib/sieImport.ts`, `src/lib/sieExport.ts`, `src/lib/cp437.ts` - SIE parsing/import/export and encoding.
 - `src/lib/subscriptionLimits.ts` - free/trial/paid/admin limits and counted verification rules.
+- `tests/e2e/` - Playwright E2E and regression tests.
 - `supabase/migrations/` - database migration history.
 - `supabase/baseline/` - verified production schema snapshot for audit/recovery.
 - `supabase/functions/delete-user/` - Supabase Edge Function for admin user deletion.
@@ -78,13 +79,10 @@ Available package scripts:
 - `npm run build` - build the app.
 - `npm run start` - start a built app.
 - `npm run lint` - run ESLint.
-
-There is currently no `typecheck` script in `package.json`. If a typecheck is needed, use the existing TypeScript config intentionally, for example `npx tsc --noEmit`.
-
-There is currently no `test` script in `package.json`. Domain test files exist and can be run intentionally with local `tsx`, for example:
-
-- `npx tsx scripts/test-result-engine.ts`
-- `npx tsx scripts/test-accounting-knowledge.ts`
+- `npm run typecheck` - run TypeScript with `tsc --noEmit`.
+- `npm run test:domain` - run the result-engine and accounting-knowledge domain tests.
+- `npm run test:e2e` - run Playwright E2E tests.
+- `npm run test:regression` - run the safe regression suite.
 
 Run only checks relevant to the change, and report any check that could not be run.
 
@@ -145,6 +143,18 @@ When changing DB behavior:
 - Checkout and portal flows must derive the user from a verified Supabase session server-side.
 - Admin actions must verify admin authorization server-side/database-side.
 - Storage attachments belong in the user's own path and must remain protected by Storage RLS.
+
+## Testing And Regression
+
+- Playwright is the E2E/regression tool for browser-level verification. Keep tests deterministic and focused on user-observable behavior.
+- Every real bugfix must be assessed for an automated regression test. If the bug can be reproduced safely and deterministically, normally add a test that would have caught it and keep that test in the regression suite.
+- If a bug is not suitable for automation, document why and give Pontus a concrete manual test step.
+- Before Jira work is moved to `In Review`, relevant checks must be green, relevant tests for the changed surface must be green, and the safe regression suite for the current environment must be green.
+- `In Review` means Codex implementation and automated verification are complete; Pontus IRL testing remains. Pontus normally sets `Done` after final testing.
+- Destructive or write E2E tests may run only against an explicitly verified isolated test/staging environment and dedicated test user.
+- Never run automated destructive/write E2E against ordinary/live Supabase or real user data.
+- Test credentials and auth storage must stay out of Git, `AGENTS.md`, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, and Jira.
+- Public/read-only Playwright smoke tests may run without a dedicated Supabase test project. Authenticated/write tests require a verified test environment first.
 
 ## Jira Workflow
 

@@ -1,14 +1,14 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ## Repository State
 
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin previously verified as `https://github.com/sololedger/sololedger.git`
-- Latest checkpoint commit: `5eda7a9 docs: add SoloLedger agent safety and workflow rules`
-- Local `main` is ahead of `origin/main` by 1 commit; the checkpoint has not been pushed.
+- Latest pushed checkpoint commit: `84db24d docs: add project state and Jira workflow`
+- Local `main` is synced with `origin/main` except for Playwright/test-infrastructure changes ready for checkpoint and the untracked VAT draft.
 - Current untracked draft: `supabase/migrations/20260917_DRAFT_vat_guard_undo_sie_import.sql`
 - Draft SHA-256 verified before this state update: `508C13EDAA99AC8B119F166DA5015031CEDCC903FED7737AE2B4E86091C6BF9B`
 - The draft must not be executed as-is.
@@ -23,14 +23,26 @@ Last updated: 2026-09-17
 - Jira statuses: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
 - Jira issue types in project: `Epic` (`10006`), `Subtask` (`10007`), `Task` (`10008`), `Story` (`10009`), `Bug` (`10010`)
 - Jira users verified: Pontus Åkerhage `712020:01a218e5-6b15-4692-8096-c26687dca3f8`; Codex `712020:3ed8efb7-32c8-4b70-a72e-b7764cdb7802`
-- KAN-4 is readable, currently `To Do`, issue type `Story`, assigned to Codex. It is not selected as the current 3B.5 issue.
+- KAN-4 was used for Jira write-test and ended in `In Review`, issue type `Story`, assigned to Pontus. It is not selected as the current 3B.5 issue.
 - Current Jira issue for 3B.5: none selected.
 
 ## Current Objective
 
+- Checkpoint the completed Playwright/safe regression-test foundation after user approval.
 - Build the VAT concurrency foundation step 3B.5 before `close_vat_period_atomic()`.
 - Current focus after setup: minimal local correction of the two important findings in the draft for `public.undo_sie_import_atomic(uuid)`, then a new adversarial review.
 - Later steps: review/update `import_sie_batch`, then proceed to `close_vat_period_atomic()`.
+
+## Playwright And Regression Status
+
+- `@playwright/test` has been installed locally as a dev dependency.
+- Chromium has been installed locally for Playwright.
+- Playwright config and initial public auth smoke tests are established locally.
+- Public unauthenticated E2E: available and verified for login/register/reset UI smoke.
+- Authenticated E2E: blocked until a dedicated test/staging Supabase environment and test user are explicitly verified.
+- Write/destructive E2E: blocked until the isolated test environment/test user/reset strategy are explicitly approved and verified.
+- Safe regression entry point: `npm run test:regression`; last local run passed with domain tests plus public unauthenticated Playwright smoke tests.
+- Current Supabase tooling sees only project `wbaxmuvudpnkvuliicuy` and no existing branches; creating a new project/branch requires explicit cost/approval flow.
 
 ## Verified VAT Concurrency Context
 
@@ -53,4 +65,4 @@ Last updated: 2026-09-17
 
 - Do not run the draft.
 - Do not change live Supabase, run migrations, deploy, push, or commit without explicit approval.
-- Next product step after setup: make only the minimal local draft correction for the two important undo findings, then run a new read-only adversarial review.
+- Next product step after Playwright checkpoint: make only the minimal local draft correction for the two important undo findings, then run a new read-only adversarial review.

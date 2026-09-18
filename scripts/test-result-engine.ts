@@ -3,7 +3,7 @@ import {
     type BalanceMap,
     type NeRow,
     type ResultWarningCode,
-  } from '../src/lib/resultEngine'
+  } from '../src/lib/resultEngine.ts'
   
   let passed = 0
   let failed = 0
