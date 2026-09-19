@@ -7,11 +7,13 @@ Last updated: 2026-09-19
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin previously verified as `https://github.com/sololedger/sololedger.git`
-- Latest pushed checkpoint commit: `d3427f9957f74c0515c57c1e1bccbc160737451d KAN-7 add atomic VAT period closing`
-- Local `main` and `origin/main` were verified pointing to the same commit before this handoff documentation update.
-- Working tree was clean before this handoff documentation update.
-- Current uncommitted work should be handoff documentation only: `PROJECT_STATE.md` and, if changed, `PROJECT_ARCHIVE.md`.
-- No deploy, live DB write, Jira Done transition, KAN-8 work, or other Jira issue work has been performed after the KAN-7 checkpoint.
+- Latest pushed checkpoint commit: `f5ed2df90a355fa1e2c5cc162407dfb486ec9da0 Update handoff after KAN-7 checkpoint`.
+- Local `main` and `origin/main` were verified pointing to the same commit before the KAN-12 / 7B.1 checkpoint finalization.
+- Current uncommitted KAN-12 / 7B.1 checkpoint files:
+  - `supabase/migrations/20260919_guard_vat_closing_system_transactions.sql`
+  - `supabase/tests/kan7b_vat_closing_system_guard_candidate.sql`
+  - `PROJECT_STATE.md`
+- No deploy, Jira transition, commit, push, app-code work, KAN-8 work, or broader KAN-12 app integration work has been performed during 7B.1 finalization.
 
 ## External Connections
 
@@ -24,12 +26,27 @@ Last updated: 2026-09-19
 
 ## Current Objective
 
-- Current task: prepare handoff after the completed KAN-7 checkpoint.
-- No active implementation is in progress.
+- Current task: finalize checkpoint for KAN-12 / 7B.1 DB-integrity guard.
+- KAN-12 `KAN-7B – Appintegration och integritetsskydd för momsperiodsstängning`: `In Progress`; 7B.1 DB-integrity guard is complete, app integration remains.
+- Jira comment `10134` documents that 7B.1 is verified and installed live; KAN-12 was not moved to `In Review`.
 - KAN-7 `3B.5 close_vat_period_atomic foundation`: `In Review`, assigned to Pontus.
 - KAN-6 `3B.5 Import SIE VAT guard`: `In Review`, assigned to Pontus.
 - KAN-5 `3B.5 Undo SIE VAT guard`: `In Review`, currently no assignee in Jira.
 - Pontus final IRL/review remains before KAN-5, KAN-6, or KAN-7 should move to `Done`.
+
+## KAN-12 / 7B.1 Verification Snapshot
+
+- Migration file: `supabase/migrations/20260919_guard_vat_closing_system_transactions.sql`
+- Migration SHA-256: `C29C46FB3CB382987F21936D374AC2704F09E1923D0C1B7CC0A926CC043217CE`
+- Rollback test file: `supabase/tests/kan7b_vat_closing_system_guard_candidate.sql`
+- Test file SHA-256: `15BE1A464E621DF44043F6DA5E27C8B4FB0533CF09A7E9C0C843E3BDBE834A2D`
+- Rollback DB test against live: 55 assertions PASS, explicit ROLLBACK, clean postflight.
+- Permanent migration installed live with `ON_ERROR_STOP=1` and no errors.
+- Post-install read-only verification: POST-INSTALL VERIFIED. Live normalized `pg_get_functiondef()` for `create_correction_transaction_atomic(uuid)` and `update_transaction_safe(uuid,jsonb)` matches the migration definitions exactly.
+- Grants/security verified: both RPCs are `SECURITY DEFINER`, `search_path=public`, executable by `authenticated`, `service_role`, and `postgres`, not executable by `anon` or `PUBLIC`; `authenticated` still lacks direct `INSERT`/`UPDATE`/`DELETE` on `transactions` and `journal_entries`.
+- Test-user `47d6e49f-a595-4292-9529-78ba731bd9de` remained at `ver_nr_sequences.last_ver_nr = 22`; no KAN-12 fixtures remained after rollback/post-install checks.
+- DB behavior: `create_correction_transaction_atomic` blocks `source='vat_closing'` in pre-scan and authoritative post-row-lock paths before `get_next_ver_nr()`; `update_transaction_safe` blocks all updates to `source='vat_closing'`, including `file_url`.
+- Existing correction, periodization, and VAT concurrency behavior was preserved.
 
 ## KAN-7 Verification Snapshot
 
@@ -48,18 +65,20 @@ Last updated: 2026-09-19
 
 ## Active VAT Context
 
-- Implemented VAT write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, KAN-7 `close_vat_period_atomic`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
+- Implemented VAT/system write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, KAN-7 `close_vat_period_atomic`, KAN-12 / 7B.1 `vat_closing` protection in `create_correction_transaction_atomic` and `update_transaction_safe`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
 - KAN-7 closing scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
 - `closing_amount = -sum(debit-credit)` over relevant VAT account balances, and net is booked to `2650` only when net is nonzero.
 - `declared_at` is not set by KAN-7; KAN-8 handles declared VAT period state.
-- UI integration caveat: before exposing VAT close to users, `vat_closing` must be treated as a system booking in `TransactionTable`/app flows so ordinary edit/delete/correction controls are not offered for VAT closing transactions.
+- UI integration caveat: KAN-12 app integration still needs to expose `close_vat_period_atomic`, load/use `vat_periods` in Momsrapport, handle refresh/state after close, and present `vat_closing` as a system booking in TransactionTable/app flows.
 
 ## Next Safe Step
 
-- Review this handoff documentation diff.
-- If approved, commit and push only handoff documentation:
+- Review the KAN-12 / 7B.1 checkpoint diff.
+- If approved, commit locally with:
+  - `supabase/migrations/20260919_guard_vat_closing_system_transactions.sql`
+  - `supabase/tests/kan7b_vat_closing_system_guard_candidate.sql`
   - `PROJECT_STATE.md`
-  - `PROJECT_ARCHIVE.md` if it changed
-- Suggested handoff commit message: `Update handoff after KAN-7 checkpoint`
-- After handoff is committed/pushed and clean, Pontus should choose the next issue explicitly.
-- Do not deploy, run migrations, perform live DB writes, move Jira issues to `Done`, start KAN-8, or work on any other Jira task without explicit approval.
+- Proposed commit message: `KAN-12 protect VAT closing system transactions`
+- Push only after explicit approval.
+- After checkpoint, continue KAN-12 app integration when Pontus approves the next step; do not start KAN-8.
+- Do not deploy, run migrations, perform live DB writes, move Jira issues, start KAN-8, or work on any other Jira task without explicit approval.
