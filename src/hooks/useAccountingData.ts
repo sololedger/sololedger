@@ -17,6 +17,10 @@ function sortTransactionsByDateAndVer(transactions: any[], jMap: any) {
   })
 }
 
+export type AccountingRefreshResult =
+  | { ok: true }
+  | { ok: false; reason: 'error' | 'stale_year'; error?: unknown }
+
 // Äger laddning av: transactions, balances, neData, journalMap, kontoplan, isYearLocked.
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
   const [dataLoading, setDataLoading] = useState(false)
@@ -37,7 +41,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const latestYearRef = useRef(selectedYear)
   latestYearRef.current = selectedYear
 
-  async function loadKontoplanOptions() {
+  async function loadKontoplanOptionsInternal(): Promise<AccountingRefreshResult> {
     try {
       const { data, error } = await supabase
         .from('accounts')
@@ -61,12 +65,18 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         })
         setKontoplan(sorted)
       }
+      return { ok: true }
     } catch (err) {
       console.error('Fel vid laddning av kontoplan:', err)
+      return { ok: false, reason: 'error', error: err }
     }
   }
 
-  async function refreshData() {
+  async function loadKontoplanOptions() {
+    await loadKontoplanOptionsInternal()
+  }
+
+  async function refreshDataInternal(): Promise<AccountingRefreshResult> {
     // Vilket år detta anrop startades för - jämförs mot latestYearRef.current
     // strax innan vi skriver till state, så ett gammalt anrop (t.ex. för
     // 2028) aldrig kan skriva över nyare state efter att användaren redan
@@ -100,7 +110,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
       // Skriv bara till state om det året vi hämtade för fortfarande är
       // det aktuella valda året.
-      if (startedYear !== latestYearRef.current) return
+      if (startedYear !== latestYearRef.current) {
+        return { ok: false, reason: 'stale_year' }
+      }
 
       setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
       setBalances(balanceData || {})
@@ -110,10 +122,22 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
 
       // Uppdaterar även kontoplanen globalt vid refresh
-      await loadKontoplanOptions()
+      const kontoplanResult = await loadKontoplanOptionsInternal()
+      if (!kontoplanResult.ok) return kontoplanResult
+
+      return { ok: true }
     } catch (err) {
       console.error('Fel vid laddning av data:', err)
+      return { ok: false, reason: 'error', error: err }
     }
+  }
+
+  async function refreshData() {
+    await refreshDataInternal()
+  }
+
+  async function refreshDataWithStatus() {
+    return refreshDataInternal()
   }
 
   // Ladda data när user eller år ändras
@@ -224,6 +248,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    refreshDataWithStatus,
     loadKontoplanOptions,
     momsBreakdown,
   }

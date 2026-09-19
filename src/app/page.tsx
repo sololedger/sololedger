@@ -59,6 +59,7 @@ export default function Home() {
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
+    refreshDataWithStatus,
     loadKontoplanOptions,
     momsBreakdown,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
@@ -226,11 +227,23 @@ export default function Home() {
     return safeName
   }
 
+  function isVatClosingTransaction(tx: { source?: string } | null | undefined) {
+    return tx?.source === 'vat_closing'
+  }
+
   async function handleAddTransaction(e: any) {
     e.preventDefault()
     if (isYearLocked) return
 
     if (submitInFlightRef.current) return
+    if (editingId) {
+      const editingTx = transactions.find(tx => tx.id === editingId)
+      if (isVatClosingTransaction(editingTx)) {
+        alert('Momsavslut är systemverifikationer och kan inte ändras.')
+        return
+      }
+    }
+
     submitInFlightRef.current = true
     setUploading(true)
 
@@ -326,6 +339,11 @@ export default function Home() {
 
   async function handleDelete(tx: any) {
     if (isYearLocked) return
+    if (isVatClosingTransaction(tx)) {
+      alert('Momsavslut är systemverifikationer och kan inte korrigeras.')
+      return
+    }
+
     const journal = journalMap[tx.id] || []
     const verNr = journal[0]?.ver_nr
     const confirmed = confirm(
@@ -346,6 +364,11 @@ export default function Home() {
 
   const handleEdit = (tx: any) => {
     if (isYearLocked) return
+    if (isVatClosingTransaction(tx)) {
+      alert('Momsavslut är systemverifikationer och kan inte ändras.')
+      return
+    }
+
     setEditingId(tx.id)
     setEditingBooked(tx.booked === true)
     setFormData({
@@ -867,7 +890,7 @@ export default function Home() {
           requiredLevel="paid"
           fallback={<Paywall feature="Momsrapport" user={user} />}
         >
-<Momsrapport />
+          <Momsrapport profile={profile} onBookkeepingRefresh={refreshDataWithStatus} />
         </SubscriptionGuard>
       ) : activeTab === 'faq' ? (
         <FAQ />

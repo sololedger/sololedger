@@ -160,6 +160,123 @@ export async function getBalanceSheetBalances(year: number) {
   return balances
 }
 
+export type VatPeriodType = 'month' | 'quarter' | 'year'
+export type VatPeriodStatus = 'open' | 'closed' | 'declared'
+export type VatPeriodSource = 'sololedger' | 'imported_history'
+
+export interface VatPeriod {
+  id: string
+  period_start: string
+  period_end: string
+  period_type: VatPeriodType
+  status: VatPeriodStatus
+  source: VatPeriodSource
+  closing_amount: number | null
+  closing_transaction_id: string | null
+  declared_at: string | null
+}
+
+export interface EnsureVatPeriodsResult {
+  success: boolean
+  created_count: number
+  existing_count: number
+  period_type: VatPeriodType
+  management_from: string
+  through_date: string
+}
+
+export interface CloseVatPeriodResult {
+  success: boolean
+  already_closed: boolean
+  vat_period_id: string
+  status: VatPeriodStatus
+  closing_amount: number | null
+  closing_transaction_id: string | null
+  transaction_created?: boolean
+  ver_nr?: number
+}
+
+type VatPeriodRow = Omit<VatPeriod, 'closing_amount'> & {
+  closing_amount: number | string | null
+}
+
+function normalizeVatPeriod(row: VatPeriodRow): VatPeriod {
+  return {
+    ...row,
+    closing_amount: row.closing_amount == null ? null : Number(row.closing_amount),
+  }
+}
+
+export async function ensureVatPeriods(throughDate: string): Promise<EnsureVatPeriodsResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('ensure_vat_periods', {
+    p_through_date: throughDate,
+  })
+
+  if (error) {
+    throw new Error('Kunde inte säkerställa momsperioder: ' + error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Kunde inte säkerställa momsperioder av okänd anledning.')
+  }
+
+  return {
+    success: Boolean(data.success),
+    created_count: Number(data.created_count ?? 0),
+    existing_count: Number(data.existing_count ?? 0),
+    period_type: data.period_type as VatPeriodType,
+    management_from: data.management_from as string,
+    through_date: data.through_date as string,
+  }
+}
+
+export async function getVatPeriods(startDate: string, endDate: string): Promise<VatPeriod[]> {
+  const userId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('vat_periods')
+    .select('id, period_start, period_end, period_type, status, source, closing_amount, closing_transaction_id, declared_at')
+    .eq('user_id', userId)
+    .lte('period_start', endDate)
+    .gte('period_end', startDate)
+    .order('period_start', { ascending: false })
+
+  if (error) {
+    throw new Error('Kunde inte hämta momsperioder: ' + error.message)
+  }
+
+  return ((data || []) as VatPeriodRow[]).map(normalizeVatPeriod)
+}
+
+export async function closeVatPeriod(periodId: string): Promise<CloseVatPeriodResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('close_vat_period_atomic', {
+    p_vat_period_id: periodId,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Momsperioden kunde inte stängas av okänd anledning.')
+  }
+
+  return {
+    success: Boolean(data.success),
+    already_closed: Boolean(data.already_closed),
+    vat_period_id: data.vat_period_id as string,
+    status: data.status as VatPeriodStatus,
+    closing_amount: data.closing_amount == null ? null : Number(data.closing_amount),
+    closing_transaction_id: data.closing_transaction_id ?? null,
+    transaction_created: data.transaction_created == null ? undefined : Boolean(data.transaction_created),
+    ver_nr: data.ver_nr == null ? undefined : Number(data.ver_nr),
+  }
+}
+
 /**
  * Beräknar utgående/ingående moms och netto för en period ("Alternativ E", låst arkitekturbeslut).
  *

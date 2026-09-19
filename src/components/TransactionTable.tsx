@@ -85,6 +85,8 @@ export default function TransactionTable({
     const isImported = tx.source === 'sie_import'
     const isOpeningBalance = tx.source === 'sie_opening_balance'
     const isSieUndo = tx.source === 'sie_import_undo'
+    const isVatClosing = tx.source === 'vat_closing'
+    const isSystemManaged = isImported || isOpeningBalance || isVatClosing
     const accountDef = kontoplan.find(k => k.id === tx.type)
 
     // H5: historisk visning ska bygga på det som faktiskt bokfördes,
@@ -93,6 +95,7 @@ export default function TransactionTable({
       !isImported &&
       !isOpeningBalance &&
       !isSieUndo &&
+      !isVatClosing &&
       (
         journal.some((e: any) =>
           String(e.account_number || '').startsWith('3') && Number(e.credit) > 0
@@ -109,6 +112,8 @@ export default function TransactionTable({
       ? 'bg-gray-50 opacity-60'
       : editingId === tx.id
       ? 'bg-amber-50/50'
+      : isVatClosing
+      ? 'bg-violet-50/45 hover:bg-violet-50/70'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50/40 hover:bg-sky-50/60'
       : 'hover:bg-emerald-50/30'
@@ -117,6 +122,8 @@ export default function TransactionTable({
       ? 'text-amber-700'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isVatClosing
+      ? 'text-violet-900'
       : (isImported || isOpeningBalance)
       ? 'text-sky-900'
       : 'text-gray-700'
@@ -125,6 +132,8 @@ export default function TransactionTable({
       ? 'text-amber-500'
       : isNeutralized
       ? 'text-gray-300 line-through'
+      : isVatClosing
+      ? 'text-violet-500'
       : (isImported || isOpeningBalance)
       ? 'text-sky-500'
       : 'text-emerald-600'
@@ -133,6 +142,8 @@ export default function TransactionTable({
       ? 'text-amber-600'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isVatClosing
+      ? 'text-violet-600'
       : (isImported || isOpeningBalance)
       ? 'text-sky-700'
       : isIncome
@@ -143,6 +154,8 @@ export default function TransactionTable({
       ? 'bg-amber-50 border-amber-200 text-amber-600'
       : isNeutralized
       ? 'bg-gray-50 border-gray-100 text-gray-300'
+      : isVatClosing
+      ? 'bg-violet-50 border-violet-100 text-violet-600'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50 border-sky-100 text-sky-600'
       : 'bg-gray-50 border-gray-100 text-gray-500'
@@ -160,6 +173,8 @@ export default function TransactionTable({
       isImported,
       isOpeningBalance,
       isSieUndo,
+      isVatClosing,
+      isSystemManaged,
       accountDef,
       isIncome,
       rowClass,
@@ -344,6 +359,8 @@ export default function TransactionTable({
                 isNeutralized,
                 isImported,
                 isOpeningBalance,
+                isVatClosing,
+                isSystemManaged,
                 accountDef,
                 isIncome,
                 rowClass,
@@ -385,6 +402,10 @@ export default function TransactionTable({
                         <p className="text-[10px] font-black text-sky-500 uppercase">
                           Ingående balans
                         </p>
+                      ) : isVatClosing ? (
+                        <p className="text-[10px] font-black text-violet-600 uppercase">
+                          Momsavslut
+                        </p>
                       ) : isImported ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
                           Importerad verifikation
@@ -395,7 +416,7 @@ export default function TransactionTable({
                         </p>
                       )}
 
-                      {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (
+                      {!isCorrection && !isNeutralized && !isSystemManaged && (
                         <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                           Moms: {tx.vat_rate}%
                         </span>
@@ -422,7 +443,7 @@ export default function TransactionTable({
                       </p>
                     )}
 
-                    {tx.file_url && !isNeutralized && (
+                    {tx.file_url && !isNeutralized && !isVatClosing && (
                       <button
                         onClick={() => handleOpenAttachment(tx.file_url)}
                         className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
@@ -433,8 +454,16 @@ export default function TransactionTable({
                   </td>
 
                   <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${amountClass}`}>
-                    {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
-                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                    {isVatClosing ? (
+                      <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">
+                        Systembokning
+                      </span>
+                    ) : (
+                      <>
+                        {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
+                        {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                      </>
+                    )}
                   </td>
 
                   <td className="p-8">
@@ -464,7 +493,7 @@ export default function TransactionTable({
 
                   <td className="p-8 text-right pr-12">
                     <div className="flex items-center justify-end gap-1">
-                      {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
+                      {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
                         <button
                           onClick={() => onEdit(tx)}
                           className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
@@ -473,7 +502,7 @@ export default function TransactionTable({
                           ✎
                         </button>
                       )}
-                      {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
+                      {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
                         <button
                           onClick={() => onDelete(tx)}
                           className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all font-bold"
@@ -573,6 +602,8 @@ export default function TransactionTable({
             isNeutralized,
             isImported,
             isOpeningBalance,
+            isVatClosing,
+            isSystemManaged,
             accountDef,
             isIncome,
             textClass,
@@ -589,10 +620,12 @@ export default function TransactionTable({
                   ? 'bg-amber-50/60 border-amber-100'
                   : isNeutralized
                   ? 'bg-gray-50 border-gray-100 opacity-70'
-                  : editingId === tx.id
-                  ? 'bg-amber-50/50 border-amber-200'
-                  : (isImported || isOpeningBalance)
-                  ? 'bg-sky-50/40 border-sky-100'
+                : editingId === tx.id
+                ? 'bg-amber-50/50 border-amber-200'
+                : isVatClosing
+                ? 'bg-violet-50/45 border-violet-100'
+                : (isImported || isOpeningBalance)
+                ? 'bg-sky-50/40 border-sky-100'
                   : 'bg-white border-gray-100'
               }`}
             >
@@ -613,10 +646,16 @@ export default function TransactionTable({
                   )}
                 </div>
 
-                <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
-                  {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
-                  {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
-                </p>
+                {isVatClosing ? (
+                  <p className="font-black text-[10px] uppercase tracking-wide text-violet-500 text-right">
+                    Systembokning
+                  </p>
+                ) : (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
+                    {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
+                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center flex-wrap gap-2 mb-1.5">
@@ -628,6 +667,8 @@ export default function TransactionTable({
                   </p>
                 ) : isOpeningBalance ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Ingående balans</p>
+                ) : isVatClosing ? (
+                  <p className="text-[10px] font-black text-violet-600 uppercase">Momsavslut</p>
                 ) : isImported ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Importerad verifikation</p>
                 ) : (
@@ -636,7 +677,7 @@ export default function TransactionTable({
                   </p>
                 )}
 
-                {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (
+                {!isCorrection && !isNeutralized && !isSystemManaged && (
                   <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                     Moms: {tx.vat_rate}%
                   </span>
@@ -657,7 +698,7 @@ export default function TransactionTable({
                 </p>
               )}
 
-              {tx.file_url && !isNeutralized && (
+              {tx.file_url && !isNeutralized && !isVatClosing && (
                 <button
                   onClick={() => handleOpenAttachment(tx.file_url)}
                   className="text-emerald-400 text-xs mb-2 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
@@ -689,7 +730,7 @@ export default function TransactionTable({
                 })}
               </div>
 
-              {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && !isYearLocked && (
+              {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
                 <div className="flex gap-2 pt-3 border-t border-gray-100">
                   <button
                     onClick={() => onEdit(tx)}
