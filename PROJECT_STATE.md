@@ -1,16 +1,17 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-18
+Last updated: 2026-09-19
 
 ## Repository State
 
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin previously verified as `https://github.com/sololedger/sololedger.git`
-- Latest local commit: `8ee64fc KAN-6 add import SIE VAT guard`
-- Local `main` is synced with `origin/main`.
-- Working tree contains the uncommitted KAN-7 checkpoint files listed in Next Safe Step.
-- No commit, push, deploy, Jira Done transition, or KAN-8 work has been performed for this checkpoint.
+- Latest pushed checkpoint commit: `d3427f9957f74c0515c57c1e1bccbc160737451d KAN-7 add atomic VAT period closing`
+- Local `main` and `origin/main` were verified pointing to the same commit before this handoff documentation update.
+- Working tree was clean before this handoff documentation update.
+- Current uncommitted work should be handoff documentation only: `PROJECT_STATE.md` and, if changed, `PROJECT_ARCHIVE.md`.
+- No deploy, live DB write, Jira Done transition, KAN-8 work, or other Jira issue work has been performed after the KAN-7 checkpoint.
 
 ## External Connections
 
@@ -23,12 +24,12 @@ Last updated: 2026-09-18
 
 ## Current Objective
 
-- Current checkpoint being finalized: KAN-7 `3B.5 close_vat_period_atomic foundation`.
-- KAN-7 Jira status: `In Review`, assigned to Pontus.
-- KAN-7 permanent migration is installed in live Supabase and verified read-only after installation.
-- Pontus final IRL/review remains before KAN-7 should be moved to `Done`.
-- KAN-6 remains `In Review`; Pontus final IRL/review remains before KAN-6 should be moved to `Done`.
-- KAN-5 remains `In Review`; Pontus final IRL/review remains before KAN-5 should be moved to `Done`.
+- Current task: prepare handoff after the completed KAN-7 checkpoint.
+- No active implementation is in progress.
+- KAN-7 `3B.5 close_vat_period_atomic foundation`: `In Review`, assigned to Pontus.
+- KAN-6 `3B.5 Import SIE VAT guard`: `In Review`, assigned to Pontus.
+- KAN-5 `3B.5 Undo SIE VAT guard`: `In Review`, currently no assignee in Jira.
+- Pontus final IRL/review remains before KAN-5, KAN-6, or KAN-7 should move to `Done`.
 
 ## KAN-7 Verification Snapshot
 
@@ -41,27 +42,24 @@ Last updated: 2026-09-18
 - Rollback postflight: POSTFLIGHT CLEAN.
 - Permanent post-install read-only verification: POST-INSTALL VERIFIED.
 - Live normalized `pg_get_functiondef(public.close_vat_period_atomic(uuid))` matches the migration function definition exactly.
-- Test-user `47d6e49f-a595-4292-9529-78ba731bd9de` has `ver_nr_sequences.last_ver_nr = 22` after rollback/post-install verification.
+- Test-user `47d6e49f-a595-4292-9529-78ba731bd9de` had `ver_nr_sequences.last_ver_nr = 22` after rollback/post-install verification.
 - No KAN-7 fixtures or unexpected schema/data changes were found after rollback/post-install checks.
 - True two-session concurrency remains DEFERRED / NOT EMPIRICALLY TESTED.
 
-## Verified / Implemented VAT Context
+## Active VAT Context
 
-- Implemented VAT write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
-- KAN-7 adds `close_vat_period_atomic(uuid)` with VAT month advisory locks before row locks/protected reads, lock-domain revalidation, `source='sololedger'` / `status='open'` normal close, and idempotent `closed` handling without `get_next_ver_nr`.
+- Implemented VAT write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, KAN-7 `close_vat_period_atomic`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
 - KAN-7 closing scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
 - `closing_amount = -sum(debit-credit)` over relevant VAT account balances, and net is booked to `2650` only when net is nonzero.
-- No activity closes the VAT period without transaction/ver_nr; activity with zero net but nonzero account balances creates a real closing transaction; activity with all relevant account balances already zero blocks for manual review.
 - `declared_at` is not set by KAN-7; KAN-8 handles declared VAT period state.
 - UI integration caveat: before exposing VAT close to users, `vat_closing` must be treated as a system booking in `TransactionTable`/app flows so ordinary edit/delete/correction controls are not offered for VAT closing transactions.
 
 ## Next Safe Step
 
-- Review the KAN-7 checkpoint diff.
-- If approved, commit only:
-  - `supabase/migrations/20260918_add_close_vat_period_atomic.sql`
-  - `supabase/tests/kan7_close_vat_period_atomic_candidate.sql`
+- Review this handoff documentation diff.
+- If approved, commit and push only handoff documentation:
   - `PROJECT_STATE.md`
-  - `PROJECT_ARCHIVE.md`
-- Suggested commit message: `KAN-7 add atomic VAT period closing`
-- Do not deploy, run migrations, push, move Jira to Done, start KAN-8, or work on any other Jira task without explicit approval.
+  - `PROJECT_ARCHIVE.md` if it changed
+- Suggested handoff commit message: `Update handoff after KAN-7 checkpoint`
+- After handoff is committed/pushed and clean, Pontus should choose the next issue explicitly.
+- Do not deploy, run migrations, perform live DB writes, move Jira issues to `Done`, start KAN-8, or work on any other Jira task without explicit approval.

@@ -19,7 +19,7 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ### KAN-6 3B.5 Import SIE VAT Guard
 
-- Checkpoint files were prepared on 2026-09-18 before commit/push approval.
+- Completed checkpoint commit: `8ee64fc KAN-6 add import SIE VAT guard`.
 - Jira KAN-6 was moved to `In Review` and assigned to Pontus; Pontus final IRL/review remains before `Done`.
 - Permanent live migration installed: `supabase/migrations/20260918_add_vat_guard_to_import_sie_batch.sql`.
 - Migration SHA-256: `096E0825DFF11B7744C8024AF1BD64E0108AD720C54A0D1554C1913FD06BF611`.
@@ -32,7 +32,7 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ### KAN-7 3B.5 close_vat_period_atomic Foundation
 
-- Checkpoint files were prepared on 2026-09-18 before commit/push approval.
+- Completed checkpoint commit: `d3427f9 KAN-7 add atomic VAT period closing`.
 - Jira KAN-7 was moved to `In Review` and assigned to Pontus; Pontus final IRL/review remains before `Done`.
 - Permanent live migration installed: `supabase/migrations/20260918_add_close_vat_period_atomic.sql`.
 - Migration SHA-256: `07EA138C427D07AAAF2E073E9CC3092B60C9A0042CBA56F6FBA605D7EA00B269`.
