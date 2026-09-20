@@ -6,6 +6,18 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### VAT V1 Production Baseline Locked
+
+- Manual IRL/Production test completed 2026-09-20 for real VAT period `2026-04-01` to `2026-06-30`.
+- Before close, VAT report showed taxable sales excl VAT `8,560.00 SEK`, outgoing VAT 25% `2,140.00 SEK`, input VAT `500.00 SEK`, VAT payable `1,640.00 SEK`.
+- Close moved the period `open -> closed` and created `VER-81`, transaction `23f91b08-dac2-4f77-b253-f2c5bd7b1aad`, date `2026-06-30`, source `vat_closing`, description `Momsavslut 2026-04-01 - 2026-06-30`.
+- Read-only live DB verification of closing journal entries: `2611` debit `2140.00`, `2641` credit `500.00`, `2650` credit `1640.00`; total debit and credit both `2140.00`.
+- VAT period after close: status `closed`, source `sololedger`, closing amount `1640.00`, closing transaction ID `23f91b08-dac2-4f77-b253-f2c5bd7b1aad`, `declared_at NULL`; VAT report remained `8,560 / 2,140 / 500 / 1,640`.
+- Production UI close flow verified correct close eligibility, confirmation, atomic close success, `STÄNGD` state, closing amount `1,640 SEK ATT BETALA`, `VER-81` shown as `MOMSAVSLUT / SYSTEMBOKNING`, no ordinary edit/delete behavior for the system booking, and unchanged VAT report.
+- Production declaration moved the period `closed -> declared`; confirmation correctly explained that declaration should only be marked after submission to Skatteverket and that no new accounting verification/payment is created.
+- After declaration, UI showed status `DEKLARERAD`, source `SOLOLEDGER`, period type `KVARTAL`, closing amount `1,640 SEK ATT BETALA`, declaration timestamp `2026-09-20 13:45`, and no Declare action. Re-running VAT calculation returned unchanged sales `8,560`, outgoing VAT `2,140`, input VAT `500`, payable `1,640`.
+- KAN-7, KAN-8, and KAN-12 were manually moved to `Done` in Jira after Production validation.
+
 ### KAN-5 3B.5 Undo SIE VAT Guard
 
 - Completed checkpoint commit: `2efdfa1 KAN-5 add undo SIE VAT concurrency guard`.

@@ -7,13 +7,12 @@ Last updated: 2026-09-20
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Latest pushed checkpoint commit: `050bf5189c852595105a23e199e9e10d99d446b7 KAN-8 add VAT declaration state transition`.
-- Local `HEAD` and `origin/main` were verified pointing to `050bf5189c852595105a23e199e9e10d99d446b7` before this handoff documentation update.
-- Working tree was clean before this handoff documentation update.
-- Current uncommitted handoff changes:
+- Current `HEAD` and `origin/main` verified at `31b38a122e950150a2a04d97703c49711274a4de`.
+- Working tree was clean before this state-sync documentation update.
+- Current uncommitted state-sync changes:
   - `PROJECT_STATE.md`
   - `PROJECT_ARCHIVE.md`
-- No deploy, DB write, app-code change, Jira change, commit, or push has been performed during this handoff preparation.
+- No deploy, DB write, app-code change, SQL/migration/test change, Jira write, commit, or push has been performed during this state sync.
 
 ## External Connections
 
@@ -26,39 +25,22 @@ Last updated: 2026-09-20
 
 ## Current Objective
 
-- Current task: handoff after KAN-8 checkpoint completion.
-- KAN-8 `3B.6 declared VAT period`: `In Review`; assignee currently empty in Jira.
-- KAN-8 Jira comment `10200` documents commit `050bf5189c852595105a23e199e9e10d99d446b7`, verification, and remaining isolated declaration UI/E2E limitation.
-- KAN-12 `KAN-7B - Appintegration och integritetsskydd för momsperiodsstängning`: `In Review`; assignee currently empty in Jira.
-- KAN-7 `3B.5 close_vat_period_atomic foundation`: `In Review`, assigned to Pontus.
-- KAN-6 `3B.5 Import SIE VAT guard`: `In Review`, assigned to Pontus.
-- KAN-5 `3B.5 Undo SIE VAT guard`: `In Review`, currently no assignee in Jira.
-- Pontus final IRL/review remains before KAN-5, KAN-6, KAN-7, KAN-8, or KAN-12 should move to `Done`.
+- Current task: state sync after manual IRL/Production VAT V1 validation.
+- Jira verified 2026-09-20:
+  - KAN-5 `3B.5 Undo SIE VAT guard`: `In Review`, assignee empty.
+  - KAN-6 `3B.5 Import SIE VAT guard`: `In Review`, assigned to Pontus.
+  - KAN-7 `3B.5 close_vat_period_atomic foundation`: `Done`, assigned to Pontus.
+  - KAN-8 `3B.6 declared VAT period`: `Done`, assignee empty.
+  - KAN-12 `KAN-7B - Appintegration och integritetsskydd för momsperiodsstängning`: `Done`, assignee empty.
+  - KAN-9 `Kontoplan guidance for enskild firma`: `To Do`, assignee empty.
+- KAN-5/KAN-6 remain `In Review`: their SIE VAT guards have strong implementation/rollback verification, but remaining empirical isolated/two-session/SIE verification has not been completed to the same level as the Production Close/Declare flow. They are not blockers for moving on from VAT V1.
 
-## KAN-8 Checkpoint Summary
+## Locked VAT V1 Baseline
 
-- Permanent migration installed live: `supabase/migrations/20260920_add_declare_vat_period_atomic.sql`.
-- Migration SHA-256: `AD801D49671D80AABD3D4B0AB6A64EDB077187C04ABBB7807AC06BCEEAD09E4C`.
-- Rollback test file: `supabase/tests/kan8_declare_vat_period_atomic_candidate.sql`.
-- Rollback test SHA-256: `E0C228C6DDA496C118EAA2A29FC5FA26E4D5C2C0302D2117DB8EA8E11C71A6CC`.
-- Live `public.declare_vat_period_atomic(uuid)` implements SoloLedger `closed -> declared` only.
-- Declaration is status/audit metadata: no transactions, no journal entries, no ver-nr consumption, no payment/refund, no 1630/1930, no VAT recalculation, and no `closed_years` blocking.
-- Already-declared SoloLedger periods are idempotent success and preserve existing `declared_at`/`updated_at`.
-- App integration adds `declareVatPeriod(periodId)` and exposes declaration only for `source='sololedger'` plus `status='closed'`.
-- Declaration uses separate in-flight state, Close/Declare mutual exclusion, no optimistic UI transition, metadata-only VAT-period reload, and stale async-context guard before declaration reload state writes.
-- Existing close flow, `getMomsBreakdown()`, result engine/NE, SIE, year-lock logic, and VAT guards remain unchanged.
-
-## Verification Snapshot
-
-- KAN-8 DB rollback matrix against live: 76 assertions PASS; explicit ROLLBACK; post-rollback clean.
-- KAN-8 post-install read-only verification: live function definition matched the migration, grants verified, and no accounting/data mutation from installation.
-- KAN-8 app verification from checkpointed working tree:
-  - `npm run typecheck`: PASS.
-  - `npm run test:domain`: PASS, 81/81 tests.
-  - Targeted ESLint on changed app files: only existing HEAD-baseline debt.
-  - `git diff --check`: PASS, CRLF warnings only.
-  - `npm run build`: PASS after approved network access for Next/Google Fonts.
-- Full declaration UI/E2E against an isolated staging/test environment remains pending. No functional declaration was run against ordinary/live user data.
+- VAT V1 is now considered the locked baseline for current work.
+- Core flow verified: bookkeeping -> VAT report -> open VAT period -> close -> `vat_closing` system verification -> closed -> declare -> declared.
+- Existing VAT architecture, period protection, concurrency design, closing semantics, and open -> closed -> declared state machine must not be changed during unrelated future work without a concrete verified regression or explicit product/accounting requirement.
+- Manual Production validation closed and declared real VAT period `2026-04-01` to `2026-06-30`; archive contains the compact verification details.
 
 ## Active VAT Context
 
@@ -67,10 +49,16 @@ Last updated: 2026-09-20
 - `closing_amount = -sum(debit-credit)` over relevant VAT account balances, and net is booked to `2650` only when net is nonzero.
 - `declared_at` is set only by KAN-8 declaration, not by close.
 
+## Deferred / Future Ideas
+
+- Known non-blocking/deferred items: KAN-5/KAN-6 remaining empirical SIE/concurrency verification; full isolated staging E2E coverage; payment/refund flow after VAT close; 1630/tax-account handling; correction/reopen/undeclare flow for already declared VAT; empirical two-session concurrency coverage where previously documented.
+- Future ideas only, not active implementation: reusable SoloLedger-native confirmation/status dialogs; bookkeeping transaction search/filter; read-only verification detail view with accounts/debit/credit/totals; preserve an already calculated VAT report visually after metadata-only actions such as Declare.
+
 ## Next Safe Step
 
-- Commit/push this handoff documentation only after explicit approval.
-- Proposed handoff commit message: `Update handoff after KAN-8 checkpoint`
-- Then Pontus can IRL-test KAN-8 in review.
-- Remaining known verification limitation: full declaration UI/E2E must be run only against an explicitly isolated staging/test environment with disposable data.
-- Do not deploy, run migrations, perform live DB writes, move Jira issues, or work on any other Jira task without explicit approval.
+- Proposed state-sync commit message: `Update state after VAT V1 production validation`
+- Commit only `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md` after explicit approval; push only after explicit approval.
+- Next intended implementation work: KAN-9 `Kontoplan guidance for enskild firma`.
+- KAN-9 constraint: kontoplan/account guidance must preserve the locked VAT V1 accounting behavior and must not casually change `accountingService`, VAT mappings, report logic, RPCs, VAT guards, or NE behavior.
+- Product goal for KAN-9: a sole proprietor should not need to know the BAS chart of accounts to choose the correct bookkeeping account. The motivating photography-course/account-7610 case requires verified guidance later; do not decide or implement that accounting rule during state sync.
+- Do not deploy, run migrations, perform live DB writes, move Jira issues, run broad checks, or start KAN-9 without explicit approval.
