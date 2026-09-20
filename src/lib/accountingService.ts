@@ -196,6 +196,18 @@ export interface CloseVatPeriodResult {
   ver_nr?: number
 }
 
+export interface DeclareVatPeriodResult {
+  success: boolean
+  already_declared: boolean
+  vat_period_id: string
+  status: 'declared'
+  source: 'sololedger'
+  declared_at: string
+  closing_amount: number | null
+  closing_transaction_id: string | null
+  updated_at: string
+}
+
 type VatPeriodRow = Omit<VatPeriod, 'closing_amount'> & {
   closing_amount: number | string | null
 }
@@ -274,6 +286,34 @@ export async function closeVatPeriod(periodId: string): Promise<CloseVatPeriodRe
     closing_transaction_id: data.closing_transaction_id ?? null,
     transaction_created: data.transaction_created == null ? undefined : Boolean(data.transaction_created),
     ver_nr: data.ver_nr == null ? undefined : Number(data.ver_nr),
+  }
+}
+
+export async function declareVatPeriod(periodId: string): Promise<DeclareVatPeriodResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('declare_vat_period_atomic', {
+    p_vat_period_id: periodId,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Momsperioden kunde inte markeras som deklarerad av okänd anledning.')
+  }
+
+  return {
+    success: Boolean(data.success),
+    already_declared: Boolean(data.already_declared),
+    vat_period_id: data.vat_period_id as string,
+    status: data.status as 'declared',
+    source: data.source as 'sololedger',
+    declared_at: data.declared_at as string,
+    closing_amount: data.closing_amount == null ? null : Number(data.closing_amount),
+    closing_transaction_id: data.closing_transaction_id ?? null,
+    updated_at: data.updated_at as string,
   }
 }
 

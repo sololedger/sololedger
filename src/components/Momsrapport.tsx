@@ -3,10 +3,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
   closeVatPeriod,
+  declareVatPeriod,
   ensureVatPeriods,
   getMomsBreakdown,
   getVatPeriods,
   type CloseVatPeriodResult,
+  type DeclareVatPeriodResult,
   type MomsBreakdown,
   type VatPeriod,
   type VatPeriodSource,
@@ -70,6 +72,14 @@ function closingAmountText(period: VatPeriod) {
   return 'Stängningsbelopp: 0,00 kr'
 }
 
+function declaredAtText(period: VatPeriod) {
+  if (period.status !== 'declared' || !period.declared_at) return null
+  return `Deklarerad ${new Date(period.declared_at).toLocaleString('sv-SE', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })}`
+}
+
 type MomsrapportProps = {
   profile: AuthProfile
   onBookkeepingRefresh?: () => Promise<AccountingRefreshResult>
@@ -93,6 +103,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const todayIso = new Date().toISOString().slice(0, 10)
   const ensuredKeysRef = useRef<Set<string>>(new Set())
   const closeInFlightRef = useRef(false)
+  const declareInFlightRef = useRef(false)
+  const selectionContextRef = useRef<{ periodId: string; contextKey: string | null }>({
+    periodId: '',
+    contextKey: null,
+  })
   const [year, setYear]                     = useState(currentYear)
   const [availableYears, setAvailableYears] = useState<number[]>([currentYear])
   const [vatPeriods, setVatPeriods]         = useState<VatPeriod[]>([])
@@ -101,6 +116,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const [periodError, setPeriodError]       = useState<string | null>(null)
   const [loading, setLoading]               = useState(false)
   const [closing, setClosing]               = useState(false)
+  const [declaring, setDeclaring]           = useState(false)
   const [fetched, setFetched]               = useState(false)
   const [breakdown, setBreakdown] = useState<MomsBreakdown>(emptyBreakdown)
   const [breakdownPeriodId, setBreakdownPeriodId] = useState<string | null>(null)
@@ -135,6 +151,17 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     selectedPeriod?.status === 'open' &&
     !selectedPeriodIsFuture &&
     vatStatus === 'registered'
+  const canDeclareSelectedPeriod =
+    Boolean(selectedPeriod) &&
+    selectedPeriod?.source === 'sololedger' &&
+    selectedPeriod?.status === 'closed'
+
+  useEffect(() => {
+    selectionContextRef.current = {
+      periodId: selectedPeriodId,
+      contextKey: selectedPeriodContextKey,
+    }
+  }, [selectedPeriodContextKey, selectedPeriodId])
 
   // Hämtar tillgängliga år en gång vid montering. År som bara finns i
   // vat_periods läggs till av periodladdningen nedan.
@@ -189,15 +216,19 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
   const loadVatPeriods = useCallback(async (
     preferredPeriodId?: string,
-    options: { ensure?: boolean } = {}
+    options: { ensure?: boolean; preserveBreakdown?: boolean; preservePeriodsOnError?: boolean } = {}
   ): Promise<VatPeriod[] | null> => {
     const shouldEnsure = options.ensure ?? true
+    const preserveBreakdown = options.preserveBreakdown ?? false
+    const preservePeriodsOnError = options.preservePeriodsOnError ?? false
     setPeriodsLoading(true)
     setPeriodError(null)
-    setFetched(false)
-    setBreakdown(emptyBreakdown)
-    setBreakdownPeriodId(null)
-    setBreakdownContextKey(null)
+    if (!preserveBreakdown) {
+      setFetched(false)
+      setBreakdown(emptyBreakdown)
+      setBreakdownPeriodId(null)
+      setBreakdownContextKey(null)
+    }
 
     const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
@@ -247,8 +278,10 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
       return periods
     } catch (err) {
-      setVatPeriods([])
-      setSelectedPeriodId('')
+      if (!preservePeriodsOnError) {
+        setVatPeriods([])
+        setSelectedPeriodId('')
+      }
       setPeriodError(err instanceof Error ? err.message : String(err))
       return null
     } finally {
@@ -264,6 +297,63 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     year,
   ])
 
+  const reloadDeclaredPeriodMetadata = useCallback(async (
+    periodId: string,
+    contextAtStart: string | null
+  ): Promise<{ periods: VatPeriod[]; refreshedPeriod: VatPeriod } | null> => {
+    if (
+      selectionContextRef.current.periodId !== periodId ||
+      selectionContextRef.current.contextKey !== contextAtStart
+    ) {
+      return null
+    }
+
+    setPeriodsLoading(true)
+    setPeriodError(null)
+
+    const yearStart = `${year}-01-01`
+    const yearEnd = `${year}-12-31`
+
+    try {
+      const periods = await getVatPeriods(yearStart, yearEnd)
+
+      if (
+        selectionContextRef.current.periodId !== periodId ||
+        selectionContextRef.current.contextKey !== contextAtStart
+      ) {
+        return null
+      }
+
+      const refreshedPeriod = periods.find(p => p.id === periodId)
+      if (!refreshedPeriod) return null
+
+      setVatPeriods(periods)
+      setSelectedPeriodId(current => (
+        periods.some(p => p.id === current) ? current : periodId
+      ))
+      setAvailableYears(current => {
+        const periodYears = new Set<number>(current)
+        periods.forEach(p => {
+          periodYears.add(new Date(p.period_start).getFullYear())
+          periodYears.add(new Date(p.period_end).getFullYear())
+        })
+        return Array.from(periodYears).sort((a, b) => b - a)
+      })
+
+      return { periods, refreshedPeriod }
+    } catch (err) {
+      if (
+        selectionContextRef.current.periodId === periodId &&
+        selectionContextRef.current.contextKey === contextAtStart
+      ) {
+        setPeriodError(err instanceof Error ? err.message : String(err))
+      }
+      return null
+    } finally {
+      setPeriodsLoading(false)
+    }
+  }, [year])
+
   useEffect(() => {
     loadAvailableYears()
   }, [loadAvailableYears])
@@ -275,6 +365,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
   const skaBetalas = breakdown.momsNetto > 0
   const closingText = selectedPeriod ? closingAmountText(selectedPeriod) : null
+  const declarationText = selectedPeriod ? declaredAtText(selectedPeriod) : null
 
   // Beräkna moms för vald DB-verifierad momsperiod via den centrala
   // Alternativ E-logiken i accountingService.ts. Ingen egen momsgruppering här.
@@ -339,8 +430,28 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     return 'Momsperioden stängdes. Ingen systemverifikation behövdes eftersom perioden saknade momsaktivitet.'
   }
 
+  function declareErrorMessage(message: string) {
+    if (message.includes('Importerad historik') || message.includes('Endast SoloLedger') || message.includes('source')) {
+      return 'Importerad momshistorik kan inte markeras som deklarerad i SoloLedgers deklarationsflöde.'
+    }
+    if (message.includes('måste vara stängd') || message.includes('status') || message.includes('closed')) {
+      return 'Endast stängda SoloLedger-momsperioder kan markeras som deklarerade.'
+    }
+    if (message.includes('hittades inte') || message.includes('tillhör inte dig') || message.includes('not found')) {
+      return 'Momsperioden kunde inte hittas för ditt konto.'
+    }
+    return 'Momsperioden kunde inte markeras som deklarerad. Kontrollera perioden och försök igen.'
+  }
+
+  function declareSuccessMessage(result: DeclareVatPeriodResult) {
+    if (result.already_declared) {
+      return 'Momsperioden var redan markerad som deklarerad.'
+    }
+    return 'Momsperioden markerades som deklarerad.'
+  }
+
   async function handleClosePeriod() {
-    if (!selectedPeriod || !canCloseSelectedPeriod || closeInFlightRef.current) return
+    if (!selectedPeriod || !canCloseSelectedPeriod || closeInFlightRef.current || declareInFlightRef.current) return
 
     const confirmed = window.confirm(
       `Stäng momsperioden ${periodLabel(selectedPeriod)}?\n\n` +
@@ -389,6 +500,48 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     }
   }
 
+  async function handleDeclarePeriod() {
+    if (!selectedPeriod || !canDeclareSelectedPeriod || declareInFlightRef.current || closeInFlightRef.current) return
+
+    const confirmed = window.confirm(
+      `Har momsdeklarationen lämnats?\n\n` +
+      `Markera perioden ${periodLabel(selectedPeriod)} som deklarerad först när momsdeklarationen faktiskt har lämnats till Skatteverket.\n\n` +
+      'Detta registrerar deklarationen i SoloLedger. Ingen ny bokföringsverifikation eller betalning skapas.'
+    )
+    if (!confirmed) return
+
+    const periodId = selectedPeriod.id
+    const contextAtStart = selectedPeriodContextKey
+    declareInFlightRef.current = true
+    setDeclaring(true)
+    setPeriodError(null)
+
+    try {
+      const result = await declareVatPeriod(periodId)
+      const refreshResult = await reloadDeclaredPeriodMetadata(periodId, contextAtStart)
+      const periodRefreshFailed = !refreshResult
+      const contextStillCurrent =
+        selectionContextRef.current.periodId === periodId &&
+        selectionContextRef.current.contextKey === contextAtStart
+
+      const refreshWarning = periodRefreshFailed
+        ? '\n\nMomsperioden markerades som deklarerad, men vyn kunde inte uppdateras automatiskt. Ladda om sidan för att se aktuell status.'
+        : ''
+
+      alert(declareSuccessMessage(result) + refreshWarning)
+
+      if (refreshResult && contextStillCurrent && breakdownPeriodId === periodId) {
+        setBreakdownContextKey(contextAtStart)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      alert(declareErrorMessage(message))
+    } finally {
+      declareInFlightRef.current = false
+      setDeclaring(false)
+    }
+  }
+
   useEffect(() => {
     if (fetched && selectedPeriod) fetchMoms()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -424,7 +577,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             <select
               value={year}
               onChange={e => handleYearChange(Number(e.target.value))}
-              disabled={closing}
+              disabled={closing || declaring}
               className="bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-emerald-300"
             >
               {availableYears.map(y => (
@@ -438,7 +591,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             <select
               value={selectedPeriodId}
               onChange={e => handlePeriodChange(e.target.value)}
-              disabled={periodsLoading || closing || vatPeriods.length === 0}
+              disabled={periodsLoading || closing || declaring || vatPeriods.length === 0}
               className="bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-emerald-300 disabled:text-gray-300 disabled:cursor-not-allowed"
             >
               {vatPeriods.length === 0 ? (
@@ -455,7 +608,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
           <button
             onClick={fetchMoms}
-            disabled={loading || periodsLoading || closing || !selectedPeriod}
+            disabled={loading || periodsLoading || closing || declaring || !selectedPeriod}
             className="h-[42px] px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
           >
             {loading ? '...' : 'Beräkna'}
@@ -464,10 +617,20 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
           {canCloseSelectedPeriod && (
             <button
               onClick={handleClosePeriod}
-              disabled={closing || periodsLoading || loading}
+              disabled={closing || declaring || periodsLoading || loading}
               className="h-[42px] px-6 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
             >
               {closing ? 'Stänger...' : 'Stäng momsperiod'}
+            </button>
+          )}
+
+          {canDeclareSelectedPeriod && (
+            <button
+              onClick={handleDeclarePeriod}
+              disabled={declaring || closing || periodsLoading || loading}
+              className="h-[42px] px-6 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
+            >
+              {declaring ? 'Markerar...' : 'Markera som deklarerad'}
             </button>
           )}
         </div>
@@ -486,6 +649,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             {closingText && (
               <span className="text-[9px] font-black uppercase px-2 py-1 rounded-lg border border-violet-100 bg-violet-50 text-violet-600">
                 {closingText}
+              </span>
+            )}
+            {declarationText && (
+              <span className="text-[9px] font-black uppercase px-2 py-1 rounded-lg border border-sky-100 bg-sky-50 text-sky-600">
+                {declarationText}
               </span>
             )}
             {selectedPeriod.status !== 'open' && selectedPeriod.closing_transaction_id === null && (
