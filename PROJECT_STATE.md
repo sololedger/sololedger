@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Repository State
 
@@ -56,6 +56,9 @@ Last updated: 2026-09-21
 - VAT V2 future area: foreign purchases only for the first recon/design pass. Must cover EU goods purchases, EU service purchases, non-EU goods import, and non-EU service purchases. International sales, OSS, and broader foreign VAT stay out of initial scope unless later requirements justify expansion.
 - VAT V2 principles: Adobe Ireland is a real test case, not a hardcoded vendor rule; legal seller and actual invoice facts drive foreign-VAT classification; bookkeeping/account choice and VAT treatment are separate decisions; `not_registered` must not mean VAT is irrelevant; today's `vat_status = registered | not_registered | unknown` may be too coarse, but no schema change is proposed now.
 - Before any VAT V2 implementation: perform separate read-only recon of current repo architecture and live Supabase, and verify rules against current Skatteverket sources. Adobe case treatment still awaits Skatteverket response and must not become a general rule until verified.
+- Future discovered requirement from KAN-9 design: invoice/receivable/year-end handling for issued customer invoices, payments, and unpaid receivables under the cash/bokslutsmetod. Verified accounting-flow need: an incoming customer payment is not necessarily a new sale; it may settle an already booked receivable, especially around year-end. This must not be built inside KAN-9 beyond preserving that principle.
+- The invoice/receivable/year-end area must be treated as an identified need / recon area, not as a claim about missing SoloLedger capability. Future read-only recon must verify current support for bookkeeping method, invoice tracking, `1510`, receivables, B7/NE, VAT year-end handling, transaction/journal model, periodization/corrections, `close_year_atomic`, default accounts, and any existing receivable logic before designing implementation.
+- Future scope to analyze separately: issued invoice date, payment date, unpaid/paid status, linking later payment to a prior invoice/receivable, year-end treatment of unpaid customer invoices, work/sales that may need to have been invoiced before year-end but were not, correct result year, balance/NE impact, VAT implications for VAT-registered users, and protection against double revenue booking when a receivable is paid in the following year.
 
 ## Next Safe Step
 
