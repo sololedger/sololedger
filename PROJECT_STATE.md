@@ -7,9 +7,9 @@ Last updated: 2026-09-24
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Start checkpoint for the VAT V2 design checkpoint verified clean at `674b6a2c12705c87cd4a7af8528fa625fecacf33`, with local `HEAD == origin/main`.
-- Current change is docs-only: `PROJECT_STATE.md`.
-- No app code, tests, migrations, Supabase writes, DB/schema/RPC/RLS/grant changes, Vercel deploy, commit, or push has been performed in this checkpoint.
+- KAN-16 implementation started from verified clean checkpoint `d1bda7855c9cf20de090db2a6141a634bde9d3a7`, with local `HEAD == origin/main`.
+- Current uncommitted checkpoint files: `src/lib/vatDomain.ts`, `scripts/test-vat-domain.ts`, `package.json`, and `PROJECT_STATE.md`.
+- No migrations, Supabase writes, DB/schema/RPC/RLS/grant changes, Vercel deploy, commit, or push has been performed in this checkpoint.
 
 ## External Connections
 
@@ -22,12 +22,14 @@ Last updated: 2026-09-24
 
 ## Current Objective
 
-- VAT V2 READ-ONLY recon and VAT V2 Master Design are complete and reviewed.
-- Current checkpoint freezes the approved VAT V2 target architecture in `PROJECT_STATE.md` and Jira only. No VAT V2 implementation has started.
-- KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, `To Do`; updated with the approved target architecture, open questions, implementation order, and safety boundaries.
-- KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; updated to show recon/master design complete, implementation not started, three open questions, and next step KAN-16.
-- VAT V2 implementation children created under KAN-14:
-  - KAN-16 `VAT V2-1 - Domain/profile model`
+- KAN-16 `VAT V2-1 - Domain/profile model` is implemented locally and verified.
+- KAN-16 adds a pure TypeScript VAT domain foundation only: `CompanyVatProfile`, `VatFactsInput`, `VatTreatment`, supporting VAT types, profile validation/invariants, and domain representation tests.
+- `npm run test:domain` now includes the new VAT domain test script.
+- No runtime integration exists yet. VAT V1 runtime behavior, booking, VAT report, Kontoplan, `resultEngine`, Supabase schema, migrations, RPCs, RLS/grants, and live data remain unchanged.
+- KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, `To Do`; contains the approved target architecture, open questions, implementation order, and safety boundaries.
+- KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; recon/master design complete.
+- VAT V2 implementation children under KAN-14:
+  - KAN-16 `VAT V2-1 - Domain/profile model` - implemented locally, pending checkpoint commit/Jira update after approval.
   - KAN-17 `VAT V2-2 - Central VAT account roles`
   - KAN-18 `VAT V2-3 - VAT treatment decision engine`
   - KAN-19 `VAT V2-4 - VAT-aware booking RPC`
@@ -67,6 +69,18 @@ Last updated: 2026-09-24
 - VAT V2 should persist minimal audit metadata: treatment code, rule version, relevant source facts/evidence, tax base, rate, output amount/report field, deduction treatment/amount/report field.
 - VAT rules should be typed/time-aware with effective dates or equivalent. No runtime web scraping.
 
+## KAN-16 Domain Foundation
+
+- `CompanyVatProfile` separates domestic sales VAT treatment, VAT registration status, foreign-purchase reporting obligation, VAT period type/reporting start, and deduction context.
+- Unknown is explicit and first-class; it is not equivalent to no, false, `not_registered`, or `not_required`.
+- `domesticSalesVatTreatment = small_business_exempt` may validly coexist with `vatRegistrationStatus = registered` and `foreignPurchaseReporting = required`.
+- Company-level `defaultDeductionEntitlement` is context/default only and must not decide transaction-level deduction.
+- `defaultDeductionPercent` is valid only for `partial`, required for `partial`, finite, and 0-100 inclusive.
+- `VatFactsInput` is the future facts boundary and distinguishes known country, unknown country, and not-applicable country.
+- `VatTreatment` is currently representational only: not a treatment decision engine, runtime validator, journal plan, account mapping, or RPC payload.
+- `VatTreatment` can represent output VAT and deductible input VAT independently, including the verified EU service case with output VAT 57 on base 228 and zero deductible input VAT.
+- No BAS account mappings, journal mappings, or treatment decision rules were implemented.
+
 ## VAT V2 Reference Case
 
 - Jessika reference/regression case:
@@ -95,7 +109,7 @@ Last updated: 2026-09-24
 
 ## Implementation Order
 
-1. KAN-16 VAT V2-1 - Domain/profile model.
+1. KAN-16 VAT V2-1 - Domain/profile model - implemented locally; checkpoint commit pending approval.
 2. KAN-17 VAT V2-2 - Central VAT account roles.
 3. KAN-18 VAT V2-3 - VAT treatment decision engine.
 4. Stable facts -> treatment VAT boundary exists.
@@ -114,8 +128,10 @@ Last updated: 2026-09-24
 
 ## Next Safe Step
 
-- Review this docs/Jira checkpoint.
-- Proposed docs-only checkpoint commit message: `Document VAT V2 master design checkpoint`
-- Commit only `PROJECT_STATE.md` after explicit approval; push only after explicit approval.
-- Next implementation work should be KAN-16 `VAT V2-1 - Domain/profile model` in a new Codex chat.
-- Do not start VAT V2-1, KAN-9, deploys, migrations, live DB writes, resets, or source-code changes from this checkpoint.
+- Review and approve the KAN-16 checkpoint files for commit: `src/lib/vatDomain.ts`, `scripts/test-vat-domain.ts`, `package.json`, and `PROJECT_STATE.md`.
+- Proposed checkpoint commit message: `Add VAT V2 domain foundation`
+- After explicit approval, commit locally only; push only after separate explicit approval.
+- Proposed Jira follow-up after commit approval: transition KAN-16 to `In Review`, assign to Pontus, and comment with implementation/checks/manual review notes.
+- Next implementation ticket after this checkpoint is KAN-17 `VAT V2-2 - Central VAT account roles`.
+- KAN-9 MASTER RECON can proceed only after KAN-17 and KAN-18 establish the stable facts -> treatment boundary.
+- Do not start KAN-17, KAN-18, KAN-9, deploys, migrations, live DB writes, resets, or runtime wiring from this checkpoint.

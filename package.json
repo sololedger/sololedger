@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:domain": "node scripts/test-result-engine.ts && node scripts/test-accounting-knowledge.ts",
+    "test:domain": "node scripts/test-result-engine.ts && node scripts/test-accounting-knowledge.ts && node scripts/test-vat-domain.ts",
     "test:e2e": "node scripts/run-playwright-e2e.mjs",
     "test:regression": "npm run test:domain && npm run test:e2e"
   },
