@@ -7,15 +7,14 @@ Last updated: 2026-09-24
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Current `HEAD` and `origin/main` verified at `23ae7f15b3518f2e2b39a3af5b33a868b47da1ff`.
-- Working tree was clean before the 2026-09-24 VAT V2 planning update.
-- Current uncommitted planning documentation change: `PROJECT_STATE.md`.
-- Jira planning writes were performed for KAN-14 and KAN-15 on 2026-09-24. No deploy, DB write, app-code change, SQL/migration/test change, commit, or push has been performed.
+- Start checkpoint for the VAT V2 design checkpoint verified clean at `674b6a2c12705c87cd4a7af8528fa625fecacf33`, with local `HEAD == origin/main`.
+- Current change is docs-only: `PROJECT_STATE.md`.
+- No app code, tests, migrations, Supabase writes, DB/schema/RPC/RLS/grant changes, Vercel deploy, commit, or push has been performed in this checkpoint.
 
 ## External Connections
 
 - Supabase project ref `wbaxmuvudpnkvuliicuy` is accessible.
-- Vercel team slug `sololedger1` was verified as accessible, but Vercel project slug `sololedger` was not verified through the plugin.
+- Vercel team slug `sololedger1` was previously verified as accessible, but Vercel project slug `sololedger` was not verified through the plugin.
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Jira statuses: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
@@ -23,59 +22,100 @@ Last updated: 2026-09-24
 
 ## Current Objective
 
-- Current task: documentation/planning update for future VAT V2 foreign-purchase work using newly verified Skatteverket feedback. No implementation is in scope.
-- Jira verified/updated 2026-09-21:
-  - KAN-5 `3B.5 Undo SIE VAT guard`: `In Review`, assignee empty.
-  - KAN-6 `3B.5 Import SIE VAT guard`: `In Review`, assigned to Pontus.
-  - KAN-7 `3B.5 close_vat_period_atomic foundation`: `Done`, assigned to Pontus.
-  - KAN-8 `3B.6 declared VAT period`: `Done`, assignee empty.
-  - KAN-12 `KAN-7B - Appintegration och integritetsskydd för momsperiodsstängning`: `Done`, assignee empty.
-  - KAN-9 `Kontoplan guidance for enskild firma`: `To Do`, assignee empty; description updated with VAT V2 boundary notes and the private-purchase/company-card -> `eget uttag` scenario.
-  - KAN-14 `VAT V2 – Utlandshandel / utländska inköp`: Epic, `To Do`; description updated 2026-09-24 with verified Skatteverket case, Adobe Ireland reference case, VAT V1 regression boundary, and initial VAT V2 scope.
-  - KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; description updated 2026-09-24 to make the next technical step a separate READ-ONLY VAT V2 recon.
-- KAN-5/KAN-6 remain `In Review`: their SIE VAT guards have strong implementation/rollback verification, but remaining empirical isolated/two-session/SIE verification has not been completed to the same level as the Production Close/Declare flow. They are not blockers for moving on from VAT V1.
+- VAT V2 READ-ONLY recon and VAT V2 Master Design are complete and reviewed.
+- Current checkpoint freezes the approved VAT V2 target architecture in `PROJECT_STATE.md` and Jira only. No VAT V2 implementation has started.
+- KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, `To Do`; updated with the approved target architecture, open questions, implementation order, and safety boundaries.
+- KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; updated to show recon/master design complete, implementation not started, three open questions, and next step KAN-16.
+- VAT V2 implementation children created under KAN-14:
+  - KAN-16 `VAT V2-1 - Domain/profile model`
+  - KAN-17 `VAT V2-2 - Central VAT account roles`
+  - KAN-18 `VAT V2-3 - VAT treatment decision engine`
+  - KAN-19 `VAT V2-4 - VAT-aware booking RPC`
+  - KAN-20 `VAT V2-5 - VAT report V2 fields`
+  - KAN-21 `VAT V2-6 - Close / integrity / SIE / corrections`
+  - KAN-22 `VAT V2-7 - UX fact capture`
+  - KAN-23 `VAT V2-8 - Full VAT V1 + VAT V2 regression`
 
 ## Locked VAT V1 Baseline
 
-- VAT V1 is now considered the locked baseline for current work.
-- Core flow verified: bookkeeping -> VAT report -> open VAT period -> close -> `vat_closing` system verification -> closed -> declare -> declared.
-- Existing VAT architecture, period protection, concurrency design, closing semantics, and open -> closed -> declared state machine must not be changed during unrelated future work without a concrete verified regression or explicit product/accounting requirement.
-- Manual Production validation closed and declared real VAT period `2026-04-01` to `2026-06-30`; archive contains the compact verification details.
+- VAT V1 remains the locked regression baseline.
+- Core flow verified earlier: bookkeeping -> VAT report -> open VAT period -> close -> `vat_closing` system verification -> closed -> declare -> declared.
+- Existing VAT architecture, period protection, concurrency design, close/declare semantics, SIE guards, corrections, system transactions, and open -> closed -> declared state machine must be preserved unless a concrete verified VAT V2 requirement justifies a controlled change.
+- Current V1 close scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
+- Current V1 `declare_vat_period_atomic` is state-neutral and should remain unchanged unless VAT V2 implementation evidence requires otherwise.
 
-## Active VAT Context
+## Approved VAT V2 Target Architecture
 
-- Implemented VAT/system write guards: KAN-5 `undo_sie_import_atomic`, KAN-6 `import_sie_batch`, KAN-7 `close_vat_period_atomic`, KAN-8 `declare_vat_period_atomic`, KAN-12 / 7B.1 `vat_closing` protection in `create_correction_transaction_atomic` and `update_transaction_safe`, and earlier guarded write RPCs `book_transaction_atomic`, `book_periodized_transaction_atomic`, and `create_correction_transaction_atomic`.
-- KAN-7 closing scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
-- `closing_amount = -sum(debit-credit)` over relevant VAT account balances, and net is booked to `2650` only when net is nonzero.
-- `declared_at` is set only by KAN-8 declaration, not by close.
+- VAT V2 will be an explicit VAT domain above existing journal/RPC integrity.
+- Approved pipeline: transaction/company facts -> VAT treatment decision -> `VatTreatment` -> journal plan -> safe RPC -> journal -> VAT report.
+- VAT V2 is treatment-first, not account-first; `vat_rate` must not be overloaded into the whole VAT treatment.
+- Preserve VAD / HUR / MOMS separation:
+  - VAD = accounting event/category/treatment.
+  - HUR = journal/payment/settlement mechanics.
+  - MOMS = VAT treatment/reporting consequences.
+- VAT V2 owns MOMS. KAN-9 may later provide domain facts but must not choose VAT accounts, choose VAT return boxes, or implement a parallel VAT engine.
+- Current `vat_status = registered | not_registered | unknown` is too coarse for VAT V2 and will be replaced or reworked by KAN-16.
+- Future profile/domain model must separate domestic sales VAT treatment, VAT registration status, foreign-purchase reporting obligation, VAT period type, VAT reporting start, and deduction context.
+- Output VAT obligation and deductible input VAT are independent. Company-level deduction context is only a default/context; transaction-level `VatTreatment` must decide deduction when facts require it.
+- Journal remains accounting truth. VAT decision and journalization are separate steps.
+- VAT report direction is hybrid: native VAT V2 transactions use typed VAT decision/report metadata; legacy/imported/SIE cases use account-role/journal fallback. Treatment metadata and journal must reconcile; silent drift is not acceptable.
+- Central DB-safe VAT account roles should replace scattered prefix logic such as `261%`, `262%`, `263%`, `2641`, `265%` over time, and be reusable by booking, report, concurrency, close, SIE, corrections, integrity guards, and system-account knowledge.
+- Reuse existing `vat_periods` lifecycle `open -> closed -> declared`; do not create a parallel VAT V2 period system.
+- Reuse the existing VAT month lock architecture and order: VAT month advisory locks -> other advisory locks -> row locks -> reads/writes. No separate foreign-VAT lock architecture.
+- `resultEngine` remains truth for result/NE; VAT V2 must not duplicate result/NE classification.
+- Unknown is first-class. Unknown must not silently mean Sweden, no deduction, no VAT, domestic, or business use. Booking blocks when an unknown fact can change VAT treatment.
+- VAT V2 should persist minimal audit metadata: treatment code, rule version, relevant source facts/evidence, tax base, rate, output amount/report field, deduction treatment/amount/report field.
+- VAT rules should be typed/time-aware with effective dates or equivalent. No runtime web scraping.
 
-## VAT V2 Verified Finding
+## VAT V2 Reference Case
 
-- Verified from Skatteverket: a Swedish sole proprietor whose ordinary Swedish sales are VAT-exempt due to low annual turnover can still need VAT registration for purchases of services from companies in other EU countries.
-- Verified: for relevant EU service purchases, the business may need to self-calculate and report Swedish output VAT from the first relevant purchase/sale, which is also used as the VAT-registration start date.
-- Verified: Swedish VAT-exempt domestic sales can coexist with VAT registration/foreign-purchase reporting obligation.
-- Verified: in the described case, when registration only exists because of these purchases and the purchase is not connected to VAT-liable activity, there is no right to deduct the corresponding input VAT.
-- Domain consequence for VAT V2 recon: domestic sales VAT status, foreign-purchase VAT reporting obligation, and input VAT deduction entitlement are separate dimensions and may have different values at the same time.
-- Adobe Systems Software Ireland Ltd / Adobe Creative Cloud Photography is a real reference/regression case. Historical invoices include examples like 228 SEK net, 57 SEK charged foreign VAT, 285 SEK total, before a Swedish VAT number was provided.
-- Historical wrongly VAT-charged Adobe invoices are a separate unresolved correction scenario; do not assume exact tax base, correction entry, VAT return treatment, Adobe crediting/re-invoicing, or booking before the service-specific facts are verified.
-- Still not verified/designed: future data model; whether/how `vat_status = registered | not_registered | unknown` changes; exact accounts/system accounts; exact RPC changes; exact period model; historical Adobe correction; exact close/declare impact; exact UI; exact implementation.
+- Jessika reference/regression case:
+  - Swedish sole trader.
+  - Domestic sales: small-business VAT exempt.
+  - VAT registration: yes, because of relevant foreign service purchases.
+  - Foreign purchase reporting: required.
+  - Future EU digital-service invoice: supplier VAT absent where correct reverse charge applies.
+  - Swedish calculated output VAT: yes.
+  - Input VAT deduction: none in the verified reference situation.
+  - VAT report: EU service acquisition base + calculated output VAT, no deductible input VAT field.
+- Adobe Ireland is a real reference fixture, not a hardcoded accounting rule.
+
+## Open VAT V2 Questions
+
+- OPEN / EXTERNAL ACCOUNTING VERIFICATION REQUIRED: exact journal treatment for self-calculated reverse-charge VAT with no deduction. Exact Swedish BAS/accounting treatment, cost/acquisition-value handling, K1/NE implications, and account mappings are not approved.
+- OPEN / EXTERNAL VERIFICATION REQUIRED: initial/partial VAT period when `vatReportingFrom` occurs inside a normal month/quarter/year period. Current VAT V1 `ensure_vat_periods` skips partial initial periods; do not change this until reporting-period semantics are verified.
+- OPEN / EXTERNAL VERIFICATION REQUIRED: historical Adobe Ireland invoices with supplier-charged 25% VAT. Historical tax base, reverse-charge calculation, journal correction, credit note/refund handling, and VAT return correction remain unresolved.
+
+## Migration / Data Compatibility
+
+- Current users/data are development/test data. Full backward compatibility with today's test data is not an absolute requirement.
+- A clean domain migration or later reset may be recommended if it gives better long-term architecture.
+- No reset, destructive migration, user-data deletion, or data rewrite is approved.
+- Before any future destructive operation, make a separately verified backup/export plan against actual live tables/storage. SIE export alone must not be assumed to restore all SoloLedger metadata.
+
+## Implementation Order
+
+1. KAN-16 VAT V2-1 - Domain/profile model.
+2. KAN-17 VAT V2-2 - Central VAT account roles.
+3. KAN-18 VAT V2-3 - VAT treatment decision engine.
+4. Stable facts -> treatment VAT boundary exists.
+5. KAN-9 MASTER RECON can run after KAN-16 through KAN-18; KAN-9 does not need to wait for full VAT V2.
+6. KAN-19 VAT-aware booking RPC.
+7. KAN-20 VAT report V2 fields.
+8. KAN-21 Close / integrity / SIE / corrections.
+9. KAN-22 UX fact capture.
+10. KAN-23 Full VAT V1 + VAT V2 regression.
 
 ## Deferred / Future Ideas
 
-- Known non-blocking/deferred items: KAN-5/KAN-6 remaining empirical SIE/concurrency verification; full isolated staging E2E coverage; payment/refund flow after VAT close; 1630/tax-account handling; correction/reopen/undeclare flow for already declared VAT; empirical two-session concurrency coverage where previously documented.
-- Future ideas only, not active implementation: reusable SoloLedger-native confirmation/status dialogs; bookkeeping transaction search/filter; read-only verification detail view with accounts/debit/credit/totals; preserve an already calculated VAT report visually after metadata-only actions such as Declare.
-- VAT V2 future area: foreign purchases only for the first recon/design pass. Must cover EU goods purchases, EU service purchases, non-EU goods import, and non-EU service purchases/import. International sales, export, OSS, and broader foreign VAT stay out of initial scope unless later requirements justify expansion.
-- VAT V2 principles: Adobe Ireland is a real reference case, not a hardcoded vendor rule; legal seller and actual invoice facts drive foreign-VAT classification; bookkeeping/account choice and VAT treatment are separate decisions; `not_registered` must not mean VAT is irrelevant; calculated output VAT must not automatically imply deductible input VAT in field 48; today's `vat_status = registered | not_registered | unknown` may be too coarse, but no schema change is proposed now.
-- Before any VAT V2 implementation: perform a separate read-only recon of current repo architecture, live Supabase structure/RPC/RLS/grants where relevant, locked VAT V1 boundaries, and current Skatteverket sources.
-- Future discovered requirement from KAN-9 design: invoice/receivable/year-end handling for issued customer invoices, payments, and unpaid receivables under the cash/bokslutsmetod. Verified accounting-flow need: an incoming customer payment is not necessarily a new sale; it may settle an already booked receivable, especially around year-end. This must not be built inside KAN-9 beyond preserving that principle.
-- The invoice/receivable/year-end area must be treated as an identified need / recon area, not as a claim about missing SoloLedger capability. Future read-only recon must verify current support for bookkeeping method, invoice tracking, `1510`, receivables, B7/NE, VAT year-end handling, transaction/journal model, periodization/corrections, `close_year_atomic`, default accounts, and any existing receivable logic before designing implementation.
-- Future scope to analyze separately: issued invoice date, payment date, unpaid/paid status, linking later payment to a prior invoice/receivable, year-end treatment of unpaid customer invoices, work/sales that may need to have been invoiced before year-end but were not, correct result year, balance/NE impact, VAT implications for VAT-registered users, and protection against double revenue booking when a receivable is paid in the following year.
+- KAN-5/KAN-6 remain `In Review`: their SIE VAT guards have strong implementation/rollback verification, but remaining empirical isolated/two-session/SIE verification has not been completed to the same level as the Production Close/Declare flow. They are not blockers for moving on from VAT V1/VAT V2 planning.
+- Known non-blocking/deferred items: full isolated staging E2E coverage; payment/refund flow after VAT close; 1630/tax-account handling; correction/reopen/undeclare flow for already declared VAT; empirical two-session concurrency coverage where previously documented.
+- Future KAN-9-adjacent recon area: invoice/receivable/year-end handling for issued customer invoices, payments, and unpaid receivables under the cash/bokslutsmetod. Treat as identified need/recon area, not an implementation claim.
 
 ## Next Safe Step
 
-- Proposed planning checkpoint commit message: `Document verified VAT V2 planning update`
+- Review this docs/Jira checkpoint.
+- Proposed docs-only checkpoint commit message: `Document VAT V2 master design checkpoint`
 - Commit only `PROJECT_STATE.md` after explicit approval; push only after explicit approval.
-- Next intended work: separate VAT V2 READ-ONLY recon in KAN-15. Do not start that recon in the same planning-update run.
-- KAN-9 constraint: kontoplan/account guidance must preserve the locked VAT V1 accounting behavior and must not casually change `accountingService`, VAT mappings, report logic, RPCs, VAT guards, or NE behavior.
-- Product goal for KAN-9: a sole proprietor should not need to know the BAS chart of accounts to choose the correct bookkeeping account. The motivating photography-course/account-7610 case requires verified guidance later; the private-purchase/company-card scenario should guide toward `eget uttag`; do not decide or implement those accounting rules during this planning checkpoint.
-- Do not deploy, run migrations, perform live DB writes, move Jira issues, run broad checks, start VAT V2 recon, or resume KAN-9 without explicit approval.
+- Next implementation work should be KAN-16 `VAT V2-1 - Domain/profile model` in a new Codex chat.
+- Do not start VAT V2-1, KAN-9, deploys, migrations, live DB writes, resets, or source-code changes from this checkpoint.
