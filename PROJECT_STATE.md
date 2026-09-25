@@ -7,40 +7,43 @@ Last updated: 2026-09-25
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Current checkpoint base: `9f82cbdab8b8e15720770e8aa624feff67c4e9f0`; local `HEAD == origin/main` before the KAN-17A checkpoint commit.
+- Current checkpoint base: `14db990059ed232d3f7753467521627c1fcd82dd`; local `HEAD == origin/main` before the KAN-17B checkpoint commit.
 - Current uncommitted checkpoint files:
-  - `supabase/migrations/20260925_add_vat_account_classification.sql`
-  - `supabase/tests/kan17a_vat_account_classification_candidate.sql`
+  - `supabase/migrations/20260925_delegate_vat_concurrency_account.sql`
+  - `supabase/tests/kan17b_vat_concurrency_account_delegate_candidate.sql`
   - `PROJECT_STATE.md`
-- KAN-17A live migration has been applied with explicit approval.
-- No commit, push, deploy, Jira write, consumer switch, or further live DB change has been performed after the approved KAN-17A live migration.
+- KAN-17A was finalized, committed, and pushed at `14db990059ed232d3f7753467521627c1fcd82dd`.
+- KAN-17B live migration has been applied with explicit approval.
+- No commit, push, deploy, Jira write, or further live DB change has been performed after the approved KAN-17B live migration.
 
 ## External Connections
 
 - Supabase project ref `wbaxmuvudpnkvuliicuy` is accessible.
 - Live Supabase migration applied for KAN-17A: `20260925050113 / 20260925_add_vat_account_classification`.
+- Live Supabase migration applied for KAN-17B: `20260925070346 / 20260925_delegate_vat_concurrency_account`.
 - Vercel team slug `sololedger1` was previously verified as accessible, but Vercel project slug `sololedger` was not verified through the plugin.
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Jira statuses: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
 - Jira current user verified as Pontus Åkerhage `712020:01a218e5-6b15-4692-8096-c26687dca3f8`.
-- Jira KAN-17 current verified status before final Jira update: `To Do`; assignee empty; no comments at checkpoint finalization time.
+- Jira KAN-17 current verified status: `In Progress`; assignee empty.
 
 ## Current Objective
 
-- KAN-17A, the first sub-slice of KAN-17 `VAT V2-2 - Central VAT account roles`, is implemented, live-applied, and SELECT-equivalence verified.
+- KAN-17A, the first sub-slice of KAN-17 `VAT V2-2 - Central VAT account roles`, is implemented, live-applied, committed/pushed, and SELECT-equivalence verified.
+- KAN-17B, the second sub-slice of KAN-17, is implemented and live-applied. It migrated the P1 VAT period guard/concurrency compatibility helper to the central KAN-17A classifier path.
 - KAN-17 overall is not complete. Do not mark KAN-17 `Done`.
-- KAN-17A is an additive DB foundation only. It adds a central VAT account classification primitive and semantic wrappers, but no runtime consumer has been switched.
+- KAN-17A added a central VAT account classification primitive and semantic wrappers. KAN-17B switched the existing P1 compatibility helper only; no consumer RPC definitions were changed.
 - VAT account semantics are capability-based, not one-role/one-boolean.
 - KAN-16 `VAT V2-1 - Domain/profile model` is implemented and remains the current domain/profile foundation.
 - KAN-16 adds a pure TypeScript VAT domain foundation only: `CompanyVatProfile`, `VatFactsInput`, `VatTreatment`, supporting VAT types, profile validation/invariants, and domain representation tests.
 - `npm run test:domain` includes the VAT domain test script.
-- No runtime integration exists yet. VAT V1 runtime behavior, booking, VAT report, Kontoplan, `resultEngine`, RLS/grants, and live data remain unchanged by KAN-16/KAN-17A except for the approved additive KAN-17A helper functions.
+- No broader VAT V2 runtime integration exists yet. VAT V1 booking, close, SIE, correction, VAT report, Kontoplan, `resultEngine`, RLS/grants, and live data remain unchanged by KAN-16/KAN-17A/KAN-17B except that the existing P1 compatibility helper now delegates to the central classifier via the KAN-17A P1 wrapper.
 - KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, `To Do`; contains the approved target architecture, open questions, implementation order, and safety boundaries.
 - KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; recon/master design complete.
 - VAT V2 implementation children under KAN-14:
   - KAN-16 `VAT V2-1 - Domain/profile model` - implemented.
-  - KAN-17 `VAT V2-2 - Central VAT account roles` - KAN-17A foundation implemented/live-applied/verified; KAN-17 overall remains in progress.
+  - KAN-17 `VAT V2-2 - Central VAT account roles` - KAN-17A foundation and KAN-17B P1 compatibility-helper migration implemented/live-applied/verified; KAN-17 overall remains in progress.
   - KAN-18 `VAT V2-3 - VAT treatment decision engine`
   - KAN-19 `VAT V2-4 - VAT-aware booking RPC`
   - KAN-20 `VAT V2-5 - VAT report V2 fields`
@@ -121,14 +124,46 @@ Last updated: 2026-09-25
   - `265`, `265ABC` -> period guard true, close balance false, manual review true.
 - Existing `public.vat_concurrency_account(text)` pre/post hash: `fa2a0b9929cdcf3545f0a5848a216a16`; unchanged.
 - Existing `public.close_vat_period_atomic(uuid)` pre/post hash: `d507fe3b15a63caeec7a79907301ef72`; unchanged.
-- No existing public runtime function references the new classifier or wrappers.
-- KAN-17A classifier currently has zero runtime consumers.
+- KAN-17A initially switched no runtime consumers. KAN-17B later made `public.vat_concurrency_account(text)` delegate to the KAN-17A P1 wrapper.
 - No booking, close, SIE, correction, report, `not_registered`, or VAT V1 runtime behavior changed.
 - Pre/post checks found no changes to `transactions`, `journal_entries`, `vat_periods`, or `accounts`.
 - No persistent `kan17a` test table exists.
 - Exact SQL rollback candidate was not executed against live because the environment safety review rejected re-running DDL against the live database even inside `BEGIN`/`ROLLBACK`.
 - That safety boundary was respected and no workaround was attempted.
 - The candidate SQL remains as a reusable regression artifact: `supabase/tests/kan17a_vat_account_classification_candidate.sql`.
+
+## KAN-17B P1 Compatibility Helper Migration
+
+- Migration file: `supabase/migrations/20260925_delegate_vat_concurrency_account.sql`
+- Regression candidate: `supabase/tests/kan17b_vat_concurrency_account_delegate_candidate.sql`
+- Live Supabase migration: `20260925070346 / 20260925_delegate_vat_concurrency_account`
+- Approved migration SHA-256: `2655CC21F7FBCBDDAD9F7E3D659B2D98EDE52492B7DBA7FDD606FB92C1D77161`
+- `public.vat_concurrency_account(text)` keeps the same compatibility API and now delegates to `public.vat_account_is_period_guard_relevant(p_account_number)`, which delegates to `public.vat_account_classification(text)`.
+- `public.vat_concurrency_account(text)` pre-KAN-17B definition MD5: `fa2a0b9929cdcf3545f0a5848a216a16`.
+- `public.vat_concurrency_account(text)` post-KAN-17B definition MD5: `4d3d61716ba50da100dc00b30f698fd1`.
+- Post-migration helper properties preserved: exact signature, `RETURNS boolean`, `LANGUAGE sql`, `IMMUTABLE`, `PARALLEL SAFE`, `SECURITY INVOKER`, owner `postgres`, `search_path=public`, grants to `postgres`/`service_role` only, no direct `PUBLIC`/`anon`/`authenticated` execute.
+- Live SELECT-only P1 equivalence verification: `0` mismatches across 29 candidate cases comparing legacy P1 expression, `vat_concurrency_account()`, `vat_account_is_period_guard_relevant()`, and classifier P1 output.
+- Edge behavior preserved as V1 textual predicate semantics, not BAS validation:
+  - `NULL` -> `NULL`.
+  - `261`, `26100`, `261ABC` -> true.
+  - `2641` -> true.
+  - `26410` -> false.
+  - `265`, `265ABC` -> true.
+- Five existing P1 consumer definitions remained unchanged pre/post and continue to reference the compatibility helper rather than the new classifier/wrapper directly:
+  - `book_transaction_atomic(jsonb)`: `6f5c28e028dcb1b85e4abd536920ec3f`
+  - `book_periodized_transaction_atomic(jsonb)`: `2eb89766b3fcf87356c73a835e80e990`
+  - `create_correction_transaction_atomic(uuid)`: `a2687da8b382da522075b33caa76d1dc`
+  - `import_sie_batch(jsonb)`: `13ce699a75462ce1e97cc52755a79376`
+  - `undo_sie_import_atomic(uuid)`: `e756ca3e69317ede4045ee7b3ba42266`
+- `close_vat_period_atomic(uuid)` remained unchanged pre/post at `d507fe3b15a63caeec7a79907301ef72`.
+- P2 remains embedded in close as `261%`, `262%`, `263%`, exact `2641`; P3 remains embedded as `265%`. KAN-17B did not centralize P2 or P3.
+- No-data-effect verification matched pre/post for this migration snapshot only:
+  - `accounts`: 88 rows, fingerprint `ae1da746ca2e02cb170a53d26f42c0b2`
+  - `journal_entries`: 431 rows, fingerprint `272eb960450c47bf38094b598415561c`
+  - `transactions`: 160 rows, fingerprint `5e629291a8c930b54fb0c0fdae2be1eb`
+  - `vat_periods`: 3 rows, fingerprint `ca9444ba5b258555a482f6d864a24726`
+- The KAN-17B regression candidate was not executed against live because it replays DDL and is intended only for isolated/local/staging PostgreSQL. Live verification used SELECT-only equivalence plus definition/data identity checks.
+- KAN-17B preserves existing P1 lock-selection behavior by unchanged consumers and exact P1 equivalence. It does not empirically prove true two-session concurrency; that broader verification gap remains open.
 
 ## VAT V2 Reference Case
 
@@ -160,8 +195,9 @@ Last updated: 2026-09-25
 
 1. KAN-16 VAT V2-1 - Domain/profile model - implemented.
 2. KAN-17 VAT V2-2 - Central VAT account roles.
-   - KAN-17A central VAT account classification foundation - implemented, live-applied, SELECT-equivalence verified, zero runtime consumers.
-   - KAN-17B is the next planned KAN-17 slice and has not started.
+   - KAN-17A central VAT account classification foundation - implemented, live-applied, SELECT-equivalence verified.
+   - KAN-17B P1 compatibility-helper consumer migration - implemented, live-applied, SELECT-equivalence verified.
+   - P2/P3 remain uncentralized after KAN-17B and require their own read-only recon/review before any consumer migration.
 3. KAN-18 VAT V2-3 - VAT treatment decision engine.
 4. Stable facts -> treatment VAT boundary exists.
 5. KAN-9 MASTER RECON can run after KAN-16 through KAN-18; KAN-9 does not need to wait for full VAT V2.
@@ -179,9 +215,8 @@ Last updated: 2026-09-25
 
 ## Next Safe Step
 
-- Await external approval to commit and push the KAN-17A checkpoint.
-- Proposed checkpoint commit message: `Add central VAT account classification`
-- Proposed Jira follow-up, after successful commit/push verification: transition KAN-17 from `To Do` to `In Progress` and add a comment that KAN-17A is complete/verified while KAN-17 overall remains in progress.
-- Next planned implementation slice is KAN-17B, not started.
-- KAN-17B should be the first controlled consumer migration for the existing P1 concurrency / VAT-period-guard semantic. Its exact implementation approach is not locked; delegation from `vat_concurrency_account()` to the new classifier is a candidate design, not an approved implementation.
-- Do not start KAN-17B, KAN-18, KAN-9, deploys, additional migrations, live DB writes, resets, or runtime wiring from this checkpoint.
+- Await external approval to commit the KAN-17B checkpoint locally.
+- Proposed checkpoint commit message: `Centralize VAT period guard classification`
+- Proposed Jira follow-up after successful commit verification: add a KAN-17 comment that KAN-17B is complete/live verified while KAN-17 overall remains `In Progress`; include the final commit SHA in the comment.
+- Recommended next KAN-17 sub-slice: read-only recon/review for remaining uncentralized P2/P3 VAT account-role consumers, especially close balance participation and close manual-review semantics. Do not assume implementation details before that recon.
+- Do not start the next KAN-17 slice, KAN-18, KAN-9, deploys, additional migrations, live DB writes, resets, or broader runtime wiring from this checkpoint.
