@@ -7,14 +7,13 @@ Last updated: 2026-09-25
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Current checkpoint base: `14db990059ed232d3f7753467521627c1fcd82dd`; local `HEAD == origin/main` before the KAN-17B checkpoint commit.
-- Current uncommitted checkpoint files:
-  - `supabase/migrations/20260925_delegate_vat_concurrency_account.sql`
-  - `supabase/tests/kan17b_vat_concurrency_account_delegate_candidate.sql`
-  - `PROJECT_STATE.md`
+- KAN-17B implementation checkpoint commit: `62b4520342bae2eb064c43082c196e5936205ae4`
+- KAN-17B checkpoint commit message: `Centralize VAT period guard classification`
+- KAN-17B checkpoint was pushed successfully to `origin/main`; after push local `HEAD == origin/main` and the working tree was clean.
 - KAN-17A was finalized, committed, and pushed at `14db990059ed232d3f7753467521627c1fcd82dd`.
 - KAN-17B live migration has been applied with explicit approval.
-- No commit, push, deploy, Jira write, or further live DB change has been performed after the approved KAN-17B live migration.
+- Jira KAN-17 remains `In Progress`; Jira comment `10334` documents finalized KAN-17B and includes commit `62b4520342bae2eb064c43082c196e5936205ae4`.
+- No additional DB change or deploy has been performed after the approved KAN-17B live migration.
 
 ## External Connections
 
@@ -215,8 +214,8 @@ Last updated: 2026-09-25
 
 ## Next Safe Step
 
-- Await external approval to commit the KAN-17B checkpoint locally.
-- Proposed checkpoint commit message: `Centralize VAT period guard classification`
-- Proposed Jira follow-up after successful commit verification: add a KAN-17 comment that KAN-17B is complete/live verified while KAN-17 overall remains `In Progress`; include the final commit SHA in the comment.
-- Recommended next KAN-17 sub-slice: read-only recon/review for remaining uncentralized P2/P3 VAT account-role consumers, especially close balance participation and close manual-review semantics. Do not assume implementation details before that recon.
-- Do not start the next KAN-17 slice, KAN-18, KAN-9, deploys, additional migrations, live DB writes, resets, or broader runtime wiring from this checkpoint.
+- KAN-17B is finalized, committed, pushed, live verified, and Jira-commented.
+- P2/P3 remain uncentralized after KAN-17B.
+- Recommended next KAN-17 engineering step: a new read-only recon/review for remaining uncentralized P2/P3 VAT account-role consumers, especially close balance participation and close manual-review semantics.
+- The P2/P3 recon must inspect exact live definitions and current consumers before proposing any implementation.
+- Do not start implementation, migrations, DB writes, deploys, KAN-18, KAN-9, or broader VAT V2 work before that recon/review.
