@@ -247,12 +247,15 @@ assertErrorCodes(
 )
 
 const futureFactsContract: VatFactsInput = {
+  companyProfile: exemptDomesticSalesWithForeignPurchaseReporting,
   eventKind: 'purchase',
   goodsOrService: 'service',
   supplierCountry: { kind: 'country', code: 'IE' },
   customerCountry: { kind: 'country', code: 'SE' },
   supplierVatCharged: 'no',
   usedForBusiness: 'yes',
+  calculationRate: 25,
+  deductionEntitlement: 'none',
   accountingCategoryId: 'programvaror',
   invoiceDate: '2026-02-01',
   amount: 228,

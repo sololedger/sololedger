@@ -6,6 +6,19 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### VAT V2 Foundation Through KAN-17
+
+- KAN-16 `VAT V2-1 - Domain/profile model` implemented the pure TypeScript VAT foundation: `CompanyVatProfile`, `VatFactsInput`, `VatTreatment`, explicit unknown states, profile validation, and representation tests.
+- KAN-16 established that domestic small-business exemption can coexist with VAT registration and required foreign-purchase reporting; company-level default deduction is context only and transaction-level VAT treatment decides deduction.
+- KAN-16 kept `VatTreatment` representational only: no decision engine, journal plan, account mapping, RPC payload, or runtime integration.
+- KAN-17 `VAT V2-2 - Central VAT account roles` was completed through KAN-17A/B/C and then frozen for later VAT V2 work.
+- KAN-17A added the central DB-safe VAT account classification primitive and wrappers for period-guard relevance, close-balance participation, and close manual-review relevance.
+- KAN-17B migrated the P1 VAT period guard/concurrency compatibility helper to delegate through the KAN-17A classifier path.
+- KAN-17C migrated `close_vat_period_atomic(uuid)` P2/P3 account-role predicates to the central KAN-17A wrappers while preserving VAT V1 business semantics.
+- KAN-17 live rollout and migration-history reconciliation were completed before KAN-18 work. No KAN-17 design should be reopened unless new evidence proves incompatibility with the next architecture.
+- VAT account semantics are capability-based, not a one-role/one-boolean model.
+- VAT V1 remains the locked regression baseline. KAN-17 did not introduce VAT V2 booking/report/runtime behavior.
+
 ### VAT V1 Production Baseline Locked
 
 - Manual IRL/Production test completed 2026-09-20 for real VAT period `2026-04-01` to `2026-06-30`.

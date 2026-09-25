@@ -173,18 +173,24 @@ export type VatBusinessUse = 'yes' | 'no' | 'mixed' | 'unknown'
 
 export type IsoCountryCode = string
 
+export type VatCalculationRate = 25 | 12 | 6 | 0
+export type VatCalculationRateInput = VatCalculationRate | 'unknown'
+
 export type VatCounterpartyCountry =
   | { kind: 'country'; code: IsoCountryCode }
   | { kind: 'unknown' }
   | { kind: 'not_applicable' }
 
 export interface VatFactsInput {
+  companyProfile: CompanyVatProfile
   eventKind: VatEventKind
   goodsOrService: VatGoodsOrService
   supplierCountry: VatCounterpartyCountry
   customerCountry: VatCounterpartyCountry
   supplierVatCharged: VatYesNoUnknown
   usedForBusiness: VatBusinessUse
+  calculationRate: VatCalculationRateInput
+  deductionEntitlement: DeductionEntitlement
   accountingCategoryId: string
   invoiceDate: string
   amount: number
@@ -223,7 +229,6 @@ export type OutputVatReportField =
 export type AcquisitionBaseField = '20' | '21' | '22' | '50'
 export type DomesticSalesBaseField = '05'
 export type DeductibleInputVatReportField = '48'
-export type VatCalculationRate = 25 | 12 | 6 | 0
 
 export type VatTreatmentCode =
   | 'DOMESTIC_TAXABLE_SALE'

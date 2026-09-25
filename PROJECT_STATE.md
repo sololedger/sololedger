@@ -7,233 +7,90 @@ Last updated: 2026-09-25
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- KAN-17B implementation checkpoint commit: `62b4520342bae2eb064c43082c196e5936205ae4`
-- KAN-17B checkpoint commit message: `Centralize VAT period guard classification`
-- KAN-17B checkpoint was pushed successfully to `origin/main`; after push local `HEAD == origin/main` and the working tree was clean.
-- KAN-17A was finalized, committed, and pushed at `14db990059ed232d3f7753467521627c1fcd82dd`.
-- KAN-17B live migration has been applied with explicit approval.
-- KAN-17C live function rollout has been applied and verified; Supabase migration history was reconciled with supported migration repair for version `20260925124023` without rerunning KAN-17C SQL.
-- Jira KAN-17 remains `In Progress`; Jira comment `10334` documents finalized KAN-17B and includes commit `62b4520342bae2eb064c43082c196e5936205ae4`.
-- No deploy has been performed after the approved KAN-17C live migration/history repair.
+- Verified checkpoint before KAN-18 finalization prep: `HEAD == origin/main == 2fb68d7136e0c2c16a55ca170e306ab41ec4557e`
+- Working tree is intentionally dirty for KAN-18 final checkpoint proposal only.
+- Dirty files expected/proposed for checkpoint:
+  - `package.json`
+  - `scripts/test-vat-domain.ts`
+  - `scripts/test-vat-treatment-decision.ts`
+  - `src/lib/vatDomain.ts`
+  - `src/lib/vatTreatmentDecision.ts`
+  - `PROJECT_STATE.md`
+  - `PROJECT_ARCHIVE.md`
 
 ## External Connections
 
-- Supabase project ref `wbaxmuvudpnkvuliicuy` is accessible.
-- Live Supabase migration applied for KAN-17A: `20260925050113 / 20260925_add_vat_account_classification`.
-- Live Supabase migration applied for KAN-17B: `20260925070346 / 20260925_delegate_vat_concurrency_account`.
-- Live Supabase migration history reconciled for KAN-17C: `20260925124023 / delegate_vat_close_account_classification`.
-- Vercel team slug `sololedger1` was previously verified as accessible, but Vercel project slug `sololedger` was not verified through the plugin.
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
-- Jira statuses: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
-- Jira current user verified as Pontus Åkerhage `712020:01a218e5-6b15-4692-8096-c26687dca3f8`.
-- Jira KAN-17 current verified status: `In Progress`; assignee empty.
+- Jira statuses previously verified: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
+- Jira current user previously verified as Pontus Åkerhage `712020:01a218e5-6b15-4692-8096-c26687dca3f8`.
+- Jira KAN-18 verified during finalization prep: Story, status `To Do`, assignee empty, parent KAN-14.
+- No live Supabase access was used for KAN-18 finalization prep.
 
 ## Current Objective
 
-- KAN-17A, the first sub-slice of KAN-17 `VAT V2-2 - Central VAT account roles`, is implemented, live-applied, committed/pushed, and SELECT-equivalence verified.
-- KAN-17B, the second sub-slice of KAN-17, is implemented and live-applied. It migrated the P1 VAT period guard/concurrency compatibility helper to the central KAN-17A classifier path.
-- KAN-17C, the third sub-slice of KAN-17, is implemented and live-applied. It migrated the P2/P3 account-role predicates inside `public.close_vat_period_atomic(uuid)` to the KAN-17A wrappers.
-- KAN-17 overall is not complete until checkpoint/Jira finalization is explicitly performed. Do not mark KAN-17 `Done`.
-- KAN-17A added a central VAT account classification primitive and semantic wrappers. KAN-17B switched the existing P1 compatibility helper. KAN-17C switched the close-period P2/P3 predicates while preserving VAT V1 business semantics.
-- VAT account semantics are capability-based, not one-role/one-boolean.
-- KAN-16 `VAT V2-1 - Domain/profile model` is implemented and remains the current domain/profile foundation.
-- KAN-16 adds a pure TypeScript VAT domain foundation only: `CompanyVatProfile`, `VatFactsInput`, `VatTreatment`, supporting VAT types, profile validation/invariants, and domain representation tests.
-- `npm run test:domain` includes the VAT domain test script.
-- No broader VAT V2 runtime integration exists yet. VAT V1 booking, SIE, correction, VAT report, Kontoplan, `resultEngine`, RLS/grants, and live data remain unchanged by KAN-16/KAN-17A/KAN-17B/KAN-17C except that the existing P1 compatibility helper and the close-period P2/P3 predicates now delegate to the central classifier via KAN-17A wrappers.
-- KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, `To Do`; contains the approved target architecture, open questions, implementation order, and safety boundaries.
-- KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, `To Do`; recon/master design complete.
-- VAT V2 implementation children under KAN-14:
-  - KAN-16 `VAT V2-1 - Domain/profile model` - implemented.
-  - KAN-17 `VAT V2-2 - Central VAT account roles` - KAN-17A foundation, KAN-17B P1 compatibility-helper migration, and KAN-17C close P2/P3 migration implemented/live-applied/verified; KAN-17 final checkpoint/Jira remains pending.
-  - KAN-18 `VAT V2-3 - VAT treatment decision engine`
-  - KAN-19 `VAT V2-4 - VAT-aware booking RPC`
-  - KAN-20 `VAT V2-5 - VAT report V2 fields`
-  - KAN-21 `VAT V2-6 - Close / integrity / SIE / corrections`
-  - KAN-22 `VAT V2-7 - UX fact capture`
-  - KAN-23 `VAT V2-8 - Full VAT V1 + VAT V2 regression`
+- KAN-18 `VAT V2-3 - VAT treatment decision engine` is implemented locally and ready for final checkpoint approval.
+- KAN-18 is pure TypeScript/domain work only: `VatFactsInput -> VatTreatment` via a typed ready/blocked decision result.
+- KAN-18 extends the facts contract with `companyProfile`, explicit `calculationRate`, and transaction-level `deductionEntitlement`.
+- KAN-18 keeps `calculationRate` as an input fact, not the whole VAT treatment.
+- KAN-18 returns `treatment: null` for blocked decisions.
+- KAN-18 blocks unknown/material facts when they can change VAT treatment and blocks unsupported first-slice scenarios rather than guessing.
+- Implemented first-slice ready paths:
+  - domestic taxable sale
+  - domestic deductible purchase with full deduction and supplier-charged VAT
+  - EU service reverse charge with no deduction
+  - EU service reverse charge with full deduction
+- Verified blocked/unsupported paths include unknown rate/countries/supplier VAT/deduction/profile facts, invalid profile invariants, invalid amounts, partial deduction, supplier-charged foreign VAT, domestic no-deduction purchase, non-Swedish sale, and domestic purchase without supplier-charged VAT.
+- `npm run test:domain` now includes `scripts/test-vat-treatment-decision.ts`.
 
-## Locked VAT V1 Baseline
+## KAN-18 Verification
 
-- VAT V1 remains the locked regression baseline.
-- Core flow verified earlier: bookkeeping -> VAT report -> open VAT period -> close -> `vat_closing` system verification -> closed -> declare -> declared.
-- Existing VAT architecture, period protection, concurrency design, close/declare semantics, SIE guards, corrections, system transactions, and open -> closed -> declared state machine must be preserved unless a concrete verified VAT V2 requirement justifies a controlled change.
-- Current V1 close scope is exact `261x`, `262x`, `263x`, and `2641`; `265x` activity blocks normal auto-close/manual review but is not included in `closing_amount`.
-- Current V1 `declare_vat_period_atomic` is state-neutral and should remain unchanged unless VAT V2 implementation evidence requires otherwise.
+- `npm run test:domain`: PASS.
+- `npm run typecheck`: PASS.
+- Targeted lint for touched KAN-18 files: PASS.
+- `git diff --check`: PASS with Git line-ending warnings only for edited tracked files.
+- `npm run test:regression`: PASS. The E2E portion contains public authentication UI smoke tests only and did not perform authenticated bookkeeping writes.
 
-## Approved VAT V2 Target Architecture
+## Preserved Boundaries
 
-- VAT V2 will be an explicit VAT domain above existing journal/RPC integrity.
-- Approved pipeline: transaction/company facts -> VAT treatment decision -> `VatTreatment` -> journal plan -> safe RPC -> journal -> VAT report.
-- VAT V2 is treatment-first, not account-first; `vat_rate` must not be overloaded into the whole VAT treatment.
-- Preserve VAD / HUR / MOMS separation:
-  - VAD = accounting event/category/treatment.
-  - HUR = journal/payment/settlement mechanics.
-  - MOMS = VAT treatment/reporting consequences.
-- VAT V2 owns MOMS. KAN-9 may later provide domain facts but must not choose VAT accounts, choose VAT return boxes, or implement a parallel VAT engine.
-- Current `vat_status = registered | not_registered | unknown` is too coarse for VAT V2 and will be replaced or reworked by KAN-16.
-- Future profile/domain model must separate domestic sales VAT treatment, VAT registration status, foreign-purchase reporting obligation, VAT period type, VAT reporting start, and deduction context.
-- Output VAT obligation and deductible input VAT are independent. Company-level deduction context is only a default/context; transaction-level `VatTreatment` must decide deduction when facts require it.
-- Journal remains accounting truth. VAT decision and journalization are separate steps.
-- VAT report direction is hybrid: native VAT V2 transactions use typed VAT decision/report metadata; legacy/imported/SIE cases use account-role/journal fallback. Treatment metadata and journal must reconcile; silent drift is not acceptable.
-- Central DB-safe VAT account roles should replace scattered prefix logic such as `261%`, `262%`, `263%`, `2641`, `265%` over time, and be reusable by booking, report, concurrency, close, SIE, corrections, integrity guards, and system-account knowledge.
-- KAN-17A establishes the central DB-safe VAT account role foundation as capability-based semantics, not one generic `isVatAccount` boolean.
-- Reuse existing `vat_periods` lifecycle `open -> closed -> declared`; do not create a parallel VAT V2 period system.
-- Reuse the existing VAT month lock architecture and order: VAT month advisory locks -> other advisory locks -> row locks -> reads/writes. No separate foreign-VAT lock architecture.
-- `resultEngine` remains truth for result/NE; VAT V2 must not duplicate result/NE classification.
-- Unknown is first-class. Unknown must not silently mean Sweden, no deduction, no VAT, domestic, or business use. Booking blocks when an unknown fact can change VAT treatment.
-- VAT V2 should persist minimal audit metadata: treatment code, rule version, relevant source facts/evidence, tax base, rate, output amount/report field, deduction treatment/amount/report field.
-- VAT rules should be typed/time-aware with effective dates or equivalent. No runtime web scraping.
+- No BAS account mapping.
+- No journal/debit/credit plan.
+- No DB, RPC, Supabase, migration, or live data change.
+- No frontend/runtime integration.
+- No K1/NE implementation.
+- No partial deduction formula or percent implementation.
+- No import VAT implementation.
+- No historical Adobe correction behavior.
+- No partial first VAT period implementation.
 
-## KAN-16 Domain Foundation
+## Active VAT V2 Context
 
-- `CompanyVatProfile` separates domestic sales VAT treatment, VAT registration status, foreign-purchase reporting obligation, VAT period type/reporting start, and deduction context.
-- Unknown is explicit and first-class; it is not equivalent to no, false, `not_registered`, or `not_required`.
-- `domesticSalesVatTreatment = small_business_exempt` may validly coexist with `vatRegistrationStatus = registered` and `foreignPurchaseReporting = required`.
-- Company-level `defaultDeductionEntitlement` is context/default only and must not decide transaction-level deduction.
-- `defaultDeductionPercent` is valid only for `partial`, required for `partial`, finite, and 0-100 inclusive.
-- `VatFactsInput` is the future facts boundary and distinguishes known country, unknown country, and not-applicable country.
-- `VatTreatment` is currently representational only: not a treatment decision engine, runtime validator, journal plan, account mapping, or RPC payload.
-- `VatTreatment` can represent output VAT and deductible input VAT independently, including the verified EU service case with output VAT 57 on base 228 and zero deductible input VAT.
-- No BAS account mappings, journal mappings, or treatment decision rules were implemented.
-
-## KAN-17A Central VAT Account Classification
-
-- Migration file: `supabase/migrations/20260925_add_vat_account_classification.sql`
-- Live Supabase migration: `20260925050113 / 20260925_add_vat_account_classification`
-- Approved migration SHA-256: `1B795514BC5CAA42394EB95958F806B8CB4CAD0623030F21AA133E16967C98AF`
-- Live functions:
-  - `public.vat_account_classification(text)`
-  - `public.vat_account_is_period_guard_relevant(text)`
-  - `public.vat_account_is_close_balance_participant(text)`
-  - `public.vat_account_requires_close_manual_review(text)`
-- All four live functions are `LANGUAGE sql`, `IMMUTABLE`, `PARALLEL SAFE`, with `search_path=public`.
-- `PUBLIC`, `authenticated`, and `anon` have no `EXECUTE` privilege on all four functions.
-- P1, VAT period guard/concurrency relevance: `261%`, `262%`, `263%`, exact `2641`, `265%`.
-- P2, VAT close balance participation: `261%`, `262%`, `263%`, exact `2641`.
-- P3, VAT close manual-review relevance: `265%`.
-- `265x` is period-guard/concurrency relevant and manual-review relevant, but is not a close-balance participant.
-- Other `264x` accounts are not part of P1, P2, or P3.
-- Live SELECT-only equivalence verification:
-  - P1: `0` mismatches across 29 candidate cases.
-  - P2: `0` mismatches across 29 candidate cases.
-  - P3: `0` mismatches across 29 candidate cases.
-  - wrappers vs central classifier: `0` mismatches.
-- Edge behavior preserved as V1 predicate equivalence, not BAS validation:
-  - `NULL` -> `NULL` capabilities.
-  - `''`, `26`, `26410`, `vat` -> false capabilities.
-  - `261`, `26100`, `261ABC` -> period guard true, close balance true, manual review false.
-  - `265`, `265ABC` -> period guard true, close balance false, manual review true.
-- Existing `public.vat_concurrency_account(text)` pre/post hash: `fa2a0b9929cdcf3545f0a5848a216a16`; unchanged.
-- Existing `public.close_vat_period_atomic(uuid)` pre/post hash: `d507fe3b15a63caeec7a79907301ef72`; unchanged.
-- KAN-17A initially switched no runtime consumers. KAN-17B later made `public.vat_concurrency_account(text)` delegate to the KAN-17A P1 wrapper.
-- No booking, close, SIE, correction, report, `not_registered`, or VAT V1 runtime behavior changed.
-- Pre/post checks found no changes to `transactions`, `journal_entries`, `vat_periods`, or `accounts`.
-- No persistent `kan17a` test table exists.
-- Exact SQL rollback candidate was not executed against live because the environment safety review rejected re-running DDL against the live database even inside `BEGIN`/`ROLLBACK`.
-- That safety boundary was respected and no workaround was attempted.
-- The candidate SQL remains as a reusable regression artifact: `supabase/tests/kan17a_vat_account_classification_candidate.sql`.
-
-## KAN-17B P1 Compatibility Helper Migration
-
-- Migration file: `supabase/migrations/20260925_delegate_vat_concurrency_account.sql`
-- Regression candidate: `supabase/tests/kan17b_vat_concurrency_account_delegate_candidate.sql`
-- Live Supabase migration: `20260925070346 / 20260925_delegate_vat_concurrency_account`
-- Approved migration SHA-256: `2655CC21F7FBCBDDAD9F7E3D659B2D98EDE52492B7DBA7FDD606FB92C1D77161`
-- `public.vat_concurrency_account(text)` keeps the same compatibility API and now delegates to `public.vat_account_is_period_guard_relevant(p_account_number)`, which delegates to `public.vat_account_classification(text)`.
-- `public.vat_concurrency_account(text)` pre-KAN-17B definition MD5: `fa2a0b9929cdcf3545f0a5848a216a16`.
-- `public.vat_concurrency_account(text)` post-KAN-17B definition MD5: `4d3d61716ba50da100dc00b30f698fd1`.
-- Post-migration helper properties preserved: exact signature, `RETURNS boolean`, `LANGUAGE sql`, `IMMUTABLE`, `PARALLEL SAFE`, `SECURITY INVOKER`, owner `postgres`, `search_path=public`, grants to `postgres`/`service_role` only, no direct `PUBLIC`/`anon`/`authenticated` execute.
-- Live SELECT-only P1 equivalence verification: `0` mismatches across 29 candidate cases comparing legacy P1 expression, `vat_concurrency_account()`, `vat_account_is_period_guard_relevant()`, and classifier P1 output.
-- Edge behavior preserved as V1 textual predicate semantics, not BAS validation:
-  - `NULL` -> `NULL`.
-  - `261`, `26100`, `261ABC` -> true.
-  - `2641` -> true.
-  - `26410` -> false.
-  - `265`, `265ABC` -> true.
-- Five existing P1 consumer definitions remained unchanged pre/post and continue to reference the compatibility helper rather than the new classifier/wrapper directly:
-  - `book_transaction_atomic(jsonb)`: `6f5c28e028dcb1b85e4abd536920ec3f`
-  - `book_periodized_transaction_atomic(jsonb)`: `2eb89766b3fcf87356c73a835e80e990`
-  - `create_correction_transaction_atomic(uuid)`: `a2687da8b382da522075b33caa76d1dc`
-  - `import_sie_batch(jsonb)`: `13ce699a75462ce1e97cc52755a79376`
-  - `undo_sie_import_atomic(uuid)`: `e756ca3e69317ede4045ee7b3ba42266`
-- `close_vat_period_atomic(uuid)` remained unchanged pre/post at `d507fe3b15a63caeec7a79907301ef72`.
-- P2 remains embedded in close as `261%`, `262%`, `263%`, exact `2641`; P3 remains embedded as `265%`. KAN-17B did not centralize P2 or P3.
-- No-data-effect verification matched pre/post for this migration snapshot only:
-  - `accounts`: 88 rows, fingerprint `ae1da746ca2e02cb170a53d26f42c0b2`
-  - `journal_entries`: 431 rows, fingerprint `272eb960450c47bf38094b598415561c`
-  - `transactions`: 160 rows, fingerprint `5e629291a8c930b54fb0c0fdae2be1eb`
-  - `vat_periods`: 3 rows, fingerprint `ca9444ba5b258555a482f6d864a24726`
-- The KAN-17B regression candidate was not executed against live because it replays DDL and is intended only for isolated/local/staging PostgreSQL. Live verification used SELECT-only equivalence plus definition/data identity checks.
-- KAN-17B preserves existing P1 lock-selection behavior by unchanged consumers and exact P1 equivalence. It does not empirically prove true two-session concurrency; that broader verification gap remains open.
-
-## KAN-17C Close P2/P3 Classification Migration
-
-- Migration file: `supabase/migrations/20260925124023_delegate_vat_close_account_classification.sql`
-- Regression candidate: `supabase/tests/kan17c_vat_close_account_classification_candidate.sql`
-- Canonical migration version: `20260925124023`
-- Live Supabase migration history: `20260925124023 / delegate_vat_close_account_classification`
-- Approved migration SHA-256: `3CD7C688BA94BDF23B86D4E5C0605CB8980324276CDFB059FDE88BC66795A78F`
-- `public.close_vat_period_atomic(uuid)` now delegates P2 close-balance participation to `public.vat_account_is_close_balance_participant(text)` and P3 close manual-review relevance to `public.vat_account_requires_close_manual_review(text)`.
-- Literal settlement account `2650` remains the VAT settlement row account and was not converted into a P3/manual-review predicate.
-- Verified live `public.close_vat_period_atomic(uuid)` post-KAN-17C definition MD5: `2d6b28875af07a7cd127e0cef06e9b78`.
-- Production-derived local regression verification passed against a restored POST-KAN-17B / PRE-KAN-17C schema. The unchanged rollback candidate covered wrapper equivalence, edge account-number behavior, NULL semantics, close scenarios, blocker behavior, settlement account behavior, balance correctness, and privilege assertions.
-- KAN-17C was applied live with explicit approval. Supabase migration history was later reconciled with the supported migration repair mechanism; repair marked only version `20260925124023` as applied and did not rerun KAN-17C SQL.
-- Post-repair schema fingerprints remained unchanged for `close_vat_period_atomic(uuid)`, `vat_concurrency_account(text)`, `book_transaction_atomic(jsonb)`, `book_periodized_transaction_atomic(jsonb)`, `create_correction_transaction_atomic(uuid)`, `import_sie_batch(jsonb)`, and `undo_sie_import_atomic(uuid)`.
-- No business-data DML occurred during migration-history repair.
-- KAN-17A and KAN-17B are frozen historical migrations. Their older short-date local filename/history comparison oddity must not be repaired or renamed as part of KAN-17C.
-- KAN-17C preserves the existing VAT lock architecture and P1 path but does not empirically prove true two-session concurrency behavior.
-
-## VAT V2 Reference Case
-
-- Jessika reference/regression case:
-  - Swedish sole trader.
-  - Domestic sales: small-business VAT exempt.
-  - VAT registration: yes, because of relevant foreign service purchases.
-  - Foreign purchase reporting: required.
-  - Future EU digital-service invoice: supplier VAT absent where correct reverse charge applies.
-  - Swedish calculated output VAT: yes.
-  - Input VAT deduction: none in the verified reference situation.
-  - VAT report: EU service acquisition base + calculated output VAT, no deductible input VAT field.
-- Adobe Ireland is a real reference fixture, not a hardcoded accounting rule.
+- KAN-14 `VAT V2 - Utlandshandel / utländska inköp`: Epic, current Jira status `To Do`.
+- KAN-15 `VAT V2 recon/design: utländska inköp och utlandsmoms`: Story under KAN-14, recon/master design complete.
+- KAN-16 `VAT V2-1 - Domain/profile model`: implemented and remains KAN-18's domain/profile foundation.
+- KAN-17 `VAT V2-2 - Central VAT account roles`: foundation completed/frozen through KAN-17C; do not reopen unless new evidence proves incompatibility.
+- KAN-18 `VAT V2-3 - VAT treatment decision engine`: implemented locally, final checkpoint pending explicit approval.
 
 ## Open VAT V2 Questions
 
-- OPEN / EXTERNAL ACCOUNTING VERIFICATION REQUIRED: exact journal treatment for self-calculated reverse-charge VAT with no deduction. Exact Swedish BAS/accounting treatment, cost/acquisition-value handling, K1/NE implications, and account mappings are not approved.
-- OPEN / EXTERNAL VERIFICATION REQUIRED: initial/partial VAT period when `vatReportingFrom` occurs inside a normal month/quarter/year period. Current VAT V1 `ensure_vat_periods` skips partial initial periods; do not change this until reporting-period semantics are verified.
-- OPEN / EXTERNAL VERIFICATION REQUIRED: historical Adobe Ireland invoices with supplier-charged 25% VAT. Historical tax base, reverse-charge calculation, journal correction, credit note/refund handling, and VAT return correction remain unresolved.
-
-## Migration / Data Compatibility
-
-- Current users/data are development/test data. Full backward compatibility with today's test data is not an absolute requirement.
-- A clean domain migration or later reset may be recommended if it gives better long-term architecture.
-- No reset, destructive migration, user-data deletion, or data rewrite is approved.
-- Before any future destructive operation, make a separately verified backup/export plan against actual live tables/storage. SIE export alone must not be assumed to restore all SoloLedger metadata.
+- EXTERNAL ACCOUNTING VERIFICATION REQUIRED: exact journal treatment for self-calculated reverse-charge VAT with no deduction, including BAS/account mapping, cost/acquisition-value handling, and K1/NE implications.
+- EXTERNAL VERIFICATION REQUIRED: initial/partial VAT period when `vatReportingFrom` occurs inside a normal month/quarter/year period.
+- EXTERNAL VERIFICATION REQUIRED: historical Adobe Ireland invoices with supplier-charged 25% VAT, including tax base, reverse-charge calculation, correction/refund handling, and VAT return correction.
 
 ## Implementation Order
 
 1. KAN-16 VAT V2-1 - Domain/profile model - implemented.
-2. KAN-17 VAT V2-2 - Central VAT account roles.
-   - KAN-17A central VAT account classification foundation - implemented, live-applied, SELECT-equivalence verified.
-   - KAN-17B P1 compatibility-helper consumer migration - implemented, live-applied, SELECT-equivalence verified.
-   - KAN-17C close P2/P3 consumer migration - implemented, production-derived local regression verified, live-applied, and migration-history reconciled.
-3. KAN-18 VAT V2-3 - VAT treatment decision engine.
-4. Stable facts -> treatment VAT boundary exists.
-5. KAN-9 MASTER RECON can run after KAN-16 through KAN-18; KAN-9 does not need to wait for full VAT V2.
-6. KAN-19 VAT-aware booking RPC.
-7. KAN-20 VAT report V2 fields.
-8. KAN-21 Close / integrity / SIE / corrections.
-9. KAN-22 UX fact capture.
-10. KAN-23 Full VAT V1 + VAT V2 regression.
-
-## Deferred / Future Ideas
-
-- KAN-5/KAN-6 remain `In Review`: their SIE VAT guards have strong implementation/rollback verification, but remaining empirical isolated/two-session/SIE verification has not been completed to the same level as the Production Close/Declare flow. They are not blockers for moving on from VAT V1/VAT V2 planning.
-- Known non-blocking/deferred items: full isolated staging E2E coverage; payment/refund flow after VAT close; 1630/tax-account handling; correction/reopen/undeclare flow for already declared VAT; empirical two-session concurrency coverage where previously documented.
-- Future KAN-9-adjacent recon area: invoice/receivable/year-end handling for issued customer invoices, payments, and unpaid receivables under the cash/bokslutsmetod. Treat as identified need/recon area, not an implementation claim.
+2. KAN-17 VAT V2-2 - Central VAT account roles - implemented/frozen through KAN-17C.
+3. KAN-18 VAT V2-3 - VAT treatment decision engine - implemented locally; final checkpoint/Jira finalization pending approval.
+4. KAN-9 MASTER RECON can run after KAN-16 through KAN-18 if Pontus selects it.
+5. KAN-19 VAT-aware booking RPC.
+6. KAN-20 VAT report V2 fields.
+7. KAN-21 Close / integrity / SIE / corrections.
+8. KAN-22 UX fact capture.
+9. KAN-23 Full VAT V1 + VAT V2 regression.
 
 ## Next Safe Step
 
-- KAN-17C local finalization is in progress: commit set should include the canonical KAN-17C migration, the KAN-17C regression candidate, and this project-state update.
-- Before committing, verify the migration hash, candidate include path, `git diff --check`, and `npm run test:domain`.
-- After commit/push/Jira finalization is explicitly approved and completed, the next engineering step can move to the next selected VAT V2 task; do not start KAN-18, KAN-9, deploys, or new DB writes before Pontus selects the next task.
+- Wait for Pontus approval before staging, committing, pushing, or writing Jira.
+- Proposed commit message: `KAN-18 add VAT treatment decision engine`
+- If approved after commit/push: move Jira KAN-18 to `In Review`, assign to Pontus, and add the prepared verification/comment summary. Do not set `Done`.
