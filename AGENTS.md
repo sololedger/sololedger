@@ -124,6 +124,7 @@ When changing DB behavior:
 - Keep migrations small and focused.
 - Do not rewrite old applied migrations just to make them match current function bodies.
 - Do not assume the baseline is a fresh-install migration.
+- Supabase MCP `apply_migration` accepts a migration name and SQL but generates the live migration version separately. For committed timestamped repo migrations, use an official workflow that preserves or repairs repo/live migration identity; do not assume MCP `apply_migration` records the filename timestamp as the applied version.
 
 ## Accounting Rules
 
