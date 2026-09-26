@@ -7,68 +7,58 @@ Last updated: 2026-09-26
 - Worktree: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Git remote/origin verified as `https://github.com/sololedger/sololedger.git`
-- Checkpoint base for KAN-19 Slice 2 verified: `HEAD == origin/main == 6d2ebd9034aba49877c3a58e352f67389e24b4e4`
-- Latest committed subject: `KAN-19 add initial VAT journal plan`
-- Slice 1 checkpoint is committed and pushed at `6d2ebd9034aba49877c3a58e352f67389e24b4e4`.
-- Working tree is intentionally dirty for KAN-19 Slice 2 checkpoint proposal only.
-- Dirty/untracked implementation files expected for Slice 2:
-  - `package.json`
-  - `scripts/test-vat-audit-snapshot.ts`
-  - `src/lib/vatAuditSnapshot.ts`
-- Dirty documentation files expected for checkpoint finalization:
-  - `PROJECT_STATE.md`
+- Current checkpoint base verified: `HEAD == origin/main == 7039ea4e3ee4385e3dce56b91e0bb0749dd37d77`
+- Latest committed subject: `KAN-19 add VAT audit snapshot contract`
+- KAN-19 Slice 1 checkpoint: `6d2ebd9034aba49877c3a58e352f67389e24b4e4`
+- KAN-19 Slice 2 checkpoint: `7039ea4e3ee4385e3dce56b91e0bb0749dd37d77`
+- Working tree is intentionally dirty only for the exact-2645 classification checkpoint proposal.
 
 ## External Connections
 
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
-- Jira statuses previously verified: `To Do` (`10004`), `In Progress` (`10005`), `In Review` (`10006`), `Done` (`10007`)
-- Jira current user previously verified as Pontus Åkerhage `712020:01a218e5-6b15-4692-8096-c26687dca3f8`.
-- Jira KAN-15 verified 2026-09-26: Story, status `Done`.
-- Jira KAN-18 verified 2026-09-26: Story, status `Done`, assignee Pontus Åkerhage.
 - Jira KAN-19 verified 2026-09-26: Story, status `In Progress`, assignee empty.
-- No live Supabase access was used for KAN-19 Slice 1 or Slice 2 implementation/checkpoint prep.
+- Live Supabase read-only verification 2026-09-26 confirms `2645` is still P1=false, P2=false, P3=false.
 
 ## Current Objective
 
-- KAN-19 `VAT V2-4 - VAT-aware booking RPC` is active/in progress, not complete.
-- Slice 1 JournalPlan checkpoint is committed and pushed.
-- Slice 2 audit snapshot contract is implemented locally and final-reviewed: `KAN-19 SLICE 2 FINAL REVIEW PASSED`.
-- Slice 2 builds a pure pre-persistence VAT audit snapshot from `VatTreatment + VatJournalPlan`.
-- Supported boundary remains intentionally narrow:
-  - `EU_SERVICE_REVERSE_CHARGE`
-  - `calculationRate = 25`
-  - `deductionEntitlement = full`
-- Snapshot creation independently validates treatment evidence against journal rows and reconciliation.
-- Verified Slice 2 account semantics:
-  - `4535` debit acquisition base
-  - `2645` debit deductible calculated input VAT
-  - `2614` credit calculated output VAT
-  - variable valid payment/payable account credited for the acquisition base
-- All other VAT V2 audit snapshot paths remain blocked. Next KAN-19 work must not silently broaden this boundary.
+- KAN-19 `VAT V2-4 - VAT-aware booking RPC` remains active/in progress, not complete.
+- Exact-2645 VAT account-classification prerequisite slice is implemented locally and final-reviewed: `KAN-19 2645 FINAL REVIEW PASSED`.
+- This checkpoint freezes only the local migration candidate and rollback regression test.
+- Candidate semantics for exact `2645`:
+  - P1 period guard/concurrency: true
+  - P2 VAT close balance participant: true
+  - P3 close manual review: false
+- Preserved semantics: 261x/262x/263x unchanged, exact `2641` unchanged, 265x unchanged, and other 264x remain outside (`2640`, `2646`, `26410`, `26450` false/false/false).
+- Migration has not been applied live.
+
+## Proposed Checkpoint Files
+
+- `supabase/migrations/20260926132107_add_2645_vat_account_classification.sql`
+- `supabase/tests/kan19_2645_vat_account_classification_candidate.sql`
+- `PROJECT_STATE.md`
 
 ## KAN-19 Verification
 
-- Slice 1 read-only review verdict: `FIRST KAN-19 SLICE REVIEW PASSED`.
-- Slice 2 final read-only review verdict: `KAN-19 SLICE 2 FINAL REVIEW PASSED`.
-- Slice 2 checks passed during checkpoint prep:
-  - `node scripts/test-vat-audit-snapshot.ts`
-  - `npm run test:domain`
-  - `npm run typecheck`
-  - `npx eslint src/lib/vatAuditSnapshot.ts scripts/test-vat-audit-snapshot.ts`
-  - `git diff --check`
-- `npm run test:domain` includes the Slice 1 JournalPlan tests and the Slice 2 audit snapshot tests.
+- Final read-only review verdict: `KAN-19 2645 FINAL REVIEW PASSED`.
+- Production-derived local rollback regression passed for the exact-2645 candidate.
+- Current KAN-17C close-classification rollback regression passed.
+- Reverse-charge close proof passed: `Dr 4535 228`, `Dr 2645 57`, `Cr 2614 57`, `Cr payment/payable 228` results in `2614=0`, `2645=0`, `2650=0`, `closing_amount=0`.
+- Representative VAT V1 `2611`/`2641` close regression passed.
+- Zero-activity close remains unchanged.
+- `imported_history` close behavior remains unchanged.
+- Local post-test classifier restored to pre-candidate state: `2645` P1=false, P2=false, P3=false.
+- No persistent synthetic rows remained in the checked rollback fixture windows.
+- True two-session concurrency has not been empirically proven.
+- Historical KAN-17A/KAN-17B candidate tests were independently reviewed and confirmed stale because KAN-17B/KAN-17C intentionally superseded their embedded assertions; they are not current architecture gates.
 
 ## Preserved Boundaries
 
-- No DB persistence exists yet for KAN-19.
-- No RPC/runtime integration exists yet for KAN-19.
-- No live Supabase change exists for KAN-19.
-- No migration, booking RPC change, accountingService change, VAT report change, VAT classification change, correction-flow change, or UI wiring.
-- No-deduction remains blocked pending account/allocation decision.
-- Partial deduction remains blocked.
-- EU goods, non-EU services, and imports remain blocked.
-- Domestic VAT V1 behavior is not routed through the KAN-19 JournalPlan or audit snapshot slices.
+- No runtime/RPC booking integration exists yet for VAT V2.
+- No VAT report V2 implementation exists yet.
+- No VAT audit persistence implementation exists yet.
+- No live Supabase migration apply, live DB object/data modification, deployment, commit, push, or Jira write has been performed for this checkpoint.
+- Approval to commit or push this checkpoint must not be interpreted as approval to apply the migration live.
 
 ## Active VAT V2 Context
 
@@ -77,32 +67,18 @@ Last updated: 2026-09-26
 - KAN-16 `VAT V2-1 - Domain/profile model`: implemented and remains the domain/profile foundation.
 - KAN-17 `VAT V2-2 - Central VAT account roles`: foundation completed/frozen through KAN-17C; do not reopen unless new evidence proves incompatibility.
 - KAN-18 `VAT V2-3 - VAT treatment decision engine`: Done.
-- KAN-19 `VAT V2-4 - VAT-aware booking RPC`: active/in progress; Slice 2 audit snapshot checkpoint pending approval.
+- KAN-19 `VAT V2-4 - VAT-aware booking RPC`: active/in progress; exact-2645 classification checkpoint pending approval.
 
 ## Open VAT V2 Questions
 
-- Live/current VAT classification still treats account `2645` as P1 false, P2 false, P3 false.
-- Before VAT V2 can be written through runtime/RPC, the `2645` classification question must be solved and regression-tested.
-- Do not imply that P1/P2 changes are already approved, and do not claim `2645` belongs to P1/P2 until that future slice has been designed and verified.
 - EXTERNAL ACCOUNTING VERIFICATION REQUIRED: exact journal treatment for self-calculated reverse-charge VAT with no deduction, including BAS/account mapping, cost/acquisition-value handling, and K1/NE implications.
 - EXTERNAL VERIFICATION REQUIRED: initial/partial VAT period when `vatReportingFrom` occurs inside a normal month/quarter/year period.
 - EXTERNAL VERIFICATION REQUIRED: historical Adobe Ireland invoices with supplier-charged 25% VAT, including tax base, reverse-charge calculation, correction/refund handling, and VAT return correction.
 
-## Implementation Order
-
-1. KAN-16 VAT V2-1 - Domain/profile model - implemented.
-2. KAN-17 VAT V2-2 - Central VAT account roles - implemented/frozen through KAN-17C.
-3. KAN-18 VAT V2-3 - VAT treatment decision engine - Done.
-4. KAN-19 VAT V2-4 - VAT-aware booking RPC - active; Slice 2 audit snapshot checkpoint pending approval.
-5. KAN-20 VAT report V2 fields.
-6. KAN-21 Close / integrity / SIE / corrections.
-7. KAN-22 UX fact capture.
-8. KAN-23 Full VAT V1 + VAT V2 regression.
-
 ## Next Safe Step
 
-- Wait for Pontus approval before staging, committing, pushing, or writing Jira.
-- Proposed commit message: `KAN-19 add VAT audit snapshot contract`
-- If approved, commit exactly the proposed KAN-19 Slice 2 files and minimal checkpoint documentation, then push only if Pontus explicitly approves push too.
-- Do not move KAN-19 to `In Review` or `Done` for this partial checkpoint.
-- Do not start another KAN-19 slice until Pontus explicitly approves it.
+- Wait for Pontus approval before staging, committing, pushing, writing Jira, or applying any live migration.
+- Proposed commit message: `KAN-19 classify 2645 for VAT guard and close`
+- If approved to commit, commit exactly the proposed checkpoint files.
+- Push only if Pontus explicitly approves push.
+- Live migration apply remains a separate future approval decision.
