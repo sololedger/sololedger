@@ -101,6 +101,8 @@ Do not expose secrets from `.env` or any other local secret source.
 
 `package-lock.json` should be changed only as the result of an intentional dependency/install change.
 
+Supabase CLI may create or recreate `supabase/.temp/`. In the verified SoloLedger case it contained generated CLI state files `cli-latest` and `linked-project.json`. That generated directory alone is not a source-code working-tree failure, but before ignoring or removing it, inspect only filenames/metadata/status and verify it contains no project source or migration changes. Never read or display credential/secret contents, and do not add generated `.temp` state to Git merely to make status clean.
+
 ## Database And Supabase Rules
 
 Central bookkeeping writes should remain server-side/database-side through RPCs, not recreated as multi-step client writes.
@@ -125,6 +127,8 @@ When changing DB behavior:
 - Do not rewrite old applied migrations just to make them match current function bodies.
 - Do not assume the baseline is a fresh-install migration.
 - Supabase MCP `apply_migration` accepts a migration name and SQL but generates the live migration version separately. For committed timestamped repo migrations, use an official workflow that preserves or repairs repo/live migration identity; do not assume MCP `apply_migration` records the filename timestamp as the applied version.
+- Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters. The preferred flow is: local migration -> isolated local DB verification -> review/checkpoint -> official Supabase CLI apply preserving the same version -> verify that exact version live.
+- Do not use migration repair casually. If migration history is inconsistent, diagnose the repo migration versions, remote `supabase_migrations` ledger, and stored migration SQL first; never use `--include-all` or execute historical migrations against production merely to make history align.
 
 ## Accounting Rules
 
@@ -156,6 +160,9 @@ When changing DB behavior:
 - Never run automated destructive/write E2E against ordinary/live Supabase or real user data.
 - Test credentials and auth storage must stay out of Git, `AGENTS.md`, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, and Jira.
 - Public/read-only Playwright smoke tests may run without a dedicated Supabase test project. Authenticated/write tests require a verified test environment first.
+- PostgreSQL 17 client may be available at `C:\Program Files\PostgreSQL\17\bin\psql.exe` even when `psql` is not on PATH. Reuse the existing isolated SoloLedger local PostgreSQL test environment when appropriate instead of recreating it unnecessarily.
+- Never read, display, copy, or hash pgpass contents. Use `PGPASSFILE` only as process/session-local test configuration.
+- The production-derived local PostgreSQL database strategy remains the preferred safe DB/RPC regression environment when live data writes are not approved.
 
 ## Jira Workflow
 
