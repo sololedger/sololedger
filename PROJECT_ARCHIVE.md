@@ -6,6 +6,18 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-18 VAT Treatment Decision Engine
+
+- KAN-18 `VAT V2-3 - VAT treatment decision engine` is Done in Jira as of read-only verification on 2026-09-26.
+- KAN-18 added pure TypeScript/domain work only: `VatFactsInput -> VatTreatment` through a typed ready/blocked decision result.
+- KAN-18 extended the facts contract with `companyProfile`, explicit `calculationRate`, and transaction-level `deductionEntitlement`.
+- KAN-18 kept `calculationRate` as an input fact, not the whole VAT treatment, and returned `treatment: null` for blocked decisions.
+- KAN-18 blocked unknown/material facts when they can change VAT treatment and blocked unsupported first-slice scenarios rather than guessing.
+- Implemented first-slice ready paths: domestic taxable sale, domestic deductible purchase with full deduction and supplier-charged VAT, EU service reverse charge with no deduction, and EU service reverse charge with full deduction.
+- Verified blocked/unsupported paths included unknown rate/countries/supplier VAT/deduction/profile facts, invalid profile invariants, invalid amounts, partial deduction, supplier-charged foreign VAT, domestic no-deduction purchase, non-Swedish sale, and domestic purchase without supplier-charged VAT.
+- KAN-18 final verification: `npm run test:domain`, `npm run typecheck`, targeted lint, `git diff --check`, and `npm run test:regression` passed.
+- KAN-18 preserved boundaries: no BAS account mapping, no journal/debit/credit plan, no DB/RPC/Supabase/migration/live data change, no frontend/runtime integration, no K1/NE implementation, no partial deduction formula, no import VAT implementation, and no partial first VAT period implementation.
+
 ### VAT V2 Foundation Through KAN-17
 
 - KAN-16 `VAT V2-1 - Domain/profile model` implemented the pure TypeScript VAT foundation: `CompanyVatProfile`, `VatFactsInput`, `VatTreatment`, explicit unknown states, profile validation, and representation tests.
