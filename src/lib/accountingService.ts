@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
+import type { VatTreatment } from './vatDomain'
+import { buildVatAuditSnapshot } from './vatAuditSnapshot'
+import { buildVatJournalPlan } from './vatJournalPlan'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -9,16 +12,16 @@ export async function getUserId() {
   return user.id
 }
 
-// BACKEND-SKYDD: Kastar fel om räkenskapsåret är låst (Fixad med sträng-slice för att undvika tidszonsförskjutningar)
-async function assertYearOpen(date: string) {
-  const year = parseInt(date.slice(0, 4))
-  const locked = await isYearClosed(year)
-  if (locked) {
-    throw new Error(`Räkenskapsår ${year} är låst för ändringar.`)
-  }
+interface BookTransactionInput {
+  date: string
+  description: string
+  amount: number
+  type: string
+  vat_rate?: number | null
+  file_url?: string | null
 }
 
-export async function bookTransaction(tx: any) {
+export async function bookTransaction(tx: BookTransactionInput) {
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
   // Hela den vanliga bokningen sker nu atomärt i databasen:
@@ -52,10 +55,109 @@ export async function bookTransaction(tx: any) {
   }
 }
 
+export interface BookVatV2EuServiceReverseChargeInput {
+  date: string
+  description: string
+  treatment: VatTreatment
+  paymentAccountNumber: string
+  fileUrl?: string | null
+}
+
+export interface BookVatV2EuServiceReverseChargeResult {
+  success: true
+  transactionId: string
+  verNr: number
+  vatAuditSnapshotId: string
+}
+
+export async function bookVatV2EuServiceReverseChargeTransaction(
+  input: BookVatV2EuServiceReverseChargeInput
+): Promise<BookVatV2EuServiceReverseChargeResult> {
+  await getUserId()
+
+  const journalPlanResult = buildVatJournalPlan({
+    treatment: input.treatment,
+    paymentAccountNumber: input.paymentAccountNumber,
+  })
+
+  if (journalPlanResult.status !== 'ready') {
+    throw new Error(
+      'VAT V2-bokningen stoppades före persistens: ' +
+      journalPlanResult.validation.errors.map(error => error.message).join(' ')
+    )
+  }
+
+  const auditSnapshotResult = buildVatAuditSnapshot({
+    treatment: input.treatment,
+    journalPlan: journalPlanResult.plan,
+  })
+
+  if (auditSnapshotResult.status !== 'ready') {
+    throw new Error(
+      'VAT V2-audit snapshot kunde inte skapas: ' +
+      auditSnapshotResult.validation.errors.map(error => error.message).join(' ')
+    )
+  }
+
+  const payload = {
+    date: input.date,
+    description: input.description,
+    treatment_code: input.treatment.code,
+    calculation_rate: input.treatment.calculationRate,
+    deduction_entitlement: input.treatment.deductibleInputVat.entitlement,
+    taxable_base: input.treatment.taxableBase,
+    output_vat_amount: input.treatment.outputVat.amount,
+    deductible_input_vat_amount: input.treatment.deductibleInputVat.amount,
+    acquisition_base_field: input.treatment.acquisitionBaseField ?? null,
+    output_vat_report_field: input.treatment.outputVat.reportField,
+    deductible_input_vat_report_field:
+      input.treatment.deductibleInputVat.reportField,
+    payment_account_number: input.paymentAccountNumber,
+    rule_version: input.treatment.ruleVersion,
+    facts_version: input.treatment.evidence.factsVersion,
+    file_url: input.fileUrl ?? null,
+  }
+
+  const { data, error } = await supabase.rpc(
+    'book_vat_v2_eu_service_reverse_charge_atomic',
+    { p_payload: payload }
+  )
+
+  if (error) {
+    throw new Error(
+      'VAT V2-bokningen misslyckades och rullades tillbaka: ' +
+      error.message
+    )
+  }
+
+  if (!data?.success) {
+    throw new Error('VAT V2-bokningen misslyckades av okänd anledning.')
+  }
+
+  return {
+    success: true,
+    transactionId: data.transaction_id as string,
+    verNr: Number(data.ver_nr),
+    vatAuditSnapshotId: data.vat_audit_snapshot_id as string,
+  }
+}
+
 // BACKEND-SKYDD FÖR REDIGERING:
 // All validering och själva UPDATE sker i databasen via en atomisk, server-side RPC.
 // Klienten får därför inte själv avgöra ägarskap, låsta år eller vilka fält som får ändras.
-export async function updateTransaction(txId: string, updates: any) {
+interface TransactionUpdatePayload {
+  date?: string
+  description?: string
+  amount?: number
+  type?: string
+  vat_rate?: number
+  file_url?: string | null
+}
+
+export async function updateTransaction(
+  txId: string,
+  updates: TransactionUpdatePayload
+) {
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
   const { data, error } = await supabase.rpc('update_transaction_safe', {
@@ -526,7 +628,13 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
 /**
  * Periodisering: Bokför en utgift som sträcker sig över ett nyårsskifte.
  */
-export async function bookPeriodizedTransaction(tx: any) {
+interface BookPeriodizedTransactionInput extends BookTransactionInput {
+  future_date: string
+}
+
+export async function bookPeriodizedTransaction(
+  tx: BookPeriodizedTransactionInput
+) {
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
   // Hela periodiseringen sker nu atomärt i databasen:
