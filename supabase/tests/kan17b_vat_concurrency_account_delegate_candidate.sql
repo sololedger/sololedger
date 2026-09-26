@@ -16,8 +16,8 @@
 BEGIN;
 
 -- Install the local foundations inside the rollback transaction.
-\ir ../migrations/20260925_add_vat_account_classification.sql
-\ir ../migrations/20260925_delegate_vat_concurrency_account.sql
+\ir ../migrations/20260925050113_20260925_add_vat_account_classification.sql
+\ir ../migrations/20260925070346_20260925_delegate_vat_concurrency_account.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(
   p_condition boolean,

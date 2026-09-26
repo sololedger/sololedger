@@ -20,6 +20,7 @@ Core principle: **Osäker → SoloLedger gissar inte.**
 - Before modifying an existing RPC, read the live deployed definition with `pg_get_functiondef()` and check related constraints, indexes, RLS policies, and grants when relevant.
 - The files in `supabase/migrations/` are historical migrations. Future DB changes should be new, small migration files unless the user explicitly asks for something else.
 - `supabase/baseline/` is an audit/recovery snapshot of production state. Do not run a baseline file against the current live SoloLedger project. Refresh or compare it only with explicit user intent.
+- `supabase/migration_archive/pre_20260925000000_legacy_date_only/` contains legacy SQL that was historically applied manually in Supabase SQL Editor and then saved in Git. It is not an active Supabase CLI migration chain and must not be replayed against current production.
 - If documentation, migration history, live database state, and implementation appear to disagree, do not choose a version by assumption. Report the discrepancy and verify the source of truth.
 
 ## Change Safety
@@ -126,6 +127,7 @@ When changing DB behavior:
 - Keep migrations small and focused.
 - Do not rewrite old applied migrations just to make them match current function bodies.
 - Do not assume the baseline is a fresh-install migration.
+- `supabase/migrations/20260925000000_pre_kan17_cli_baseline.sql` is the active CLI cutover/reconstruction baseline for the manually-applied legacy SQL era. It is separate from the audit/recovery snapshots in `supabase/baseline/` and must not be executed against the existing production database.
 - Supabase MCP `apply_migration` accepts a migration name and SQL but generates the live migration version separately. For committed timestamped repo migrations, use an official workflow that preserves or repairs repo/live migration identity; do not assume MCP `apply_migration` records the filename timestamp as the applied version.
 - Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters. The preferred flow is: local migration -> isolated local DB verification -> review/checkpoint -> official Supabase CLI apply preserving the same version -> verify that exact version live.
 - Do not use migration repair casually. If migration history is inconsistent, diagnose the repo migration versions, remote `supabase_migrations` ledger, and stored migration SQL first; never use `--include-all` or execute historical migrations against production merely to make history align.

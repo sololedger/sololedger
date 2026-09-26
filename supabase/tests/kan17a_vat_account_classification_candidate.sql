@@ -17,7 +17,7 @@
 BEGIN;
 
 -- Install the exact local KAN-17A candidate inside the rollback transaction.
-\ir ../migrations/20260925_add_vat_account_classification.sql
+\ir ../migrations/20260925050113_20260925_add_vat_account_classification.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(
   p_condition boolean,

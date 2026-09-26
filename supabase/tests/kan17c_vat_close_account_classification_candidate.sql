@@ -32,7 +32,7 @@ VALUES (:'test_user_id'::uuid);
 
 -- Install local foundations and the KAN-17C candidate inside the rollback
 -- transaction. This script is not for live use.
-\ir ../migrations/20260925_add_vat_account_classification.sql
+\ir ../migrations/20260925050113_20260925_add_vat_account_classification.sql
 \ir ../migrations/20260925124023_delegate_vat_close_account_classification.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(
