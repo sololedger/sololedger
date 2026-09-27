@@ -27,10 +27,34 @@ Last updated: 2026-09-27
 - KAN-19 `VAT V2-4 - VAT-aware booking RPC` persistence boundary is LIVE.
 - Exact-2645 VAT account-classification prerequisite is live and verified.
 - VAT V2 persistence migration/table/RPC/source are live.
+- KAN-19 VAT Profile Runtime slice is implemented locally and awaiting
+  checkpoint/apply review. It is not live.
 - VAT V2 UI/runtime product workflow integration is not recorded as complete here.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
   recreating the migration-history cutover.
+
+## KAN-19 VAT Profile Runtime Slice
+
+- Local candidate migration:
+  `supabase/migrations/20260927070224_add_vat_profile_runtime_fields.sql`.
+- Candidate persisted profile fields:
+  `domestic_sales_vat_treatment`, `foreign_purchase_reporting`,
+  `default_deduction_entitlement`.
+- `default_deduction_percent` is deliberately deferred; partial deduction is
+  still not persisted or exposed by this slice.
+- Existing and unconfigured profiles remain explicit `unknown` by default; no
+  VAT registration, foreign-purchase reporting, domestic sales treatment, or
+  deduction entitlement is inferred.
+- Central domain validation remains authoritative. The UI only prevents the
+  already-invalid central domain state where `foreign_purchase_reporting =
+  required` without `vat_status = registered`.
+- Migration `20260927070224` is NOT LIVE. App code that selects/saves these
+  columns must not be deployed before the migration is live.
+- No VAT V2 booking/runtime route was added by this slice.
+- Next dependency after this migration is safely handled: transaction-specific
+  VAT V2 fact collection/input modeling for the supported EU service
+  reverse-charge path.
 
 ## KAN-19 Persistence Candidate
 
@@ -77,14 +101,21 @@ Last updated: 2026-09-27
 - KAN-19 persistence final review verdict: `KAN-19 PERSISTENCE FINAL REVIEW PASSED`.
 - KAN-19 persistence final review findings: 0 CRITICAL, 0 HIGH, 0 MEDIUM, LOW = true two-session concurrency still not empirically proven.
 - Production-derived local PostgreSQL DB strategy remains the preferred safe DB/RPC regression environment.
+- Production-derived local PostgreSQL DB: `sololedger_kan17c_test`.
 - PostgreSQL 17 client exists at `C:\Program Files\PostgreSQL\17\bin\psql.exe`; `psql` not being on PATH does not mean local PostgreSQL testing is unavailable.
-- Never read/display/copy/hash pgpass contents; `PGPASSFILE` should remain process/session-local.
+- Authorized local credential file for isolated local PostgreSQL verification:
+  `C:\SoloLedger\LocalTest\pgpass.conf`.
+- Never read/display/copy/hash pgpass contents; use that file only via
+  process/session-local `PGPASSFILE`.
 
 ## Live Migration State
 
 - Live exact-2645 migration is applied as `20260926132107_add_2645_vat_account_classification.sql`.
 - Live VAT V2 persistence migration is applied as
   `20260926174535_add_vat_v2_reverse_charge_booking.sql`.
+- KAN-19 VAT Profile Runtime migration
+  `20260927070224_add_vat_profile_runtime_fields.sql` is pending/local only
+  and has not been applied live.
 - Live remote migration ledger is fully aligned with local active migrations:
   `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
   `20260926132107`, `20260926174535`.
@@ -154,7 +185,6 @@ Last updated: 2026-09-27
 
 - Do not deploy, add migrations, create real VAT V2 business transactions, or
   change Jira without explicit Pontus approval.
-- Next goal: continue KAN-19 implementation on top of the live VAT V2
-  persistence boundary. Safe verification should use schema/function inspection
-  and isolated local regressions unless Pontus explicitly approves live
-  business-data writes.
+- Next operational step: review/dry-run/apply the local-only VAT Profile Runtime
+  migration under separate approval. Do not deploy app code or start
+  transaction-fact implementation before that migration step is safely handled.

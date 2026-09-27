@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import type {
+  DeductionEntitlement,
+  DomesticSalesVatTreatment,
+  ForeignPurchaseReporting,
+} from '@/lib/vatDomain'
 
 export type AuthProfile = {
   subscription_type: string
@@ -11,6 +16,9 @@ export type AuthProfile = {
   vat_status: 'registered' | 'not_registered' | 'unknown'
   vat_period_type: 'month' | 'quarter' | 'year' | null
   vat_management_from: string | null
+  domestic_sales_vat_treatment: DomesticSalesVatTreatment
+  foreign_purchase_reporting: ForeignPurchaseReporting
+  default_deduction_entitlement: Exclude<DeductionEntitlement, 'partial'>
   role?: string
   email?: string
 } | null
@@ -43,7 +51,7 @@ async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
   const { data } = await Promise.race([
     supabase
       .from('profiles')
-      .select('subscription_type, subscription_end, company_name, org_nr, vat_status, vat_period_type, vat_management_from, role, email')
+      .select('subscription_type, subscription_end, company_name, org_nr, vat_status, vat_period_type, vat_management_from, domestic_sales_vat_treatment, foreign_purchase_reporting, default_deduction_entitlement, role, email')
       .eq('id', userId)
       .maybeSingle(),
     new Promise<any>((_, reject) =>

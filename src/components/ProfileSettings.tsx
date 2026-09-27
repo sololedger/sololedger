@@ -1,6 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react' // 🌟 Importerat useEffect för synkning
 import { supabase } from '@/lib/supabaseClient'
+import type {
+  DeductionEntitlement,
+  DomesticSalesVatTreatment,
+  ForeignPurchaseReporting,
+} from '@/lib/vatDomain'
+
+type PersistedDefaultDeductionEntitlement = Exclude<DeductionEntitlement, 'partial'>
 
 interface Props {
   user: any
@@ -27,6 +34,9 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   const [vatStatus, setVatStatus] = useState<'registered' | 'not_registered' | 'unknown'>(profile?.vat_status || 'unknown')
   const [vatPeriodType, setVatPeriodType] = useState<'month' | 'quarter' | 'year' | ''>(profile?.vat_period_type || '')
   const [vatManagementFrom, setVatManagementFrom] = useState(profile?.vat_management_from || '')
+  const [domesticSalesVatTreatment, setDomesticSalesVatTreatment] = useState<DomesticSalesVatTreatment>(profile?.domestic_sales_vat_treatment || 'unknown')
+  const [foreignPurchaseReporting, setForeignPurchaseReporting] = useState<ForeignPurchaseReporting>(profile?.foreign_purchase_reporting || 'unknown')
+  const [defaultDeductionEntitlement, setDefaultDeductionEntitlement] = useState<PersistedDefaultDeductionEntitlement>(profile?.default_deduction_entitlement || 'unknown')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -44,10 +54,16 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   const savedVatStatus = profile?.vat_status || 'unknown'
   const savedVatPeriodType = profile?.vat_period_type || ''
   const savedVatManagementFrom = profile?.vat_management_from || ''
+  const savedDomesticSalesVatTreatment = profile?.domestic_sales_vat_treatment || 'unknown'
+  const savedForeignPurchaseReporting = profile?.foreign_purchase_reporting || 'unknown'
+  const savedDefaultDeductionEntitlement = profile?.default_deduction_entitlement || 'unknown'
 
   const hasChanges =
     companyName !== (profile?.company_name || '') ||
     orgNr !== (profile?.org_nr || '') ||
+    domesticSalesVatTreatment !== savedDomesticSalesVatTreatment ||
+    foreignPurchaseReporting !== savedForeignPurchaseReporting ||
+    defaultDeductionEntitlement !== savedDefaultDeductionEntitlement ||
     vatStatus !== savedVatStatus ||
     (vatStatus === 'registered' && (
       vatPeriodType !== savedVatPeriodType ||
@@ -61,6 +77,9 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
     setVatStatus(profile?.vat_status || 'unknown')
     setVatPeriodType(profile?.vat_period_type || '')
     setVatManagementFrom(profile?.vat_management_from || '')
+    setDomesticSalesVatTreatment(profile?.domestic_sales_vat_treatment || 'unknown')
+    setForeignPurchaseReporting(profile?.foreign_purchase_reporting || 'unknown')
+    setDefaultDeductionEntitlement(profile?.default_deduction_entitlement || 'unknown')
   }, [profile])
 
   useEffect(() => {
@@ -158,6 +177,10 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
       alert('Välj hur ofta företaget redovisar moms och från vilket datum SoloLedger ska hantera momsen.')
       return
     }
+    if (vatStatus !== 'registered' && foreignPurchaseReporting === 'required') {
+      alert('Utländska inköp kan bara markeras som deklarationspliktiga när företaget är momsregistrerat.')
+      return
+    }
 
     setSaving(true)
     setSaved(false)
@@ -174,15 +197,21 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
           vat_management_from: null,
         }
 
+    const vatV2ProfileSettings = {
+      domestic_sales_vat_treatment: domesticSalesVatTreatment,
+      foreign_purchase_reporting: foreignPurchaseReporting,
+      default_deduction_entitlement: defaultDeductionEntitlement,
+    }
+
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ company_name: companyName, org_nr: orgNr, ...vatSettings })
+        .update({ company_name: companyName, org_nr: orgNr, ...vatSettings, ...vatV2ProfileSettings })
         .eq('id', user.id)
 
       if (error) throw error
 
-      onProfileUpdate({ ...profile, company_name: companyName, org_nr: orgNr, ...vatSettings })
+      onProfileUpdate({ ...profile, company_name: companyName, org_nr: orgNr, ...vatSettings, ...vatV2ProfileSettings })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -335,6 +364,9 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
                   if (value !== 'registered') {
                     setVatPeriodType('')
                     setVatManagementFrom('')
+                    if (foreignPurchaseReporting === 'required') {
+                      setForeignPurchaseReporting('unknown')
+                    }
                   }
                 }}
                 className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
@@ -374,6 +406,55 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
                 </div>
               </>
             )}
+
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Inhemsk försäljning och moms</label>
+              <p className="text-[10px] text-gray-400 font-bold mb-3">Välj hur företagets svenska försäljning normalt ska bedömas. Detta är en företagsfaktauppgift och bokar inga transaktioner.</p>
+              <select
+                value={domesticSalesVatTreatment}
+                onChange={e => setDomesticSalesVatTreatment(e.target.value as DomesticSalesVatTreatment)}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+              >
+                <option value="unknown">Inte angivet ännu</option>
+                <option value="taxable">Vanlig momspliktig försäljning</option>
+                <option value="small_business_exempt">Momsbefriad enligt småföretagarregeln</option>
+                <option value="exempt_other">Annan momsbefriad försäljning</option>
+                <option value="mixed">Blandad försäljning</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Utländska inköp i momsdeklarationen</label>
+              <p className="text-[10px] text-gray-400 font-bold mb-3">Ange bara om företaget enligt Skatteverket ska redovisa stödda utländska inköp, till exempel EU-tjänster med omvänd beskattning.</p>
+              <select
+                value={foreignPurchaseReporting}
+                onChange={e => setForeignPurchaseReporting(e.target.value as ForeignPurchaseReporting)}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+              >
+                <option value="unknown">Inte angivet ännu</option>
+                <option value="required" disabled={vatStatus !== 'registered'}>Ja, ska redovisas</option>
+                <option value="not_required">Nej, ska inte redovisas</option>
+              </select>
+              {vatStatus !== 'registered' && (
+                <p className="mt-2 text-[9px] font-bold text-gray-400">
+                  Deklarationspliktiga utländska inköp kräver att momsregistrering är angiven.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Normal avdragsrätt för ingående moms</label>
+              <p className="text-[10px] text-gray-400 font-bold mb-3">Detta är bara en standardfaktauppgift för kommande momsflöden. Välj inte full avdragsrätt om inköpen normalt saknar avdragsrätt.</p>
+              <select
+                value={defaultDeductionEntitlement}
+                onChange={e => setDefaultDeductionEntitlement(e.target.value as PersistedDefaultDeductionEntitlement)}
+                className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+              >
+                <option value="unknown">Inte angivet ännu</option>
+                <option value="full">Full avdragsrätt</option>
+                <option value="none">Ingen avdragsrätt</option>
+              </select>
+            </div>
 
             {vatStatus === 'not_registered' && (
               <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
