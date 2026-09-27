@@ -1,5 +1,5 @@
 'use client'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
@@ -14,6 +14,19 @@ import {
   type VatV2SupplierCountryInput,
   type VatV2TransactionFacts,
 } from '@/lib/vatTransactionPreflight'
+import {
+  getConfiguredPaymentAccountRoles,
+  setConfiguredPaymentAccountRole,
+  type ConfiguredPaymentAccountRole,
+  type PaymentAccountRole,
+} from '@/lib/paymentAccountRoles'
+import {
+  buildVatV2BookingReadiness,
+  getVatV2PaymentSourceOption,
+  resolveVatV2PaymentSourceConfiguration,
+  VAT_V2_PAYMENT_SOURCE_CHOICES,
+  type VatV2PaymentSourceChoice,
+} from '@/lib/vatPaymentSource'
 
 export interface FormData {
   date: string
@@ -89,6 +102,23 @@ export default function TransactionForm({
   const [favRefreshKey, setFavRefreshKey] = useState(0)
   const [vatV2Facts, setVatV2Facts] =
     useState<VatV2TransactionFacts>(initialVatV2Facts)
+  const [vatV2PaymentSourceChoice, setVatV2PaymentSourceChoice] =
+    useState<VatV2PaymentSourceChoice>('business_account')
+  const [configuredPaymentRoles, setConfiguredPaymentRoles] =
+    useState<ConfiguredPaymentAccountRole[]>([])
+  const [paymentRolesLoading, setPaymentRolesLoading] = useState(false)
+  const [paymentRolesLoaded, setPaymentRolesLoaded] = useState(false)
+  const [paymentRolesLoadedForUser, setPaymentRolesLoadedForUser] =
+    useState<string | null>(null)
+  const [paymentRolesError, setPaymentRolesError] = useState<string | null>(null)
+  const [savingPaymentRole, setSavingPaymentRole] = useState(false)
+  const [paymentRoleSaveError, setPaymentRoleSaveError] =
+    useState<{ role: PaymentAccountRole; message: string } | null>(null)
+  const paymentRoleRequestId = useRef(0)
+  const paymentRoleSaveRequestId = useRef(0)
+  const paymentRoleSaveInFlight = useRef(false)
+  const componentMounted = useRef(true)
+  const activeUserId = useRef(userId)
   const isNotVatRegistered = vatStatus === 'not_registered'
   const showVatV2Assessment = !editingId && !editingBooked
   const vatV2AssessmentEnabled =
@@ -104,12 +134,192 @@ export default function TransactionForm({
     accountingCategoryId: formData.type,
     ordinaryAmount: formData.amount,
   })
+  const vatV2PaymentSource = resolveVatV2PaymentSourceConfiguration(
+    vatV2PaymentSourceChoice,
+    configuredPaymentRoles
+  )
+  const paymentRolesLoadedForCurrentUser =
+    paymentRolesLoaded && paymentRolesLoadedForUser === userId
+  const vatV2PaymentRoleConfigurationState =
+    !vatV2AssessmentEnabled
+      ? 'inactive'
+      : paymentRolesError
+      ? 'error'
+      : paymentRolesLoading || !paymentRolesLoadedForCurrentUser
+      ? 'loading'
+      : 'loaded'
+  const vatV2BookingReadiness = buildVatV2BookingReadiness({
+    treatmentReady: vatV2Preflight.status === 'ready',
+    roleConfigurationState: vatV2PaymentRoleConfigurationState,
+    paymentSource: vatV2PaymentSource,
+  })
+  const selectedVatV2PaymentSourceOption =
+    getVatV2PaymentSourceOption(vatV2PaymentSourceChoice)
+  const currentPaymentRoleSaveError =
+    paymentRoleSaveError?.role === vatV2PaymentSource.role
+      ? paymentRoleSaveError.message
+      : null
+
+  useEffect(() => {
+    activeUserId.current = userId
+  }, [userId])
+
+  useEffect(() => {
+    return () => {
+      componentMounted.current = false
+      paymentRoleRequestId.current += 1
+      paymentRoleSaveRequestId.current += 1
+      paymentRoleSaveInFlight.current = false
+    }
+  }, [])
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2Facts(prev => ({
       ...prev,
       ...update,
     }))
+  }
+
+  async function loadPaymentRoleConfiguration() {
+    const requestId = paymentRoleRequestId.current + 1
+    const requestedUserId = userId
+    paymentRoleRequestId.current = requestId
+    setPaymentRolesLoading(true)
+    setPaymentRolesLoaded(false)
+    setPaymentRolesLoadedForUser(null)
+    setPaymentRolesError(null)
+    setConfiguredPaymentRoles([])
+
+    try {
+      const roles = await getConfiguredPaymentAccountRoles()
+
+      if (
+        componentMounted.current &&
+        paymentRoleRequestId.current === requestId
+      ) {
+        if (activeUserId.current === requestedUserId) {
+          setConfiguredPaymentRoles(roles)
+          setPaymentRolesLoaded(true)
+          setPaymentRolesLoadedForUser(requestedUserId)
+        } else {
+          setConfiguredPaymentRoles([])
+          setPaymentRolesLoaded(false)
+          setPaymentRolesLoadedForUser(null)
+        }
+      }
+    } catch (error) {
+      if (
+        componentMounted.current &&
+        paymentRoleRequestId.current === requestId
+      ) {
+        setConfiguredPaymentRoles([])
+        setPaymentRolesLoaded(false)
+        setPaymentRolesLoadedForUser(null)
+        if (activeUserId.current === requestedUserId) {
+          setPaymentRolesError(
+            error instanceof Error
+              ? error.message
+              : 'Kunde inte hämta sparade betalningskonton.'
+          )
+        }
+      }
+    } finally {
+      if (
+        componentMounted.current &&
+        paymentRoleRequestId.current === requestId
+      ) {
+        setPaymentRolesLoading(false)
+      }
+    }
+  }
+
+  function handleVatV2Toggle(enabled: boolean) {
+    paymentRoleRequestId.current += 1
+    paymentRoleSaveRequestId.current += 1
+    paymentRoleSaveInFlight.current = false
+    setVatV2Facts(
+      enabled
+        ? { ...initialVatV2Facts, enabled: true }
+        : initialVatV2Facts
+    )
+    setVatV2PaymentSourceChoice('business_account')
+    setConfiguredPaymentRoles([])
+    setPaymentRolesLoading(false)
+    setPaymentRolesLoaded(false)
+    setPaymentRolesLoadedForUser(null)
+    setPaymentRolesError(null)
+    setSavingPaymentRole(false)
+    setPaymentRoleSaveError(null)
+
+    if (enabled) {
+      void loadPaymentRoleConfiguration()
+    }
+  }
+
+  async function handleSavePaymentRoleSuggestion() {
+    if (
+      paymentRoleSaveInFlight.current ||
+      !vatV2AssessmentEnabled ||
+      paymentRolesLoading ||
+      paymentRolesError
+    ) {
+      return
+    }
+
+    const sourceAtRequest = vatV2PaymentSource
+    if (sourceAtRequest.status === 'configured') {
+      return
+    }
+
+    const requestId = paymentRoleSaveRequestId.current + 1
+    const requestedUserId = userId
+    paymentRoleSaveRequestId.current = requestId
+    paymentRoleSaveInFlight.current = true
+    setSavingPaymentRole(true)
+    setPaymentRoleSaveError(null)
+
+    try {
+      const saved = await setConfiguredPaymentAccountRole(
+        sourceAtRequest.role,
+        sourceAtRequest.recommendation.accountNumber
+      )
+
+      if (
+        componentMounted.current &&
+        paymentRoleSaveRequestId.current === requestId
+      ) {
+        if (activeUserId.current === requestedUserId) {
+          setConfiguredPaymentRoles(prev => [
+            ...prev.filter(role => role.role !== saved.role),
+            saved,
+          ])
+          setPaymentRolesLoaded(true)
+          setPaymentRolesLoadedForUser(requestedUserId)
+        }
+      }
+    } catch (error) {
+      if (
+        componentMounted.current &&
+        paymentRoleSaveRequestId.current === requestId &&
+        activeUserId.current === requestedUserId
+      ) {
+        setPaymentRoleSaveError({
+          role: sourceAtRequest.role,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Kunde inte spara betalningskontot.',
+        })
+      }
+    } finally {
+      if (
+        componentMounted.current &&
+        paymentRoleSaveRequestId.current === requestId
+      ) {
+        paymentRoleSaveInFlight.current = false
+        setSavingPaymentRole(false)
+      }
+    }
   }
 
   function handleVatV2Submit(e: FormEvent<HTMLFormElement>) {
@@ -451,11 +661,7 @@ export default function TransactionForm({
                   checked={vatV2Facts.enabled}
                   disabled={isYearLocked}
                   onChange={e =>
-                    setVatV2Facts(
-                      e.target.checked
-                        ? { ...initialVatV2Facts, enabled: true }
-                        : initialVatV2Facts
-                    )
+                    handleVatV2Toggle(e.target.checked)
                   }
                   className="sr-only peer"
                 />
@@ -580,9 +786,112 @@ export default function TransactionForm({
                   </div>
                 </div>
 
+                <div className="mt-4 rounded-xl border border-indigo-100 bg-white px-4 py-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-indigo-700">
+                        Betalningskälla
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-indigo-500">
+                        Välj hur inköpet betalades. Kontot måste sparas explicit innan bokning kan kopplas in.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void loadPaymentRoleConfiguration()}
+                      disabled={paymentRolesLoading || savingPaymentRole}
+                      className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-[9px] font-black uppercase text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50"
+                    >
+                      Uppdatera
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {VAT_V2_PAYMENT_SOURCE_CHOICES.map(choice => {
+                      const option = getVatV2PaymentSourceOption(choice)
+                      const selected = choice === vatV2PaymentSourceChoice
+
+                      return (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() => {
+                            setVatV2PaymentSourceChoice(choice)
+                            setPaymentRoleSaveError(null)
+                          }}
+                          className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                            selected
+                              ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-indigo-100 hover:bg-indigo-50/50'
+                          }`}
+                        >
+                          <span className="block text-[10px] font-black uppercase">
+                            {option.label}
+                          </span>
+                          <span className="mt-1 block text-[9px] font-bold">
+                            {option.summary}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                    {paymentRolesLoading ? (
+                      <p className="text-[10px] font-bold text-gray-500">
+                        Kontrollerar sparad betalningskonfiguration...
+                      </p>
+                    ) : paymentRolesError ? (
+                      <p className="text-[10px] font-bold text-red-600">
+                        {paymentRolesError}
+                      </p>
+                    ) : vatV2PaymentSource.status === 'configured' ? (
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-emerald-700">
+                          Konfigurerad betalningskälla
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                          {selectedVatV2PaymentSourceOption.label} använder konto {vatV2PaymentSource.accountNumber}. Detta sparade val styr före SoloLedgers systemförslag.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-[180px] flex-1">
+                          <p className="text-[10px] font-black uppercase text-amber-700">
+                            {vatV2PaymentSource.status === 'invalid_configuration'
+                              ? 'Ogiltig betalningskonfiguration'
+                              : 'Betalningskonto saknas'}
+                          </p>
+                          <p className="mt-1 text-[10px] font-bold text-amber-700">
+                            SoloLedger föreslår {vatV2PaymentSource.recommendation.accountNumber} ({vatV2PaymentSource.recommendation.label}) för {selectedVatV2PaymentSourceOption.label.toLowerCase()}, men förslaget sparas inte utan din bekräftelse.
+                          </p>
+                          <p className="mt-1 text-[9px] font-bold text-amber-600">
+                            {vatV2PaymentSource.recommendation.summary}
+                          </p>
+                          {currentPaymentRoleSaveError && (
+                            <p className="mt-2 text-[10px] font-bold text-red-600">
+                              {currentPaymentRoleSaveError}
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleSavePaymentRoleSuggestion()}
+                          disabled={savingPaymentRole}
+                          className="rounded-xl bg-amber-600 px-4 py-2.5 text-[9px] font-black uppercase text-white shadow-sm transition-colors hover:bg-amber-700 disabled:opacity-50"
+                        >
+                          {savingPaymentRole ? 'Sparar...' : 'Spara förslag'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div
                   className={`mt-4 rounded-xl border px-4 py-3 ${
-                    vatV2Preflight.status === 'ready'
+                    vatV2BookingReadiness.status === 'ready_to_book'
                       ? 'border-emerald-100 bg-emerald-50'
                       : 'border-amber-100 bg-amber-50'
                   }`}
@@ -590,13 +899,17 @@ export default function TransactionForm({
                   {vatV2Preflight.status === 'ready' ? (
                     <div>
                       <p className="text-[10px] font-black uppercase text-emerald-700">
-                        Redo för EU-tjänst med omvänd beskattning
+                        Momsbedömning klar
                       </p>
                       <p className="mt-1 text-[10px] font-bold text-emerald-700">
                         Underlag {vatV2Preflight.treatment.taxableBase} kr,
                         utgående moms {vatV2Preflight.treatment.outputVat.amount} kr,
                         beräknad ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
-                        Bokning kopplas in först i ett senare steg.
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                        {vatV2BookingReadiness.status === 'ready_to_book'
+                          ? `Betalningskälla är konfigurerad med konto ${vatV2BookingReadiness.paymentAccountNumber}. Nästa slice kopplar själva bokningen.`
+                          : 'Bokning hålls stängd tills betalningskällan har ett sparat konto. Ingen VAT V2-bokning skapas här.'}
                       </p>
                     </div>
                   ) : (
