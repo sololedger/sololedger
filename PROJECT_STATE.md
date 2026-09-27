@@ -27,8 +27,8 @@ Last updated: 2026-09-27
 - KAN-19 `VAT V2-4 - VAT-aware booking RPC` persistence boundary is LIVE.
 - Exact-2645 VAT account-classification prerequisite is live and verified.
 - VAT V2 persistence migration/table/RPC/source are live.
-- KAN-19 VAT Profile Runtime slice is implemented locally and awaiting
-  checkpoint/apply review. It is not live.
+- KAN-19 VAT Profile Runtime slice is LIVE in the database. App deployment has
+  not occurred.
 - VAT V2 UI/runtime product workflow integration is not recorded as complete here.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
@@ -36,25 +36,29 @@ Last updated: 2026-09-27
 
 ## KAN-19 VAT Profile Runtime Slice
 
-- Local candidate migration:
+- Live migration:
   `supabase/migrations/20260927070224_add_vat_profile_runtime_fields.sql`.
 - Candidate persisted profile fields:
   `domestic_sales_vat_treatment`, `foreign_purchase_reporting`,
   `default_deduction_entitlement`.
 - `default_deduction_percent` is deliberately deferred; partial deduction is
   still not persisted or exposed by this slice.
-- Existing and unconfigured profiles remain explicit `unknown` by default; no
-  VAT registration, foreign-purchase reporting, domestic sales treatment, or
-  deduction entitlement is inferred.
+- Live verification confirmed all 6 existing profiles remained explicit
+  `unknown` by default for all three new fields; no VAT registration,
+  foreign-purchase reporting, domestic sales treatment, or deduction entitlement
+  was inferred.
 - Central domain validation remains authoritative. The UI only prevents the
   already-invalid central domain state where `foreign_purchase_reporting =
   required` without `vat_status = registered`.
-- Migration `20260927070224` is NOT LIVE. App code that selects/saves these
-  columns must not be deployed before the migration is live.
+- Migration `20260927070224` is LIVE. The database is now schema-compatible
+  with the committed profile runtime code, but app deployment has not occurred.
 - No VAT V2 booking/runtime route was added by this slice.
-- Next dependency after this migration is safely handled: transaction-specific
-  VAT V2 fact collection/input modeling for the supported EU service
-  reverse-charge path.
+- Live apply verification confirmed remote/local migration ledger alignment,
+  zero pending migrations on post-apply dry-run, and no product transaction,
+  journal, or VAT audit snapshot rows created by the migration.
+- Next implementation dependency remains transaction-specific VAT V2 fact
+  collection/input modeling for the supported EU service reverse-charge path,
+  with app deployment sequencing handled separately.
 
 ## KAN-19 Persistence Candidate
 
@@ -114,12 +118,12 @@ Last updated: 2026-09-27
 - Live VAT V2 persistence migration is applied as
   `20260926174535_add_vat_v2_reverse_charge_booking.sql`.
 - KAN-19 VAT Profile Runtime migration
-  `20260927070224_add_vat_profile_runtime_fields.sql` is pending/local only
-  and has not been applied live.
+  `20260927070224_add_vat_profile_runtime_fields.sql` is applied live.
 - Live remote migration ledger is fully aligned with local active migrations:
   `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
-  `20260926132107`, `20260926174535`.
-- Official Supabase CLI dry-run after live apply reports no pending migrations.
+  `20260926132107`, `20260926174535`, `20260927070224`.
+- Official Supabase CLI dry-run after latest live apply reports no pending
+  migrations.
 - Future production DB migrations should use the now-reconciled official
   Supabase CLI workflow.
 - Initial exact-2645 live apply used Supabase MCP `apply_migration`, which generated remote version `20260926114550`; official Supabase migration repair later reconciled this so `20260926132107` is applied and `20260926114550` is no longer applied.
@@ -185,6 +189,7 @@ Last updated: 2026-09-27
 
 - Do not deploy, add migrations, create real VAT V2 business transactions, or
   change Jira without explicit Pontus approval.
-- Next operational step: review/dry-run/apply the local-only VAT Profile Runtime
-  migration under separate approval. Do not deploy app code or start
-  transaction-fact implementation before that migration step is safely handled.
+- Next operational step: decide app deployment sequencing for the now-live VAT
+  Profile Runtime schema compatibility, or start transaction-specific VAT V2
+  fact collection/input modeling under separate approval. Do not deploy app code
+  or start the next implementation slice in a migration-only task.
