@@ -28,8 +28,9 @@ Last updated: 2026-09-27
 - KAN-19 persistence boundary, exact-2645 prerequisite, VAT V2 RPC/table/source,
   and VAT Profile Runtime are live and verified.
 - KAN-19 VAT V2 transaction fact collection/preflight is implemented locally
-  for the narrow supported EU service reverse-charge path; checkpoint pending.
-- KAN-19 payment-account role model is implemented locally; checkpoint pending.
+  for the narrow supported EU service reverse-charge path.
+- KAN-19 payment-account role model is live; local ACL hardening migration is
+  pending review.
 - VAT V2 runtime booking route is not recorded as complete here.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
@@ -61,7 +62,7 @@ Last updated: 2026-09-27
 
 ## KAN-19 Payment Account Role Model Slice
 
-- Local slice adds `company_payment_account_roles`: semantic payment role to
+- Live slice adds `company_payment_account_roles`: semantic payment role to
   explicit company/user account number. A row means explicitly configured; no
   row means unconfigured.
 - Existing `accounts` remains the legacy category/preset model; no role
@@ -69,9 +70,17 @@ Last updated: 2026-09-27
 - Current roles: `business_payment_account`, `owner_private_payment`.
 - System recommendations may suggest `1930` / `2018`, but recommendation is
   not company configuration and not universal company truth.
-- Local migration:
+- Live migration:
   `supabase/migrations/20260927151231_add_payment_account_roles.sql`.
-- Local migration/RLS rollback verification passed. Migration is NOT live.
+- Local hardening migration pending review:
+  `supabase/migrations/20260927174627_harden_payment_account_roles_acl.sql`.
+- Current live ACL remains broad from production default table privileges until
+  that hardening migration is applied. RLS protects row-level CRUD, but
+  authenticated `TRUNCATE` exposure blocks payment-source UX work.
+- Production default table privileges can grant broad ACL to newly created
+  public tables. Client-facing table migrations must explicitly verify/revoke
+  unintended `anon`/`authenticated` privileges. Broader default-privilege
+  cleanup/review is deferred.
 - VAT V2 payment-source UI/runtime wiring remains the next dependency.
 
 ## KAN-19 Persistence Candidate
@@ -97,6 +106,8 @@ Last updated: 2026-09-27
 - KAN-19 payment-account role model checks passed locally: `npm run
   test:domain`, `npm run typecheck`, slice-owned/touched ESLint, `git diff
   --check`, and isolated PostgreSQL migration/RLS rollback verification.
+- KAN-19 payment-account role ACL hardening is implemented locally; verification
+  should include the rollback SQL ACL/RLS test before checkpoint.
 - KAN-19 persistence final review passed with 0 CRITICAL, 0 HIGH, 0 MEDIUM
   findings; only residual LOW risk was lack of true two-session concurrency
   proof.
@@ -112,12 +123,12 @@ Last updated: 2026-09-27
 
 - Live applied KAN-19 migrations: exact-2645 classification
   `20260926132107`, VAT V2 persistence `20260926174535`, and VAT Profile
-  Runtime `20260927070224`.
-- KAN-19 payment-account role migration
-  `20260927151231_add_payment_account_roles.sql` is NOT live.
+  Runtime `20260927070224`, and payment-account roles `20260927151231`.
+- KAN-19 payment-account role ACL hardening migration
+  `20260927174627_harden_payment_account_roles_acl.sql` is NOT live.
 - Live remote migration ledger is fully aligned with local active migrations:
   `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
-  `20260926132107`, `20260926174535`, `20260927070224`.
+  `20260926132107`, `20260926174535`, `20260927070224`, `20260927151231`.
 - Future production DB migrations should use the now-reconciled official
   Supabase CLI workflow.
 - Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters.
