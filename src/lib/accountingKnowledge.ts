@@ -81,6 +81,20 @@ export type VatGuidanceStatus =
   | 'none'
   | 'technical'
 
+export const PAYMENT_ACCOUNT_ROLES = [
+  'business_payment_account',
+  'owner_private_payment',
+] as const
+
+export type PaymentAccountRole = typeof PAYMENT_ACCOUNT_ROLES[number]
+
+export interface PaymentAccountRoleRecommendation {
+  role: PaymentAccountRole
+  accountNumber: string
+  label: string
+  summary: string
+}
+
 export interface CategoryGuidance {
   /**
    * direct
@@ -1479,6 +1493,17 @@ export const SYSTEM_ACCOUNTS: SystemAccount[] = [
   },
 
   {
+    accountNumber: '2018',
+    name: 'Övriga egna insättningar',
+    group: 'owner',
+    availability: 'system',
+    usageType: 'system',
+    description:
+      'SoloLedgers nuvarande systemförslag för privata pengar eller privata utlägg som förs in i verksamheten. 2017 finns kvar som relaterat K1/BAS-konto för egna insättningar och kapitaltillskott.',
+    userSelectable: false,
+  },
+
+  {
     accountNumber: '2019',
     name: 'Årets resultat',
     group: 'owner',
@@ -1565,6 +1590,38 @@ export function getSystemAccount(accountNumber: string) {
 
 export function isSystemAccount(accountNumber: string) {
   return getSystemAccount(accountNumber) !== null
+}
+
+export function isPaymentAccountRole(value: string): value is PaymentAccountRole {
+  return (PAYMENT_ACCOUNT_ROLES as readonly string[]).includes(value)
+}
+
+export function isValidPaymentRoleAccountNumber(accountNumber: string) {
+  return /^\d{4}$/.test(accountNumber.trim())
+}
+
+export const PAYMENT_ACCOUNT_ROLE_RECOMMENDATIONS:
+  Record<PaymentAccountRole, PaymentAccountRoleRecommendation> = {
+    business_payment_account: {
+      role: 'business_payment_account',
+      accountNumber: '1930',
+      label: 'Företagskonto',
+      summary:
+        'Normal rekommendation när inköpet har betalats från företagets bankkonto.',
+    },
+    owner_private_payment: {
+      role: 'owner_private_payment',
+      accountNumber: '2018',
+      label: 'Egen insättning',
+      summary:
+        'SoloLedgers nuvarande systemförslag när ägaren har betalat ett verksamhetsinköp privat.',
+    },
+  }
+
+export function getPaymentAccountRoleRecommendation(
+  role: PaymentAccountRole
+) {
+  return PAYMENT_ACCOUNT_ROLE_RECOMMENDATIONS[role]
 }
 
 /**
