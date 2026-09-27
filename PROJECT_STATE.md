@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 ## Repository State
 
@@ -10,9 +10,9 @@ Last updated: 2026-09-26
 - Pre-cutover base verified before checkpoint:
   `HEAD == origin/main == 72c8ccdcf8021294c9de3f6fb6da7de30b89d90a`
   (`Document migration tooling handoff`).
-- This checkpoint records the local migration cutover work. No live Supabase
-  writes, migration repair, deploy, or Jira changes were performed for this
-  cutover.
+- Migration-history reconciliation checkpoint is committed and pushed. Live
+  metadata repair and VAT V2 persistence apply were completed on 2026-09-26.
+  No deploy or Jira changes were performed.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Verified generated files in this case: `cli-latest`, `linked-project.json`. Do not read/display secrets and do not add this directory to Git.
 
 ## External Connections
@@ -24,25 +24,21 @@ Last updated: 2026-09-26
 
 ## Current Objective
 
-- Local migration cutover/reconstruction for the historical manually-applied SQL
-  era is now the active task.
-- KAN-19 `VAT V2-4 - VAT-aware booking RPC` remains active/in progress, not complete.
-- KAN-19 persistence implementation is present locally as the pending candidate
-  migration and remains not live.
+- KAN-19 `VAT V2-4 - VAT-aware booking RPC` persistence boundary is LIVE.
 - Exact-2645 VAT account-classification prerequisite is live and verified.
-- VAT V2 persistence migration/table/RPC/source are NOT live.
-- No live VAT V2 test transaction has been created.
-- Immediate blocker: live Supabase migration-history metadata still requires
-  explicit Pontus-approved repair before applying the VAT V2 persistence
-  migration live.
+- VAT V2 persistence migration/table/RPC/source are live.
+- VAT V2 UI/runtime product workflow integration is not recorded as complete here.
+- No live VAT V2 business transaction was created during verification.
+- Next KAN-19 work should build on the live persistence boundary without
+  recreating the migration-history cutover.
 
 ## KAN-19 Persistence Candidate
 
 - Candidate migration: `supabase/migrations/20260926174535_add_vat_v2_reverse_charge_booking.sql`
 - Candidate migration SHA-256: `8E8EE40F152BB0DEF07F52796F422FBCA57C5CB4E808C3BB3C46F849B0A1E81E`
-- Adds `transactions.source = 'vat_v2'` only when applied live.
-- Adds `public.vat_audit_snapshots` only when applied live.
-- Adds `book_vat_v2_eu_service_reverse_charge_atomic(jsonb)` only when applied live.
+- Live migration adds `transactions.source = 'vat_v2'`.
+- Live migration adds `public.vat_audit_snapshots`.
+- Live migration adds `book_vat_v2_eu_service_reverse_charge_atomic(jsonb)`.
 - Supported candidate path remains ONLY `EU_SERVICE_REVERSE_CHARGE`, `25%`, full deduction.
 - Candidate server-derived journal:
   - Dr `4535` base
@@ -63,6 +59,21 @@ Last updated: 2026-09-26
 - KAN-17C VAT close account-classification rollback regression passed on
   2026-09-26 against the same local database.
 - KAN-19 persistence checks passed: `npm run test:domain`, `npm run typecheck`, touched-file lint, `git diff --check`.
+- Live KAN-19 apply verification passed on 2026-09-26:
+  `20260926174535_add_vat_v2_reverse_charge_booking.sql` applied via official
+  Supabase CLI `db push --skip-vault`; post-apply `db push --skip-vault
+  --dry-run` reports no pending migrations.
+- Product-data safety check after live apply: `transactions` count remained
+  `164`, `journal_entries` count remained `439`, `vat_periods` count remained
+  `3`, `source='vat_v2'` transaction count is `0`, and
+  `vat_audit_snapshots` row count is `0`.
+- Live schema verification passed: `transactions.source` permits `vat_v2`;
+  `public.vat_audit_snapshots` exists with RLS, SELECT policy, constraints,
+  grants, trigger-backed transaction/source/user linkage, and transaction
+  uniqueness; VAT V2 RPC exists as SECURITY DEFINER with public search path and
+  authenticated execute boundary; generic correction guard is installed; exact
+  `2645` remains P1=true, P2=true, P3=false; existing VAT V1 RPCs remain
+  present.
 - KAN-19 persistence final review verdict: `KAN-19 PERSISTENCE FINAL REVIEW PASSED`.
 - KAN-19 persistence final review findings: 0 CRITICAL, 0 HIGH, 0 MEDIUM, LOW = true two-session concurrency still not empirically proven.
 - Production-derived local PostgreSQL DB strategy remains the preferred safe DB/RPC regression environment.
@@ -72,9 +83,17 @@ Last updated: 2026-09-26
 ## Live Migration State
 
 - Live exact-2645 migration is applied as `20260926132107_add_2645_vat_account_classification.sql`.
+- Live VAT V2 persistence migration is applied as
+  `20260926174535_add_vat_v2_reverse_charge_booking.sql`.
+- Live remote migration ledger is fully aligned with local active migrations:
+  `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
+  `20260926132107`, `20260926174535`.
+- Official Supabase CLI dry-run after live apply reports no pending migrations.
+- Future production DB migrations should use the now-reconciled official
+  Supabase CLI workflow.
 - Initial exact-2645 live apply used Supabase MCP `apply_migration`, which generated remote version `20260926114550`; official Supabase migration repair later reconciled this so `20260926132107` is applied and `20260926114550` is no longer applied.
 - Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters.
-- Normal official `supabase db push` is currently blocked until historical migration ledger reconciliation is complete.
+- Historical migration ledger reconciliation is complete.
 
 ## Migration-History Cutover
 
@@ -107,10 +126,11 @@ Last updated: 2026-09-26
   - `20260925070346_20260925_delegate_vat_concurrency_account.sql`
   - `20260925124023`
   - `20260926132107`
-- Pending candidate remains `20260926174535_add_vat_v2_reverse_charge_booking.sql`.
-- Future approved live repair target is metadata-only alignment for
-  `20260925000000`; after repair, official CLI dry-run should show only
-  `20260926174535` pending.
+- VAT V2 persistence candidate `20260926174535_add_vat_v2_reverse_charge_booking.sql`
+  has been applied live.
+- Metadata-only alignment for `20260925000000` is complete; the baseline
+  metadata version is applied remotely without executing the baseline SQL
+  against production.
 - Do not use `--include-all` as a shortcut.
 - Do not execute historical migrations against production merely to make migration history align.
 - Do not run the cutover baseline against existing production.
@@ -132,10 +152,9 @@ Last updated: 2026-09-26
 
 ## Next Safe Step
 
-- Do not apply the KAN-19 VAT V2 persistence migration live yet.
-- Do not deploy, repair migrations, run production `db push`, apply VAT V2 live,
-  or change Jira without explicit Pontus approval.
-- Next goal after this checkpoint: explicitly approve the metadata-only live
-  repair for `20260925000000`, then immediately run migration list and
-  `db push --skip-vault --dry-run`, stop, and inspect the result. Do not apply
-  VAT V2 in that same step.
+- Do not deploy, add migrations, create real VAT V2 business transactions, or
+  change Jira without explicit Pontus approval.
+- Next goal: continue KAN-19 implementation on top of the live VAT V2
+  persistence boundary. Safe verification should use schema/function inspection
+  and isolated local regressions unless Pontus explicitly approves live
+  business-data writes.
