@@ -1,6 +1,19 @@
 'use client'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
+import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
+import type {
+  VatCalculationRateInput,
+  VatGoodsOrService,
+  VatYesNoUnknown,
+} from '@/lib/vatDomain'
+import {
+  buildVatV2TransactionPreflight,
+  describeVatV2PreflightError,
+  VAT_V2_SUPPLIER_COUNTRIES,
+  type VatV2SupplierCountryInput,
+  type VatV2TransactionFacts,
+} from '@/lib/vatTransactionPreflight'
 
 export interface FormData {
   date: string
@@ -11,10 +24,17 @@ export interface FormData {
   file: File | null
 }
 
+interface KontoplanOption {
+  id: string
+  name: string
+  default_vat_rate?: number | string | null
+  credit_account?: string | null
+}
+
 interface TransactionFormProps {
   formData: FormData
   setFormData: (data: FormData) => void
-  kontoplan: any[]
+  kontoplan: KontoplanOption[]
   isYearLocked: boolean
   editingId: string | null
   editingBooked: boolean
@@ -23,13 +43,23 @@ interface TransactionFormProps {
   setPeriodisera: (val: boolean) => void
   periodMonth: string
   setPeriodMonth: (val: string) => void
-  onSubmit: (e: any) => void
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void
   onCancelEdit: () => void
   userId: string
   vatStatus: 'registered' | 'not_registered' | 'unknown'
+  companyVatProfileResult: CompanyVatProfileAdapterResult
   lastSubmitted: { type: string; amount: string; vatRate: number } | null
   onSaveFavorite: (name: string) => Promise<void>
   onDismissFavorite: () => void
+}
+
+const initialVatV2Facts: VatV2TransactionFacts = {
+  enabled: false,
+  supplierCountry: 'unknown',
+  goodsOrService: 'unknown',
+  supplierVatCharged: 'unknown',
+  calculationRate: 'unknown',
+  acquisitionBaseAmount: '',
 }
 
 export default function TransactionForm({
@@ -48,6 +78,7 @@ export default function TransactionForm({
   onCancelEdit,
   userId,
   vatStatus,
+  companyVatProfileResult,
   lastSubmitted,
   onSaveFavorite,
   onDismissFavorite,
@@ -56,7 +87,35 @@ export default function TransactionForm({
   const [showFavInput, setShowFavInput] = useState(false)
   const [descriptionHighlight, setDescriptionHighlight] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
+  const [vatV2Facts, setVatV2Facts] =
+    useState<VatV2TransactionFacts>(initialVatV2Facts)
   const isNotVatRegistered = vatStatus === 'not_registered'
+  const showVatV2Assessment = !editingId && !editingBooked
+  const vatV2AssessmentEnabled =
+    showVatV2Assessment && vatV2Facts.enabled
+  const vatV2Preflight = buildVatV2TransactionPreflight({
+    companyProfile: companyVatProfileResult.profile,
+    transaction: {
+      ...vatV2Facts,
+      enabled: vatV2AssessmentEnabled,
+    },
+    date: formData.date,
+    description: formData.description,
+    accountingCategoryId: formData.type,
+    ordinaryAmount: formData.amount,
+  })
+
+  function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
+    setVatV2Facts(prev => ({
+      ...prev,
+      ...update,
+    }))
+  }
+
+  function handleVatV2Submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
 
   function handleFavoriteSelect(fav: Favorite) {
     setFormData({
@@ -95,7 +154,7 @@ export default function TransactionForm({
         />
       )}
 
-      <form onSubmit={onSubmit}>
+      <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : onSubmit}>
         {editingBooked ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">
             <div>
@@ -340,6 +399,8 @@ export default function TransactionForm({
                       ? 'bg-gray-400'
                       : isYearLocked
                       ? 'bg-gray-300 opacity-40 cursor-not-allowed'
+                      : vatV2AssessmentEnabled
+                      ? 'bg-indigo-500 hover:bg-indigo-600'
                       : editingId
                       ? 'bg-amber-500 hover:bg-amber-600'
                       : 'bg-emerald-600 hover:bg-emerald-700'
@@ -347,6 +408,8 @@ export default function TransactionForm({
                 >
                   {uploading
                     ? '...'
+                    : vatV2AssessmentEnabled
+                    ? 'Förhandskolla'
                     : editingId
                     ? 'Spara'
                     : 'Bokför'}
@@ -368,6 +431,192 @@ export default function TransactionForm({
                 <p className="text-[9px] font-bold text-gray-400">
                   Företaget är markerat som inte momsregistrerat. Nya bokningar görs därför med 0 % moms.
                 </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showVatV2Assessment && (
+          <div
+            className={`mb-4 rounded-2xl border-2 transition-all ${
+              vatV2Facts.enabled
+                ? 'border-indigo-200 bg-indigo-50/50'
+                : 'border-gray-100 bg-gray-50/40'
+            } ${isYearLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+          >
+            <label className="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={vatV2Facts.enabled}
+                  disabled={isYearLocked}
+                  onChange={e =>
+                    setVatV2Facts(
+                      e.target.checked
+                        ? { ...initialVatV2Facts, enabled: true }
+                        : initialVatV2Facts
+                    )
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-checked:bg-indigo-500 rounded-full transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
+
+              <div>
+                <span className="text-[10px] font-black uppercase text-gray-600 tracking-wide">
+                  Utlandsinköp
+                </span>
+                <p className="text-[9px] text-gray-400 font-medium mt-0.5">
+                  Förhandskontroll för moms. Ingen bokning skapas här.
+                </p>
+              </div>
+            </label>
+
+            {vatV2Facts.enabled && !isYearLocked && (
+              <div className="px-5 pb-4 border-t border-indigo-100">
+                <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 pt-4 items-end">
+                  <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Leverantörsland
+                    </label>
+                    <select
+                      value={vatV2Facts.supplierCountry}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          supplierCountry: e.target.value as VatV2SupplierCountryInput,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                    >
+                      <option value="unknown">Välj land</option>
+                      {VAT_V2_SUPPLIER_COUNTRIES.map(country => (
+                        <option key={country.code} value={country.code}>
+                          {country.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Vara/tjänst
+                    </label>
+                    <select
+                      value={vatV2Facts.goodsOrService}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          goodsOrService: e.target.value as VatGoodsOrService,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                    >
+                      <option value="unknown">Välj</option>
+                      <option value="service">Tjänst</option>
+                      <option value="goods">Vara</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Moms på fakturan
+                    </label>
+                    <select
+                      value={vatV2Facts.supplierVatCharged}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          supplierVatCharged: e.target.value as VatYesNoUnknown,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                    >
+                      <option value="unknown">Okänt</option>
+                      <option value="no">Nej</option>
+                      <option value="yes">Ja</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Beräknad moms
+                    </label>
+                    <select
+                      value={vatV2Facts.calculationRate}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          calculationRate:
+                            e.target.value === 'unknown'
+                              ? 'unknown'
+                              : Number(e.target.value) as VatCalculationRateInput,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                    >
+                      <option value="unknown">Välj</option>
+                      <option value={25}>25%</option>
+                      <option value={12}>12%</option>
+                      <option value={6}>6%</option>
+                      <option value={0}>0%</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Inköpsbelopp för moms
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={vatV2Facts.acquisitionBaseAmount}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          acquisitionBaseAmount: e.target.value,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-black text-sm text-indigo-700 focus:border-indigo-300 transition-colors"
+                      placeholder="Beskattningsunderlag"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-4 rounded-xl border px-4 py-3 ${
+                    vatV2Preflight.status === 'ready'
+                      ? 'border-emerald-100 bg-emerald-50'
+                      : 'border-amber-100 bg-amber-50'
+                  }`}
+                >
+                  {vatV2Preflight.status === 'ready' ? (
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-emerald-700">
+                        Redo för EU-tjänst med omvänd beskattning
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                        Underlag {vatV2Preflight.treatment.taxableBase} kr,
+                        utgående moms {vatV2Preflight.treatment.outputVat.amount} kr,
+                        beräknad ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
+                        Bokning kopplas in först i ett senare steg.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-amber-700">
+                        Kan inte bedömas säkert ännu
+                      </p>
+                      <ul className="mt-1 space-y-1">
+                        {vatV2Preflight.validation.errors.map((preflightError, index) => (
+                          <li
+                            key={`${preflightError.code}-${preflightError.path}-${index}`}
+                            className="text-[10px] font-bold text-amber-700"
+                          >
+                            {describeVatV2PreflightError(preflightError)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -554,6 +803,8 @@ export default function TransactionForm({
                     ? 'bg-gray-400'
                     : isYearLocked
                     ? 'bg-gray-300 opacity-40 cursor-not-allowed'
+                    : vatV2AssessmentEnabled
+                    ? 'bg-indigo-500 hover:bg-indigo-600'
                     : editingId
                     ? 'bg-amber-500 hover:bg-amber-600'
                     : 'bg-emerald-600 hover:bg-emerald-700'
@@ -561,6 +812,8 @@ export default function TransactionForm({
               >
                 {uploading
                   ? '...'
+                  : vatV2AssessmentEnabled
+                  ? 'Förhandskolla'
                   : editingId
                   ? 'Spara'
                   : 'Bokför'}

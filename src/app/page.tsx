@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
@@ -27,6 +27,7 @@ import AdminPanel from '@/components/AdminPanel'
 import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
+import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
 
 export default function Home() {
   const {
@@ -65,6 +66,7 @@ export default function Home() {
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
 
   const isAdmin = profile?.role === 'admin'
+  const companyVatProfileResult = profileToCompanyVatProfile(profile)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
@@ -231,7 +233,7 @@ export default function Home() {
     return tx?.source === 'vat_closing'
   }
 
-  async function handleAddTransaction(e: any) {
+  async function handleAddTransaction(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (isYearLocked) return
 
@@ -844,6 +846,7 @@ export default function Home() {
             <TransactionForm
               userId={user.id}
               vatStatus={profile?.vat_status ?? 'unknown'}
+              companyVatProfileResult={companyVatProfileResult}
               formData={formData}
               setFormData={setFormData}
               kontoplan={kontoplan}

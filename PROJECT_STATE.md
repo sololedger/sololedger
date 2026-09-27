@@ -40,7 +40,9 @@ Last updated: 2026-09-27
 - VAT V2 persistence migration/table/RPC/source are live.
 - KAN-19 VAT Profile Runtime app code and required DB migration are live in
   production and IRL verified.
-- VAT V2 UI/runtime product workflow integration is not recorded as complete here.
+- KAN-19 VAT V2 transaction fact collection/preflight is implemented locally
+  for the narrow supported EU service reverse-charge path; checkpoint pending.
+- VAT V2 runtime booking route is not recorded as complete here.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
   recreating the migration-history cutover.
@@ -75,11 +77,18 @@ Last updated: 2026-09-27
 - Live apply verification confirmed remote/local migration ledger alignment,
   zero pending migrations on post-apply dry-run, and no product transaction,
   journal, or VAT audit snapshot rows created by the migration.
-- Next implementation dependency remains transaction-specific VAT V2 fact
-  collection/input modeling for the supported EU service reverse-charge path.
-  This is not runtime booking wiring yet; later dependencies still include
-  payment/payable UX, VAT report snapshot integration, runtime booking routing,
-  and `vat_v2` history/edit/correction handling.
+## KAN-19 VAT V2 Transaction Preflight Slice
+
+- Local slice adds transaction-specific VAT V2 fact collection and preflight
+  only; no VAT V2 booking, JournalPlan execution, migration, live data change,
+  deployment, or Jira change was performed.
+- READY means the already-supported persistence treatment only:
+  `EU_SERVICE_REVERSE_CHARGE`, `25%`, full deduction, and a positive explicit
+  acquisition base amount. Unsupported or unknown facts remain blocked.
+- VAT V2 OFF keeps the ordinary V1 transaction submit path. VAT V2 ON stops at
+  preflight and cannot call V1 booking or VAT V2 persistence.
+- `src/app/page.tsx` still has pre-existing unrelated ESLint debt; the
+  slice-owned/touched VAT V2 files lint clean.
 
 ## KAN-19 Persistence Candidate
 
@@ -108,6 +117,10 @@ Last updated: 2026-09-27
 - KAN-17C VAT close account-classification rollback regression passed on
   2026-09-26 against the same local database.
 - KAN-19 persistence checks passed: `npm run test:domain`, `npm run typecheck`, touched-file lint, `git diff --check`.
+- KAN-19 transaction preflight slice checks passed locally:
+  `npm run test:domain`, `npm run typecheck`, slice-owned/touched ESLint, and
+  `git diff --check`; all-touched ESLint still reports unrelated historical
+  `src/app/page.tsx` lint debt.
 - Live KAN-19 apply verification passed on 2026-09-26:
   `20260926174535_add_vat_v2_reverse_charge_booking.sql` applied via official
   Supabase CLI `db push --skip-vault`; post-apply `db push --skip-vault
@@ -210,6 +223,6 @@ Last updated: 2026-09-27
 
 - Do not deploy, add migrations, create real VAT V2 business transactions, or
   change Jira without explicit Pontus approval.
-- Next implementation step under separate approval: transaction-specific VAT V2
-  fact collection/input modeling for the already-supported EU service
-  reverse-charge path. Do not start runtime booking wiring yet.
+- Next implementation step under separate approval: payment/payable account UX
+  and runtime routing into the existing VAT V2 persistence chain. Do not start
+  it without explicit Pontus approval.
