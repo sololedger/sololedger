@@ -21,14 +21,25 @@ Last updated: 2026-09-27
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Jira KAN-19 verified 2026-09-26: Story, status `In Progress`, assignee empty.
 - Live Supabase read-only verification 2026-09-26 confirms exact `2645` is P1=true, P2=true, P3=false.
+- Vercel production context verified 2026-09-27: CLI user `sololedger`,
+  team `sololedger1` (`Pontus' projects`), project `sololedger`, production
+  domain `https://sololedger.vercel.app`, GitHub linkage
+  `sololedger/sololedger` on `main`.
+- This checkout currently has no `.vercel/project.json`. Do not guess Vercel
+  target from CLI context; verify authenticated account/team/project before
+  deployment operations. The unrelated `nolare` session exposed projects such
+  as `min-bokforing` and `wc2026tips`; those are NOT SoloLedger targets.
+- Observed evidence indicates SoloLedger production deployment is handled
+  through GitHub/Vercel integration. Do not introduce a separate manual CLI
+  deployment path without a specific reason.
 
 ## Current Objective
 
 - KAN-19 `VAT V2-4 - VAT-aware booking RPC` persistence boundary is LIVE.
 - Exact-2645 VAT account-classification prerequisite is live and verified.
 - VAT V2 persistence migration/table/RPC/source are live.
-- KAN-19 VAT Profile Runtime slice is LIVE in the database. App deployment has
-  not occurred.
+- KAN-19 VAT Profile Runtime app code and required DB migration are live in
+  production and IRL verified.
 - VAT V2 UI/runtime product workflow integration is not recorded as complete here.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
@@ -51,14 +62,24 @@ Last updated: 2026-09-27
   already-invalid central domain state where `foreign_purchase_reporting =
   required` without `vat_status = registered`.
 - Migration `20260927070224` is LIVE. The database is now schema-compatible
-  with the committed profile runtime code, but app deployment has not occurred.
+  with the committed profile runtime code.
+- Production deployment observed at commit
+  `7573e2ffe097da023b7cbf39d0f38f2f6f1822a6`.
+- Production ProfileSettings loads against the new live columns. IRL test
+  passed for `default_deduction_entitlement`: `unknown` -> `full` -> save ->
+  reload -> `full`, then `full` -> `unknown` -> save -> reload -> `unknown`.
+  The test account was restored to `unknown`; no real production company VAT
+  facts were changed. This verifies the profile runtime slice, not every
+  possible profile combination.
 - No VAT V2 booking/runtime route was added by this slice.
 - Live apply verification confirmed remote/local migration ledger alignment,
   zero pending migrations on post-apply dry-run, and no product transaction,
   journal, or VAT audit snapshot rows created by the migration.
 - Next implementation dependency remains transaction-specific VAT V2 fact
-  collection/input modeling for the supported EU service reverse-charge path,
-  with app deployment sequencing handled separately.
+  collection/input modeling for the supported EU service reverse-charge path.
+  This is not runtime booking wiring yet; later dependencies still include
+  payment/payable UX, VAT report snapshot integration, runtime booking routing,
+  and `vat_v2` history/edit/correction handling.
 
 ## KAN-19 Persistence Candidate
 
@@ -189,7 +210,6 @@ Last updated: 2026-09-27
 
 - Do not deploy, add migrations, create real VAT V2 business transactions, or
   change Jira without explicit Pontus approval.
-- Next operational step: decide app deployment sequencing for the now-live VAT
-  Profile Runtime schema compatibility, or start transaction-specific VAT V2
-  fact collection/input modeling under separate approval. Do not deploy app code
-  or start the next implementation slice in a migration-only task.
+- Next implementation step under separate approval: transaction-specific VAT V2
+  fact collection/input modeling for the already-supported EU service
+  reverse-charge path. Do not start runtime booking wiring yet.
