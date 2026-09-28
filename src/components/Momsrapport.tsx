@@ -5,16 +5,20 @@ import {
   closeVatPeriod,
   declareVatPeriod,
   ensureVatPeriods,
-  getMomsBreakdown,
   getVatPeriods,
   type CloseVatPeriodResult,
   type DeclareVatPeriodResult,
-  type MomsBreakdown,
   type VatPeriod,
   type VatPeriodSource,
   type VatPeriodStatus,
   type VatPeriodType,
 } from '@/lib/accountingService'
+import { getVatReportForPeriod } from '@/lib/vatReportService'
+import {
+  buildVatReportPresentation,
+  vatReportBlockedMessage,
+  type VatReportPresentation,
+} from '@/lib/vatReportPresentation'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
 
@@ -85,25 +89,13 @@ type MomsrapportProps = {
   onBookkeepingRefresh?: () => Promise<AccountingRefreshResult>
 }
 
-const emptyBreakdown: MomsBreakdown = {
-  utgaendeMoms: 0,
-  ingaendeMoms: 0,
-  momsNetto: 0,
-  utgaendeMoms25: 0,
-  utgaendeMoms12: 0,
-  utgaendeMoms6: 0,
-  momspliktigForsaljning25: 0,
-  momspliktigForsaljning12: 0,
-  momspliktigForsaljning6: 0,
-  momspliktigForsaljning: 0,
-}
-
 export default function Momsrapport({ profile, onBookkeepingRefresh }: MomsrapportProps) {
   const currentYear = new Date().getFullYear()
   const todayIso = new Date().toISOString().slice(0, 10)
   const ensuredKeysRef = useRef<Set<string>>(new Set())
   const closeInFlightRef = useRef(false)
   const declareInFlightRef = useRef(false)
+  const reportRequestSeqRef = useRef(0)
   const selectionContextRef = useRef<{ periodId: string; contextKey: string | null }>({
     periodId: '',
     contextKey: null,
@@ -118,9 +110,12 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const [closing, setClosing]               = useState(false)
   const [declaring, setDeclaring]           = useState(false)
   const [fetched, setFetched]               = useState(false)
-  const [breakdown, setBreakdown] = useState<MomsBreakdown>(emptyBreakdown)
-  const [breakdownPeriodId, setBreakdownPeriodId] = useState<string | null>(null)
-  const [breakdownContextKey, setBreakdownContextKey] = useState<string | null>(null)
+  const [vatReport, setVatReport] = useState<VatReportPresentation | null>(null)
+  const [reportPeriodId, setReportPeriodId] = useState<string | null>(null)
+  const [reportContextKey, setReportContextKey] = useState<string | null>(null)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportErrorPeriodId, setReportErrorPeriodId] = useState<string | null>(null)
+  const [reportErrorContextKey, setReportErrorContextKey] = useState<string | null>(null)
 
   const selectedPeriod = useMemo(
     () => vatPeriods.find(p => p.id === selectedPeriodId) ?? null,
@@ -138,23 +133,32 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const selectedPeriodContextKey = selectedPeriod
     ? `${year}|${profileKey}|${selectedPeriod.id}`
     : null
-  const hasCurrentBreakdown =
+  const hasCurrentReport =
     Boolean(selectedPeriod) &&
     fetched &&
     !loading &&
-    breakdownPeriodId === selectedPeriod?.id &&
-    breakdownContextKey === selectedPeriodContextKey
+    vatReport !== null &&
+    reportPeriodId === selectedPeriod?.id &&
+    reportContextKey === selectedPeriodContextKey
+  const hasCurrentReportError =
+    Boolean(selectedPeriod) &&
+    !loading &&
+    reportError !== null &&
+    reportErrorPeriodId === selectedPeriod?.id &&
+    reportErrorContextKey === selectedPeriodContextKey
   const selectedPeriodIsFuture = selectedPeriod ? selectedPeriod.period_end > todayIso : false
-  const canCloseSelectedPeriod =
+  const lifecycleCanCloseSelectedPeriod =
     Boolean(selectedPeriod) &&
     selectedPeriod?.source === 'sololedger' &&
     selectedPeriod?.status === 'open' &&
     !selectedPeriodIsFuture &&
     vatStatus === 'registered'
-  const canDeclareSelectedPeriod =
+  const lifecycleCanDeclareSelectedPeriod =
     Boolean(selectedPeriod) &&
     selectedPeriod?.source === 'sololedger' &&
     selectedPeriod?.status === 'closed'
+  const canCloseSelectedPeriod = lifecycleCanCloseSelectedPeriod && hasCurrentReport
+  const canDeclareSelectedPeriod = lifecycleCanDeclareSelectedPeriod && hasCurrentReport
 
   useEffect(() => {
     selectionContextRef.current = {
@@ -216,18 +220,21 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
   const loadVatPeriods = useCallback(async (
     preferredPeriodId?: string,
-    options: { ensure?: boolean; preserveBreakdown?: boolean; preservePeriodsOnError?: boolean } = {}
+    options: { ensure?: boolean; preserveReport?: boolean; preservePeriodsOnError?: boolean } = {}
   ): Promise<VatPeriod[] | null> => {
     const shouldEnsure = options.ensure ?? true
-    const preserveBreakdown = options.preserveBreakdown ?? false
+    const preserveReport = options.preserveReport ?? false
     const preservePeriodsOnError = options.preservePeriodsOnError ?? false
     setPeriodsLoading(true)
     setPeriodError(null)
-    if (!preserveBreakdown) {
+    if (!preserveReport) {
       setFetched(false)
-      setBreakdown(emptyBreakdown)
-      setBreakdownPeriodId(null)
-      setBreakdownContextKey(null)
+      setVatReport(null)
+      setReportPeriodId(null)
+      setReportContextKey(null)
+      setReportError(null)
+      setReportErrorPeriodId(null)
+      setReportErrorContextKey(null)
     }
 
     const yearStart = `${year}-01-01`
@@ -355,6 +362,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   }, [year])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAvailableYears()
   }, [loadAvailableYears])
 
@@ -363,28 +371,71 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     loadVatPeriods()
   }, [loadVatPeriods])
 
-  const skaBetalas = breakdown.momsNetto > 0
+  const currentVatReport = hasCurrentReport ? vatReport : null
+  const skaBetalas = (currentVatReport?.netVat ?? 0) > 0
   const closingText = selectedPeriod ? closingAmountText(selectedPeriod) : null
   const declarationText = selectedPeriod ? declaredAtText(selectedPeriod) : null
 
-  // Beräkna moms för vald DB-verifierad momsperiod via den centrala
-  // Alternativ E-logiken i accountingService.ts. Ingen egen momsgruppering här.
+  // Beräkna moms för vald DB-verifierad momsperiod via den auktoritativa
+  // rapporttjänsten. Komponenten presenterar bara färdiga SKV-fält.
   async function fetchMomsForPeriod(periodForFetch: VatPeriod, contextForFetch: string) {
+    const requestSeq = reportRequestSeqRef.current + 1
+    reportRequestSeqRef.current = requestSeq
     setLoading(true)
     setFetched(false)
-    setBreakdownPeriodId(null)
-    setBreakdownContextKey(null)
+    setVatReport(null)
+    setReportPeriodId(null)
+    setReportContextKey(null)
+    setReportError(null)
+    setReportErrorPeriodId(null)
+    setReportErrorContextKey(null)
     try {
-      const result = await getMomsBreakdown(periodForFetch.period_start, periodForFetch.period_end)
-      setBreakdown(result)
-      setBreakdownPeriodId(periodForFetch.id)
-      setBreakdownContextKey(contextForFetch)
+      const result = await getVatReportForPeriod(
+        periodForFetch.period_start,
+        periodForFetch.period_end
+      )
+
+      if (
+        reportRequestSeqRef.current !== requestSeq ||
+        selectionContextRef.current.periodId !== periodForFetch.id ||
+        selectionContextRef.current.contextKey !== contextForFetch
+      ) {
+        return
+      }
+
+      if (result.status === 'blocked') {
+        console.error('Momsrapporten kunde inte beräknas säkert:', result.errors)
+        setVatReport(null)
+        setReportError(vatReportBlockedMessage(result.errors))
+        setReportErrorPeriodId(periodForFetch.id)
+        setReportErrorContextKey(contextForFetch)
+        setFetched(false)
+        return
+      }
+
+      setVatReport(buildVatReportPresentation(result.report))
+      setReportPeriodId(periodForFetch.id)
+      setReportContextKey(contextForFetch)
       setFetched(true)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      alert('Fel vid hämtning: ' + message)
+      if (
+        reportRequestSeqRef.current !== requestSeq ||
+        selectionContextRef.current.periodId !== periodForFetch.id ||
+        selectionContextRef.current.contextKey !== contextForFetch
+      ) {
+        return
+      }
+
+      console.error('Fel vid hämtning av momsrapport:', err)
+      setVatReport(null)
+      setReportError('Momsrapporten kunde inte hämtas just nu. Inga belopp visas förrän rapporten kan beräknas säkert.')
+      setReportErrorPeriodId(periodForFetch.id)
+      setReportErrorContextKey(contextForFetch)
+      setFetched(false)
     } finally {
-      setLoading(false)
+      if (reportRequestSeqRef.current === requestSeq) {
+        setLoading(false)
+      }
     }
   }
 
@@ -530,8 +581,8 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
       alert(declareSuccessMessage(result) + refreshWarning)
 
-      if (refreshResult && contextStillCurrent && breakdownPeriodId === periodId) {
-        setBreakdownContextKey(contextAtStart)
+      if (refreshResult && contextStillCurrent && reportPeriodId === periodId) {
+        setReportContextKey(contextAtStart)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -543,22 +594,30 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fetched && selectedPeriod) fetchMoms()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriodId])
 
   function handleYearChange(nextYear: number) {
     setFetched(false)
-    setBreakdown(emptyBreakdown)
-    setBreakdownPeriodId(null)
-    setBreakdownContextKey(null)
+    setVatReport(null)
+    setReportPeriodId(null)
+    setReportContextKey(null)
+    setReportError(null)
+    setReportErrorPeriodId(null)
+    setReportErrorContextKey(null)
     setYear(nextYear)
   }
 
   function handlePeriodChange(nextPeriodId: string) {
-    setBreakdown(emptyBreakdown)
-    setBreakdownPeriodId(null)
-    setBreakdownContextKey(null)
+    setFetched(false)
+    setVatReport(null)
+    setReportPeriodId(null)
+    setReportContextKey(null)
+    setReportError(null)
+    setReportErrorPeriodId(null)
+    setReportErrorContextKey(null)
     setSelectedPeriodId(nextPeriodId)
   }
 
@@ -614,20 +673,20 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             {loading ? '...' : 'Beräkna'}
           </button>
 
-          {canCloseSelectedPeriod && (
+          {lifecycleCanCloseSelectedPeriod && (
             <button
               onClick={handleClosePeriod}
-              disabled={closing || declaring || periodsLoading || loading}
+              disabled={closing || declaring || periodsLoading || loading || !canCloseSelectedPeriod}
               className="h-[42px] px-6 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
             >
               {closing ? 'Stänger...' : 'Stäng momsperiod'}
             </button>
           )}
 
-          {canDeclareSelectedPeriod && (
+          {lifecycleCanDeclareSelectedPeriod && (
             <button
               onClick={handleDeclarePeriod}
-              disabled={declaring || closing || periodsLoading || loading}
+              disabled={declaring || closing || periodsLoading || loading || !canDeclareSelectedPeriod}
               className="h-[42px] px-6 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
             >
               {declaring ? 'Markerar...' : 'Markera som deklarerad'}
@@ -670,6 +729,12 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
           </p>
         )}
 
+        {!periodError && (lifecycleCanCloseSelectedPeriod || lifecycleCanDeclareSelectedPeriod) && !hasCurrentReport && (
+          <p className="mt-4 text-[10px] font-bold text-gray-400">
+            Beräkna aktuell momsrapport innan perioden kan stängas eller markeras som deklarerad.
+          </p>
+        )}
+
         {!periodError && !periodsLoading && vatPeriods.length === 0 && (
           <p className="mt-4 text-[10px] font-bold text-gray-400">
             {profile?.vat_status === 'not_registered'
@@ -682,27 +747,24 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
       </div>
 
       {/* Results */}
-      {hasCurrentBreakdown && selectedPeriod && (
+      {currentVatReport && selectedPeriod && (
         <div className="space-y-4 animate-in fade-in duration-300">
-
-          {/* Period label */}
           <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-1">
             {periodLabel(selectedPeriod)} / {statusLabel(selectedPeriod.status)} / {sourceLabel(selectedPeriod.source)}
           </p>
 
-          {/* Ruta 05 — momspliktig försäljning exklusive moms */}
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 05</p>
-                <p className="text-xs font-black uppercase text-gray-600">Momspliktig försäljning exkl. moms</p>
+                <p className="text-xs font-black uppercase text-gray-600">{currentVatReport.domesticSalesRows[0].label}</p>
                 <p className="text-[9px] text-gray-400 font-medium mt-1">
-                  Försäljningsunderlag för vanlig momspliktig försäljning i Sverige
+                  {currentVatReport.domesticSalesRows[0].description}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-black text-gray-700 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.momspliktigForsaljning ?? 0)} kr
+                  {fmt(currentVatReport.domesticSalesBase)} kr
                 </p>
                 <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Exkl. moms</p>
               </div>
@@ -711,88 +773,94 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-5 pt-4 border-t border-dashed border-gray-100">
               <div className="bg-gray-50 rounded-xl px-3 py-2">
                 <p className="text-[8px] font-black uppercase text-gray-400">25 % underlag</p>
-                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning25 ?? 0)} kr</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(currentVatReport.domesticSalesBase25)} kr</p>
               </div>
               <div className="bg-gray-50 rounded-xl px-3 py-2">
                 <p className="text-[8px] font-black uppercase text-gray-400">12 % underlag</p>
-                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning12 ?? 0)} kr</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(currentVatReport.domesticSalesBase12)} kr</p>
               </div>
               <div className="bg-gray-50 rounded-xl px-3 py-2">
                 <p className="text-[8px] font-black uppercase text-gray-400">6 % underlag</p>
-                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(breakdown.momspliktigForsaljning6 ?? 0)} kr</p>
+                <p className="text-sm font-black text-gray-600 tabular-nums">{fmt(currentVatReport.domesticSalesBase6)} kr</p>
               </div>
             </div>
           </div>
 
-          {/* Ruta 10–12 — utgående moms per momssats */}
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
             <div className="mb-4">
-              <p className="text-xs font-black uppercase text-gray-600">Utgående moms</p>
+              <p className="text-xs font-black uppercase text-gray-600">Utgående moms på svensk försäljning</p>
               <p className="text-[9px] text-gray-400 font-medium mt-1">
                 Fördelad enligt momssats
               </p>
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 10</p>
-                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 25 %</p>
+              {currentVatReport.ordinaryOutputRows.map((row, index) => (
+                <div
+                  key={row.field}
+                  className={`flex items-center justify-between gap-3 ${index === currentVatReport.ordinaryOutputRows.length - 1 ? '' : 'border-b border-gray-100 pb-3'}`}
+                >
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta {row.field}</p>
+                    <p className="text-xs font-black uppercase text-gray-600">{row.label}</p>
+                  </div>
+                  <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
+                    {fmt(row.amount)} kr
+                  </p>
                 </div>
-                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.utgaendeMoms25 ?? 0)} kr
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 11</p>
-                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 12 %</p>
-                </div>
-                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.utgaendeMoms12 ?? 0)} kr
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta 12</p>
-                  <p className="text-xs font-black uppercase text-gray-600">Utgående moms 6 %</p>
-                </div>
-                <p className="text-xl font-black text-red-500 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.utgaendeMoms6 ?? 0)} kr
-                </p>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Ruta 48 — Ingående moms */}
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
+            <div className="mb-4">
+              <p className="text-xs font-black uppercase text-gray-600">EU-förvärv med omvänd skattskyldighet</p>
+              <p className="text-[9px] text-gray-400 font-medium mt-1">
+                Auktoritativa VAT V2-fält från sparat revisionsunderlag
+              </p>
+            </div>
+            <div className="space-y-3">
+              {currentVatReport.euPurchaseRows.map((row, index) => (
+                <div
+                  key={row.field}
+                  className={`flex items-center justify-between gap-3 ${index === currentVatReport.euPurchaseRows.length - 1 ? '' : 'border-b border-gray-100 pb-3'}`}
+                >
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ruta {row.field}</p>
+                    <p className="text-xs font-black uppercase text-gray-600">{row.label}</p>
+                  </div>
+                  <p className={`text-xl font-black tabular-nums whitespace-nowrap ${row.field === '30' ? 'text-red-500' : 'text-gray-700'}`}>
+                    {fmt(row.amount)} kr
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Ruta 48</p>
-                <p className="text-xs font-black uppercase text-gray-600">Ingående moms att dra av</p>
-                <p className="text-[9px] text-gray-400 font-medium mt-1">Moms på dina kostnader (264x)</p>
+                <p className="text-xs font-black uppercase text-gray-600">{currentVatReport.inputRows[0].label}</p>
+                <p className="text-[9px] text-gray-400 font-medium mt-1">Samlad avdragsgill ingående moms</p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-black text-emerald-600 tabular-nums whitespace-nowrap">
-                  {fmt(breakdown.ingaendeMoms)} kr
+                  {fmt(currentVatReport.deductibleInputVat)} kr
                 </p>
                 <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">Avdrag</p>
               </div>
             </div>
           </div>
 
-          {/* Divider with calculation hint */}
           <div className="flex items-center gap-3 px-2">
             <div className="flex-1 border-t border-dashed border-gray-200" />
             <p className="text-[9px] font-black uppercase text-gray-300 tracking-widest whitespace-nowrap">
-              {fmt(breakdown.utgaendeMoms)} − {fmt(breakdown.ingaendeMoms)}
+              {fmt(currentVatReport.totalOutputVat)} - {fmt(currentVatReport.deductibleInputVat)}
             </p>
             <div className="flex-1 border-t border-dashed border-gray-200" />
           </div>
 
-          {/* Ruta 49 — Netto */}
           <div className={`rounded-[2rem] border-2 shadow-sm p-5 sm:p-7 ${
             skaBetalas
               ? 'bg-red-50 border-red-200'
@@ -804,7 +872,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
                   Ruta 49 (netto)
                 </p>
                 <p className={`text-xs font-black uppercase ${skaBetalas ? 'text-red-700' : 'text-emerald-700'}`}>
-                  Moms att {skaBetalas ? 'betala' : 'få tillbaka'}
+                  {currentVatReport.netRows[0].label}
                 </p>
                 <p className={`text-[9px] font-medium mt-1 ${skaBetalas ? 'text-red-400' : 'text-emerald-500'}`}>
                   {skaBetalas
@@ -814,26 +882,37 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
               </div>
               <div className="text-right">
                 <p className={`text-3xl font-black italic tabular-nums whitespace-nowrap ${skaBetalas ? 'text-red-500' : 'text-emerald-600'}`}>
-                  {skaBetalas ? '' : '+'}{fmt(Math.abs(breakdown.momsNetto))} kr
+                  {skaBetalas ? '' : '+'}{fmt(Math.abs(currentVatReport.netVat))} kr
                 </p>
                 <p className={`text-[10px] font-black uppercase mt-1 ${skaBetalas ? 'text-red-400' : 'text-emerald-500'}`}>
-                  {skaBetalas ? '▲ Skuld' : '▼ Fordran'}
+                  {skaBetalas ? 'Skuld' : 'Fordran'}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Footer note */}
           <p className="text-[9px] text-gray-300 font-bold text-center px-4 pb-2">
-            Beloppen är beräknade ur bokförda verifikationer, exklusive interna momsombokningar. Rapporten visar vanlig svensk momspliktig försäljning och ingående moms; kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
+            Beloppen är beräknade ur bokförda verifikationer och auktoritativt VAT V2-underlag, exklusive interna momsombokningar. Kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
+          </p>
+        </div>
+      )}
+
+      {hasCurrentReportError && (
+        <div className="rounded-[2rem] border border-red-100 bg-red-50 p-5 sm:p-7 text-red-700">
+          <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-2">Momsrapport stoppad</p>
+          <p className="text-sm font-black">
+            {reportError}
+          </p>
+          <p className="text-[10px] font-bold text-red-400 mt-2">
+            Inga rapportbelopp visas för den valda perioden förrän underlaget kan kontrolleras säkert.
           </p>
         </div>
       )}
 
       {/* Empty state */}
-      {!hasCurrentBreakdown && !loading && (
+      {!currentVatReport && !hasCurrentReportError && !loading && (
         <div className="text-center py-16 text-gray-300">
-          <p className="text-4xl mb-3">🧾</p>
+          <p className="text-4xl mb-3">Moms</p>
           <p className="font-black uppercase text-xs tracking-widest">
             {periodsLoading
               ? 'Hämtar momsperioder'

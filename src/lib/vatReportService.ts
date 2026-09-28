@@ -1,0 +1,457 @@
+import {
+  aggregateVatReport,
+  type VatReportAggregation,
+  type VatReportAggregationError,
+  type VatReportJournalRowInput,
+  type VatReportSnapshotInput,
+  type VatReportTransactionInput,
+} from './vatReportAggregation.ts'
+
+export type VatReportServiceErrorCode =
+  | 'query_failed'
+  | 'invalid_loaded_scope'
+  | 'aggregation_blocked'
+
+export interface VatReportServiceError {
+  code: VatReportServiceErrorCode
+  message: string
+  details?: string
+  aggregationErrors?: VatReportAggregationError[]
+}
+
+export type VatReportServiceResult =
+  | {
+      status: 'ready'
+      report: VatReportAggregation
+      errors: []
+    }
+  | {
+      status: 'blocked'
+      report: null
+      errors: VatReportServiceError[]
+    }
+
+export interface VatReportTransactionRow {
+  id: string
+  user_id: string
+  date: string
+  source: string | null
+}
+
+export interface VatReportJournalEntryRow {
+  user_id: string
+  transaction_id: string
+  account_number: string
+  debit: number | string | null
+  credit: number | string | null
+  date: string | null
+}
+
+export interface VatReportAuditSnapshotRow {
+  user_id: string
+  transaction_id: string
+  snapshot: unknown
+  created_at?: string | null
+}
+
+export interface LoadedVatReportRows {
+  transactions: VatReportTransactionRow[]
+  journalRows: VatReportJournalEntryRow[]
+  vatV2Snapshots: VatReportAuditSnapshotRow[]
+}
+
+type VatReportInputBuildResult =
+  | {
+      status: 'ready'
+      input: {
+        transactions: VatReportTransactionInput[]
+        journalRows: VatReportJournalRowInput[]
+        vatV2Snapshots: VatReportSnapshotInput[]
+      }
+      errors: []
+    }
+  | {
+      status: 'blocked'
+      input: null
+      errors: VatReportServiceError[]
+    }
+
+type VatReportQueryResult = {
+  data: unknown
+  error: unknown
+}
+
+type VatReportSupabaseFilterQuery = PromiseLike<VatReportQueryResult> & {
+  eq(column: string, value: unknown): VatReportSupabaseFilterQuery
+  gte(column: string, value: string): VatReportSupabaseFilterQuery
+  lte(column: string, value: string): VatReportSupabaseFilterQuery
+  like(column: string, value: string): VatReportSupabaseFilterQuery
+  in(column: string, values: string[]): VatReportSupabaseFilterQuery
+}
+
+type VatReportSupabaseQuery = {
+  select(columns: string): VatReportSupabaseFilterQuery
+}
+
+type VatReportSupabaseClient = {
+  from(table: string): VatReportSupabaseQuery
+}
+
+function isInPeriod(date: string | null | undefined, startDate: string, endDate: string) {
+  return Boolean(date && date >= startDate && date <= endDate)
+}
+
+function isOutputVatAccount(accountNumber: string) {
+  return (
+    accountNumber.startsWith('261') ||
+    accountNumber.startsWith('262') ||
+    accountNumber.startsWith('263')
+  )
+}
+
+function isInputVatAccount(accountNumber: string) {
+  return accountNumber.startsWith('264')
+}
+
+function isVatReportCandidateAccount(accountNumber: string) {
+  return isOutputVatAccount(accountNumber) || isInputVatAccount(accountNumber)
+}
+
+function isVat26Account(accountNumber: string) {
+  return accountNumber.startsWith('26')
+}
+
+function numericAmount(value: number | string | null) {
+  if (value == null) return 0
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : Number.NaN
+}
+
+function serviceError(
+  code: VatReportServiceErrorCode,
+  message: string,
+  details?: string,
+  aggregationErrors?: VatReportAggregationError[]
+): VatReportServiceError {
+  return { code, message, details, aggregationErrors }
+}
+
+function queryError(message: string, details: unknown): VatReportServiceResult {
+  const detailText =
+    details instanceof Error
+      ? details.message
+      : typeof details === 'string'
+      ? details
+      : undefined
+
+  return {
+    status: 'blocked',
+    report: null,
+    errors: [serviceError('query_failed', message, detailText)],
+  }
+}
+
+function assertLoadedTenantScope(
+  userId: string,
+  rows: LoadedVatReportRows
+): VatReportServiceError[] {
+  const errors: VatReportServiceError[] = []
+
+  if (rows.transactions.some(row => row.user_id !== userId)) {
+    errors.push(serviceError(
+      'invalid_loaded_scope',
+      'Loaded VAT report transactions contain rows outside the authenticated user scope.'
+    ))
+  }
+
+  if (rows.journalRows.some(row => row.user_id !== userId)) {
+    errors.push(serviceError(
+      'invalid_loaded_scope',
+      'Loaded VAT report journal rows contain rows outside the authenticated user scope.'
+    ))
+  }
+
+  if (rows.vatV2Snapshots.some(row => row.user_id !== userId)) {
+    errors.push(serviceError(
+      'invalid_loaded_scope',
+      'Loaded VAT report snapshots contain rows outside the authenticated user scope.'
+    ))
+  }
+
+  return errors
+}
+
+function buildVatReportAggregatorInput(input: {
+  userId: string
+  startDate: string
+  endDate: string
+  rows: LoadedVatReportRows
+}): VatReportInputBuildResult {
+  const tenantErrors = assertLoadedTenantScope(input.userId, input.rows)
+
+  if (tenantErrors.length > 0) {
+    return { status: 'blocked', input: null, errors: tenantErrors }
+  }
+
+  const periodCandidateTransactionIds = new Set(
+    input.rows.journalRows
+      .filter(row => (
+        isInPeriod(row.date, input.startDate, input.endDate) &&
+        isVatReportCandidateAccount(row.account_number)
+      ))
+      .map(row => row.transaction_id)
+  )
+  const reportVatV2TransactionIds = new Set(
+    input.rows.transactions
+      .filter(row => (
+        row.source === 'vat_v2' &&
+        isInPeriod(row.date, input.startDate, input.endDate)
+      ))
+      .map(row => row.id)
+  )
+  const relevantTransactionIds = new Set([
+    ...periodCandidateTransactionIds,
+    ...reportVatV2TransactionIds,
+  ])
+  const transactions: VatReportTransactionInput[] = []
+  const seenTransactions = new Set<string>()
+
+  for (const row of input.rows.transactions) {
+    if (
+      !relevantTransactionIds.has(row.id) &&
+      row.source !== 'vat_v2'
+    ) {
+      continue
+    }
+
+    if (
+      row.source === 'vat_v2' &&
+      !periodCandidateTransactionIds.has(row.id) &&
+      !reportVatV2TransactionIds.has(row.id)
+    ) {
+      continue
+    }
+
+    if (seenTransactions.has(row.id)) continue
+
+    transactions.push({
+      id: row.id,
+      source: row.source,
+      inReportPeriod: isInPeriod(row.date, input.startDate, input.endDate),
+    })
+    seenTransactions.add(row.id)
+  }
+
+  const knownTransactionIds = new Set(transactions.map(row => row.id))
+  const journalRows: VatReportJournalRowInput[] = input.rows.journalRows
+    .filter(row => (
+      knownTransactionIds.has(row.transaction_id) &&
+      isVat26Account(row.account_number)
+    ))
+    .map(row => ({
+      transactionId: row.transaction_id,
+      accountNumber: row.account_number,
+      debit: numericAmount(row.debit),
+      credit: numericAmount(row.credit),
+      inReportPeriod: isInPeriod(row.date, input.startDate, input.endDate),
+    }))
+
+  if (
+    journalRows.some(row => !Number.isFinite(row.debit) || !Number.isFinite(row.credit))
+  ) {
+    return {
+      status: 'blocked',
+      input: null,
+      errors: [serviceError(
+        'invalid_loaded_scope',
+        'Loaded VAT report journal rows contain non-numeric debit or credit amounts.'
+      )],
+    }
+  }
+
+  const vatV2Snapshots: VatReportSnapshotInput[] = input.rows.vatV2Snapshots
+    .filter(row => reportVatV2TransactionIds.has(row.transaction_id))
+    .map(row => ({
+      transactionId: row.transaction_id,
+      snapshot: row.snapshot,
+    }))
+
+  return {
+    status: 'ready',
+    input: {
+      transactions,
+      journalRows,
+      vatV2Snapshots,
+    },
+    errors: [],
+  }
+}
+
+export function calculateVatReportFromLoadedRows(input: {
+  userId: string
+  startDate: string
+  endDate: string
+  rows: LoadedVatReportRows
+}): VatReportServiceResult {
+  const aggregatorInput = buildVatReportAggregatorInput(input)
+
+  if (aggregatorInput.status === 'blocked') {
+    return {
+      status: 'blocked',
+      report: null,
+      errors: aggregatorInput.errors,
+    }
+  }
+
+  const aggregation = aggregateVatReport(aggregatorInput.input)
+
+  if (aggregation.status === 'blocked') {
+    return {
+      status: 'blocked',
+      report: null,
+      errors: [serviceError(
+        'aggregation_blocked',
+        'VAT report could not be safely calculated from loaded data.',
+        undefined,
+        aggregation.errors
+      )],
+    }
+  }
+
+  return {
+    status: 'ready',
+    report: aggregation.report,
+    errors: [],
+  }
+}
+
+async function loadTransactionsByIds(
+  db: VatReportSupabaseClient,
+  userId: string,
+  transactionIds: string[]
+): Promise<{ data: VatReportTransactionRow[]; error: unknown }> {
+  if (transactionIds.length === 0) return { data: [], error: null }
+
+  const { data, error } = await db
+    .from('transactions')
+    .select('id, user_id, date, source')
+    .eq('user_id', userId)
+    .in('id', transactionIds)
+
+  return { data: (data ?? []) as VatReportTransactionRow[], error }
+}
+
+export async function getVatReportForPeriod(
+  startDate: string,
+  endDate: string
+): Promise<VatReportServiceResult> {
+  const [{ supabase }, { getUserId }] = await Promise.all([
+    import('./supabaseClient'),
+    import('./accountingService'),
+  ])
+  const db = supabase as unknown as VatReportSupabaseClient
+  let userId: string
+
+  try {
+    userId = await getUserId()
+  } catch (err) {
+    return queryError('Could not determine authenticated user for VAT report.', err)
+  }
+
+  const { data: period26Rows, error: period26Error } = await db
+    .from('journal_entries')
+    .select('user_id, transaction_id, account_number, date')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .like('account_number', '26%')
+
+  if (period26Error) {
+    return queryError('Could not load VAT report candidate journal rows.', period26Error)
+  }
+
+  const periodCandidateTransactionIds = Array.from(new Set(
+    ((period26Rows ?? []) as Pick<
+      VatReportJournalEntryRow,
+      'account_number' | 'transaction_id'
+    >[])
+      .filter(row => isVatReportCandidateAccount(row.account_number))
+      .map(row => row.transaction_id)
+  ))
+
+  const { data: periodVatV2Transactions, error: vatV2TransactionError } =
+    await db
+      .from('transactions')
+      .select('id, user_id, date, source')
+      .eq('user_id', userId)
+      .eq('source', 'vat_v2')
+      .gte('date', startDate)
+      .lte('date', endDate)
+
+  if (vatV2TransactionError) {
+    return queryError('Could not load native VAT V2 transactions.', vatV2TransactionError)
+  }
+
+  const periodVatV2TransactionRows =
+    (periodVatV2Transactions ?? []) as VatReportTransactionRow[]
+  const periodVatV2TransactionIds = periodVatV2TransactionRows.map(row => row.id)
+  const relevantTransactionIds = Array.from(new Set([
+    ...periodCandidateTransactionIds,
+    ...periodVatV2TransactionIds,
+  ]))
+  const { data: candidateTransactionRows, error: transactionError } =
+    await loadTransactionsByIds(db, userId, relevantTransactionIds)
+
+  if (transactionError) {
+    return queryError('Could not load VAT report transactions.', transactionError)
+  }
+
+  const allTransactionsById = new Map<string, VatReportTransactionRow>()
+
+  for (const row of candidateTransactionRows) {
+    allTransactionsById.set(row.id, row)
+  }
+
+  for (const row of periodVatV2TransactionRows) {
+    allTransactionsById.set(row.id, row)
+  }
+
+  const allTransactionRows = Array.from(allTransactionsById.values())
+  const { data: all26Rows, error: all26Error } =
+    relevantTransactionIds.length === 0
+      ? { data: [] as VatReportJournalEntryRow[], error: null }
+      : await db
+        .from('journal_entries')
+        .select('user_id, transaction_id, account_number, debit, credit, date')
+        .eq('user_id', userId)
+        .in('transaction_id', relevantTransactionIds)
+        .like('account_number', '26%')
+
+  if (all26Error) {
+    return queryError('Could not load complete VAT report journal rows.', all26Error)
+  }
+
+  const { data: snapshotRows, error: snapshotError } =
+    periodVatV2TransactionIds.length === 0
+      ? { data: [] as VatReportAuditSnapshotRow[], error: null }
+      : await db
+        .from('vat_audit_snapshots')
+        .select('user_id, transaction_id, snapshot, created_at')
+        .eq('user_id', userId)
+        .in('transaction_id', periodVatV2TransactionIds)
+
+  if (snapshotError) {
+    return queryError('Could not load VAT V2 audit snapshots.', snapshotError)
+  }
+
+  return calculateVatReportFromLoadedRows({
+    userId,
+    startDate,
+    endDate,
+    rows: {
+      transactions: allTransactionRows,
+      journalRows: (all26Rows ?? []) as VatReportJournalEntryRow[],
+      vatV2Snapshots: (snapshotRows ?? []) as VatReportAuditSnapshotRow[],
+    },
+  })
+}

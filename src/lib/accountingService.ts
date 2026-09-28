@@ -436,10 +436,9 @@ export async function declareVatPeriod(periodId: string): Promise<DeclareVatPeri
  * påverkar aldrig resultatet - de saknar momskontorader att exkludera eller
  * räkna med i första läget.
  *
- * Detta är den ENDA platsen momsberäkningen görs. Momsrapport.tsx, Dashboard
- * (via calculations.ts) och all annan momsvisning ska anropa den här funktionen
- * istället för att räkna själva - annars riskerar olika delar av appen visa
- * olika siffror för samma period.
+ * Legacy/V1-sammanställning som används av Dashboard/useAccountingData.
+ * Momsrapportens SKV-fält går via vatReportService.ts så att native VAT V2
+ * läses från auktoritativa audit snapshots istället för BAS-inferens.
  */
 export interface MomsBreakdown {
   utgaendeMoms: number

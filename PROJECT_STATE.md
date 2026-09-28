@@ -31,7 +31,9 @@ Last updated: 2026-09-28
   full deduction, positive explicit acquisition base, configured payment role.
 - First controlled production VAT V2 booking passed IRL verification as
   `VER-14` on 2026-09-28.
-- VAT V2 report UI/snapshot integration is next and belongs to KAN-20.
+- KAN-20 VAT V2 report UI/snapshot integration is locally implemented and
+  verified through Slice 3; it is not IRL-complete until Pontus verifies the
+  production UI after deployment.
 
 ## KAN-19 VAT Profile Runtime Slice
 
@@ -130,7 +132,24 @@ Last updated: 2026-09-28
 - KAN-20 concrete follow-up: after `VER-14`, production Momsrapport displayed
   VAT V2 taxable base `228` under ruta 05 while output VAT `57` and deductible
   input VAT `57` were reflected; authoritative audit fields are 21/30/48, so
-  report UI is not yet snapshot-aware for the acquisition base.
+  the pre-KAN-20 production report UI is not snapshot-aware for the acquisition
+  base.
+- KAN-20 local implementation checkpoint: Momsrapport now reads hybrid VAT
+  report fields through `vatReportService` and renders SKV fields
+  05/10/11/12/21/30/48/49. Legacy/V1 remains journal/account based; native
+  VAT V2 is based on validated `vat_audit_snapshots`.
+- Current supported native VAT V2 report mapping is field 21 acquisition base,
+  field 30 output VAT, and field 48 deductible input VAT. Native VAT V2 rows are
+  excluded from legacy aggregation, and missing/malformed/duplicate/unsupported
+  native VAT V2 audit data fails closed instead of falling back to V1 inference.
+- KAN-20 local automated checks passed on 2026-09-28: VAT report aggregation,
+  service, and presentation tests; `npm run test:domain`; `npm run typecheck`;
+  targeted ESLint; `git diff --check`; and `npm run build`. No DB/RPC/RLS
+  migration is required.
+- KAN-20 production acceptance case for Pontus after deployment: `VER-14`
+  should show base 228 as field 21, field 30 = 57, field 48 including 57
+  exactly once, VAT V2 contribution to field 05 = 0, contribution to field
+  10 = 0, and VAT V2 net effect = 0.
 - Known KAN-19 limitations: client duplicate-submit protection only, no
   server idempotency/dedupe guarantee, attachment upload and DB booking are not
   cross-system atomic, no attachment in IRL test, VAT V2 report UI is KAN-20.
@@ -191,4 +210,6 @@ Last updated: 2026-09-28
 
 - Do not add migrations, create/edit/delete VAT V2 transactions, deploy, or
   change Jira without explicit Pontus approval.
-- Next implementation step: KAN-20 VAT V2 report UI/snapshot integration.
+- Next gate: deploy through the normal GitHub/Vercel path, then Pontus manually
+  verifies the production Momsrapport UI/IRL behavior for the period containing
+  `VER-14`. Do not mark KAN-20 Done before that manual verification.
