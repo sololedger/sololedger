@@ -85,7 +85,7 @@ export function buildVatReportPresentation(
       },
       {
         field: '30',
-        label: 'Utgående moms 25 % på inköp i rutorna 20-24',
+        label: 'Utgående moms 25 % på inköp i rutorna 20–24',
         amount: fields['30'],
       },
     ],
@@ -111,5 +111,5 @@ export function vatReportBlockedMessage(errors: VatReportServiceError[]) {
     return 'Momsrapporten kunde inte hämtas just nu. Inga belopp visas förrän rapporten kan beräknas säkert.'
   }
 
-  return 'Momsrapporten kan inte beräknas säkert eftersom en VAT V2-verifikation saknar giltigt revisionsunderlag.'
+  return 'Momsrapporten kan inte beräknas säkert eftersom ett inköp med omvänd moms saknar kontrollerbart underlag.'
 }

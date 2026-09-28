@@ -222,7 +222,7 @@ assertEqual(blocked.report, null, 'CASE D malformed/missing VAT V2 -> no report'
 if (blocked.status === 'blocked') {
   assertEqual(
     vatReportBlockedMessage(blocked.errors),
-    'Momsrapporten kan inte beräknas säkert eftersom en VAT V2-verifikation saknar giltigt revisionsunderlag.',
+    'Momsrapporten kan inte beräknas säkert eftersom ett inköp med omvänd moms saknar kontrollerbart underlag.',
     'CASE D malformed/missing VAT V2 -> safe Swedish message'
   )
 }

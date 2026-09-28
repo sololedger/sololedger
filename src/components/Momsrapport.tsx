@@ -814,9 +814,9 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-7">
             <div className="mb-4">
-              <p className="text-xs font-black uppercase text-gray-600">EU-förvärv med omvänd skattskyldighet</p>
+              <p className="text-xs font-black uppercase text-gray-600">Inköp från andra EU-länder</p>
               <p className="text-[9px] text-gray-400 font-medium mt-1">
-                Auktoritativa VAT V2-fält från sparat revisionsunderlag
+                Inköp där du själv redovisar svensk moms
               </p>
             </div>
             <div className="space-y-3">
@@ -892,7 +892,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
           </div>
 
           <p className="text-[9px] text-gray-300 font-bold text-center px-4 pb-2">
-            Beloppen är beräknade ur bokförda verifikationer och auktoritativt VAT V2-underlag, exklusive interna momsombokningar. Kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
+            Beloppen är beräknade ur bokförda verifikationer, exklusive interna momsombokningar. Kontrollera alltid mot Skatteverkets e-tjänst innan inlämning.
           </p>
         </div>
       )}
