@@ -31,8 +31,9 @@ import {
   buildVatV2RuntimeBookingRequest,
   createVatV2RuntimeSubmitGuard,
   describeVatV2RuntimeBookingError,
+  shouldRequireOrdinaryV1AmountForVatV2Form,
+  shouldShowOrdinaryV1FieldsForVatV2Form,
   type VatV2RuntimeBookingRequest,
-  type VatV2RuntimeTransactionEvent,
 } from '@/lib/vatRuntimeBooking'
 
 export interface FormData {
@@ -86,25 +87,7 @@ const initialVatV2Facts: VatV2TransactionFacts = {
   acquisitionBaseAmount: '',
 }
 
-const VAT_V2_UNSUPPORTED_ACCOUNTING_CATEGORY_IDS = new Set([
-  'ingående_balans',
-  'skattekonto_default',
-  'egen_insättning',
-  'eget_uttag',
-  'periodisering',
-])
-
-function classifyVatV2TransactionEvent(
-  selectedOption: KontoplanOption | undefined
-): VatV2RuntimeTransactionEvent {
-  if (!selectedOption) return 'unsupported'
-  if (selectedOption.credit_account?.startsWith('3')) return 'unsupported'
-  if (VAT_V2_UNSUPPORTED_ACCOUNTING_CATEGORY_IDS.has(selectedOption.id)) {
-    return 'unsupported'
-  }
-
-  return 'purchase'
-}
+const VAT_V2_ACCOUNTING_CATEGORY_ID = 'vat_v2_eu_service_purchase'
 
 export default function TransactionForm({
   formData,
@@ -159,6 +142,12 @@ export default function TransactionForm({
   const showVatV2Assessment = !editingId && !editingBooked
   const vatV2AssessmentEnabled =
     showVatV2Assessment && vatV2Facts.enabled
+  const showOrdinaryV1Fields = shouldShowOrdinaryV1FieldsForVatV2Form({
+    assessmentActive: vatV2AssessmentEnabled,
+  })
+  const ordinaryV1AmountRequired = shouldRequireOrdinaryV1AmountForVatV2Form({
+    assessmentActive: vatV2AssessmentEnabled,
+  })
   const vatV2Preflight = buildVatV2TransactionPreflight({
     companyProfile: companyVatProfileResult.profile,
     transaction: {
@@ -167,7 +156,9 @@ export default function TransactionForm({
     },
     date: formData.date,
     description: formData.description,
-    accountingCategoryId: formData.type,
+    accountingCategoryId: vatV2AssessmentEnabled
+      ? VAT_V2_ACCOUNTING_CATEGORY_ID
+      : formData.type,
     ordinaryAmount: formData.amount,
   })
   const vatV2PaymentSource = resolveVatV2PaymentSourceConfiguration(
@@ -189,12 +180,9 @@ export default function TransactionForm({
     roleConfigurationState: vatV2PaymentRoleConfigurationState,
     paymentSource: vatV2PaymentSource,
   })
-  const selectedKontoplanOption = kontoplan.find(
-    option => option.id === formData.type
-  )
   const vatV2RuntimeBooking = buildVatV2RuntimeBookingRequest({
     assessmentActive: vatV2AssessmentEnabled,
-    transactionEvent: classifyVatV2TransactionEvent(selectedKontoplanOption),
+    transactionEvent: 'purchase',
     preflight: vatV2Preflight,
     bookingReadiness: vatV2BookingReadiness,
     date: formData.date,
@@ -507,97 +495,100 @@ export default function TransactionForm({
               />
             </div>
 
-            {/* Kategori */}
-            <div className="lg:col-span-3 flex flex-col gap-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                Kategori
-              </label>
+            {showOrdinaryV1Fields && (
+              <div className="lg:col-span-3 flex flex-col gap-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
+                  Kategori
+                </label>
 
-              <select
-                value={formData.type}
-                onChange={e => {
-                  const acc = kontoplan.find(
-                    k => k.id === e.target.value
-                  )
+                <select
+                  value={formData.type}
+                  onChange={e => {
+                    const acc = kontoplan.find(
+                      k => k.id === e.target.value
+                    )
 
-                  setFormData({
-                    ...formData,
-                    type: e.target.value,
-                    vatRate: isNotVatRegistered
-                      ? 0
-                      : Number(acc?.default_vat_rate) || 0,
-                  })
-                }}
-                disabled={editingBooked || isYearLocked}
-                className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                  editingBooked || isYearLocked
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-50 cursor-pointer'
-                } ${isYearLocked ? 'opacity-40' : ''}`}
-              >
-                {(() => {
-                  const income = kontoplan.filter(
-                    k =>
-                      k.credit_account?.startsWith('3')
-                  )
+                    setFormData({
+                      ...formData,
+                      type: e.target.value,
+                      vatRate: isNotVatRegistered
+                        ? 0
+                        : Number(acc?.default_vat_rate) || 0,
+                    })
+                  }}
+                  disabled={editingBooked || isYearLocked}
+                  className={`p-3 rounded-xl outline-none font-bold text-xs ${
+                    editingBooked || isYearLocked
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-50 cursor-pointer'
+                  } ${isYearLocked ? 'opacity-40' : ''}`}
+                >
+                  {(() => {
+                    const income = kontoplan.filter(
+                      k =>
+                        k.credit_account?.startsWith('3')
+                    )
 
-                  const special = kontoplan.filter(
-                    k =>
-                      k.id === 'ingående_balans' ||
-                      k.id === 'skattekonto_default' ||
-                      k.id === 'egen_insättning' ||
-                      k.id === 'eget_uttag' ||
-                      k.id === 'periodisering'
-                  )
+                    const special = kontoplan.filter(
+                      k =>
+                        k.id === 'ingående_balans' ||
+                        k.id === 'skattekonto_default' ||
+                        k.id === 'egen_insättning' ||
+                        k.id === 'eget_uttag' ||
+                        k.id === 'periodisering'
+                    )
 
-                  const costs = kontoplan.filter(
-                    k =>
-                      !income.includes(k) &&
-                      !special.includes(k)
-                  )
+                    const costs = kontoplan.filter(
+                      k =>
+                        !income.includes(k) &&
+                        !special.includes(k)
+                    )
 
-                  return (
-                    <>
-                      <optgroup label="── Intäkter ──">
-                        {income.map(item => (
-                          <option
-                            key={item.id}
-                            value={item.id}
-                          >
-                            {item.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                    return (
+                      <>
+                        <optgroup label="── Intäkter ──">
+                          {income.map(item => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.name}
+                            </option>
+                          ))}
+                        </optgroup>
 
-                      <optgroup label="── Kostnader ──">
-                        {costs.map(item => (
-                          <option
-                            key={item.id}
-                            value={item.id}
-                          >
-                            {item.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                        <optgroup label="── Kostnader ──">
+                          {costs.map(item => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.name}
+                            </option>
+                          ))}
+                        </optgroup>
 
-                      <optgroup label="── Övrigt ──">
-                        {special.map(item => (
-                          <option
-                            key={item.id}
-                            value={item.id}
-                          >
-                            {item.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </>
-                  )
-                })()}
-              </select>
-            </div>
+                        <optgroup label="── Övrigt ──">
+                          {special.map(item => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </>
+                    )
+                  })()}
+                </select>
+              </div>
+            )}
 
             {/* Beskrivning */}
-            <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
+            <div className={`col-span-2 flex flex-col gap-1 ${
+              vatV2AssessmentEnabled ? 'lg:col-span-6' : 'lg:col-span-3'
+            }`}>
               <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
                 Beskrivning
               </label>
@@ -630,63 +621,69 @@ export default function TransactionForm({
               />
             </div>
 
-            {/* Moms % */}
-            <div className="lg:col-span-1 flex flex-col gap-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                Moms %
-              </label>
+            {showOrdinaryV1Fields && (
+              <>
+                {/* Moms % */}
+                <div className="lg:col-span-1 flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
+                    Moms %
+                  </label>
 
-              <select
-                value={formData.vatRate}
-                onChange={e =>
-                  setFormData({
-                    ...formData,
-                    vatRate: Number(e.target.value),
-                  })
-                }
-                disabled={editingBooked || isYearLocked || isNotVatRegistered}
-                className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                  editingBooked || isYearLocked || isNotVatRegistered
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-50 cursor-pointer'
-                } ${isYearLocked ? 'opacity-40' : ''}`}
-                title={isNotVatRegistered ? 'Företaget är markerat som inte momsregistrerat.' : undefined}
-              >
-                <option value={25}>25%</option>
-                <option value={12}>12%</option>
-                <option value={6}>6%</option>
-                <option value={0}>0%</option>
-              </select>
-            </div>
+                  <select
+                    value={formData.vatRate}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        vatRate: Number(e.target.value),
+                      })
+                    }
+                    disabled={editingBooked || isYearLocked || isNotVatRegistered}
+                    className={`p-3 rounded-xl outline-none font-bold text-xs ${
+                      editingBooked || isYearLocked || isNotVatRegistered
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-50 cursor-pointer'
+                    } ${isYearLocked ? 'opacity-40' : ''}`}
+                    title={isNotVatRegistered ? 'Företaget är markerat som inte momsregistrerat.' : undefined}
+                  >
+                    <option value={25}>25%</option>
+                    <option value={12}>12%</option>
+                    <option value={6}>6%</option>
+                    <option value={0}>0%</option>
+                  </select>
+                </div>
 
-            {/* Belopp */}
-            <div className="lg:col-span-2 flex flex-col gap-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                {isNotVatRegistered ? 'Belopp' : 'Belopp inkl. moms'}
-              </label>
+                {/* Belopp */}
+                <div className="lg:col-span-2 flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
+                    {isNotVatRegistered ? 'Belopp' : 'Belopp inkl. moms'}
+                  </label>
 
-              <input
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={e =>
-                  setFormData({
-                    ...formData,
-                    amount: e.target.value,
-                  })
-                }
-                disabled={editingBooked || isYearLocked}
-                className={`p-3 rounded-xl outline-none font-black text-sm ${
-                  editingBooked || isYearLocked
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-50'
-                } ${isYearLocked ? 'opacity-40' : ''}`}
-                required
-              />
-            </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        amount: e.target.value,
+                      })
+                    }
+                    disabled={editingBooked || isYearLocked}
+                    className={`p-3 rounded-xl outline-none font-black text-sm ${
+                      editingBooked || isYearLocked
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-50'
+                    } ${isYearLocked ? 'opacity-40' : ''}`}
+                    required={ordinaryV1AmountRequired}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Submit / Cancel — endast desktop */}
-            <div className="hidden lg:col-span-1 lg:flex lg:flex-col gap-1">
+            <div className={`hidden lg:flex lg:flex-col gap-1 ${
+              vatV2AssessmentEnabled ? 'lg:col-span-4' : 'lg:col-span-1'
+            }`}>
               {editingId && (
                 <label className="text-[9px] font-black text-amber-400 uppercase ml-1">
                   Redigerar

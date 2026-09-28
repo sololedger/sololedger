@@ -1,6 +1,8 @@
 import {
   buildVatV2RuntimeBookingRequest,
   createVatV2RuntimeSubmitGuard,
+  shouldRequireOrdinaryV1AmountForVatV2Form,
+  shouldShowOrdinaryV1FieldsForVatV2Form,
 } from '../src/lib/vatRuntimeBooking.ts'
 import {
   buildVatV2TransactionPreflight,
@@ -36,6 +38,18 @@ const configuredRoles: ConfiguredPaymentAccountRole[] = [
   { role: 'business_payment_account', accountNumber: '1940' },
   { role: 'owner_private_payment', accountNumber: '2017' },
 ]
+
+assert(
+  !shouldShowOrdinaryV1FieldsForVatV2Form({ assessmentActive: true }) &&
+    !shouldRequireOrdinaryV1AmountForVatV2Form({ assessmentActive: true }),
+  'VAT V2 booking must not be blocked by ordinary V1 form fields or amount validation'
+)
+
+assert(
+  shouldShowOrdinaryV1FieldsForVatV2Form({ assessmentActive: false }) &&
+    shouldRequireOrdinaryV1AmountForVatV2Form({ assessmentActive: false }),
+  'VAT V2 off must preserve ordinary V1 form fields and amount validation'
+)
 
 const readyPreflight = buildVatV2TransactionPreflight({
   companyProfile,

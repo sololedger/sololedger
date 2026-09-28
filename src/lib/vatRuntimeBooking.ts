@@ -53,6 +53,18 @@ export type VatV2RuntimeSubmitGuardResult<T> =
   | { status: 'completed'; value: T }
   | { status: 'blocked_duplicate' }
 
+export function shouldShowOrdinaryV1FieldsForVatV2Form(input: {
+  assessmentActive: boolean
+}) {
+  return !input.assessmentActive
+}
+
+export function shouldRequireOrdinaryV1AmountForVatV2Form(input: {
+  assessmentActive: boolean
+}) {
+  return shouldShowOrdinaryV1FieldsForVatV2Form(input)
+}
+
 function error(
   code: VatV2RuntimeBookingBlockCode,
   message: string
