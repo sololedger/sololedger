@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-27
+Last updated: 2026-09-28
 
 ## Repository State
 
@@ -30,9 +30,9 @@ Last updated: 2026-09-27
 - KAN-19 VAT V2 transaction fact collection/preflight is implemented locally
   for the narrow supported EU service reverse-charge path.
 - KAN-19 payment-account role model and ACL hardening are live and verified.
-- Current local KAN-19 slice implements VAT V2 payment-source UX/configuration
-  gating only; no VAT V2 runtime booking is wired yet.
-- VAT V2 runtime booking route is not recorded as complete here.
+- Current local KAN-19 slice wires VAT V2 runtime booking for the narrow
+  supported EU service reverse-charge path only.
+- VAT V2 runtime booking remains uncheckpointed and not deployed.
 - No live VAT V2 business transaction was created during verification.
 - Next KAN-19 work should build on the live persistence boundary without
   recreating the migration-history cutover.
@@ -81,8 +81,11 @@ Last updated: 2026-09-27
   public tables. Client-facing table migrations must explicitly verify/revoke
   unintended `anon`/`authenticated` privileges. Broader default-privilege
   cleanup/review is deferred.
-- VAT V2 payment-source UI/configuration wiring is local-only in the current
-  slice. Final runtime booking into the VAT V2 persistence chain remains next.
+- VAT V2 payment-source UI/configuration wiring is live in source only; the
+  current local slice now calls the existing VAT V2 persistence chain when the
+  runtime guard is ready.
+- Runtime guard still treats payment-role recommendations as suggestions only;
+  explicit company/user payment role configuration remains required.
 
 ## KAN-19 Persistence Candidate
 
@@ -111,6 +114,10 @@ Last updated: 2026-09-27
 - KAN-19 payment-source UX/configuration hardening checks passed locally:
   `npm run test:domain`, `npm run typecheck`, targeted ESLint, and
   `git diff --check`; no live write, migration, deploy, or booking wiring.
+- KAN-19 VAT V2 runtime wiring local checks passed for new slice-owned code:
+  `npm run test:domain`, `npm run typecheck`, targeted clean ESLint subset, and
+  `git diff --check`. Full touched-file ESLint still includes pre-existing
+  `src/app/page.tsx` debt and existing `TransactionTable` broad-typing debt.
 - KAN-19 persistence final review passed with 0 CRITICAL, 0 HIGH, 0 MEDIUM
   findings; only residual LOW risk was lack of true two-session concurrency
   proof.
@@ -168,6 +175,6 @@ Last updated: 2026-09-27
 
 - Do not deploy, add migrations, create real VAT V2 business transactions, or
   change Jira without explicit Pontus approval.
-- Next implementation step under separate approval: wire VAT V2 runtime booking
-  through the existing persistence chain after payment-source UX review. Do not
-  start it without explicit Pontus approval.
+- Next implementation step: review and checkpoint the local VAT V2 runtime
+  wiring. Do not create real VAT V2 production transactions, deploy, or change
+  Jira without explicit Pontus approval.

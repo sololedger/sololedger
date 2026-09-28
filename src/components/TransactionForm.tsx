@@ -27,6 +27,13 @@ import {
   VAT_V2_PAYMENT_SOURCE_CHOICES,
   type VatV2PaymentSourceChoice,
 } from '@/lib/vatPaymentSource'
+import {
+  buildVatV2RuntimeBookingRequest,
+  createVatV2RuntimeSubmitGuard,
+  describeVatV2RuntimeBookingError,
+  type VatV2RuntimeBookingRequest,
+  type VatV2RuntimeTransactionEvent,
+} from '@/lib/vatRuntimeBooking'
 
 export interface FormData {
   date: string
@@ -57,6 +64,10 @@ interface TransactionFormProps {
   periodMonth: string
   setPeriodMonth: (val: string) => void
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
+  onVatV2Submit: (
+    request: VatV2RuntimeBookingRequest,
+    file: File | null
+  ) => Promise<void>
   onCancelEdit: () => void
   userId: string
   vatStatus: 'registered' | 'not_registered' | 'unknown'
@@ -75,6 +86,26 @@ const initialVatV2Facts: VatV2TransactionFacts = {
   acquisitionBaseAmount: '',
 }
 
+const VAT_V2_UNSUPPORTED_ACCOUNTING_CATEGORY_IDS = new Set([
+  'ingående_balans',
+  'skattekonto_default',
+  'egen_insättning',
+  'eget_uttag',
+  'periodisering',
+])
+
+function classifyVatV2TransactionEvent(
+  selectedOption: KontoplanOption | undefined
+): VatV2RuntimeTransactionEvent {
+  if (!selectedOption) return 'unsupported'
+  if (selectedOption.credit_account?.startsWith('3')) return 'unsupported'
+  if (VAT_V2_UNSUPPORTED_ACCOUNTING_CATEGORY_IDS.has(selectedOption.id)) {
+    return 'unsupported'
+  }
+
+  return 'purchase'
+}
+
 export default function TransactionForm({
   formData,
   setFormData,
@@ -88,6 +119,7 @@ export default function TransactionForm({
   periodMonth,
   setPeriodMonth,
   onSubmit,
+  onVatV2Submit,
   onCancelEdit,
   userId,
   vatStatus,
@@ -114,9 +146,13 @@ export default function TransactionForm({
   const [savingPaymentRole, setSavingPaymentRole] = useState(false)
   const [paymentRoleSaveError, setPaymentRoleSaveError] =
     useState<{ role: PaymentAccountRole; message: string } | null>(null)
+  const [vatV2SubmitError, setVatV2SubmitError] = useState<string | null>(null)
   const paymentRoleRequestId = useRef(0)
   const paymentRoleSaveRequestId = useRef(0)
   const paymentRoleSaveInFlight = useRef(false)
+  const vatV2SubmitGuard = useRef<ReturnType<
+    typeof createVatV2RuntimeSubmitGuard
+  > | null>(null)
   const componentMounted = useRef(true)
   const activeUserId = useRef(userId)
   const isNotVatRegistered = vatStatus === 'not_registered'
@@ -153,6 +189,17 @@ export default function TransactionForm({
     roleConfigurationState: vatV2PaymentRoleConfigurationState,
     paymentSource: vatV2PaymentSource,
   })
+  const selectedKontoplanOption = kontoplan.find(
+    option => option.id === formData.type
+  )
+  const vatV2RuntimeBooking = buildVatV2RuntimeBookingRequest({
+    assessmentActive: vatV2AssessmentEnabled,
+    transactionEvent: classifyVatV2TransactionEvent(selectedKontoplanOption),
+    preflight: vatV2Preflight,
+    bookingReadiness: vatV2BookingReadiness,
+    date: formData.date,
+    description: formData.description,
+  })
   const selectedVatV2PaymentSourceOption =
     getVatV2PaymentSourceOption(vatV2PaymentSourceChoice)
   const currentPaymentRoleSaveError =
@@ -174,6 +221,7 @@ export default function TransactionForm({
   }, [])
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
+    setVatV2SubmitError(null)
     setVatV2Facts(prev => ({
       ...prev,
       ...update,
@@ -237,6 +285,8 @@ export default function TransactionForm({
     paymentRoleRequestId.current += 1
     paymentRoleSaveRequestId.current += 1
     paymentRoleSaveInFlight.current = false
+    vatV2SubmitGuard.current = null
+    setVatV2SubmitError(null)
     setVatV2Facts(
       enabled
         ? { ...initialVatV2Facts, enabled: true }
@@ -250,6 +300,9 @@ export default function TransactionForm({
     setPaymentRolesError(null)
     setSavingPaymentRole(false)
     setPaymentRoleSaveError(null)
+    if (enabled) {
+      setPeriodisera(false)
+    }
 
     if (enabled) {
       void loadPaymentRoleConfiguration()
@@ -322,9 +375,49 @@ export default function TransactionForm({
     }
   }
 
-  function handleVatV2Submit(e: FormEvent<HTMLFormElement>) {
+  async function handleVatV2Submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     e.stopPropagation()
+
+    setVatV2SubmitError(null)
+
+    if (vatV2RuntimeBooking.status !== 'ready') {
+      setVatV2SubmitError(
+        vatV2RuntimeBooking.errors
+          .map(describeVatV2RuntimeBookingError)
+          .join(' ')
+      )
+      return
+    }
+
+    if (!vatV2SubmitGuard.current) {
+      vatV2SubmitGuard.current = createVatV2RuntimeSubmitGuard()
+    }
+
+    try {
+      const result = await vatV2SubmitGuard.current.run(() =>
+        onVatV2Submit(vatV2RuntimeBooking.request, formData.file)
+      )
+
+      if (result.status === 'blocked_duplicate') {
+        setVatV2SubmitError('Bokningen behandlas redan.')
+        return
+      }
+
+      setVatV2Facts(initialVatV2Facts)
+      setVatV2PaymentSourceChoice('business_account')
+      setConfiguredPaymentRoles([])
+      setPaymentRolesLoaded(false)
+      setPaymentRolesLoadedForUser(null)
+      setPaymentRolesError(null)
+      setPaymentRoleSaveError(null)
+    } catch (error) {
+      setVatV2SubmitError(
+        error instanceof Error
+          ? error.message
+          : 'VAT V2-bokningen misslyckades.'
+      )
+    }
   }
 
   function handleFavoriteSelect(fav: Favorite) {
@@ -619,7 +712,7 @@ export default function TransactionForm({
                   {uploading
                     ? '...'
                     : vatV2AssessmentEnabled
-                    ? 'Förhandskolla'
+                    ? 'Bokför VAT V2'
                     : editingId
                     ? 'Spara'
                     : 'Bokför'}
@@ -674,7 +767,7 @@ export default function TransactionForm({
                   Utlandsinköp
                 </span>
                 <p className="text-[9px] text-gray-400 font-medium mt-0.5">
-                  Förhandskontroll för moms. Ingen bokning skapas här.
+                  Bedöm utlandsinköpet och bokför den stödda EU-tjänstvägen.
                 </p>
               </div>
             </label>
@@ -891,7 +984,7 @@ export default function TransactionForm({
 
                 <div
                   className={`mt-4 rounded-xl border px-4 py-3 ${
-                    vatV2BookingReadiness.status === 'ready_to_book'
+                    vatV2RuntimeBooking.status === 'ready'
                       ? 'border-emerald-100 bg-emerald-50'
                       : 'border-amber-100 bg-amber-50'
                   }`}
@@ -907,10 +1000,22 @@ export default function TransactionForm({
                         beräknad ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
                       </p>
                       <p className="mt-1 text-[10px] font-bold text-emerald-700">
-                        {vatV2BookingReadiness.status === 'ready_to_book'
-                          ? `Betalningskälla är konfigurerad med konto ${vatV2BookingReadiness.paymentAccountNumber}. Nästa slice kopplar själva bokningen.`
-                          : 'Bokning hålls stängd tills betalningskällan har ett sparat konto. Ingen VAT V2-bokning skapas här.'}
+                        {vatV2RuntimeBooking.status === 'ready'
+                          ? `Redo att bokföra via konto ${vatV2RuntimeBooking.request.paymentAccountNumber}.`
+                          : 'Bokning hålls stängd tills alla uppgifter och betalningskällan är säkra.'}
                       </p>
+                      {vatV2RuntimeBooking.status === 'blocked' && (
+                        <ul className="mt-2 space-y-1">
+                          {vatV2RuntimeBooking.errors.map((runtimeError, index) => (
+                            <li
+                              key={`${runtimeError.code}-${index}`}
+                              className="text-[10px] font-bold text-amber-700"
+                            >
+                              {describeVatV2RuntimeBookingError(runtimeError)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -928,6 +1033,11 @@ export default function TransactionForm({
                         ))}
                       </ul>
                     </div>
+                  )}
+                  {vatV2SubmitError && (
+                    <p className="mt-3 text-[10px] font-bold text-red-600">
+                      {vatV2SubmitError}
+                    </p>
                   )}
                 </div>
               </div>
@@ -1015,7 +1125,7 @@ export default function TransactionForm({
         )}
 
         {/* Periodisering — visas bara när man inte redigerar */}
-        {!editingId && (
+        {!editingId && !vatV2AssessmentEnabled && (
           <div
             className={`mt-4 rounded-2xl border-2 transition-all duration-200 ${
               periodisera
@@ -1126,7 +1236,7 @@ export default function TransactionForm({
                 {uploading
                   ? '...'
                   : vatV2AssessmentEnabled
-                  ? 'Förhandskolla'
+                  ? 'Bokför VAT V2'
                   : editingId
                   ? 'Spara'
                   : 'Bokför'}

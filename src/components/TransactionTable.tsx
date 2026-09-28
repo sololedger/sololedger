@@ -86,7 +86,9 @@ export default function TransactionTable({
     const isOpeningBalance = tx.source === 'sie_opening_balance'
     const isSieUndo = tx.source === 'sie_import_undo'
     const isVatClosing = tx.source === 'vat_closing'
-    const isSystemManaged = isImported || isOpeningBalance || isVatClosing
+    const isVatV2 = tx.source === 'vat_v2'
+    const isSystemManaged =
+      isImported || isOpeningBalance || isVatClosing || isVatV2
     const accountDef = kontoplan.find(k => k.id === tx.type)
 
     // H5: historisk visning ska bygga på det som faktiskt bokfördes,
@@ -112,6 +114,8 @@ export default function TransactionTable({
       ? 'bg-gray-50 opacity-60'
       : editingId === tx.id
       ? 'bg-amber-50/50'
+      : isVatV2
+      ? 'bg-indigo-50/40 hover:bg-indigo-50/65'
       : isVatClosing
       ? 'bg-violet-50/45 hover:bg-violet-50/70'
       : (isImported || isOpeningBalance)
@@ -122,6 +126,8 @@ export default function TransactionTable({
       ? 'text-amber-700'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isVatV2
+      ? 'text-indigo-900'
       : isVatClosing
       ? 'text-violet-900'
       : (isImported || isOpeningBalance)
@@ -132,6 +138,8 @@ export default function TransactionTable({
       ? 'text-amber-500'
       : isNeutralized
       ? 'text-gray-300 line-through'
+      : isVatV2
+      ? 'text-indigo-500'
       : isVatClosing
       ? 'text-violet-500'
       : (isImported || isOpeningBalance)
@@ -142,6 +150,8 @@ export default function TransactionTable({
       ? 'text-amber-600'
       : isNeutralized
       ? 'text-gray-400 line-through'
+      : isVatV2
+      ? 'text-indigo-600'
       : isVatClosing
       ? 'text-violet-600'
       : (isImported || isOpeningBalance)
@@ -154,6 +164,8 @@ export default function TransactionTable({
       ? 'bg-amber-50 border-amber-200 text-amber-600'
       : isNeutralized
       ? 'bg-gray-50 border-gray-100 text-gray-300'
+      : isVatV2
+      ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
       : isVatClosing
       ? 'bg-violet-50 border-violet-100 text-violet-600'
       : (isImported || isOpeningBalance)
@@ -174,6 +186,7 @@ export default function TransactionTable({
       isOpeningBalance,
       isSieUndo,
       isVatClosing,
+      isVatV2,
       isSystemManaged,
       accountDef,
       isIncome,
@@ -360,6 +373,7 @@ export default function TransactionTable({
                 isImported,
                 isOpeningBalance,
                 isVatClosing,
+                isVatV2,
                 isSystemManaged,
                 accountDef,
                 isIncome,
@@ -405,6 +419,10 @@ export default function TransactionTable({
                       ) : isVatClosing ? (
                         <p className="text-[10px] font-black text-violet-600 uppercase">
                           Momsavslut
+                        </p>
+                      ) : isVatV2 ? (
+                        <p className="text-[10px] font-black text-indigo-600 uppercase">
+                          VAT V2 utlandsinköp
                         </p>
                       ) : isImported ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
@@ -457,6 +475,10 @@ export default function TransactionTable({
                     {isVatClosing ? (
                       <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">
                         Systembokning
+                      </span>
+                    ) : isVatV2 ? (
+                      <span>
+                        {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
                     ) : (
                       <>
@@ -603,6 +625,7 @@ export default function TransactionTable({
             isImported,
             isOpeningBalance,
             isVatClosing,
+            isVatV2,
             isSystemManaged,
             accountDef,
             isIncome,
@@ -622,6 +645,8 @@ export default function TransactionTable({
                   ? 'bg-gray-50 border-gray-100 opacity-70'
                 : editingId === tx.id
                 ? 'bg-amber-50/50 border-amber-200'
+                : isVatV2
+                ? 'bg-indigo-50/40 border-indigo-100'
                 : isVatClosing
                 ? 'bg-violet-50/45 border-violet-100'
                 : (isImported || isOpeningBalance)
@@ -650,6 +675,10 @@ export default function TransactionTable({
                   <p className="font-black text-[10px] uppercase tracking-wide text-violet-500 text-right">
                     Systembokning
                   </p>
+                ) : isVatV2 ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
+                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                  </p>
                 ) : (
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -669,6 +698,8 @@ export default function TransactionTable({
                   <p className="text-[10px] font-black text-sky-500 uppercase">Ingående balans</p>
                 ) : isVatClosing ? (
                   <p className="text-[10px] font-black text-violet-600 uppercase">Momsavslut</p>
+                ) : isVatV2 ? (
+                  <p className="text-[10px] font-black text-indigo-600 uppercase">VAT V2 utlandsinköp</p>
                 ) : isImported ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Importerad verifikation</p>
                 ) : (

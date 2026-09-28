@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
+import { bookTransaction, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { encodeCP437 } from '@/lib/cp437'
 import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
@@ -28,6 +28,7 @@ import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage 
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
+import type { VatV2RuntimeBookingRequest } from '@/lib/vatRuntimeBooking'
 
 export default function Home() {
   const {
@@ -233,6 +234,97 @@ export default function Home() {
     return tx?.source === 'vat_closing'
   }
 
+  function isVatV2Transaction(tx: { source?: string } | null | undefined) {
+    return tx?.source === 'vat_v2'
+  }
+
+  function isSystemManagedTransaction(tx: { source?: string } | null | undefined) {
+    return isVatClosingTransaction(tx) || isVatV2Transaction(tx)
+  }
+
+  function describeSystemManagedTransaction(tx: { source?: string } | null | undefined) {
+    return isVatV2Transaction(tx) ? 'VAT V2-bokningar' : 'Momsavslut'
+  }
+
+  async function handleVatV2RuntimeBooking(
+    request: VatV2RuntimeBookingRequest,
+    file: File | null
+  ) {
+    if (isYearLocked) {
+      throw new Error('Räkenskapsåret är låst för ändringar.')
+    }
+    if (submitInFlightRef.current) {
+      throw new Error('Bokningen behandlas redan.')
+    }
+
+    submitInFlightRef.current = true
+    setUploading(true)
+
+    try {
+      const currentUsage = await refreshFreeUsageCount()
+      const allowed = canCreateTransactions(
+        profile ?? { subscription_type: 'free', subscription_end: null },
+        currentUsage,
+        1
+      )
+
+      if (!allowed) {
+        setShowLimitPaywall(true)
+        throw new Error('Gratisgränsen är nådd för nya verifikationer.')
+      }
+
+      const targetYear = parseInt(request.date.slice(0, 4))
+      const isTargetYearClosed = await isYearClosed(targetYear)
+      if (isTargetYearClosed) {
+        throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
+      }
+
+      let fileUrl = ''
+      if (file) {
+        fileUrl = await handleFileUpload(file)
+      }
+
+      const result = await bookVatV2EuServiceReverseChargeTransaction({
+        date: request.date,
+        description: request.description,
+        treatment: request.treatment,
+        paymentAccountNumber: request.paymentAccountNumber,
+        fileUrl: fileUrl || null,
+      })
+
+      setLastSubmitted(null)
+      setFormData(prev => ({
+        ...prev,
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        amount: '',
+        file: null,
+      }))
+      setPeriodisera(false)
+
+      try {
+        await refreshData()
+        await refreshFreeUsageCount()
+      } catch (refreshError) {
+        console.error('VAT V2-bokning skapad men uppdatering misslyckades:', refreshError)
+        alert(`✅ VAT V2-bokning skapad som VER-${result.verNr}. Uppdatera sidan om den inte syns direkt.`)
+        return
+      }
+
+      alert(`✅ VAT V2-bokning skapad som VER-${result.verNr}.`)
+    } catch (err: unknown) {
+      console.error('Fel vid VAT V2-bokning:', err)
+      throw new Error(
+        err instanceof Error
+          ? err.message
+          : 'VAT V2-bokningen misslyckades.'
+      )
+    } finally {
+      submitInFlightRef.current = false
+      setUploading(false)
+    }
+  }
+
   async function handleAddTransaction(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (isYearLocked) return
@@ -240,8 +332,8 @@ export default function Home() {
     if (submitInFlightRef.current) return
     if (editingId) {
       const editingTx = transactions.find(tx => tx.id === editingId)
-      if (isVatClosingTransaction(editingTx)) {
-        alert('Momsavslut är systemverifikationer och kan inte ändras.')
+      if (isSystemManagedTransaction(editingTx)) {
+        alert(`${describeSystemManagedTransaction(editingTx)} är systemverifikationer och kan inte ändras.`)
         return
       }
     }
@@ -341,8 +433,8 @@ export default function Home() {
 
   async function handleDelete(tx: any) {
     if (isYearLocked) return
-    if (isVatClosingTransaction(tx)) {
-      alert('Momsavslut är systemverifikationer och kan inte korrigeras.')
+    if (isSystemManagedTransaction(tx)) {
+      alert(`${describeSystemManagedTransaction(tx)} är systemverifikationer och kan inte korrigeras här.`)
       return
     }
 
@@ -366,8 +458,8 @@ export default function Home() {
 
   const handleEdit = (tx: any) => {
     if (isYearLocked) return
-    if (isVatClosingTransaction(tx)) {
-      alert('Momsavslut är systemverifikationer och kan inte ändras.')
+    if (isSystemManagedTransaction(tx)) {
+      alert(`${describeSystemManagedTransaction(tx)} är systemverifikationer och kan inte ändras.`)
       return
     }
 
@@ -859,6 +951,7 @@ export default function Home() {
               periodMonth={periodMonth}
               setPeriodMonth={setPeriodMonth}
               onSubmit={handleAddTransaction}
+              onVatV2Submit={handleVatV2RuntimeBooking}
               onCancelEdit={cancelEdit}
               lastSubmitted={lastSubmitted}
               onSaveFavorite={handleFavorite}
