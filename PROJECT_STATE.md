@@ -15,7 +15,7 @@ Last updated: 2026-09-28
 
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
-- Jira KAN-19 verified 2026-09-26: Story, status `In Progress`, assignee empty.
+- Jira KAN-19 read 2026-09-28: Story, status `In Progress`, assignee empty.
 - Live Supabase read-only verification 2026-09-26 confirms exact `2645` is P1=true, P2=true, P3=false.
 - Vercel production context verified 2026-09-27: team `sololedger1`, project
   `sololedger`, domain `https://sololedger.vercel.app`, GitHub
@@ -25,17 +25,13 @@ Last updated: 2026-09-28
 
 ## Current Objective
 
-- KAN-19 persistence boundary, exact-2645 prerequisite, VAT V2 RPC/table/source,
-  and VAT Profile Runtime are live and verified.
-- KAN-19 VAT V2 transaction fact collection/preflight is implemented locally
-  for the narrow supported EU service reverse-charge path.
-- KAN-19 payment-account role model and ACL hardening are live and verified.
-- Current local KAN-19 slice wires VAT V2 runtime booking for the narrow
-  supported EU service reverse-charge path only.
-- VAT V2 runtime booking remains uncheckpointed and not deployed.
-- No live VAT V2 business transaction was created during verification.
-- Next KAN-19 work should build on the live persistence boundary without
-  recreating the migration-history cutover.
+- KAN-19 runtime booking is live in production at
+  `779d4bceeef738ae323ffad366a8f55bbee488db`.
+- Supported runtime scope remains narrow: EU service reverse charge, 25%,
+  full deduction, positive explicit acquisition base, configured payment role.
+- First controlled production VAT V2 booking passed IRL verification as
+  `VER-14` on 2026-09-28.
+- VAT V2 report UI/snapshot integration is next and belongs to KAN-20.
 
 ## KAN-19 VAT Profile Runtime Slice
 
@@ -81,9 +77,7 @@ Last updated: 2026-09-28
   public tables. Client-facing table migrations must explicitly verify/revoke
   unintended `anon`/`authenticated` privileges. Broader default-privilege
   cleanup/review is deferred.
-- VAT V2 payment-source UI/configuration wiring is live in source only; the
-  current local slice now calls the existing VAT V2 persistence chain when the
-  runtime guard is ready.
+- VAT V2 payment-source UI/configuration wiring is live in production.
 - Runtime guard still treats payment-role recommendations as suggestions only;
   explicit company/user payment role configuration remains required.
 
@@ -118,6 +112,28 @@ Last updated: 2026-09-28
   `npm run test:domain`, `npm run typecheck`, targeted clean ESLint subset, and
   `git diff --check`. Full touched-file ESLint still includes pre-existing
   `src/app/page.tsx` debt and existing `TransactionTable` broad-typing debt.
+- KAN-19 form-blocker fix is live in production at
+  `779d4bceeef738ae323ffad366a8f55bbee488db`; VAT V2 mode hides irrelevant
+  V1 category/VAT/amount fields while preserving date, description, attachment,
+  explicit acquisition base, and ordinary V1 behavior when VAT V2 is off.
+- Production IRL `VER-14` verified source `vat_v2`, treatment
+  `EU_SERVICE_REVERSE_CHARGE`, base `228`, 25%, full deduction, payment account
+  `1930`; journal was Dr `4535` 228, Dr `2645` 57, Cr `2614` 57, Cr `1930`
+  228 and balanced at 285/285.
+- For the IRL booking, TESTNAMN AB had a Q3 2026 VAT period present with
+  status `open`, created through the normal Momsrapport path; this test did
+  not prove behavior when no matching VAT period row exists.
+- `VER-14` has exactly one VAT audit snapshot with schema
+  `vat-audit-snapshot-v1`, journal plan `vat-journal-plan-v1`, rule
+  `vat-v2-kan18-first-slice`, facts `vat-facts-v1`, fields 21/30/48 matching
+  the persisted journal.
+- KAN-20 concrete follow-up: after `VER-14`, production Momsrapport displayed
+  VAT V2 taxable base `228` under ruta 05 while output VAT `57` and deductible
+  input VAT `57` were reflected; authoritative audit fields are 21/30/48, so
+  report UI is not yet snapshot-aware for the acquisition base.
+- Known KAN-19 limitations: client duplicate-submit protection only, no
+  server idempotency/dedupe guarantee, attachment upload and DB booking are not
+  cross-system atomic, no attachment in IRL test, VAT V2 report UI is KAN-20.
 - KAN-19 persistence final review passed with 0 CRITICAL, 0 HIGH, 0 MEDIUM
   findings; only residual LOW risk was lack of true two-session concurrency
   proof.
@@ -173,8 +189,6 @@ Last updated: 2026-09-28
 
 ## Next Safe Step
 
-- Do not deploy, add migrations, create real VAT V2 business transactions, or
+- Do not add migrations, create/edit/delete VAT V2 transactions, deploy, or
   change Jira without explicit Pontus approval.
-- Next implementation step: review and checkpoint the local VAT V2 runtime
-  wiring. Do not create real VAT V2 production transactions, deploy, or change
-  Jira without explicit Pontus approval.
+- Next implementation step: KAN-20 VAT V2 report UI/snapshot integration.
