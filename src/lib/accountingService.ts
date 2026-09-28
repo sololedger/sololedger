@@ -3,6 +3,7 @@ import { calculateBusinessResult } from './resultEngine'
 import type { VatTreatment } from './vatDomain'
 import { buildVatAuditSnapshot } from './vatAuditSnapshot'
 import { buildVatJournalPlan } from './vatJournalPlan'
+import { buildDeclareVatPeriodRpcArgs } from './vatDeclarationRpc'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -276,6 +277,7 @@ export interface VatPeriod {
   closing_amount: number | null
   closing_transaction_id: string | null
   declared_at: string | null
+  skv_submitted_on: string | null
 }
 
 export interface EnsureVatPeriodsResult {
@@ -305,6 +307,7 @@ export interface DeclareVatPeriodResult {
   status: 'declared'
   source: 'sololedger'
   declared_at: string
+  skv_submitted_on: string | null
   closing_amount: number | null
   closing_transaction_id: string | null
   updated_at: string
@@ -351,7 +354,7 @@ export async function getVatPeriods(startDate: string, endDate: string): Promise
 
   const { data, error } = await supabase
     .from('vat_periods')
-    .select('id, period_start, period_end, period_type, status, source, closing_amount, closing_transaction_id, declared_at')
+    .select('id, period_start, period_end, period_type, status, source, closing_amount, closing_transaction_id, declared_at, skv_submitted_on')
     .eq('user_id', userId)
     .lte('period_start', endDate)
     .gte('period_end', startDate)
@@ -391,12 +394,16 @@ export async function closeVatPeriod(periodId: string): Promise<CloseVatPeriodRe
   }
 }
 
-export async function declareVatPeriod(periodId: string): Promise<DeclareVatPeriodResult> {
+export async function declareVatPeriod(
+  periodId: string,
+  skvSubmittedOn: string
+): Promise<DeclareVatPeriodResult> {
   await getUserId()
 
-  const { data, error } = await supabase.rpc('declare_vat_period_atomic', {
-    p_vat_period_id: periodId,
-  })
+  const { data, error } = await supabase.rpc(
+    'declare_vat_period_atomic',
+    buildDeclareVatPeriodRpcArgs(periodId, skvSubmittedOn)
+  )
 
   if (error) {
     throw new Error(error.message)
@@ -413,6 +420,7 @@ export async function declareVatPeriod(periodId: string): Promise<DeclareVatPeri
     status: data.status as 'declared',
     source: data.source as 'sololedger',
     declared_at: data.declared_at as string,
+    skv_submitted_on: data.skv_submitted_on ?? null,
     closing_amount: data.closing_amount == null ? null : Number(data.closing_amount),
     closing_transaction_id: data.closing_transaction_id ?? null,
     updated_at: data.updated_at as string,

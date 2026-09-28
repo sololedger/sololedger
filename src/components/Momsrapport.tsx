@@ -19,6 +19,20 @@ import {
   vatReportBlockedMessage,
   type VatReportPresentation,
 } from '@/lib/vatReportPresentation'
+import {
+  CONFIRM_DECLARATION_BUTTON_LABEL,
+  DECLARATION_ALREADY_SUBMITTED_COPY,
+  DECLARATION_DOES_NOT_SUBMIT_COPY,
+  DECLARATION_SUBMITTED_ON_LABEL,
+  VAT_RECLASSIFIED_NOT_SETTLED_COPY,
+  formatLocalDateOnly,
+  isValidSkvSubmittedOnDate,
+  isVatReportRequestCurrent,
+  skvSubmittedOnValidationMessage,
+  shouldAutoLoadVatReport,
+  vatClosingObligationText,
+  vatDeclarationStatusText,
+} from '@/lib/vatLifecycleUi'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
 
@@ -27,6 +41,7 @@ function fmt(n: number) {
 }
 
 function fmtDate(date: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
   return new Date(date).toLocaleDateString('sv-SE')
 }
 
@@ -70,15 +85,16 @@ function periodLabel(period: VatPeriod) {
 }
 
 function closingAmountText(period: VatPeriod) {
-  if (period.closing_amount == null || period.status === 'open') return null
-  if (period.closing_amount > 0) return `Stängningsbelopp: ${fmt(period.closing_amount)} kr att betala`
-  if (period.closing_amount < 0) return `Stängningsbelopp: ${fmt(period.closing_amount)} kr att få tillbaka`
-  return 'Stängningsbelopp: 0,00 kr'
+  return vatClosingObligationText(period, fmt)
 }
 
 function declaredAtText(period: VatPeriod) {
+  return vatDeclarationStatusText(period, fmtDate)
+}
+
+function soloLedgerDeclarationAuditText(period: VatPeriod) {
   if (period.status !== 'declared' || !period.declared_at) return null
-  return `Deklarerad ${new Date(period.declared_at).toLocaleString('sv-SE', {
+  return `Bekräftad i SoloLedger ${new Date(period.declared_at).toLocaleString('sv-SE', {
     dateStyle: 'short',
     timeStyle: 'short',
   })}`
@@ -91,7 +107,7 @@ type MomsrapportProps = {
 
 export default function Momsrapport({ profile, onBookkeepingRefresh }: MomsrapportProps) {
   const currentYear = new Date().getFullYear()
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = formatLocalDateOnly(new Date())
   const ensuredKeysRef = useRef<Set<string>>(new Set())
   const closeInFlightRef = useRef(false)
   const declareInFlightRef = useRef(false)
@@ -116,6 +132,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const [reportError, setReportError] = useState<string | null>(null)
   const [reportErrorPeriodId, setReportErrorPeriodId] = useState<string | null>(null)
   const [reportErrorContextKey, setReportErrorContextKey] = useState<string | null>(null)
+  const [declarationSubmittedOn, setDeclarationSubmittedOn] = useState(todayIso)
 
   const selectedPeriod = useMemo(
     () => vatPeriods.find(p => p.id === selectedPeriodId) ?? null,
@@ -157,8 +174,33 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     Boolean(selectedPeriod) &&
     selectedPeriod?.source === 'sololedger' &&
     selectedPeriod?.status === 'closed'
+  const declarationSubmittedOnValue = declarationSubmittedOn
+  const declarationSubmittedOnValidation = selectedPeriod
+    ? skvSubmittedOnValidationMessage({
+        submittedOn: declarationSubmittedOnValue,
+        periodEnd: selectedPeriod.period_end,
+        todayIso,
+      })
+    : null
+  const declarationSubmittedOnIsValid = selectedPeriod
+    ? isValidSkvSubmittedOnDate({
+        submittedOn: declarationSubmittedOnValue,
+        periodEnd: selectedPeriod.period_end,
+        todayIso,
+      })
+    : false
   const canCloseSelectedPeriod = lifecycleCanCloseSelectedPeriod && hasCurrentReport
-  const canDeclareSelectedPeriod = lifecycleCanDeclareSelectedPeriod && hasCurrentReport
+  const canDeclareSelectedPeriod =
+    lifecycleCanDeclareSelectedPeriod &&
+    hasCurrentReport &&
+    declarationSubmittedOnIsValid
+  const autoLoadCurrentReport = shouldAutoLoadVatReport({
+    selectedPeriod,
+    hasCurrentReport,
+    hasCurrentReportError,
+    loading,
+    periodsLoading,
+  })
 
   useEffect(() => {
     selectionContextRef.current = {
@@ -375,6 +417,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const skaBetalas = (currentVatReport?.netVat ?? 0) > 0
   const closingText = selectedPeriod ? closingAmountText(selectedPeriod) : null
   const declarationText = selectedPeriod ? declaredAtText(selectedPeriod) : null
+  const declarationAuditText = selectedPeriod ? soloLedgerDeclarationAuditText(selectedPeriod) : null
 
   // Beräkna moms för vald DB-verifierad momsperiod via den auktoritativa
   // rapporttjänsten. Komponenten presenterar bara färdiga SKV-fält.
@@ -397,8 +440,10 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
       if (
         reportRequestSeqRef.current !== requestSeq ||
-        selectionContextRef.current.periodId !== periodForFetch.id ||
-        selectionContextRef.current.contextKey !== contextForFetch
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
       ) {
         return
       }
@@ -420,8 +465,10 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     } catch (err) {
       if (
         reportRequestSeqRef.current !== requestSeq ||
-        selectionContextRef.current.periodId !== periodForFetch.id ||
-        selectionContextRef.current.contextKey !== contextForFetch
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
       ) {
         return
       }
@@ -491,14 +538,23 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     if (message.includes('hittades inte') || message.includes('tillhör inte dig') || message.includes('not found')) {
       return 'Momsperioden kunde inte hittas för ditt konto.'
     }
+    if (message.includes('framtiden') || message.includes('future')) {
+      return 'Datumet för inlämning kan inte vara i framtiden.'
+    }
+    if (message.includes('periodens slut') || message.includes('period_end')) {
+      return 'Datumet för inlämning kan inte vara före momsperiodens slut.'
+    }
+    if (message.includes('annat inlämningsdatum') || message.includes('redan deklarerad')) {
+      return 'Momsperioden är redan bekräftad med ett annat inlämningsdatum. Ändring behöver hanteras separat.'
+    }
     return 'Momsperioden kunde inte markeras som deklarerad. Kontrollera perioden och försök igen.'
   }
 
   function declareSuccessMessage(result: DeclareVatPeriodResult) {
     if (result.already_declared) {
-      return 'Momsperioden var redan markerad som deklarerad.'
+      return 'Momsdeklarationen var redan bekräftad i SoloLedger.'
     }
-    return 'Momsperioden markerades som deklarerad.'
+    return 'Inlämnad momsdeklaration bekräftades i SoloLedger.'
   }
 
   async function handleClosePeriod() {
@@ -555,8 +611,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     if (!selectedPeriod || !canDeclareSelectedPeriod || declareInFlightRef.current || closeInFlightRef.current) return
 
     const confirmed = window.confirm(
-      `Har momsdeklarationen lämnats?\n\n` +
-      `Markera perioden ${periodLabel(selectedPeriod)} som deklarerad först när momsdeklarationen faktiskt har lämnats till Skatteverket.\n\n` +
+      `${CONFIRM_DECLARATION_BUTTON_LABEL}?\n\n` +
+      `${DECLARATION_DOES_NOT_SUBMIT_COPY}\n\n` +
+      `${DECLARATION_ALREADY_SUBMITTED_COPY}\n\n` +
+      `${DECLARATION_SUBMITTED_ON_LABEL}: ${fmtDate(declarationSubmittedOnValue)}\n` +
+      `Period: ${periodLabel(selectedPeriod)}\n\n` +
       'Detta registrerar deklarationen i SoloLedger. Ingen ny bokföringsverifikation eller betalning skapas.'
     )
     if (!confirmed) return
@@ -568,7 +627,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     setPeriodError(null)
 
     try {
-      const result = await declareVatPeriod(periodId)
+      const result = await declareVatPeriod(periodId, declarationSubmittedOnValue)
       const refreshResult = await reloadDeclaredPeriodMetadata(periodId, contextAtStart)
       const periodRefreshFailed = !refreshResult
       const contextStillCurrent =
@@ -598,6 +657,13 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     if (fetched && selectedPeriod) fetchMoms()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriodId])
+
+  useEffect(() => {
+    if (!autoLoadCurrentReport || !selectedPeriod || !selectedPeriodContextKey) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchMomsForPeriod(selectedPeriod, selectedPeriodContextKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoadCurrentReport, selectedPeriodId, selectedPeriodContextKey])
 
   function handleYearChange(nextYear: number) {
     setFetched(false)
@@ -684,12 +750,29 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
           )}
 
           {lifecycleCanDeclareSelectedPeriod && (
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
+                {DECLARATION_SUBMITTED_ON_LABEL}
+              </label>
+              <input
+                type="date"
+                value={declarationSubmittedOnValue}
+                min={selectedPeriod?.period_end}
+                max={todayIso}
+                onChange={e => setDeclarationSubmittedOn(e.target.value)}
+                disabled={declaring || closing || periodsLoading || loading}
+                className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-sky-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+              />
+            </div>
+          )}
+
+          {lifecycleCanDeclareSelectedPeriod && (
             <button
               onClick={handleDeclarePeriod}
               disabled={declaring || closing || periodsLoading || loading || !canDeclareSelectedPeriod}
               className="h-[42px] px-6 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
             >
-              {declaring ? 'Markerar...' : 'Markera som deklarerad'}
+              {declaring ? 'Bekräftar...' : CONFIRM_DECLARATION_BUTTON_LABEL}
             </button>
           )}
         </div>
@@ -715,11 +798,38 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
                 {declarationText}
               </span>
             )}
+            {declarationAuditText && (
+              <span className="text-[9px] font-bold text-gray-400">
+                {declarationAuditText}
+              </span>
+            )}
             {selectedPeriod.status !== 'open' && selectedPeriod.closing_transaction_id === null && (
               <span className="text-[9px] font-bold text-gray-400">
                 Ingen avslutsverifikation behövdes för perioden.
               </span>
             )}
+          </div>
+        )}
+
+        {selectedPeriod && selectedPeriod.status === 'closed' && (
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-amber-700">
+              Stängd momsperiod
+            </p>
+            <p className="text-[11px] font-bold text-amber-700 mt-1">
+              {VAT_RECLASSIFIED_NOT_SETTLED_COPY}
+            </p>
+          </div>
+        )}
+
+        {selectedPeriod && selectedPeriod.status === 'declared' && (
+          <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-sky-700">
+              Inlämnad momsdeklaration bekräftad
+            </p>
+            <p className="text-[11px] font-bold text-sky-700 mt-1">
+              {VAT_RECLASSIFIED_NOT_SETTLED_COPY}
+            </p>
           </div>
         )}
 
@@ -729,9 +839,15 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
           </p>
         )}
 
-        {!periodError && (lifecycleCanCloseSelectedPeriod || lifecycleCanDeclareSelectedPeriod) && !hasCurrentReport && (
+        {!periodError && (lifecycleCanCloseSelectedPeriod || lifecycleCanDeclareSelectedPeriod) && !hasCurrentReport && !loading && (
           <p className="mt-4 text-[10px] font-bold text-gray-400">
-            Beräkna aktuell momsrapport innan perioden kan stängas eller markeras som deklarerad.
+            Beräkna aktuell momsrapport innan perioden kan stängas eller deklarationen kan bekräftas.
+          </p>
+        )}
+
+        {!periodError && lifecycleCanDeclareSelectedPeriod && hasCurrentReport && !declarationSubmittedOnIsValid && (
+          <p className="mt-4 text-[10px] font-bold text-red-500">
+            {declarationSubmittedOnValidation}
           </p>
         )}
 
