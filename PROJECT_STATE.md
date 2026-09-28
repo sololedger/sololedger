@@ -16,6 +16,9 @@ Last updated: 2026-09-28
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Jira KAN-20 transitioned/read 2026-09-28: Story, status `Done`.
+- Jira KAN-26 created and transitioned 2026-09-28: Story
+  `VAT lifecycle – declaration confirmation and report readiness`, status
+  `Done`.
 - Live Supabase read-only verification 2026-09-26 confirms exact `2645` is P1=true, P2=true, P3=false.
 - Vercel production context verified 2026-09-27: team `sololedger1`, project
   `sololedger`, domain `https://sololedger.vercel.app`, GitHub
@@ -25,17 +28,24 @@ Last updated: 2026-09-28
 
 ## Current Objective
 
-- KAN-19 runtime booking is live in production at
-  `779d4bceeef738ae323ffad366a8f55bbee488db`.
-- Supported runtime scope remains narrow: EU service reverse charge, 25%,
-  full deduction, positive explicit acquisition base, configured payment role.
-- First controlled production VAT V2 booking passed IRL verification as
-  `VER-14` on 2026-09-28.
-- KAN-20 VAT V2 report UI/snapshot integration is implemented, pushed,
-  production-accepted, and Jira `Done`.
-- Current focus is no longer KAN-20 implementation. Next work is VAT lifecycle
-  design/recon for declaration UX, recalculate-before-declare behavior,
-  2650/skattekonto/payment/refund guidance, and staged IRL testing.
+- VAT lifecycle Slice 1 is complete, production-accepted, and recorded in
+  Jira `KAN-26` (`Done`).
+- Production implementation commit:
+  `e5253d09625d2ce61d2b671f38a49a2dcb70e518`.
+- Live migration:
+  `supabase/migrations/20260928193000_add_vat_declaration_submission_date.sql`.
+- Live declaration RPC is `declare_vat_period_atomic(uuid,date)`.
+- Old uuid-only `declare_vat_period_atomic(uuid)` RPC is removed.
+- `vat_periods.skv_submitted_on` exists.
+- Closed/declared SoloLedger VAT periods auto-load VAT reports safely.
+- Declaration means confirmation of external submission to Skatteverket;
+  SoloLedger does not submit to Skatteverket.
+- Declaration creates no transaction and no journal entries.
+- TESTNAMN AB Q1 2026 production IRL acceptance passed on 2026-09-28:
+  status `declared`, `skv_submitted_on` `2026-09-28`, `VER-15` unchanged,
+  `2650` credit `4000` remains, and no `2012` settlement activity exists.
+- `DECLARED != SETTLED` is verified.
+- Next lifecycle work is VAT settlement/tax-account foundation.
 
 ## KAN-19 VAT Profile Runtime Slice
 
@@ -160,26 +170,16 @@ Last updated: 2026-09-28
   exposes internal terms like VAT V2, audit snapshot, or authoritative report
   fields; the reverse-charge section is phrased as ordinary Swedish user copy.
 - KAN-20 Jira closeout: KAN-20 is `Done` as of 2026-09-28.
-- TESTNAMN AB Q1 2026 staged VAT close IRL/read-only verification passed after
-  Pontus calculated Q1, saw field 05 = 20000, 10 = 5000, 48 = 1000, 49 =
-  4000 payable, clicked `Stäng momsperiod`, and received `Momsperioden
-  stängdes och systemverifikation VER-15 skapades.`
-- Verified production Q1 `vat_periods` row: `2026-01-01` to `2026-03-31`,
-  source `sololedger`, status `closed`, `closing_amount` +4000, populated
-  `closing_transaction_id`, and `declared_at` NULL. Q1 is not declared; do
-  not mark it declared before the next explicit staged test.
-- Verified production `VER-15`: date `2026-03-31`, source `vat_closing`,
-  description `Momsavslut 2026-01-01 - 2026-03-31`, journal Dr `2611` 5000,
-  Cr `2641` 1000, Cr `2650` 4000, balanced 5000/5000. Resulting Q1
-  debit-minus-credit VAT balances are `2611` = 0, `2641` = 0, `2650` = -4000.
-- Recalculated Q1 VAT report remains the underlying activity, not the internal
-  close: field 05 = 20000, 10 = 5000, 48 = 1000, 49 = 4000 payable. The
-  `vat_closing` transaction is excluded as internal VAT settlement.
-- Observed UX follow-up: after navigating away and returning to closed Q1,
-  `Markera som deklarerad` is disabled until `Beräkna` is pressed again. This
-  matches the current safe-report readiness gate; future UX should decide
-  whether to require explicit recalculation or safely restore a verified closed
-  report while preserving fail-closed behavior.
+- TESTNAMN AB Q1 2026 VAT lifecycle Slice 1 production acceptance passed under
+  KAN-26 after Pontus closed and declared the period in production. Q1 is
+  `declared` with `skv_submitted_on` `2026-09-28`; declaration created `0`
+  transactions and `0` journal entries.
+- Verified production `VER-15` remains unchanged: date `2026-03-31`, source
+  `vat_closing`, description `Momsavslut 2026-01-01 - 2026-03-31`, journal
+  Dr `2611` 5000, Cr `2641` 1000, Cr `2650` 4000, balanced 5000/5000.
+- Q1 VAT report remained the underlying activity after declaration: field
+  05 = 20000, 10 = 5000, 48 = 1000, 49 = 4000 payable. `2650` remains credit
+  `4000`; there is no `2012` settlement activity yet.
 - Known KAN-19 limitations: client duplicate-submit protection only, no
   server idempotency/dedupe guarantee, attachment upload and DB booking are not
   cross-system atomic, no attachment in IRL test, VAT V2 report UI is KAN-20.
@@ -199,11 +199,12 @@ Last updated: 2026-09-28
 - Live applied KAN-19 migrations: exact-2645 classification
   `20260926132107`, VAT V2 persistence `20260926174535`, and VAT Profile
   Runtime `20260927070224`, payment-account roles `20260927151231`, and
-  payment-account role ACL hardening `20260927174627`.
+  payment-account role ACL hardening `20260927174627`. VAT lifecycle Slice 1
+  live migration `20260928193000` adds declaration submission date support.
 - Live remote migration ledger is fully aligned with local active migrations:
   `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
   `20260926132107`, `20260926174535`, `20260927070224`, `20260927151231`,
-  `20260927174627`.
+  `20260927174627`, `20260928193000`.
 - Future production DB migrations should use the now-reconciled official
   Supabase CLI workflow.
 - Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters.
@@ -230,6 +231,8 @@ Last updated: 2026-09-28
   incompatibility.
 - KAN-20 `VAT V2 momsrapport / authoritative report fields` is implemented
   and production-accepted for the controlled scope. Jira is `Done`.
+- KAN-26 `VAT lifecycle – declaration confirmation and report readiness` is
+  implemented, production-accepted, and Jira `Done`.
 - External Copilot audit remains deferred until the agreed VAT V2
   feature-complete checkpoint.
 - Separate future work: TransactionTable search/filtering for growing ordinary
@@ -245,10 +248,9 @@ Last updated: 2026-09-28
 
 ## Next Safe Step
 
-- Do not add migrations, create/edit/delete VAT V2 transactions, deploy, or
-  change Jira without explicit Pontus approval.
-- Next gate: VAT lifecycle design/recon only. Verify current code, live
-  Supabase definitions, and Swedish sole-trader accounting treatment before
-  proposing any implementation. Do not mark Q1 declared, add migrations, run
-  live Supabase writes, deploy, or change Jira without explicit Pontus
-  approval.
+- Next lifecycle step is VAT settlement/tax-account foundation: canonical
+  `2012` bridge, VAT debit Dr `2650` / Cr `2012`, VAT credit Dr `2012` /
+  Cr `2650`, period-level linkage, derived settlement state, and safe support
+  for partial/multiple settlement events.
+- Do not implement settlement, add migrations, create/edit/delete accounting
+  data, deploy, or change Jira without explicit Pontus approval.
