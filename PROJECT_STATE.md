@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 ## Repository State
 
@@ -41,11 +41,12 @@ Last updated: 2026-09-28
 - Declaration means confirmation of external submission to Skatteverket;
   SoloLedger does not submit to Skatteverket.
 - Declaration creates no transaction and no journal entries.
-- TESTNAMN AB Q1 2026 production IRL acceptance passed on 2026-09-28:
+- TESTNAMN AB Q1 2026 declaration IRL acceptance passed on 2026-09-28:
   status `declared`, `skv_submitted_on` `2026-09-28`, `VER-15` unchanged,
   `2650` credit `4000` remains, and no `2012` settlement activity exists.
 - `DECLARED != SETTLED` is verified.
-- Next lifecycle work is VAT settlement/tax-account foundation.
+- KAN-27 VAT settlement is now production-accepted. Next VAT lifecycle work is
+  the separate tax-account money-movement slice, not part of KAN-27.
 
 ## KAN-19 VAT Profile Runtime Slice
 
@@ -177,9 +178,19 @@ Last updated: 2026-09-28
 - Verified production `VER-15` remains unchanged: date `2026-03-31`, source
   `vat_closing`, description `Momsavslut 2026-01-01 - 2026-03-31`, journal
   Dr `2611` 5000, Cr `2641` 1000, Cr `2650` 4000, balanced 5000/5000.
-- Q1 VAT report remained the underlying activity after declaration: field
-  05 = 20000, 10 = 5000, 48 = 1000, 49 = 4000 payable. `2650` remains credit
-  `4000`; there is no `2012` settlement activity yet.
+- KAN-27 production IRL acceptance passed on 2026-09-29 for TESTNAMN AB Q1
+  2026. The period remains SoloLedger-sourced and declared with
+  `closing_amount` 4000.00, `skv_submitted_on` `2026-09-28`, and unchanged
+  `closing_transaction_id`. Settlement state is exactly one event, settled
+  4000.00, remaining 0.00.
+- KAN-27 created `VER-16` dated `2026-09-29`, source `vat_settlement`,
+  description `Momsavräkning skattekonto 2026-01-01 - 2026-03-31`, booked
+  true, with exactly Dr `2650` 4000.00 and Cr `2012` 4000.00. The linked
+  `tax_account_events` row is `vat_debit`, event date `2026-09-29`, amount
+  4000.00. Duplicate/idempotency verification stayed at one event, one
+  settlement transaction, total settled 4000.00.
+- Q1 VAT report remained unchanged by settlement: field 05 = 20000,
+  field 10 = 5000, field 48 = 1000, field 49 = 4000 payable.
 - Known KAN-19 limitations: client duplicate-submit protection only, no
   server idempotency/dedupe guarantee, attachment upload and DB booking are not
   cross-system atomic, no attachment in IRL test, VAT V2 report UI is KAN-20.
@@ -238,22 +249,17 @@ Last updated: 2026-09-28
   and production-accepted for the controlled scope. Jira is `Done`.
 - KAN-26 `VAT lifecycle – declaration confirmation and report readiness` is
   implemented, production-accepted, and Jira `Done`.
-- KAN-27 app integration is implemented locally, reviewed, and ready for
-  checkpoint. Settlement UI read state uses `vat_periods.closing_amount` plus
+- KAN-27 DB foundation and app integration are live and production-accepted.
+  Settlement UI read state uses `vat_periods.closing_amount` plus
   `tax_account_events`; money state uses integer öre. The frontend write path
   only calls `record_vat_settlement_atomic`; indeterminate submit outcomes
   reuse the same in-memory idempotency key for unchanged retry. Known
-  limitation: browser reload/unmount after an indeterminate result loses that
-  in-memory key.
+  accepted limitation: browser reload/unmount after an indeterminate result
+  loses that in-memory key.
 - KAN-27 UI handles payable/refund/partial/full settlement and history.
   `vat_settlement` is system-managed in transaction UI; generic edit and
   correction are unavailable. Slice 3 bank/private tax-account money movement
-  is not implemented.
-- No real production VAT settlement has been created yet. TESTNAMN AB Q1 2026
-  manual IRL settlement remains pending for Pontus through the UI only after
-  app availability/visual verification. Expected future Q1 accounting for that
-  separately approved action is Dr `2650` 4000 / Cr `2012` 4000; the VAT report
-  itself must remain unchanged by settlement.
+  is not implemented. KAN-27 is accepted/complete.
 - External Copilot audit remains deferred until the agreed VAT V2
   feature-complete checkpoint.
 - Separate future work: TransactionTable search/filtering for growing ordinary
@@ -269,7 +275,6 @@ Last updated: 2026-09-28
 
 ## Next Safe Step
 
-- Next lifecycle step is production availability/visual verification and
-  Pontus manual KAN-27 Q1 settlement acceptance. Do not create a real
-  settlement, modify Q1, deploy manually, or start Slice 3 without explicit
-  approval.
+- Next VAT lifecycle work is the separate tax-account money-movement slice.
+  Do not deploy manually, add migrations, modify accounting behavior, or start
+  that slice without explicit approval.
