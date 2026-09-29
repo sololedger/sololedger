@@ -29,6 +29,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
 import type { VatV2RuntimeBookingRequest } from '@/lib/vatRuntimeBooking'
+import {
+  isTransactionSystemManagedInUi,
+  transactionSourceUiLabel,
+} from '@/lib/transactionSourceUi'
 
 export default function Home() {
   const {
@@ -230,20 +234,12 @@ export default function Home() {
     return safeName
   }
 
-  function isVatClosingTransaction(tx: { source?: string } | null | undefined) {
-    return tx?.source === 'vat_closing'
-  }
-
-  function isVatV2Transaction(tx: { source?: string } | null | undefined) {
-    return tx?.source === 'vat_v2'
-  }
-
   function isSystemManagedTransaction(tx: { source?: string } | null | undefined) {
-    return isVatClosingTransaction(tx) || isVatV2Transaction(tx)
+    return isTransactionSystemManagedInUi(tx)
   }
 
   function describeSystemManagedTransaction(tx: { source?: string } | null | undefined) {
-    return isVatV2Transaction(tx) ? 'VAT V2-bokningar' : 'Momsavslut'
+    return transactionSourceUiLabel(tx) ?? 'Systemverifikationer'
   }
 
   async function handleVatV2RuntimeBooking(

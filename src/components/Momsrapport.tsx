@@ -5,9 +5,12 @@ import {
   closeVatPeriod,
   declareVatPeriod,
   ensureVatPeriods,
+  getTaxAccountEventsForPeriod,
   getVatPeriods,
+  recordVatSettlement,
   type CloseVatPeriodResult,
   type DeclareVatPeriodResult,
+  type TaxAccountEvent,
   type VatPeriod,
   type VatPeriodSource,
   type VatPeriodStatus,
@@ -33,6 +36,26 @@ import {
   vatClosingObligationText,
   vatDeclarationStatusText,
 } from '@/lib/vatLifecycleUi'
+import {
+  EMPTY_SETTLEMENT_IDEMPOTENCY_STATE,
+  canStartVatSettlementSubmit,
+  clearSettlementIdempotency,
+  deriveVatSettlementReadModel,
+  isVatSettlementSubmitContextCurrent,
+  payableOrRefundHeading,
+  prepareSettlementIdempotencyKey,
+  settlementActionLabel,
+  settlementAmountLabel,
+  settlementEventText,
+  settlementQuestion,
+  settlementStateText,
+  validateVatSettlementInput,
+  type VatSettlementIdempotencyState,
+} from '@/lib/vatSettlementUi'
+import {
+  vatSettlementSubmissionErrorMessage,
+  vatSettlementSubmissionFailureKind,
+} from '@/lib/vatSettlementErrors'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
 
@@ -111,7 +134,9 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const ensuredKeysRef = useRef<Set<string>>(new Set())
   const closeInFlightRef = useRef(false)
   const declareInFlightRef = useRef(false)
+  const settlementInFlightRef = useRef(false)
   const reportRequestSeqRef = useRef(0)
+  const settlementRequestSeqRef = useRef(0)
   const selectionContextRef = useRef<{ periodId: string; contextKey: string | null }>({
     periodId: '',
     contextKey: null,
@@ -133,6 +158,17 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const [reportErrorPeriodId, setReportErrorPeriodId] = useState<string | null>(null)
   const [reportErrorContextKey, setReportErrorContextKey] = useState<string | null>(null)
   const [declarationSubmittedOn, setDeclarationSubmittedOn] = useState(todayIso)
+  const [settlementEvents, setSettlementEvents] = useState<TaxAccountEvent[]>([])
+  const [settlementEventsPeriodId, setSettlementEventsPeriodId] = useState<string | null>(null)
+  const [settlementEventsContextKey, setSettlementEventsContextKey] = useState<string | null>(null)
+  const [settlementLoading, setSettlementLoading] = useState(false)
+  const [settlementSubmitting, setSettlementSubmitting] = useState(false)
+  const [settlementLoadError, setSettlementLoadError] = useState<string | null>(null)
+  const [settlementSubmitError, setSettlementSubmitError] = useState<string | null>(null)
+  const [settlementEventDate, setSettlementEventDate] = useState(todayIso)
+  const [settlementAmountText, setSettlementAmountText] = useState('')
+  const [settlementIdempotency, setSettlementIdempotency] =
+    useState<VatSettlementIdempotencyState>(EMPTY_SETTLEMENT_IDEMPOTENCY_STATE)
 
   const selectedPeriod = useMemo(
     () => vatPeriods.find(p => p.id === selectedPeriodId) ?? null,
@@ -163,6 +199,10 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     reportError !== null &&
     reportErrorPeriodId === selectedPeriod?.id &&
     reportErrorContextKey === selectedPeriodContextKey
+  const hasCurrentSettlementEvents =
+    Boolean(selectedPeriod) &&
+    settlementEventsPeriodId === selectedPeriod?.id &&
+    settlementEventsContextKey === selectedPeriodContextKey
   const selectedPeriodIsFuture = selectedPeriod ? selectedPeriod.period_end > todayIso : false
   const lifecycleCanCloseSelectedPeriod =
     Boolean(selectedPeriod) &&
@@ -277,6 +317,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
       setReportError(null)
       setReportErrorPeriodId(null)
       setReportErrorContextKey(null)
+      setSettlementEvents([])
+      setSettlementEventsPeriodId(null)
+      setSettlementEventsContextKey(null)
+      setSettlementLoadError(null)
+      setSettlementSubmitError(null)
     }
 
     const yearStart = `${year}-01-01`
@@ -418,6 +463,24 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const closingText = selectedPeriod ? closingAmountText(selectedPeriod) : null
   const declarationText = selectedPeriod ? declaredAtText(selectedPeriod) : null
   const declarationAuditText = selectedPeriod ? soloLedgerDeclarationAuditText(selectedPeriod) : null
+  const settlementReadModel = deriveVatSettlementReadModel(
+    selectedPeriod,
+    hasCurrentSettlementEvents ? settlementEvents : []
+  )
+  const settlementValidation = validateVatSettlementInput({
+    eventDate: settlementEventDate,
+    amountText: settlementAmountText,
+    todayIso,
+    remainingAmount: settlementReadModel.remainingAmount,
+  })
+  const canSubmitSettlement =
+    settlementReadModel.actionable &&
+    settlementReadModel.state !== 'fully_settled' &&
+    hasCurrentSettlementEvents &&
+    !settlementLoading &&
+    !settlementSubmitting &&
+    !settlementLoadError &&
+    settlementValidation.ok
 
   // Beräkna moms för vald DB-verifierad momsperiod via den auktoritativa
   // rapporttjänsten. Komponenten presenterar bara färdiga SKV-fält.
@@ -491,6 +554,60 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     await fetchMomsForPeriod(selectedPeriod, selectedPeriodContextKey)
   }
 
+  async function loadSettlementEventsForPeriod(
+    periodForFetch: VatPeriod,
+    contextForFetch: string
+  ) {
+    const requestSeq = settlementRequestSeqRef.current + 1
+    settlementRequestSeqRef.current = requestSeq
+    setSettlementLoading(true)
+    setSettlementLoadError(null)
+
+    try {
+      const events = await getTaxAccountEventsForPeriod(periodForFetch.id)
+
+      if (
+        settlementRequestSeqRef.current !== requestSeq ||
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
+      ) {
+        return null
+      }
+
+      setSettlementEvents(events)
+      setSettlementEventsPeriodId(periodForFetch.id)
+      setSettlementEventsContextKey(contextForFetch)
+      return events
+    } catch (err) {
+      if (
+        settlementRequestSeqRef.current !== requestSeq ||
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
+      ) {
+        return null
+      }
+
+      console.error('Kunde inte hämta avräkningar från skattekontot:', err)
+      setSettlementEvents([])
+      setSettlementEventsPeriodId(periodForFetch.id)
+      setSettlementEventsContextKey(contextForFetch)
+      setSettlementLoadError('Avräkningar från skattekontot kunde inte hämtas just nu.')
+      return null
+    } finally {
+      if (settlementRequestSeqRef.current === requestSeq) {
+        setSettlementLoading(false)
+      }
+    }
+  }
+
+  function resetSettlementIntent() {
+    setSettlementIdempotency(clearSettlementIdempotency())
+  }
+
   function closeErrorMessage(message: string) {
     if (message.includes('Importerad historik') || message.includes('Endast SoloLedger')) {
       return 'Importerad momshistorik kan inte stängas som en SoloLedger-period.'
@@ -555,6 +672,103 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
       return 'Momsdeklarationen var redan bekräftad i SoloLedger.'
     }
     return 'Inlämnad momsdeklaration bekräftades i SoloLedger.'
+  }
+
+  async function handleRecordSettlement() {
+    if (!canStartVatSettlementSubmit({
+      hasSelectedPeriod: Boolean(selectedPeriod),
+      hasSelectedContext: Boolean(selectedPeriodContextKey),
+      canSubmitSettlement,
+      amount: settlementValidation.amount,
+      inFlight: settlementInFlightRef.current,
+    })) {
+      return
+    }
+
+    if (!selectedPeriod || !selectedPeriodContextKey || !settlementValidation.amount) return
+
+    const direction = settlementReadModel.direction
+    if (!direction) return
+
+    const amount = settlementValidation.amount
+    const confirmed = window.confirm(
+      `${settlementActionLabel(direction)}?\n\n` +
+      `Datum på skattekontot: ${fmtDate(settlementEventDate)}\n` +
+      `Belopp: ${fmt(amount)} kr\n\n` +
+      'Detta registrerar händelsen som visas på ditt skattekonto hos Skatteverket. En banköverföring hanteras inte här.'
+    )
+    if (!confirmed) return
+
+    const periodId = selectedPeriod.id
+    const contextAtStart = selectedPeriodContextKey
+    const prepared = prepareSettlementIdempotencyKey(
+      settlementIdempotency,
+      {
+        periodId,
+        eventDate: settlementEventDate,
+        amount,
+      },
+      () => crypto.randomUUID()
+    )
+
+    setSettlementIdempotency(prepared.state)
+    settlementInFlightRef.current = true
+    setSettlementSubmitting(true)
+    setSettlementSubmitError(null)
+
+    try {
+      const result = await recordVatSettlement(
+        periodId,
+        settlementEventDate,
+        amount,
+        prepared.key
+      )
+      const centralRefreshResult = await onBookkeepingRefresh?.()
+      const centralRefreshFailed = centralRefreshResult?.ok === false
+
+      if (
+        !isVatSettlementSubmitContextCurrent(selectionContextRef.current, {
+          periodId,
+          contextKey: contextAtStart,
+        })
+      ) {
+        return
+      }
+
+      const metadataRefresh = await reloadDeclaredPeriodMetadata(
+        periodId,
+        contextAtStart
+      )
+      if (!metadataRefresh) return
+
+      await loadSettlementEventsForPeriod(
+        metadataRefresh.refreshedPeriod,
+        contextAtStart
+      )
+      await fetchMomsForPeriod(metadataRefresh.refreshedPeriod, contextAtStart)
+      setSettlementAmountText('')
+      resetSettlementIntent()
+
+      const refreshWarning = centralRefreshFailed
+        ? '\n\nAvräkningen registrerades, men delar av bokföringsvyn kunde inte uppdateras automatiskt. Ladda om sidan om verifikationen inte syns.'
+        : ''
+      const replayText = result.idempotent_replay
+        ? 'Avräkningen var redan registrerad och visades igen.'
+        : result.ver_nr
+        ? `Avräkningen registrerades som VER-${result.ver_nr}.`
+        : 'Avräkningen registrerades.'
+
+      alert(replayText + refreshWarning)
+    } catch (err) {
+      const kind = vatSettlementSubmissionFailureKind(err)
+      if (kind === 'authoritative_rejection') {
+        resetSettlementIntent()
+      }
+      setSettlementSubmitError(vatSettlementSubmissionErrorMessage(kind))
+    } finally {
+      settlementInFlightRef.current = false
+      setSettlementSubmitting(false)
+    }
   }
 
   async function handleClosePeriod() {
@@ -665,6 +879,23 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLoadCurrentReport, selectedPeriodId, selectedPeriodContextKey])
 
+  useEffect(() => {
+    if (!selectedPeriod || !selectedPeriodContextKey) return
+    if (!settlementReadModel.actionable) return
+    if (hasCurrentSettlementEvents || settlementLoading) return
+    if (settlementLoadError) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSettlementEventsForPeriod(selectedPeriod, selectedPeriodContextKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    hasCurrentSettlementEvents,
+    selectedPeriodId,
+    selectedPeriodContextKey,
+    settlementLoading,
+    settlementLoadError,
+    settlementReadModel.actionable,
+  ])
+
   function handleYearChange(nextYear: number) {
     setFetched(false)
     setVatReport(null)
@@ -673,6 +904,13 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     setReportError(null)
     setReportErrorPeriodId(null)
     setReportErrorContextKey(null)
+    setSettlementEvents([])
+    setSettlementEventsPeriodId(null)
+    setSettlementEventsContextKey(null)
+    setSettlementLoadError(null)
+    setSettlementSubmitError(null)
+    setSettlementAmountText('')
+    resetSettlementIntent()
     setYear(nextYear)
   }
 
@@ -684,6 +922,13 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     setReportError(null)
     setReportErrorPeriodId(null)
     setReportErrorContextKey(null)
+    setSettlementEvents([])
+    setSettlementEventsPeriodId(null)
+    setSettlementEventsContextKey(null)
+    setSettlementLoadError(null)
+    setSettlementSubmitError(null)
+    setSettlementAmountText('')
+    resetSettlementIntent()
     setSelectedPeriodId(nextPeriodId)
   }
 
@@ -832,6 +1077,188 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             </p>
           </div>
         )}
+
+        {selectedPeriod &&
+          selectedPeriod.status === 'declared' &&
+          settlementReadModel.actionable &&
+          settlementReadModel.direction && (
+            <div className="mt-4 rounded-2xl border border-sky-100 bg-white px-4 py-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-sky-700">
+                    Avräkning på skattekontot
+                  </p>
+                  <p className="text-sm font-black text-gray-700 mt-1">
+                    {payableOrRefundHeading(settlementReadModel.direction)}
+                  </p>
+                  <p className="text-[11px] font-bold text-gray-400 mt-1">
+                    Den här statusen gäller bara momshändelsen på skattekontot.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-gray-800 tabular-nums whitespace-nowrap">
+                    {fmt(settlementReadModel.totalAmount)} kr
+                  </p>
+                  <p className="text-[10px] font-black uppercase text-sky-600 mt-1">
+                    {settlementStateText(settlementReadModel.state)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    {payableOrRefundHeading(settlementReadModel.direction)}
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(settlementReadModel.totalAmount)} kr
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    Registrerat på skattekontot
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(settlementReadModel.registeredAmount)} kr
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    Kvar att registrera
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(settlementReadModel.remainingAmount)} kr
+                  </p>
+                </div>
+              </div>
+
+              {settlementReadModel.legacyMissingDeclarationDate && (
+                <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-700">
+                  Deklarationsdatum saknas för den här äldre perioden, men avräkning kan registreras om händelsen syns på skattekontot.
+                </p>
+              )}
+
+              <div className="mt-4 border-t border-dashed border-gray-100 pt-4">
+                <p className="text-xs font-black text-gray-700">
+                  {settlementQuestion(settlementReadModel.direction)}
+                </p>
+                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                  Använd datumet och beloppet som visas på ditt skattekonto hos Skatteverket.
+                </p>
+                <details className="mt-2 text-[10px] font-bold text-gray-400">
+                  <summary className="cursor-pointer text-sky-600">
+                    Var hittar jag detta?
+                  </summary>
+                  <p className="mt-1">
+                    Logga in hos Skatteverket och titta på händelsen på skattekontot. En banköverföring till Skatteverket är en separat händelse och betyder inte i sig att momsen har dragits eller krediterats på skattekontot.
+                  </p>
+                </details>
+              </div>
+
+              {settlementReadModel.state !== 'fully_settled' && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 sm:items-end">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
+                      Datum på skattekontot
+                    </label>
+                    <input
+                      type="date"
+                      value={settlementEventDate}
+                      max={todayIso}
+                      onChange={e => {
+                        setSettlementEventDate(e.target.value)
+                        setSettlementSubmitError(null)
+                        resetSettlementIntent()
+                      }}
+                      disabled={settlementSubmitting || settlementLoading}
+                      className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-sky-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
+                      {settlementAmountLabel(settlementReadModel.direction)}
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={settlementAmountText}
+                      onChange={e => {
+                        setSettlementAmountText(e.target.value)
+                        setSettlementSubmitError(null)
+                        resetSettlementIntent()
+                      }}
+                      disabled={settlementSubmitting || settlementLoading}
+                      placeholder={fmt(settlementReadModel.remainingAmount)}
+                      className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none hover:bg-gray-100 transition-colors border border-transparent focus:border-sky-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleRecordSettlement}
+                    disabled={!canSubmitSettlement}
+                    className="h-[42px] px-6 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
+                  >
+                    {settlementSubmitting
+                      ? 'Registrerar...'
+                      : settlementActionLabel(settlementReadModel.direction)}
+                  </button>
+                </div>
+              )}
+
+              {settlementReadModel.state !== 'fully_settled' &&
+                settlementAmountText &&
+                !settlementValidation.ok && (
+                  <p className="mt-3 text-[10px] font-bold text-red-500">
+                    {settlementValidation.message}
+                  </p>
+                )}
+
+              {(settlementLoadError || settlementSubmitError) && (
+                <p className="mt-3 text-[10px] font-bold text-red-500">
+                  {settlementLoadError || settlementSubmitError}
+                </p>
+              )}
+
+              <div className="mt-4 border-t border-dashed border-gray-100 pt-4">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                  Historik
+                </p>
+                {settlementLoading && (
+                  <p className="mt-2 text-[10px] font-bold text-gray-400">
+                    Hämtar avräkningar...
+                  </p>
+                )}
+                {!settlementLoading && settlementReadModel.events.length === 0 && (
+                  <p className="mt-2 text-[10px] font-bold text-gray-400">
+                    Inget registrerat på skattekontot än.
+                  </p>
+                )}
+                {!settlementLoading && settlementReadModel.events.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {settlementReadModel.events.map(event => (
+                      <div
+                        key={event.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-[10px] font-black text-gray-700">
+                            {fmtDate(event.event_date)}
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-400">
+                            {settlementEventText(event.event_kind)}
+                          </p>
+                        </div>
+                        <p className="text-sm font-black text-gray-700 tabular-nums">
+                          {fmt(event.amount)} kr
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         {periodError && (
           <p className="mt-4 text-[10px] font-bold text-red-500">

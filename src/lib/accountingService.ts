@@ -4,6 +4,14 @@ import type { VatTreatment } from './vatDomain'
 import { buildVatAuditSnapshot } from './vatAuditSnapshot'
 import { buildVatJournalPlan } from './vatJournalPlan'
 import { buildDeclareVatPeriodRpcArgs } from './vatDeclarationRpc'
+import {
+  RECORD_VAT_SETTLEMENT_RPC_NAME,
+  TAX_ACCOUNT_EVENT_PERIOD_FILTER_COLUMN,
+  TAX_ACCOUNT_EVENT_SELECT_COLUMNS,
+  TAX_ACCOUNT_EVENT_USER_FILTER_COLUMN,
+  buildRecordVatSettlementRpcArgs,
+} from './vatSettlementRpc'
+import { createVatSettlementSubmissionError } from './vatSettlementErrors'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -313,14 +321,51 @@ export interface DeclareVatPeriodResult {
   updated_at: string
 }
 
+export type TaxAccountEventKind = 'vat_debit' | 'vat_credit'
+
+export interface TaxAccountEvent {
+  id: string
+  vat_period_id: string
+  transaction_id: string
+  event_kind: TaxAccountEventKind
+  event_date: string
+  amount: number
+  created_at: string
+}
+
+export interface RecordVatSettlementResult {
+  success: boolean
+  idempotent_replay: boolean
+  event_id: string
+  transaction_id: string
+  ver_nr: number | null
+  event_kind: TaxAccountEventKind
+  event_date: string
+  amount: number
+  cumulative_settled: number
+  remaining_amount: number
+  settlement_state: 'unsettled' | 'partially_settled' | 'fully_settled'
+}
+
 type VatPeriodRow = Omit<VatPeriod, 'closing_amount'> & {
   closing_amount: number | string | null
+}
+
+type TaxAccountEventRow = Omit<TaxAccountEvent, 'amount'> & {
+  amount: number | string
 }
 
 function normalizeVatPeriod(row: VatPeriodRow): VatPeriod {
   return {
     ...row,
     closing_amount: row.closing_amount == null ? null : Number(row.closing_amount),
+  }
+}
+
+function normalizeTaxAccountEvent(row: TaxAccountEventRow): TaxAccountEvent {
+  return {
+    ...row,
+    amount: Number(row.amount),
   }
 }
 
@@ -365,6 +410,26 @@ export async function getVatPeriods(startDate: string, endDate: string): Promise
   }
 
   return ((data || []) as VatPeriodRow[]).map(normalizeVatPeriod)
+}
+
+export async function getTaxAccountEventsForPeriod(
+  periodId: string
+): Promise<TaxAccountEvent[]> {
+  const userId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('tax_account_events')
+    .select(TAX_ACCOUNT_EVENT_SELECT_COLUMNS)
+    .eq(TAX_ACCOUNT_EVENT_USER_FILTER_COLUMN, userId)
+    .eq(TAX_ACCOUNT_EVENT_PERIOD_FILTER_COLUMN, periodId)
+    .order('event_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    throw new Error('Kunde inte hämta avräkningar från skattekontot: ' + error.message)
+  }
+
+  return ((data || []) as TaxAccountEventRow[]).map(normalizeTaxAccountEvent)
 }
 
 export async function closeVatPeriod(periodId: string): Promise<CloseVatPeriodResult> {
@@ -424,6 +489,57 @@ export async function declareVatPeriod(
     closing_amount: data.closing_amount == null ? null : Number(data.closing_amount),
     closing_transaction_id: data.closing_transaction_id ?? null,
     updated_at: data.updated_at as string,
+  }
+}
+
+export async function recordVatSettlement(
+  periodId: string,
+  eventDate: string,
+  amount: number,
+  idempotencyKey: string
+): Promise<RecordVatSettlementResult> {
+  await getUserId()
+
+  let response: Awaited<ReturnType<typeof supabase.rpc>>
+  try {
+    response = await supabase.rpc(
+      RECORD_VAT_SETTLEMENT_RPC_NAME,
+      buildRecordVatSettlementRpcArgs({
+        periodId,
+        eventDate,
+        amount,
+        idempotencyKey,
+      })
+    )
+  } catch (error) {
+    throw createVatSettlementSubmissionError(error)
+  }
+
+  const { data, error } = response
+
+  if (error) {
+    throw createVatSettlementSubmissionError(error)
+  }
+
+  if (!data?.success) {
+    throw createVatSettlementSubmissionError({
+      code: 'VAT_SETTLEMENT_UNSUCCESSFUL_RESPONSE',
+      message: 'The VAT settlement RPC returned an unsuccessful response.',
+    })
+  }
+
+  return {
+    success: Boolean(data.success),
+    idempotent_replay: Boolean(data.idempotent_replay),
+    event_id: data.event_id as string,
+    transaction_id: data.transaction_id as string,
+    ver_nr: data.ver_nr == null ? null : Number(data.ver_nr),
+    event_kind: data.event_kind as TaxAccountEventKind,
+    event_date: data.event_date as string,
+    amount: Number(data.amount),
+    cumulative_settled: Number(data.cumulative_settled),
+    remaining_amount: Number(data.remaining_amount),
+    settlement_state: data.settlement_state as RecordVatSettlementResult['settlement_state'],
   }
 }
 

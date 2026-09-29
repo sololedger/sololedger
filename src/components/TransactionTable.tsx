@@ -2,6 +2,11 @@
 
 import { Fragment, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import {
+  getTransactionSourceUiPolicy,
+  shouldOfferGenericTransactionCorrection,
+  shouldOfferGenericTransactionEdit,
+} from '@/lib/transactionSourceUi'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -85,10 +90,13 @@ export default function TransactionTable({
     const isImported = tx.source === 'sie_import'
     const isOpeningBalance = tx.source === 'sie_opening_balance'
     const isSieUndo = tx.source === 'sie_import_undo'
-    const isVatClosing = tx.source === 'vat_closing'
-    const isVatV2 = tx.source === 'vat_v2'
-    const isSystemManaged =
-      isImported || isOpeningBalance || isVatClosing || isVatV2
+    const sourceUiPolicy = getTransactionSourceUiPolicy(tx)
+    const isVatClosing = sourceUiPolicy.kind === 'vat_closing'
+    const isVatV2 = sourceUiPolicy.kind === 'vat_v2'
+    const isVatSettlement = sourceUiPolicy.kind === 'vat_settlement'
+    const isSystemManaged = sourceUiPolicy.systemManaged
+    const offerGenericEdit = shouldOfferGenericTransactionEdit(tx)
+    const offerGenericCorrection = shouldOfferGenericTransactionCorrection(tx)
     const accountDef = kontoplan.find(k => k.id === tx.type)
 
     // H5: historisk visning ska bygga på det som faktiskt bokfördes,
@@ -98,6 +106,7 @@ export default function TransactionTable({
       !isOpeningBalance &&
       !isSieUndo &&
       !isVatClosing &&
+      !isVatSettlement &&
       (
         journal.some((e: any) =>
           String(e.account_number || '').startsWith('3') && Number(e.credit) > 0
@@ -118,6 +127,8 @@ export default function TransactionTable({
       ? 'bg-indigo-50/40 hover:bg-indigo-50/65'
       : isVatClosing
       ? 'bg-violet-50/45 hover:bg-violet-50/70'
+      : isVatSettlement
+      ? 'bg-sky-50/45 hover:bg-sky-50/70'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50/40 hover:bg-sky-50/60'
       : 'hover:bg-emerald-50/30'
@@ -130,6 +141,8 @@ export default function TransactionTable({
       ? 'text-indigo-900'
       : isVatClosing
       ? 'text-violet-900'
+      : isVatSettlement
+      ? 'text-sky-900'
       : (isImported || isOpeningBalance)
       ? 'text-sky-900'
       : 'text-gray-700'
@@ -142,6 +155,8 @@ export default function TransactionTable({
       ? 'text-indigo-500'
       : isVatClosing
       ? 'text-violet-500'
+      : isVatSettlement
+      ? 'text-sky-500'
       : (isImported || isOpeningBalance)
       ? 'text-sky-500'
       : 'text-emerald-600'
@@ -154,6 +169,8 @@ export default function TransactionTable({
       ? 'text-indigo-600'
       : isVatClosing
       ? 'text-violet-600'
+      : isVatSettlement
+      ? 'text-sky-700'
       : (isImported || isOpeningBalance)
       ? 'text-sky-700'
       : isIncome
@@ -168,6 +185,8 @@ export default function TransactionTable({
       ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
       : isVatClosing
       ? 'bg-violet-50 border-violet-100 text-violet-600'
+      : isVatSettlement
+      ? 'bg-sky-50 border-sky-100 text-sky-600'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50 border-sky-100 text-sky-600'
       : 'bg-gray-50 border-gray-100 text-gray-500'
@@ -187,7 +206,10 @@ export default function TransactionTable({
       isSieUndo,
       isVatClosing,
       isVatV2,
+      isVatSettlement,
       isSystemManaged,
+      offerGenericEdit,
+      offerGenericCorrection,
       accountDef,
       isIncome,
       rowClass,
@@ -374,7 +396,10 @@ export default function TransactionTable({
                 isOpeningBalance,
                 isVatClosing,
                 isVatV2,
+                isVatSettlement,
                 isSystemManaged,
+                offerGenericEdit,
+                offerGenericCorrection,
                 accountDef,
                 isIncome,
                 rowClass,
@@ -423,6 +448,10 @@ export default function TransactionTable({
                       ) : isVatV2 ? (
                         <p className="text-[10px] font-black text-indigo-600 uppercase">
                           VAT V2 utlandsinköp
+                        </p>
+                      ) : isVatSettlement ? (
+                        <p className="text-[10px] font-black text-sky-600 uppercase">
+                          Momsavräkning
                         </p>
                       ) : isImported ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
@@ -480,6 +509,10 @@ export default function TransactionTable({
                       <span>
                         {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
+                    ) : isVatSettlement ? (
+                      <span>
+                        {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                      </span>
                     ) : (
                       <>
                         {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -515,7 +548,7 @@ export default function TransactionTable({
 
                   <td className="p-8 text-right pr-12">
                     <div className="flex items-center justify-end gap-1">
-                      {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
+                      {!isCorrection && !isNeutralized && offerGenericEdit && !isYearLocked && (
                         <button
                           onClick={() => onEdit(tx)}
                           className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
@@ -524,7 +557,7 @@ export default function TransactionTable({
                           ✎
                         </button>
                       )}
-                      {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
+                      {!isCorrection && !isNeutralized && offerGenericCorrection && !isYearLocked && (
                         <button
                           onClick={() => onDelete(tx)}
                           className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all font-bold"
@@ -626,7 +659,10 @@ export default function TransactionTable({
             isOpeningBalance,
             isVatClosing,
             isVatV2,
+            isVatSettlement,
             isSystemManaged,
+            offerGenericEdit,
+            offerGenericCorrection,
             accountDef,
             isIncome,
             textClass,
@@ -649,6 +685,8 @@ export default function TransactionTable({
                 ? 'bg-indigo-50/40 border-indigo-100'
                 : isVatClosing
                 ? 'bg-violet-50/45 border-violet-100'
+                : isVatSettlement
+                ? 'bg-sky-50/45 border-sky-100'
                 : (isImported || isOpeningBalance)
                 ? 'bg-sky-50/40 border-sky-100'
                   : 'bg-white border-gray-100'
@@ -679,6 +717,10 @@ export default function TransactionTable({
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                   </p>
+                ) : isVatSettlement ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
+                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                  </p>
                 ) : (
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -700,6 +742,8 @@ export default function TransactionTable({
                   <p className="text-[10px] font-black text-violet-600 uppercase">Momsavslut</p>
                 ) : isVatV2 ? (
                   <p className="text-[10px] font-black text-indigo-600 uppercase">VAT V2 utlandsinköp</p>
+                ) : isVatSettlement ? (
+                  <p className="text-[10px] font-black text-sky-600 uppercase">Momsavräkning</p>
                 ) : isImported ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Importerad verifikation</p>
                 ) : (
@@ -761,20 +805,24 @@ export default function TransactionTable({
                 })}
               </div>
 
-              {!isCorrection && !isNeutralized && !isSystemManaged && !isYearLocked && (
+              {!isCorrection && !isNeutralized && (offerGenericEdit || offerGenericCorrection) && !isYearLocked && (
                 <div className="flex gap-2 pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() => onEdit(tx)}
-                    className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
-                  >
-                    ✎ {tx.booked ? "Hantera bilaga" : "Redigera"}
-                  </button>
-                  <button
-                    onClick={() => onDelete(tx)}
-                    className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-500 font-black text-[10px] uppercase tracking-wide transition-colors"
-                  >
-                    ✕ Korrigera
-                  </button>
+                  {offerGenericEdit && (
+                    <button
+                      onClick={() => onEdit(tx)}
+                      className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 font-black text-[10px] uppercase tracking-wide transition-colors"
+                    >
+                      ✎ {tx.booked ? "Hantera bilaga" : "Redigera"}
+                    </button>
+                  )}
+                  {offerGenericCorrection && (
+                    <button
+                      onClick={() => onDelete(tx)}
+                      className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-500 font-black text-[10px] uppercase tracking-wide transition-colors"
+                    >
+                      ✕ Korrigera
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -201,10 +201,15 @@ Last updated: 2026-09-28
   Runtime `20260927070224`, payment-account roles `20260927151231`, and
   payment-account role ACL hardening `20260927174627`. VAT lifecycle Slice 1
   live migration `20260928193000` adds declaration submission date support.
+- KAN-27 DB foundation migration
+  `20260929143000_add_vat_settlement_foundation.sql` is live and verified.
+  It adds the `tax_account_events` foundation and
+  `record_vat_settlement_atomic`; the migration itself created no settlement
+  or accounting data. Q1/`VER-15` remained unchanged after migration.
 - Live remote migration ledger is fully aligned with local active migrations:
   `20260925000000`, `20260925050113`, `20260925070346`, `20260925124023`,
   `20260926132107`, `20260926174535`, `20260927070224`, `20260927151231`,
-  `20260927174627`, `20260928193000`.
+  `20260927174627`, `20260928193000`, `20260929143000`.
 - Future production DB migrations should use the now-reconciled official
   Supabase CLI workflow.
 - Do not use MCP `apply_migration` for timestamped repo migrations where repo/live version identity matters.
@@ -233,6 +238,22 @@ Last updated: 2026-09-28
   and production-accepted for the controlled scope. Jira is `Done`.
 - KAN-26 `VAT lifecycle – declaration confirmation and report readiness` is
   implemented, production-accepted, and Jira `Done`.
+- KAN-27 app integration is implemented locally, reviewed, and ready for
+  checkpoint. Settlement UI read state uses `vat_periods.closing_amount` plus
+  `tax_account_events`; money state uses integer öre. The frontend write path
+  only calls `record_vat_settlement_atomic`; indeterminate submit outcomes
+  reuse the same in-memory idempotency key for unchanged retry. Known
+  limitation: browser reload/unmount after an indeterminate result loses that
+  in-memory key.
+- KAN-27 UI handles payable/refund/partial/full settlement and history.
+  `vat_settlement` is system-managed in transaction UI; generic edit and
+  correction are unavailable. Slice 3 bank/private tax-account money movement
+  is not implemented.
+- No real production VAT settlement has been created yet. TESTNAMN AB Q1 2026
+  manual IRL settlement remains pending for Pontus through the UI only after
+  app availability/visual verification. Expected future Q1 accounting for that
+  separately approved action is Dr `2650` 4000 / Cr `2012` 4000; the VAT report
+  itself must remain unchanged by settlement.
 - External Copilot audit remains deferred until the agreed VAT V2
   feature-complete checkpoint.
 - Separate future work: TransactionTable search/filtering for growing ordinary
@@ -248,9 +269,7 @@ Last updated: 2026-09-28
 
 ## Next Safe Step
 
-- Next lifecycle step is VAT settlement/tax-account foundation: canonical
-  `2012` bridge, VAT debit Dr `2650` / Cr `2012`, VAT credit Dr `2012` /
-  Cr `2650`, period-level linkage, derived settlement state, and safe support
-  for partial/multiple settlement events.
-- Do not implement settlement, add migrations, create/edit/delete accounting
-  data, deploy, or change Jira without explicit Pontus approval.
+- Next lifecycle step is production availability/visual verification and
+  Pontus manual KAN-27 Q1 settlement acceptance. Do not create a real
+  settlement, modify Q1, deploy manually, or start Slice 3 without explicit
+  approval.
