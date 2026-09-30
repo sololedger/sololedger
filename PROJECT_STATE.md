@@ -38,8 +38,13 @@ Last updated: 2026-09-30
   `LIVE DB APPLY VERIFIED - SAFE TO PROCEED TO APP CHECKPOINT`
 - The migration created zero `tax_account_movements`, zero
   `tax_account_movement` transactions, and zero related journal entries.
-- Production IRL UI/accounting acceptance is still pending. Do not perform
-  production IRL accounting actions from Codex.
+- Production IRL UI/accounting acceptance passed for TESTNAMN AB on
+  2026-09-30. Accepted proof: `VER-17` source `tax_account_movement`,
+  Dr `2012` 4000.00 / Cr `1930` 4000.00, exactly one linked
+  `tax_account_movements` row, no duplicate/retry artifact.
+- KAN-27 remains separate: `VER-16` source `vat_settlement`,
+  Dr `2650` 4000.00 / Cr `2012` 4000.00. Combined `VER-16` + `VER-17`
+  nets account `2012` to zero for the Q1 lifecycle chain.
 
 ## Slice 3 Durable Architecture
 
@@ -73,7 +78,7 @@ Last updated: 2026-09-30
   generic guards, zero side effects, and existing KAN-27 sanity.
 - Existing Q1 `VER-15`/`VER-16` VAT lifecycle data was checked read-only after
   migration and no mutation was observed.
-- Final app checkpoint should run: `git diff --check`, `npm run typecheck`,
+- Final app checkpoint passed: `git diff --check`, `npm run typecheck`,
   focused tax-account movement UI tests, and `npm run test:domain`.
 - Full repo `npm run lint` still has pre-existing unrelated debt; do not fix
   unrelated lint debt as part of Slice 3.
@@ -105,8 +110,7 @@ Last updated: 2026-09-30
 
 ## Next Safe Step
 
-- Create and push the Slice 3 app checkpoint commit to `origin/main`.
-- After GitHub/Vercel completes the normal production deployment, Pontus should
-  perform the production IRL UI/accounting acceptance test.
-- Do not deploy manually, perform production accounting actions, or modify Jira
-  without explicit approval.
+- Close Jira KAN-28 if it is confirmed to be the Slice 3 tax-account money
+  movement issue.
+- Do not deploy manually, perform production accounting actions, or start
+  unrelated follow-up work without explicit approval.
