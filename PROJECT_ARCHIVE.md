@@ -6,6 +6,32 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### External Audit #1 P0 Remediation Batch 2
+
+- External Audit #1 P0 Batch 2 reached `IRL VERIFIED` on 2026-09-30.
+- Checkpoint/deployed commit:
+  `0d8a4c891b418f8195a9f9cd2863fbf4e28048e2`.
+- Live migration:
+  `supabase/migrations/20260930120000_audit1_p0_vat_lifecycle_semantics.sql`.
+- Migration SHA-256:
+  `B321142E53B4906B1ED448254799907C5415C9C78683D5AB4C4F021B5371B1DF`.
+- Production deployment was tied to the exact checkpoint commit.
+- F1/F2/F3/F4/F6 scoped regressions passed.
+- RC-A existing Q1 lifecycle/report production smoke passed.
+- RC-C configured `1930` VAT V2 payment-source production UI path passed.
+- RC-B production negative IRL passed: declared Q2 2026, event date
+  `2026-06-30` exactly at period end, attempted settlement `1.00`, correctly
+  rejected.
+- RC-B post-attempt DB verification showed registered `0.00`, remaining
+  `1640.00`, event count `0`.
+- No cleanup was required because the rejected operation produced no settlement
+  event.
+- Jira was not modified as part of acceptance recording; Jira remains a
+  separate explicit approval gate.
+- RC-D was not started.
+- Deferred/non-P0 findings remain deferred; this acceptance does not mark
+  F5/F8/F9/F10 or RC-D complete.
+
 ### KAN-18 VAT Treatment Decision Engine
 
 - KAN-18 `VAT V2-3 - VAT treatment decision engine` is Done in Jira as of read-only verification on 2026-09-26.

@@ -23,20 +23,31 @@ Last updated: 2026-09-30
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted.
-- Do not modify Jira until Pontus explicitly approves that step.
-- Live Supabase migration head: `20260929183000`.
+- Do not modify Jira until explicit leader approval.
+- Live Supabase migration head: `20260930120000`.
 
 ## Current Objective
 
-- VAT lifecycle Slice 3 tax-account money movement implementation exists and is
-  ready for the app checkpoint.
-- Production migration is LIVE and verified:
+- External Audit #1 P0 Batch 2 is production deployed and IRL verified.
+- P0 status: `IRL VERIFIED`.
+- Checkpoint/deployed commit:
+  `0d8a4c891b418f8195a9f9cd2863fbf4e28048e2`.
+- Production P0 migration is LIVE and verified:
+  `supabase/migrations/20260930120000_audit1_p0_vat_lifecycle_semantics.sql`
+- P0 migration SHA-256:
+  `B321142E53B4906B1ED448254799907C5415C9C78683D5AB4C4F021B5371B1DF`
+- Production deployment is tied to the exact checkpoint commit.
+- Jira remains unchanged and is a separate explicit approval gate.
+- RC-D was not started and must not start without explicit approval.
+- Prior VAT lifecycle Slice 3 tax-account money movement implementation remains
+  production-accepted and durable.
+- Slice 3 production migration remains LIVE and verified:
   `supabase/migrations/20260929183000_add_tax_account_movement.sql`
-- Migration SHA-256:
+- Slice 3 migration SHA-256:
   `E32E1C0E55CEA8BF6A44A23367C1AC469CB97491327D24CB3F8025684EF5C679`
-- Live DB verification verdict:
+- Slice 3 live DB verification verdict:
   `LIVE DB APPLY VERIFIED - SAFE TO PROCEED TO APP CHECKPOINT`
-- The migration created zero `tax_account_movements`, zero
+- The Slice 3 migration created zero `tax_account_movements`, zero
   `tax_account_movement` transactions, and zero related journal entries.
 - Production IRL UI/accounting acceptance passed for TESTNAMN AB on
   2026-09-30. Accepted proof: `VER-17` source `tax_account_movement`,
@@ -71,6 +82,18 @@ Last updated: 2026-09-30
 
 ## Verification State
 
+- External Audit #1 P0 Batch 2 verification passed:
+  F1/F2/F3/F4/F6 scoped regressions, RC-A existing Q1 lifecycle/report
+  production smoke, RC-C configured `1930` VAT V2 payment-source production UI
+  path, and RC-B production negative IRL.
+- RC-B production negative IRL used declared Q2 2026, event date
+  `2026-06-30` exactly at period end, and attempted settlement `1.00`; the
+  settlement was correctly rejected.
+- RC-B post-attempt DB verification: registered `0.00`, remaining `1640.00`,
+  event count `0`. No cleanup was required because the rejected operation
+  produced no settlement event.
+- Deferred/non-P0 findings remain deferred; this acceptance does not mark
+  F5/F8/F9/F10 or RC-D complete.
 - Local isolated PostgreSQL 17 rollback regression passed for the final Slice 3
   migration before production apply.
 - Live post-apply verification passed for migration history, source constraint,
@@ -88,9 +111,9 @@ Last updated: 2026-09-30
 ## Live Migration State
 
 - Active live migrations include the reconciled CLI baseline and all active
-  migrations through `20260929183000`.
+  migrations through `20260930120000`.
 - Current head:
-  `20260929183000_add_tax_account_movement.sql`.
+  `20260930120000_audit1_p0_vat_lifecycle_semantics.sql`.
 - Future production DB migrations should use the official Supabase CLI flow
   preserving repo migration versions.
 - Do not use MCP `apply_migration` for timestamped repo migrations where
@@ -110,7 +133,10 @@ Last updated: 2026-09-30
 
 ## Next Safe Step
 
-- Close Jira KAN-28 if it is confirmed to be the Slice 3 tax-account money
-  movement issue.
+- Jira update/transition for the accepted P0 work remains a separate explicit
+  approval gate.
+- Do not modify Jira until explicit leader approval and current issue/status
+  verification.
+- Do not start RC-D without explicit approval.
 - Do not deploy manually, perform production accounting actions, or start
   unrelated follow-up work without explicit approval.
