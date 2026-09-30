@@ -6,6 +6,55 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-30 / F8 Atomic User Deletion Lifecycle Coverage
+
+- KAN-30 / F8 reached `PRODUCTION IRL VERIFIED` on 2026-09-30.
+- Root cause: stale `delete_user_data_atomic` omitted modern VAT/lifecycle
+  tables, so accounts with tax-account lifecycle rows could leave RESTRICT FK
+  blockers and immutable lifecycle rows outside the deletion scope.
+- Implementation commit:
+  `076a6fa45dae2edd4881f85c92b760351d0529d2`.
+- Live migration:
+  `supabase/migrations/20260930163000_kan30_delete_user_data_vat_lifecycle.sql`.
+- Migration SHA-256:
+  `9494FC49991F572CBE8AB667A0285174130245FB1F03880AAB000AF66C7D110B`.
+- The migration is live in Supabase as version `20260930163000`.
+- KAN-30 introduced a private
+  `delete_user_data_atomic_lifecycle_context` table and controlled lifecycle
+  DELETE context for `delete_user_data_atomic`, without weakening ordinary
+  lifecycle immutability. UPDATE remains immutable, and ordinary app roles did
+  not gain lifecycle write/delete/bypass capability.
+- The authoritative deletion order now removes `tax_account_movements`,
+  `tax_account_events`, `vat_audit_snapshots`, `vat_periods`,
+  `company_payment_account_roles`, then legacy application data in dependency
+  order.
+- Dry-run parity commit:
+  `d3e9ea8d0e29116ab97cc6e6daab805febea58d7`.
+- `delete-user` Edge Function version `8` is live with `verify_jwt: true`.
+- Production dry-run matched the DB snapshot for the strong F8 fixture.
+- The disposable production fixture exercised both former blocker classes:
+  `1` `tax_account_movement`, `1` `tax_account_event`, `3` `vat_periods`,
+  `1` `company_payment_account_roles`, `32` `transactions`, and `89`
+  `journal_entries`.
+- Normal Admin permanent deletion succeeded.
+- Post-delete verification: auth user absent; all 13 known application-table
+  counts were `0`; former blocker rows and associated lifecycle transactions
+  were absent; `delete_user_data_atomic_lifecycle_context` had `0` target rows
+  and `0` global rows.
+- Security post-verification passed: KAN-30 migration remained live,
+  `delete-user` remained active v8 with JWT verification, lifecycle
+  immutability triggers remained installed/enabled, RPC/function ACLs remained
+  restricted to `service_role`/`postgres`, and relevant RLS stayed enabled.
+- External Audit #1 status after KAN-30: F1/F2/F3/F4/F6 fixed/verified,
+  F7 false positive/closed, F8 fixed/production IRL verified. Remaining:
+  F5 -> KAN-31, F9 -> KAN-32, F10 -> KAN-31, query-completeness
+  investigation -> KAN-33.
+- Separate follow-up candidate: the VAT tax-account movement flow can require
+  `business_payment_account`, while the available UI for configuring suggested
+  `1930` is discoverable through the VAT V2/foreign-purchase booking flow
+  rather than a general settings surface. The VAT UI warning can therefore
+  point users toward settings that are not actually available there.
+
 ### External Audit #1 P0 Remediation Batch 2
 
 - External Audit #1 P0 Batch 2 reached `IRL VERIFIED` on 2026-09-30.

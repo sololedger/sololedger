@@ -23,97 +23,50 @@ Last updated: 2026-09-30
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted.
-- Do not modify Jira until explicit leader approval.
-- Live Supabase migration head: `20260930120000`.
+- KAN-30/F8 closeout is explicitly authorized for Jira update/transition in
+  this pass only.
+- Live Supabase migration head: `20260930163000`.
 
 ## Current Objective
 
-- External Audit #1 P0 Batch 2 is production deployed and IRL verified.
-- P0 status: `IRL VERIFIED`.
-- Checkpoint/deployed commit:
-  `0d8a4c891b418f8195a9f9cd2863fbf4e28048e2`.
-- Production P0 migration is LIVE and verified:
-  `supabase/migrations/20260930120000_audit1_p0_vat_lifecycle_semantics.sql`
-- P0 migration SHA-256:
-  `B321142E53B4906B1ED448254799907C5415C9C78683D5AB4C4F021B5371B1DF`
-- Production deployment is tied to the exact checkpoint commit.
-- Jira remains unchanged and is a separate explicit approval gate.
-- RC-D was not started and must not start without explicit approval.
-- Prior VAT lifecycle Slice 3 tax-account money movement implementation remains
-  production-accepted and durable.
-- Slice 3 production migration remains LIVE and verified:
-  `supabase/migrations/20260929183000_add_tax_account_movement.sql`
-- Slice 3 migration SHA-256:
-  `E32E1C0E55CEA8BF6A44A23367C1AC469CB97491327D24CB3F8025684EF5C679`
-- Slice 3 live DB verification verdict:
-  `LIVE DB APPLY VERIFIED - SAFE TO PROCEED TO APP CHECKPOINT`
-- The Slice 3 migration created zero `tax_account_movements`, zero
-  `tax_account_movement` transactions, and zero related journal entries.
-- Production IRL UI/accounting acceptance passed for TESTNAMN AB on
-  2026-09-30. Accepted proof: `VER-17` source `tax_account_movement`,
-  Dr `2012` 4000.00 / Cr `1930` 4000.00, exactly one linked
-  `tax_account_movements` row, no duplicate/retry artifact.
-- KAN-27 remains separate: `VER-16` source `vat_settlement`,
-  Dr `2650` 4000.00 / Cr `2012` 4000.00. Combined `VER-16` + `VER-17`
-  nets account `2012` to zero for the Q1 lifecycle chain.
-
-## Slice 3 Durable Architecture
-
-- New controlled transaction source: `tax_account_movement`.
-- New immutable metadata table: `public.tax_account_movements`.
-- New RPC:
-  `record_tax_account_movement_atomic(text,date,numeric,uuid,uuid)`.
-- Movement kinds are:
-  `business_to_tax_account`, `owner_private_to_tax_account`,
-  `tax_account_to_business`, and `tax_account_to_owner_private`.
-- Business funding uses configured semantic payment role
-  `business_payment_account`; private funding uses
-  `owner_private_payment`; tax-account-to-private withdrawal derives fixed
-  counter account `2013`.
-- The database supports nullable `vat_period_id` for future unlinked
-  tax-account movements, while the current UI is VAT-focused first.
-- Durable DB idempotency is enforced by `(user_id, idempotency_key)` and the
-  frontend stores retry/session intent for indeterminate submit outcomes.
-- Generic edit and generic correction are blocked for `tax_account_movement`;
-  ordinary VAT guard activity is false.
-- `tax_account_movements` grants/RLS are intended: authenticated can read only
-  own rows and cannot directly insert/update/delete metadata; service role has
-  intended table access.
+- KAN-30 / F8 is production IRL verified.
+- Root cause: stale `delete_user_data_atomic` omitted modern VAT/lifecycle
+  tables, so real users with tax-account lifecycle rows could not be fully
+  deleted.
+- Implementation commit:
+  `076a6fa45dae2edd4881f85c92b760351d0529d2`.
+- Live migration:
+  `supabase/migrations/20260930163000_kan30_delete_user_data_vat_lifecycle.sql`.
+- Migration SHA-256:
+  `9494FC49991F572CBE8AB667A0285174130245FB1F03880AAB000AF66C7D110B`.
+- Dry-run parity commit:
+  `d3e9ea8d0e29116ab97cc6e6daab805febea58d7`.
+- `delete-user` Edge Function is live as version `8` with `verify_jwt: true`.
+- KAN-30/F8 durable evidence is archived in `PROJECT_ARCHIVE.md`.
 
 ## Verification State
 
-- External Audit #1 P0 Batch 2 verification passed:
-  F1/F2/F3/F4/F6 scoped regressions, RC-A existing Q1 lifecycle/report
-  production smoke, RC-C configured `1930` VAT V2 payment-source production UI
-  path, and RC-B production negative IRL.
-- RC-B production negative IRL used declared Q2 2026, event date
-  `2026-06-30` exactly at period end, and attempted settlement `1.00`; the
-  settlement was correctly rejected.
-- RC-B post-attempt DB verification: registered `0.00`, remaining `1640.00`,
-  event count `0`. No cleanup was required because the rejected operation
-  produced no settlement event.
-- Deferred/non-P0 findings remain deferred; this acceptance does not mark
-  F5/F8/F9/F10 or RC-D complete.
-- Local isolated PostgreSQL 17 rollback regression passed for the final Slice 3
-  migration before production apply.
-- Live post-apply verification passed for migration history, source constraint,
-  taxonomy, table constraints/indexes, RLS/grants, triggers, RPC definition,
-  generic guards, zero side effects, and existing KAN-27 sanity.
-- Existing Q1 `VER-15`/`VER-16` VAT lifecycle data was checked read-only after
-  migration and no mutation was observed.
-- Final app checkpoint passed: `git diff --check`, `npm run typecheck`,
-  focused tax-account movement UI tests, and `npm run test:domain`.
-- Full repo `npm run lint` still has pre-existing unrelated debt; do not fix
-  unrelated lint debt as part of Slice 3.
-- Existing Dashboard Bank card remains hard-coded to `1930`; this is out of
-  scope for Slice 3.
+- KAN-30 local SQL regressions and scoped app checks passed before production
+  apply; dry-run parity checks passed before commit/push/deploy.
+- Production dry-run matched the DB snapshot for the disposable strong F8
+  fixture.
+- Normal Admin permanent deletion succeeded.
+- Post-delete verification: auth user absent; all 13 known application-table
+  counts were `0`; former blocker rows and associated lifecycle transactions
+  were absent; deletion-context table was globally clean; ACL/RLS/immutability
+  state remained intact.
+- External Audit #1 status after KAN-30: F1/F2/F3/F4/F6 fixed/verified,
+  F7 false positive/closed, F8 fixed/production IRL verified.
+- Remaining numbered Claude findings: F5 -> KAN-31, F9 -> KAN-32,
+  F10 -> KAN-31. Separate query-completeness investigation -> KAN-33.
+- Do not start KAN-31 without explicit leader gate.
 
 ## Live Migration State
 
 - Active live migrations include the reconciled CLI baseline and all active
-  migrations through `20260930120000`.
+  migrations through `20260930163000`.
 - Current head:
-  `20260930120000_audit1_p0_vat_lifecycle_semantics.sql`.
+  `20260930163000_kan30_delete_user_data_vat_lifecycle.sql`.
 - Future production DB migrations should use the official Supabase CLI flow
   preserving repo migration versions.
 - Do not use MCP `apply_migration` for timestamped repo migrations where
@@ -133,10 +86,9 @@ Last updated: 2026-09-30
 
 ## Next Safe Step
 
-- Jira update/transition for the accepted P0 work remains a separate explicit
-  approval gate.
-- Do not modify Jira until explicit leader approval and current issue/status
-  verification.
-- Do not start RC-D without explicit approval.
-- Do not deploy manually, perform production accounting actions, or start
-  unrelated follow-up work without explicit approval.
+- Complete the explicitly authorized KAN-30 Jira closeout in this pass, then
+  stop.
+- Next engineering work requires a fresh leader gate; expected next gate is
+  KAN-31.
+- Payment-account discoverability for the VAT tax-account movement flow is a
+  separate follow-up candidate; do not implement it as part of KAN-30 closeout.

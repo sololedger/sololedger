@@ -119,6 +119,14 @@ Important RPCs include:
 - `close_year_atomic`
 - `delete_user_data_atomic`
 
+When adding a new user-owned persistent table or data domain, review the
+deletion lifecycle impact before the work is considered complete. At minimum
+verify whether `delete_user_data_atomic` must explicitly delete it or a
+deliberate FK cascade handles it, the FK/delete ordering, immutable or
+protected-row triggers, admin `delete-user` dry-run/count parity, and
+post-delete residual verification or test coverage. The permanent deletion RPC
+remains the authoritative atomic application-data deletion boundary.
+
 When changing DB behavior:
 
 - Inspect the current live definition first.
