@@ -9,6 +9,11 @@ const corsHeaders = {
 type Action = 'dry-run' | 'delete'
 
 const TABLES = [
+  'tax_account_movements',
+  'tax_account_events',
+  'vat_audit_snapshots',
+  'vat_periods',
+  'company_payment_account_roles',
   'journal_entries',
   'transactions',
   'favorites',

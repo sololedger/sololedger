@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import {
+  ADMIN_DELETE_DRY_RUN_COUNT_KEYS,
+  ADMIN_DELETE_DRY_RUN_COUNT_LABELS,
+  normalizeAdminDeleteDryRunCounts,
+  type AdminDeleteDryRunCounts,
+} from '@/lib/adminDeleteDryRun'
 
 interface UserRow {
   id: string
@@ -15,16 +21,11 @@ interface UserRow {
 interface DryRunResult {
   userId: string
   email: string
-  counts: {
-    transactions: number
-    journal_entries: number
-    favorites: number
-    import_batches: number
-    accounts: number
-    closed_years: number
-    ver_nr_sequences: number
-    attachments: number
-  }
+  counts: AdminDeleteDryRunCounts
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : 'Okänt fel'
 }
 
 export default function AdminPanel() {
@@ -48,8 +49,8 @@ export default function AdminPanel() {
 
       if (error) throw error
       setUsers(profiles || [])
-    } catch (err: any) {
-      setMessage({ text: 'Kunde inte ladda användare: ' + err.message, type: 'error' })
+    } catch (err: unknown) {
+      setMessage({ text: 'Kunde inte ladda användare: ' + errorMessage(err), type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -90,19 +91,10 @@ export default function AdminPanel() {
       setDryRun({
         userId: json.userId,
         email: json.email,
-        counts: {
-          transactions: json.counts?.transactions ?? 0,
-          journal_entries: json.counts?.journal_entries ?? 0,
-          favorites: json.counts?.favorites ?? 0,
-          import_batches: json.counts?.import_batches ?? 0,
-          accounts: json.counts?.accounts ?? 0,
-          closed_years: json.counts?.closed_years ?? 0,
-          ver_nr_sequences: json.counts?.ver_nr_sequences ?? 0,
-          attachments: json.counts?.attachments ?? 0,
-        },
+        counts: normalizeAdminDeleteDryRunCounts(json.counts),
       })
-    } catch (err: any) {
-      setMessage({ text: 'Torrkörning misslyckades: ' + err.message, type: 'error' })
+    } catch (err: unknown) {
+      setMessage({ text: 'Torrkörning misslyckades: ' + errorMessage(err), type: 'error' })
     }
   }
 
@@ -129,8 +121,8 @@ export default function AdminPanel() {
       setMessage({ text: `✅ ${dryRun.email} raderad.`, type: 'success' })
       setDryRun(null)
       await loadUsers()
-    } catch (err: any) {
-      setMessage({ text: 'Radering misslyckades: ' + err.message, type: 'error' })
+    } catch (err: unknown) {
+      setMessage({ text: 'Radering misslyckades: ' + errorMessage(err), type: 'error' })
     } finally {
       setDeleting(false)
     }
@@ -195,14 +187,11 @@ export default function AdminPanel() {
                     Kommer att raderas för {dryRun.email}:
                   </p>
                   <ul className="text-[11px] text-red-600 font-bold space-y-0.5 mb-3">
-                    <li>• {dryRun.counts.transactions} transaktioner</li>
-                    <li>• {dryRun.counts.journal_entries} journalposter</li>
-                    <li>• {dryRun.counts.favorites} favoriter</li>
-                    <li>• {dryRun.counts.import_batches} SIE-importer</li>
-                    <li>• {dryRun.counts.accounts} konton</li>
-                    <li>• {dryRun.counts.ver_nr_sequences} verifikationsnummer</li>
-                    <li>• {dryRun.counts.closed_years} låsta år</li>
-                    <li>• {dryRun.counts.attachments} bilagor (storage)</li>
+                    {ADMIN_DELETE_DRY_RUN_COUNT_KEYS.map(key => (
+                      <li key={key}>
+                        • {dryRun.counts[key]} {ADMIN_DELETE_DRY_RUN_COUNT_LABELS[key]}
+                      </li>
+                    ))}
                   </ul>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
