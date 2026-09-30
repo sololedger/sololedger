@@ -167,6 +167,17 @@ function isSettlementAccount(accountNumber: string) {
   return accountNumber.startsWith('265')
 }
 
+const LEGACY_VAT_INFERENCE_SOURCES = new Set([
+  'manual',
+  'sie_import',
+  'sie_opening_balance',
+  'sie_import_undo',
+])
+
+function isLegacyVatInferenceSource(source: string | null | undefined) {
+  return source == null || LEGACY_VAT_INFERENCE_SOURCES.has(source)
+}
+
 function legacyVatRateForAccount(accountNumber: string): 25 | 12 | 6 | null {
   if (accountNumber.startsWith('261')) return 25
   if (accountNumber.startsWith('262')) return 12
@@ -522,8 +533,15 @@ export function aggregateVatReport(input: {
     return { status: 'blocked', report: null, errors }
   }
 
+  const legacyVatInferenceTransactionIds = new Set(
+    input.transactions
+      .filter(tx => isLegacyVatInferenceSource(tx.source))
+      .map(tx => tx.id)
+  )
   const legacyRows = input.journalRows.filter(
-    row => !nativeVatV2TransactionIds.has(row.transactionId)
+    row =>
+      legacyVatInferenceTransactionIds.has(row.transactionId) &&
+      !nativeVatV2TransactionIds.has(row.transactionId)
   )
   const candidateTransactionIds = new Set(
     legacyRows

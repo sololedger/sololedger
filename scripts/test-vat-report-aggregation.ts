@@ -159,11 +159,20 @@ console.log('\n=== SoloLedger VAT Report Aggregation Tests ===\n')
 
 const v1Only = assertReady(
   {
-    transactions: [tx('v1-sale-25'), tx('v1-sale-12'), tx('v1-purchase')],
+    transactions: [
+      tx('v1-sale-25'),
+      tx('v1-sale-12'),
+      tx('v1-purchase'),
+      tx('sie-sale-25', 'sie_import'),
+      tx('sie-opening-input', 'sie_opening_balance'),
+      tx('closing', 'vat_closing'),
+    ],
     journalRows: [
       row('v1-sale-25', '2611', 0, 25),
       row('v1-sale-12', '2621', 0, 12),
       row('v1-purchase', '2641', 30, 0),
+      row('sie-sale-25', '2611', 0, 50),
+      row('sie-opening-input', '2641', 10, 0),
       row('closing', '2611', 25, 0),
       row('closing', '2650', 0, 25),
     ],
@@ -172,14 +181,62 @@ const v1Only = assertReady(
   'CASE A VAT V1 only'
 )
 
-assertField(v1Only.fields, '05', 200, 'CASE A')
-assertField(v1Only.fields, '10', 25, 'CASE A')
+assertField(v1Only.fields, '05', 400, 'CASE A')
+assertField(v1Only.fields, '10', 75, 'CASE A')
 assertField(v1Only.fields, '11', 12, 'CASE A')
 assertField(v1Only.fields, '12', 0, 'CASE A')
-assertField(v1Only.fields, '48', 30, 'CASE A')
-assertField(v1Only.fields, '49', 7, 'CASE A')
-assertEqual(v1Only.legacy.domesticSalesBase25, 100, 'CASE A -> 25 percent base')
+assertField(v1Only.fields, '48', 40, 'CASE A')
+assertField(v1Only.fields, '49', 47, 'CASE A')
+assertEqual(v1Only.legacy.domesticSalesBase25, 300, 'CASE A -> 25 percent base')
 assertEqual(v1Only.legacy.domesticSalesBase12, 100, 'CASE A -> 12 percent base')
+
+const unknownSourceDefaultDeny = assertReady(
+  {
+    transactions: [
+      tx('known-manual-sale', 'manual'),
+      tx('historical-null-sale', null),
+      tx('unknown-future-sale', 'future_business_source_not_classified'),
+    ],
+    journalRows: [
+      row('known-manual-sale', '2611', 0, 25),
+      row('known-manual-sale', '2641', 10, 0),
+      row('historical-null-sale', '2611', 0, 75),
+      row('historical-null-sale', '2641', 30, 0),
+      row('unknown-future-sale', '2611', 0, 50),
+      row('unknown-future-sale', '2641', 20, 0),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A1 unknown future source default-deny'
+)
+
+assertField(unknownSourceDefaultDeny.fields, '05', 400, 'CASE A1')
+assertField(unknownSourceDefaultDeny.fields, '10', 100, 'CASE A1')
+assertField(unknownSourceDefaultDeny.fields, '48', 40, 'CASE A1')
+assertField(unknownSourceDefaultDeny.fields, '49', 60, 'CASE A1')
+
+const controlledLifecycleRows = assertReady(
+  {
+    transactions: [
+      tx('vat-closing-zero-net', 'vat_closing'),
+      tx('vat-settlement-stray-vat', 'vat_settlement'),
+      tx('tax-movement-stray-vat', 'tax_account_movement'),
+    ],
+    journalRows: [
+      row('vat-closing-zero-net', '2614', 57, 0),
+      row('vat-closing-zero-net', '2645', 0, 57),
+      row('vat-settlement-stray-vat', '2611', 0, 25),
+      row('tax-movement-stray-vat', '2641', 25, 0),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A2 controlled lifecycle sources'
+)
+
+assertField(controlledLifecycleRows.fields, '05', 0, 'CASE A2')
+assertField(controlledLifecycleRows.fields, '10', 0, 'CASE A2')
+assertField(controlledLifecycleRows.fields, '48', 0, 'CASE A2')
+assertField(controlledLifecycleRows.fields, '49', 0, 'CASE A2')
 
 const v2Only = assertReady(
   {

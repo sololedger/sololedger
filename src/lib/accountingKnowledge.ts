@@ -1600,6 +1600,26 @@ export function isValidPaymentRoleAccountNumber(accountNumber: string) {
   return /^\d{4}$/.test(accountNumber.trim())
 }
 
+export function paymentAccountSemanticValidationMessage(accountNumber: string) {
+  const normalized = accountNumber.trim()
+
+  if (
+    normalized.startsWith('261') ||
+    normalized.startsWith('262') ||
+    normalized.startsWith('263') ||
+    normalized.startsWith('264') ||
+    normalized === '2650'
+  ) {
+    return 'Momskonton och momsredovisningskonto kan inte användas som betalningskonto.'
+  }
+
+  if (normalized === '2012') {
+    return 'Skattekontot 2012 kan inte användas som betalningskonto.'
+  }
+
+  return null
+}
+
 export function paymentAccountRoleAccountNumberValidationMessage(
   role: PaymentAccountRole,
   accountNumber: string
@@ -1608,6 +1628,11 @@ export function paymentAccountRoleAccountNumberValidationMessage(
 
   if (!isValidPaymentRoleAccountNumber(normalized)) {
     return 'Ange ett BAS-konto med exakt fyra siffror.'
+  }
+
+  const semanticMessage = paymentAccountSemanticValidationMessage(normalized)
+  if (semanticMessage) {
+    return semanticMessage
   }
 
   if (role === 'business_payment_account' && !normalized.startsWith('1')) {

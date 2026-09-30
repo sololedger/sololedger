@@ -2,6 +2,7 @@ import {
   getPaymentAccountRoleRecommendation,
   getSystemAccount,
   isPaymentAccountRole,
+  paymentAccountSemanticValidationMessage,
   isValidPaymentRoleAccountNumber,
   isValidPaymentRoleAccountNumberForRole,
   paymentAccountRoleAccountNumberValidationMessage,
@@ -66,6 +67,11 @@ assert(
 )
 
 assert(
+  isValidPaymentRoleAccountNumberForRole('owner_private_payment', '2013'),
+  'Owner-private payment role deliberately permits 2013 as ordinary 2xxx equity when configured'
+)
+
+assert(
   !isValidPaymentRoleAccountNumberForRole('business_payment_account', '2018'),
   'Business payment role rejects owner-equity accounts'
 )
@@ -73,6 +79,26 @@ assert(
 assert(
   !isValidPaymentRoleAccountNumberForRole('owner_private_payment', '1930'),
   'Owner-private payment role rejects business asset accounts'
+)
+
+for (const accountNumber of ['2012', '2614', '2645', '2650'] as const) {
+  assert(
+    !isValidPaymentRoleAccountNumberForRole(
+      'owner_private_payment',
+      accountNumber
+    ),
+    `Owner-private payment role rejects semantic non-payment account ${accountNumber}`
+  )
+
+  assert(
+    paymentAccountSemanticValidationMessage(accountNumber) !== null,
+    `Semantic payment-account helper rejects ${accountNumber}`
+  )
+}
+
+assert(
+  !isValidPaymentRoleAccountNumberForRole('business_payment_account', '2614'),
+  'Business payment role rejects VAT account 2614 semantically'
 )
 
 assert(

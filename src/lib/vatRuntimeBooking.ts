@@ -1,4 +1,5 @@
 import type { PaymentAccountRole } from './paymentAccountRoles'
+import { paymentAccountSemanticValidationMessage } from './accountingKnowledge.ts'
 import type { VatV2BookingReadiness } from './vatPaymentSource'
 import type { VatTreatment } from './vatDomain'
 import type {
@@ -98,7 +99,11 @@ function isValidDateOnly(value: string) {
 }
 
 function isValidRuntimePaymentAccount(accountNumber: string) {
-  return /^[12]\d{3}$/.test(accountNumber.trim())
+  const normalized = accountNumber.trim()
+  return (
+    /^[12]\d{3}$/.test(normalized) &&
+    paymentAccountSemanticValidationMessage(normalized) === null
+  )
 }
 
 function validateRuntimeTreatment(

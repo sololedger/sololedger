@@ -245,6 +245,34 @@ assert(
   'Invalid configured account cannot make runtime booking ready'
 )
 
+for (const accountNumber of ['2012', '2614', '2645', '2650'] as const) {
+  const semanticInvalidSource = resolveVatV2PaymentSourceConfiguration(
+    'owner_private',
+    [{ role: 'owner_private_payment', accountNumber }]
+  )
+  const semanticInvalidPayment = buildVatV2BookingReadiness({
+    treatmentReady: readyPreflight.status === 'ready',
+    roleConfigurationState: 'loaded',
+    paymentSource: semanticInvalidSource,
+  })
+  const semanticInvalidRuntime = buildVatV2RuntimeBookingRequest({
+    assessmentActive: true,
+    transactionEvent: 'purchase',
+    preflight: readyPreflight,
+    bookingReadiness: semanticInvalidPayment,
+    date: '2026-09-27',
+    description: `Adobe Ireland ${accountNumber}`,
+  })
+
+  assert(
+    semanticInvalidRuntime.status === 'blocked' &&
+      semanticInvalidRuntime.errors.some(
+        error => error.code === 'payment_source_not_ready'
+      ),
+    `Semantic non-payment account ${accountNumber} cannot make runtime booking ready`
+  )
+}
+
 const unsupportedDeductionTreatment: VatTreatment = {
   ...readyPreflight.treatment,
   deductibleInputVat: {
