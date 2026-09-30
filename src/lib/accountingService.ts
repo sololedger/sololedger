@@ -12,6 +12,14 @@ import {
   buildRecordVatSettlementRpcArgs,
 } from './vatSettlementRpc'
 import { createVatSettlementSubmissionError } from './vatSettlementErrors'
+import {
+  RECORD_TAX_ACCOUNT_MOVEMENT_RPC_NAME,
+  TAX_ACCOUNT_MOVEMENT_PERIOD_FILTER_COLUMN,
+  TAX_ACCOUNT_MOVEMENT_SELECT_COLUMNS,
+  TAX_ACCOUNT_MOVEMENT_USER_FILTER_COLUMN,
+  buildRecordTaxAccountMovementRpcArgs,
+} from './taxAccountMovementRpc'
+import { createTaxAccountMovementSubmissionError } from './taxAccountMovementErrors'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -347,11 +355,50 @@ export interface RecordVatSettlementResult {
   settlement_state: 'unsettled' | 'partially_settled' | 'fully_settled'
 }
 
+export type TaxAccountMovementKind =
+  | 'business_to_tax_account'
+  | 'owner_private_to_tax_account'
+  | 'tax_account_to_business'
+  | 'tax_account_to_owner_private'
+
+export interface TaxAccountMovement {
+  id: string
+  vat_period_id: string | null
+  transaction_id: string
+  movement_kind: TaxAccountMovementKind
+  movement_date: string
+  amount: number
+  payment_account_role: string | null
+  counter_account_number: string
+  created_at: string
+}
+
+export interface RecordTaxAccountMovementResult {
+  success: boolean
+  idempotent_replay: boolean
+  movement_id: string
+  transaction_id: string
+  ver_nr: number | null
+  vat_period_id: string | null
+  movement_kind: TaxAccountMovementKind
+  movement_date: string
+  amount: number
+  payment_account_role: string | null
+  counter_account_number: string
+  cumulative_movement: number | null
+  remaining_amount: number | null
+  movement_state: 'unmoved' | 'partially_moved' | 'fully_moved' | null
+}
+
 type VatPeriodRow = Omit<VatPeriod, 'closing_amount'> & {
   closing_amount: number | string | null
 }
 
 type TaxAccountEventRow = Omit<TaxAccountEvent, 'amount'> & {
+  amount: number | string
+}
+
+type TaxAccountMovementRow = Omit<TaxAccountMovement, 'amount'> & {
   amount: number | string
 }
 
@@ -363,6 +410,13 @@ function normalizeVatPeriod(row: VatPeriodRow): VatPeriod {
 }
 
 function normalizeTaxAccountEvent(row: TaxAccountEventRow): TaxAccountEvent {
+  return {
+    ...row,
+    amount: Number(row.amount),
+  }
+}
+
+function normalizeTaxAccountMovement(row: TaxAccountMovementRow): TaxAccountMovement {
   return {
     ...row,
     amount: Number(row.amount),
@@ -430,6 +484,26 @@ export async function getTaxAccountEventsForPeriod(
   }
 
   return ((data || []) as TaxAccountEventRow[]).map(normalizeTaxAccountEvent)
+}
+
+export async function getTaxAccountMovementsForPeriod(
+  periodId: string
+): Promise<TaxAccountMovement[]> {
+  const userId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('tax_account_movements')
+    .select(TAX_ACCOUNT_MOVEMENT_SELECT_COLUMNS)
+    .eq(TAX_ACCOUNT_MOVEMENT_USER_FILTER_COLUMN, userId)
+    .eq(TAX_ACCOUNT_MOVEMENT_PERIOD_FILTER_COLUMN, periodId)
+    .order('movement_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    throw new Error('Kunde inte hämta överföringar till eller från skattekontot: ' + error.message)
+  }
+
+  return ((data || []) as TaxAccountMovementRow[]).map(normalizeTaxAccountMovement)
 }
 
 export async function closeVatPeriod(periodId: string): Promise<CloseVatPeriodResult> {
@@ -540,6 +614,64 @@ export async function recordVatSettlement(
     cumulative_settled: Number(data.cumulative_settled),
     remaining_amount: Number(data.remaining_amount),
     settlement_state: data.settlement_state as RecordVatSettlementResult['settlement_state'],
+  }
+}
+
+export async function recordTaxAccountMovement(
+  movementKind: TaxAccountMovementKind,
+  movementDate: string,
+  amount: number,
+  vatPeriodId: string | null,
+  idempotencyKey: string
+): Promise<RecordTaxAccountMovementResult> {
+  await getUserId()
+
+  let response: Awaited<ReturnType<typeof supabase.rpc>>
+  try {
+    response = await supabase.rpc(
+      RECORD_TAX_ACCOUNT_MOVEMENT_RPC_NAME,
+      buildRecordTaxAccountMovementRpcArgs({
+        movementKind,
+        movementDate,
+        amount,
+        vatPeriodId,
+        idempotencyKey,
+      })
+    )
+  } catch (error) {
+    throw createTaxAccountMovementSubmissionError(error)
+  }
+
+  const { data, error } = response
+
+  if (error) {
+    throw createTaxAccountMovementSubmissionError(error)
+  }
+
+  if (!data?.success) {
+    throw createTaxAccountMovementSubmissionError({
+      code: 'TAX_ACCOUNT_MOVEMENT_UNSUCCESSFUL_RESPONSE',
+      message: 'The tax-account movement RPC returned an unsuccessful response.',
+    })
+  }
+
+  return {
+    success: Boolean(data.success),
+    idempotent_replay: Boolean(data.idempotent_replay),
+    movement_id: data.movement_id as string,
+    transaction_id: data.transaction_id as string,
+    ver_nr: data.ver_nr == null ? null : Number(data.ver_nr),
+    vat_period_id: data.vat_period_id ?? null,
+    movement_kind: data.movement_kind as TaxAccountMovementKind,
+    movement_date: data.movement_date as string,
+    amount: Number(data.amount),
+    payment_account_role: data.payment_account_role ?? null,
+    counter_account_number: data.counter_account_number as string,
+    cumulative_movement:
+      data.cumulative_movement == null ? null : Number(data.cumulative_movement),
+    remaining_amount:
+      data.remaining_amount == null ? null : Number(data.remaining_amount),
+    movement_state: data.movement_state as RecordTaxAccountMovementResult['movement_state'],
   }
 }
 

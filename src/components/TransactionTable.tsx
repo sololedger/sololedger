@@ -94,6 +94,7 @@ export default function TransactionTable({
     const isVatClosing = sourceUiPolicy.kind === 'vat_closing'
     const isVatV2 = sourceUiPolicy.kind === 'vat_v2'
     const isVatSettlement = sourceUiPolicy.kind === 'vat_settlement'
+    const isTaxAccountMovement = sourceUiPolicy.kind === 'tax_account_movement'
     const isSystemManaged = sourceUiPolicy.systemManaged
     const offerGenericEdit = shouldOfferGenericTransactionEdit(tx)
     const offerGenericCorrection = shouldOfferGenericTransactionCorrection(tx)
@@ -107,6 +108,7 @@ export default function TransactionTable({
       !isSieUndo &&
       !isVatClosing &&
       !isVatSettlement &&
+      !isTaxAccountMovement &&
       (
         journal.some((e: any) =>
           String(e.account_number || '').startsWith('3') && Number(e.credit) > 0
@@ -129,6 +131,8 @@ export default function TransactionTable({
       ? 'bg-violet-50/45 hover:bg-violet-50/70'
       : isVatSettlement
       ? 'bg-sky-50/45 hover:bg-sky-50/70'
+      : isTaxAccountMovement
+      ? 'bg-cyan-50/45 hover:bg-cyan-50/70'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50/40 hover:bg-sky-50/60'
       : 'hover:bg-emerald-50/30'
@@ -143,6 +147,8 @@ export default function TransactionTable({
       ? 'text-violet-900'
       : isVatSettlement
       ? 'text-sky-900'
+      : isTaxAccountMovement
+      ? 'text-cyan-900'
       : (isImported || isOpeningBalance)
       ? 'text-sky-900'
       : 'text-gray-700'
@@ -157,6 +163,8 @@ export default function TransactionTable({
       ? 'text-violet-500'
       : isVatSettlement
       ? 'text-sky-500'
+      : isTaxAccountMovement
+      ? 'text-cyan-500'
       : (isImported || isOpeningBalance)
       ? 'text-sky-500'
       : 'text-emerald-600'
@@ -171,6 +179,8 @@ export default function TransactionTable({
       ? 'text-violet-600'
       : isVatSettlement
       ? 'text-sky-700'
+      : isTaxAccountMovement
+      ? 'text-cyan-700'
       : (isImported || isOpeningBalance)
       ? 'text-sky-700'
       : isIncome
@@ -187,6 +197,8 @@ export default function TransactionTable({
       ? 'bg-violet-50 border-violet-100 text-violet-600'
       : isVatSettlement
       ? 'bg-sky-50 border-sky-100 text-sky-600'
+      : isTaxAccountMovement
+      ? 'bg-cyan-50 border-cyan-100 text-cyan-600'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50 border-sky-100 text-sky-600'
       : 'bg-gray-50 border-gray-100 text-gray-500'
@@ -207,6 +219,7 @@ export default function TransactionTable({
       isVatClosing,
       isVatV2,
       isVatSettlement,
+      isTaxAccountMovement,
       isSystemManaged,
       offerGenericEdit,
       offerGenericCorrection,
@@ -397,6 +410,7 @@ export default function TransactionTable({
                 isVatClosing,
                 isVatV2,
                 isVatSettlement,
+                isTaxAccountMovement,
                 isSystemManaged,
                 offerGenericEdit,
                 offerGenericCorrection,
@@ -452,6 +466,10 @@ export default function TransactionTable({
                       ) : isVatSettlement ? (
                         <p className="text-[10px] font-black text-sky-600 uppercase">
                           Momsavräkning
+                        </p>
+                      ) : isTaxAccountMovement ? (
+                        <p className="text-[10px] font-black text-cyan-600 uppercase">
+                          Skattekontorörelse
                         </p>
                       ) : isImported ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
@@ -510,6 +528,10 @@ export default function TransactionTable({
                         {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
                     ) : isVatSettlement ? (
+                      <span>
+                        {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                      </span>
+                    ) : isTaxAccountMovement ? (
                       <span>
                         {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
@@ -660,6 +682,7 @@ export default function TransactionTable({
             isVatClosing,
             isVatV2,
             isVatSettlement,
+            isTaxAccountMovement,
             isSystemManaged,
             offerGenericEdit,
             offerGenericCorrection,
@@ -687,6 +710,8 @@ export default function TransactionTable({
                 ? 'bg-violet-50/45 border-violet-100'
                 : isVatSettlement
                 ? 'bg-sky-50/45 border-sky-100'
+                : isTaxAccountMovement
+                ? 'bg-cyan-50/45 border-cyan-100'
                 : (isImported || isOpeningBalance)
                 ? 'bg-sky-50/40 border-sky-100'
                   : 'bg-white border-gray-100'
@@ -721,6 +746,10 @@ export default function TransactionTable({
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                   </p>
+                ) : isTaxAccountMovement ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
+                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                  </p>
                 ) : (
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -744,6 +773,8 @@ export default function TransactionTable({
                   <p className="text-[10px] font-black text-indigo-600 uppercase">VAT V2 utlandsinköp</p>
                 ) : isVatSettlement ? (
                   <p className="text-[10px] font-black text-sky-600 uppercase">Momsavräkning</p>
+                ) : isTaxAccountMovement ? (
+                  <p className="text-[10px] font-black text-cyan-600 uppercase">Skattekontorörelse</p>
                 ) : isImported ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Importerad verifikation</p>
                 ) : (

@@ -3,6 +3,8 @@ import {
   getSystemAccount,
   isPaymentAccountRole,
   isValidPaymentRoleAccountNumber,
+  isValidPaymentRoleAccountNumberForRole,
+  paymentAccountRoleAccountNumberValidationMessage,
   PAYMENT_ACCOUNT_ROLES,
 } from '../src/lib/accountingKnowledge.ts'
 import { buildVatV2TransactionPreflight } from '../src/lib/vatTransactionPreflight.ts'
@@ -51,6 +53,42 @@ assert(
 assert(
   isValidPaymentRoleAccountNumber('2018'),
   'SoloLedger current private-payment recommendation shape is accepted'
+)
+
+assert(
+  isValidPaymentRoleAccountNumberForRole('business_payment_account', '1940'),
+  'Business payment role accepts 1xxx asset payment accounts'
+)
+
+assert(
+  isValidPaymentRoleAccountNumberForRole('owner_private_payment', '2017'),
+  'Owner-private payment role accepts 2xxx equity accounts'
+)
+
+assert(
+  !isValidPaymentRoleAccountNumberForRole('business_payment_account', '2018'),
+  'Business payment role rejects owner-equity accounts'
+)
+
+assert(
+  !isValidPaymentRoleAccountNumberForRole('owner_private_payment', '1930'),
+  'Owner-private payment role rejects business asset accounts'
+)
+
+assert(
+  paymentAccountRoleAccountNumberValidationMessage(
+    'business_payment_account',
+    '2018'
+  )?.includes('1xxx'),
+  'Business payment role mismatch gives actionable Swedish validation'
+)
+
+assert(
+  paymentAccountRoleAccountNumberValidationMessage(
+    'owner_private_payment',
+    '1930'
+  )?.includes('2xxx'),
+  'Owner-private payment role mismatch gives actionable Swedish validation'
 )
 
 assert(

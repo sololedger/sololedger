@@ -1600,6 +1600,34 @@ export function isValidPaymentRoleAccountNumber(accountNumber: string) {
   return /^\d{4}$/.test(accountNumber.trim())
 }
 
+export function paymentAccountRoleAccountNumberValidationMessage(
+  role: PaymentAccountRole,
+  accountNumber: string
+) {
+  const normalized = accountNumber.trim()
+
+  if (!isValidPaymentRoleAccountNumber(normalized)) {
+    return 'Ange ett BAS-konto med exakt fyra siffror.'
+  }
+
+  if (role === 'business_payment_account' && !normalized.startsWith('1')) {
+    return 'Företagets betalningskonto måste vara ett tillgångskonto (1xxx), till exempel 1930.'
+  }
+
+  if (role === 'owner_private_payment' && !normalized.startsWith('2')) {
+    return 'Privat betalning måste kopplas till eget kapital (2xxx), till exempel 2018.'
+  }
+
+  return null
+}
+
+export function isValidPaymentRoleAccountNumberForRole(
+  role: PaymentAccountRole,
+  accountNumber: string
+) {
+  return paymentAccountRoleAccountNumberValidationMessage(role, accountNumber) === null
+}
+
 export const PAYMENT_ACCOUNT_ROLE_RECOMMENDATIONS:
   Record<PaymentAccountRole, PaymentAccountRoleRecommendation> = {
     business_payment_account: {

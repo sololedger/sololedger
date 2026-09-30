@@ -1,6 +1,6 @@
 import {
   isPaymentAccountRole,
-  isValidPaymentRoleAccountNumber,
+  paymentAccountRoleAccountNumberValidationMessage,
   type PaymentAccountRole,
 } from './accountingKnowledge'
 import { supabase } from './supabaseClient'
@@ -23,9 +23,16 @@ function assertPaymentAccountRole(role: string): asserts role is PaymentAccountR
   }
 }
 
-function assertPaymentRoleAccountNumber(accountNumber: string) {
-  if (!isValidPaymentRoleAccountNumber(accountNumber)) {
-    throw new Error('Payment account number must be exactly four digits.')
+function assertPaymentRoleAccountNumber(
+  role: PaymentAccountRole,
+  accountNumber: string
+) {
+  const message = paymentAccountRoleAccountNumberValidationMessage(
+    role,
+    accountNumber
+  )
+  if (message) {
+    throw new Error(message)
   }
 }
 
@@ -54,7 +61,7 @@ export async function setConfiguredPaymentAccountRole(
   accountNumber: string
 ) {
   assertPaymentAccountRole(role)
-  assertPaymentRoleAccountNumber(accountNumber)
+  assertPaymentRoleAccountNumber(role, accountNumber)
 
   const { data, error } = await supabase
     .from('company_payment_account_roles')

@@ -15,6 +15,7 @@ export interface TransactionSourceUiPolicy {
     | 'vat_closing'
     | 'vat_v2'
     | 'vat_settlement'
+    | 'tax_account_movement'
 }
 
 const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
@@ -57,6 +58,14 @@ const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
     genericCorrectionOffered: false,
     label: 'Momsavräkning',
     kind: 'vat_settlement',
+  },
+  tax_account_movement: {
+    source: 'tax_account_movement',
+    systemManaged: true,
+    genericEditOffered: false,
+    genericCorrectionOffered: false,
+    label: 'Skattekontorörelse',
+    kind: 'tax_account_movement',
   },
 }
 

@@ -117,6 +117,22 @@ assert(
 )
 
 assert(
+  resolveVatV2PaymentSourceConfiguration(
+    'business_account',
+    [{ role: 'business_payment_account', accountNumber: '2018' }]
+  ).status === 'invalid_configuration',
+  'Stored business payment role with owner-equity account fails closed'
+)
+
+assert(
+  resolveVatV2PaymentSourceConfiguration(
+    'owner_private',
+    [{ role: 'owner_private_payment', accountNumber: '1930' }]
+  ).status === 'invalid_configuration',
+  'Stored owner-private payment role with business asset account fails closed'
+)
+
+assert(
   resolveVatV2PaymentSourceConfiguration('owner_private', [
     { role: 'business_payment_account', accountNumber: '1930' },
   ]).status === 'unconfigured',

@@ -6,11 +6,14 @@ import {
   declareVatPeriod,
   ensureVatPeriods,
   getTaxAccountEventsForPeriod,
+  getTaxAccountMovementsForPeriod,
   getVatPeriods,
+  recordTaxAccountMovement,
   recordVatSettlement,
   type CloseVatPeriodResult,
   type DeclareVatPeriodResult,
   type TaxAccountEvent,
+  type TaxAccountMovement,
   type VatPeriod,
   type VatPeriodSource,
   type VatPeriodStatus,
@@ -56,6 +59,34 @@ import {
   vatSettlementSubmissionErrorMessage,
   vatSettlementSubmissionFailureKind,
 } from '@/lib/vatSettlementErrors'
+import {
+  EMPTY_TAX_ACCOUNT_MOVEMENT_IDEMPOTENCY_STATE,
+  TAX_ACCOUNT_MOVEMENT_MIXED_TRANSFER_COPY,
+  TAX_ACCOUNT_MOVEMENT_UNSURE_COPY,
+  canStartTaxAccountMovementSubmit,
+  clearTaxAccountMovementIdempotency,
+  clearTaxAccountMovementIdempotencyStorage,
+  deriveTaxAccountMovementReadModel,
+  isTaxAccountMovementSubmitContextCurrent,
+  nextTaxAccountMovementChoiceForContext,
+  prepareTaxAccountMovementIdempotencyKey,
+  readTaxAccountMovementIdempotencyFromStorage,
+  taxAccountMovementActionLabel,
+  taxAccountMovementAmountLabel,
+  taxAccountMovementHistoryText,
+  taxAccountMovementKindForChoice,
+  taxAccountMovementQuestion,
+  taxAccountMovementStateText,
+  validateTaxAccountMovementInput,
+  writeTaxAccountMovementIdempotencyToStorage,
+  type TaxAccountMovementChoice,
+  type TaxAccountMovementDirection,
+  type TaxAccountMovementIdempotencyState,
+} from '@/lib/taxAccountMovementUi'
+import {
+  taxAccountMovementSubmissionErrorMessage,
+  taxAccountMovementSubmissionFailureKind,
+} from '@/lib/taxAccountMovementErrors'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
 
@@ -135,11 +166,20 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const closeInFlightRef = useRef(false)
   const declareInFlightRef = useRef(false)
   const settlementInFlightRef = useRef(false)
+  const movementInFlightRef = useRef(false)
   const reportRequestSeqRef = useRef(0)
   const settlementRequestSeqRef = useRef(0)
+  const movementRequestSeqRef = useRef(0)
   const selectionContextRef = useRef<{ periodId: string; contextKey: string | null }>({
     periodId: '',
     contextKey: null,
+  })
+  const movementChoiceContextRef = useRef<{
+    contextKey: string | null
+    direction: TaxAccountMovementDirection | null
+  }>({
+    contextKey: null,
+    direction: null,
   })
   const [year, setYear]                     = useState(currentYear)
   const [availableYears, setAvailableYears] = useState<number[]>([currentYear])
@@ -169,6 +209,21 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
   const [settlementAmountText, setSettlementAmountText] = useState('')
   const [settlementIdempotency, setSettlementIdempotency] =
     useState<VatSettlementIdempotencyState>(EMPTY_SETTLEMENT_IDEMPOTENCY_STATE)
+  const [taxAccountMovements, setTaxAccountMovements] = useState<TaxAccountMovement[]>([])
+  const [taxAccountMovementsPeriodId, setTaxAccountMovementsPeriodId] = useState<string | null>(null)
+  const [taxAccountMovementsContextKey, setTaxAccountMovementsContextKey] = useState<string | null>(null)
+  const [movementLoading, setMovementLoading] = useState(false)
+  const [movementSubmitting, setMovementSubmitting] = useState(false)
+  const [movementLoadError, setMovementLoadError] = useState<string | null>(null)
+  const [movementSubmitError, setMovementSubmitError] = useState<string | null>(null)
+  const [movementDate, setMovementDate] = useState(todayIso)
+  const [movementAmountText, setMovementAmountText] = useState('')
+  const [movementChoice, setMovementChoice] =
+    useState<TaxAccountMovementChoice>('not_yet')
+  const [movementIdempotency, setMovementIdempotency] =
+    useState<TaxAccountMovementIdempotencyState>(
+      EMPTY_TAX_ACCOUNT_MOVEMENT_IDEMPOTENCY_STATE
+    )
 
   const selectedPeriod = useMemo(
     () => vatPeriods.find(p => p.id === selectedPeriodId) ?? null,
@@ -203,6 +258,10 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     Boolean(selectedPeriod) &&
     settlementEventsPeriodId === selectedPeriod?.id &&
     settlementEventsContextKey === selectedPeriodContextKey
+  const hasCurrentTaxAccountMovements =
+    Boolean(selectedPeriod) &&
+    taxAccountMovementsPeriodId === selectedPeriod?.id &&
+    taxAccountMovementsContextKey === selectedPeriodContextKey
   const selectedPeriodIsFuture = selectedPeriod ? selectedPeriod.period_end > todayIso : false
   const lifecycleCanCloseSelectedPeriod =
     Boolean(selectedPeriod) &&
@@ -300,6 +359,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     }
   }, [currentYear])
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const loadVatPeriods = useCallback(async (
     preferredPeriodId?: string,
     options: { ensure?: boolean; preserveReport?: boolean; preservePeriodsOnError?: boolean } = {}
@@ -322,6 +382,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
       setSettlementEventsContextKey(null)
       setSettlementLoadError(null)
       setSettlementSubmitError(null)
+      setTaxAccountMovements([])
+      setTaxAccountMovementsPeriodId(null)
+      setTaxAccountMovementsContextKey(null)
+      setMovementLoadError(null)
+      setMovementSubmitError(null)
     }
 
     const yearStart = `${year}-01-01`
@@ -467,6 +532,14 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     selectedPeriod,
     hasCurrentSettlementEvents ? settlementEvents : []
   )
+  const taxAccountMovementReadModel = deriveTaxAccountMovementReadModel(
+    selectedPeriod,
+    hasCurrentTaxAccountMovements ? taxAccountMovements : []
+  )
+  const selectedMovementKind = taxAccountMovementKindForChoice(
+    taxAccountMovementReadModel.direction,
+    movementChoice
+  )
   const settlementValidation = validateVatSettlementInput({
     eventDate: settlementEventDate,
     amountText: settlementAmountText,
@@ -481,6 +554,21 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     !settlementSubmitting &&
     !settlementLoadError &&
     settlementValidation.ok
+  const movementValidation = validateTaxAccountMovementInput({
+    movementDate,
+    amountText: movementAmountText,
+    todayIso,
+    remainingAmount: taxAccountMovementReadModel.remainingAmount,
+  })
+  const canSubmitTaxAccountMovement =
+    taxAccountMovementReadModel.actionable &&
+    taxAccountMovementReadModel.state !== 'fully_moved' &&
+    selectedMovementKind !== null &&
+    hasCurrentTaxAccountMovements &&
+    !movementLoading &&
+    !movementSubmitting &&
+    !movementLoadError &&
+    movementValidation.ok
 
   // Beräkna moms för vald DB-verifierad momsperiod via den auktoritativa
   // rapporttjänsten. Komponenten presenterar bara färdiga SKV-fält.
@@ -604,8 +692,67 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     }
   }
 
+  async function loadTaxAccountMovementsForPeriod(
+    periodForFetch: VatPeriod,
+    contextForFetch: string
+  ) {
+    const requestSeq = movementRequestSeqRef.current + 1
+    movementRequestSeqRef.current = requestSeq
+    setMovementLoading(true)
+    setMovementLoadError(null)
+
+    try {
+      const movements = await getTaxAccountMovementsForPeriod(periodForFetch.id)
+
+      if (
+        movementRequestSeqRef.current !== requestSeq ||
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
+      ) {
+        return null
+      }
+
+      setTaxAccountMovements(movements)
+      setTaxAccountMovementsPeriodId(periodForFetch.id)
+      setTaxAccountMovementsContextKey(contextForFetch)
+      return movements
+    } catch (err) {
+      if (
+        movementRequestSeqRef.current !== requestSeq ||
+        !isVatReportRequestCurrent(selectionContextRef.current, {
+          periodId: periodForFetch.id,
+          contextKey: contextForFetch,
+        })
+      ) {
+        return null
+      }
+
+      console.error('Kunde inte hämta överföringar till eller från skattekontot:', err)
+      setTaxAccountMovements([])
+      setTaxAccountMovementsPeriodId(periodForFetch.id)
+      setTaxAccountMovementsContextKey(contextForFetch)
+      setMovementLoadError('Överföringar till eller från skattekontot kunde inte hämtas just nu.')
+      return null
+    } finally {
+      if (movementRequestSeqRef.current === requestSeq) {
+        setMovementLoading(false)
+      }
+    }
+  }
+
   function resetSettlementIntent() {
     setSettlementIdempotency(clearSettlementIdempotency())
+  }
+
+  function movementStorage() {
+    return typeof window === 'undefined' ? null : window.sessionStorage
+  }
+
+  function resetMovementIntent() {
+    setMovementIdempotency(clearTaxAccountMovementIdempotency())
+    clearTaxAccountMovementIdempotencyStorage(movementStorage())
   }
 
   function closeErrorMessage(message: string) {
@@ -771,6 +918,116 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     }
   }
 
+  async function handleRecordTaxAccountMovement() {
+    if (!canStartTaxAccountMovementSubmit({
+      hasSelectedPeriod: Boolean(selectedPeriod),
+      hasSelectedContext: Boolean(selectedPeriodContextKey),
+      canSubmitMovement: canSubmitTaxAccountMovement,
+      amount: movementValidation.amount,
+      movementKind: selectedMovementKind,
+      inFlight: movementInFlightRef.current,
+    })) {
+      return
+    }
+
+    if (
+      !selectedPeriod ||
+      !selectedPeriodContextKey ||
+      !movementValidation.amount ||
+      !selectedMovementKind
+    ) {
+      return
+    }
+
+    const amount = movementValidation.amount
+    const confirmed = window.confirm(
+      `${taxAccountMovementActionLabel(selectedMovementKind)}?\n\n` +
+      `Datum: ${fmtDate(movementDate)}\n` +
+      `Belopp: ${fmt(amount)} kr\n\n` +
+      'Detta kopplar pengaflytten till den valda momsperiodens momsbelopp. Om överföringen också gäller andra skatter ska du inte registrera hela beloppet här utan tydligt underlag.'
+    )
+    if (!confirmed) return
+
+    const periodId = selectedPeriod.id
+    const contextAtStart = selectedPeriodContextKey
+    const intent = {
+      periodId,
+      movementKind: selectedMovementKind,
+      movementDate,
+      amount,
+    }
+    const storedIdempotency =
+      readTaxAccountMovementIdempotencyFromStorage(movementStorage())
+    const seedIdempotency =
+      movementIdempotency.key ? movementIdempotency : storedIdempotency
+    const prepared = prepareTaxAccountMovementIdempotencyKey(
+      seedIdempotency,
+      intent,
+      () => crypto.randomUUID()
+    )
+
+    setMovementIdempotency(prepared.state)
+    writeTaxAccountMovementIdempotencyToStorage(movementStorage(), prepared.state)
+    movementInFlightRef.current = true
+    setMovementSubmitting(true)
+    setMovementSubmitError(null)
+
+    try {
+      const result = await recordTaxAccountMovement(
+        selectedMovementKind,
+        movementDate,
+        amount,
+        periodId,
+        prepared.key
+      )
+      const centralRefreshResult = await onBookkeepingRefresh?.()
+      const centralRefreshFailed = centralRefreshResult?.ok === false
+
+      if (
+        !isTaxAccountMovementSubmitContextCurrent(selectionContextRef.current, {
+          periodId,
+          contextKey: contextAtStart,
+        })
+      ) {
+        return
+      }
+
+      const metadataRefresh = await reloadDeclaredPeriodMetadata(
+        periodId,
+        contextAtStart
+      )
+      if (!metadataRefresh) return
+
+      await loadTaxAccountMovementsForPeriod(
+        metadataRefresh.refreshedPeriod,
+        contextAtStart
+      )
+      await fetchMomsForPeriod(metadataRefresh.refreshedPeriod, contextAtStart)
+      setMovementAmountText('')
+      resetMovementIntent()
+
+      const refreshWarning = centralRefreshFailed
+        ? '\n\nÖverföringen registrerades, men delar av bokföringsvyn kunde inte uppdateras automatiskt. Ladda om sidan om verifikationen inte syns.'
+        : ''
+      const replayText = result.idempotent_replay
+        ? 'Överföringen var redan registrerad och visades igen.'
+        : result.ver_nr
+        ? `Överföringen registrerades som VER-${result.ver_nr}.`
+        : 'Överföringen registrerades.'
+
+      alert(replayText + refreshWarning)
+    } catch (err) {
+      const kind = taxAccountMovementSubmissionFailureKind(err)
+      if (kind === 'authoritative_rejection') {
+        resetMovementIntent()
+      }
+      setMovementSubmitError(taxAccountMovementSubmissionErrorMessage(err))
+    } finally {
+      movementInFlightRef.current = false
+      setMovementSubmitting(false)
+    }
+  }
+
   async function handleClosePeriod() {
     if (!selectedPeriod || !canCloseSelectedPeriod || closeInFlightRef.current || declareInFlightRef.current) return
 
@@ -896,6 +1153,42 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     settlementReadModel.actionable,
   ])
 
+  useEffect(() => {
+    if (!selectedPeriod || !selectedPeriodContextKey) return
+    if (!taxAccountMovementReadModel.actionable) return
+    if (hasCurrentTaxAccountMovements || movementLoading) return
+    if (movementLoadError) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTaxAccountMovementsForPeriod(selectedPeriod, selectedPeriodContextKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    hasCurrentTaxAccountMovements,
+    movementLoadError,
+    movementLoading,
+    selectedPeriodId,
+    selectedPeriodContextKey,
+    taxAccountMovementReadModel.actionable,
+  ])
+
+  useEffect(() => {
+    const previous = movementChoiceContextRef.current
+    const nextContext = selectedPeriodContextKey
+    const nextDirection = taxAccountMovementReadModel.direction
+    movementChoiceContextRef.current = {
+      contextKey: nextContext,
+      direction: nextDirection,
+    }
+    setMovementChoice(currentChoice =>
+      nextTaxAccountMovementChoiceForContext({
+        currentChoice,
+        previousContextKey: previous.contextKey,
+        nextContextKey: nextContext,
+        previousDirection: previous.direction,
+        nextDirection,
+      })
+    )
+  }, [selectedPeriodContextKey, taxAccountMovementReadModel.direction])
+
   function handleYearChange(nextYear: number) {
     setFetched(false)
     setVatReport(null)
@@ -911,6 +1204,13 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     setSettlementSubmitError(null)
     setSettlementAmountText('')
     resetSettlementIntent()
+    setTaxAccountMovements([])
+    setTaxAccountMovementsPeriodId(null)
+    setTaxAccountMovementsContextKey(null)
+    setMovementLoadError(null)
+    setMovementSubmitError(null)
+    setMovementAmountText('')
+    resetMovementIntent()
     setYear(nextYear)
   }
 
@@ -929,6 +1229,13 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     setSettlementSubmitError(null)
     setSettlementAmountText('')
     resetSettlementIntent()
+    setTaxAccountMovements([])
+    setTaxAccountMovementsPeriodId(null)
+    setTaxAccountMovementsContextKey(null)
+    setMovementLoadError(null)
+    setMovementSubmitError(null)
+    setMovementAmountText('')
+    resetMovementIntent()
     setSelectedPeriodId(nextPeriodId)
   }
 
@@ -1077,6 +1384,309 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
             </p>
           </div>
         )}
+
+        {selectedPeriod &&
+          taxAccountMovementReadModel.actionable &&
+          taxAccountMovementReadModel.direction && (
+            <div className="mt-4 rounded-2xl border border-cyan-100 bg-white px-4 py-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-cyan-700">
+                    Pengar till/från skattekontot
+                  </p>
+                  <p className="text-sm font-black text-gray-700 mt-1">
+                    {taxAccountMovementQuestion(taxAccountMovementReadModel.direction)}
+                  </p>
+                  <p className="text-[11px] font-bold text-gray-400 mt-1">
+                    Detta gäller bara pengaflytten som hör till den valda momsperioden.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-gray-800 tabular-nums whitespace-nowrap">
+                    {fmt(taxAccountMovementReadModel.totalAmount)} kr
+                  </p>
+                  <p className="text-[10px] font-black uppercase text-cyan-600 mt-1">
+                    {taxAccountMovementStateText(taxAccountMovementReadModel.state)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    Momsbelopp
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(taxAccountMovementReadModel.totalAmount)} kr
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    Pengar registrerade
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(taxAccountMovementReadModel.registeredAmount)} kr
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-[8px] font-black uppercase text-gray-400">
+                    Kvar att koppla
+                  </p>
+                  <p className="text-sm font-black text-gray-700 tabular-nums">
+                    {fmt(taxAccountMovementReadModel.remainingAmount)} kr
+                  </p>
+                </div>
+              </div>
+
+              {taxAccountMovementReadModel.state !== 'fully_moved' && (
+                <div className="mt-4 border-t border-dashed border-gray-100 pt-4">
+                  <p className="text-xs font-black text-gray-700">
+                    {taxAccountMovementQuestion(taxAccountMovementReadModel.direction)}
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {taxAccountMovementReadModel.direction === 'payable' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('business_account')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'business_account'
+                              ? 'border-cyan-300 bg-cyan-50 text-cyan-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Från företagets konto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('owner_private')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'owner_private'
+                              ? 'border-cyan-300 bg-cyan-50 text-cyan-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Med privata pengar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('not_yet')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'not_yet'
+                              ? 'border-gray-300 bg-white text-gray-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Inte än
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('unsure')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'unsure'
+                              ? 'border-gray-300 bg-white text-gray-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Osäker
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('tax_account_only')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'tax_account_only'
+                              ? 'border-gray-300 bg-white text-gray-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Kvar på skattekontot
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('business_account')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'business_account'
+                              ? 'border-cyan-300 bg-cyan-50 text-cyan-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Till företagets konto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('owner_private')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'owner_private'
+                              ? 'border-cyan-300 bg-cyan-50 text-cyan-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Uttaget privat
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMovementChoice('unsure')
+                            setMovementSubmitError(null)
+                          }}
+                          className={`min-h-[46px] rounded-xl border px-3 py-2 text-left text-[11px] font-black transition-colors ${
+                            movementChoice === 'unsure'
+                              ? 'border-gray-300 bg-white text-gray-700'
+                              : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Osäker
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {(movementChoice === 'unsure' || movementChoice === 'not_yet' || movementChoice === 'tax_account_only') && (
+                    <p className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-bold text-gray-500">
+                      {movementChoice === 'unsure'
+                        ? `${TAX_ACCOUNT_MOVEMENT_MIXED_TRANSFER_COPY} ${TAX_ACCOUNT_MOVEMENT_UNSURE_COPY}`
+                        : 'Ingen bokföring skapas för det här valet.'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {taxAccountMovementReadModel.state !== 'fully_moved' && selectedMovementKind && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 sm:items-end">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
+                      Datum för överföringen
+                    </label>
+                    <input
+                      type="date"
+                      value={movementDate}
+                      max={todayIso}
+                      onChange={e => {
+                        setMovementDate(e.target.value)
+                        setMovementSubmitError(null)
+                      }}
+                      disabled={movementSubmitting || movementLoading}
+                      className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-cyan-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
+                      {taxAccountMovementAmountLabel(taxAccountMovementReadModel.direction)}
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={movementAmountText}
+                      onChange={e => {
+                        setMovementAmountText(e.target.value)
+                        setMovementSubmitError(null)
+                      }}
+                      disabled={movementSubmitting || movementLoading}
+                      placeholder={fmt(taxAccountMovementReadModel.remainingAmount)}
+                      className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none hover:bg-gray-100 transition-colors border border-transparent focus:border-cyan-300 disabled:text-gray-300 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleRecordTaxAccountMovement}
+                    disabled={!canSubmitTaxAccountMovement}
+                    className="h-[42px] px-6 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-black uppercase text-[10px] tracking-wider transition-all shadow-md disabled:bg-gray-300 w-full sm:w-auto"
+                  >
+                    {movementSubmitting
+                      ? 'Registrerar...'
+                      : taxAccountMovementActionLabel(selectedMovementKind)}
+                  </button>
+                </div>
+              )}
+
+              {taxAccountMovementReadModel.state !== 'fully_moved' &&
+                selectedMovementKind &&
+                movementAmountText &&
+                !movementValidation.ok && (
+                  <p className="mt-3 text-[10px] font-bold text-red-500">
+                    {movementValidation.message}
+                  </p>
+                )}
+
+              {(movementLoadError || movementSubmitError) && (
+                <p className="mt-3 text-[10px] font-bold text-red-500">
+                  {movementLoadError || movementSubmitError}
+                </p>
+              )}
+
+              <details className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-bold text-gray-500">
+                <summary className="cursor-pointer text-cyan-700">
+                  När ska jag använda detta?
+                </summary>
+                <p className="mt-2">
+                  Använd det bara när du tydligt vet vilken del av överföringen som hör till momsen för den valda perioden. {TAX_ACCOUNT_MOVEMENT_MIXED_TRANSFER_COPY} {TAX_ACCOUNT_MOVEMENT_UNSURE_COPY}
+                </p>
+              </details>
+
+              <div className="mt-4 border-t border-dashed border-gray-100 pt-4">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                  Historik
+                </p>
+                {movementLoading && (
+                  <p className="mt-2 text-[10px] font-bold text-gray-400">
+                    Hämtar överföringar...
+                  </p>
+                )}
+                {!movementLoading && taxAccountMovementReadModel.movements.length === 0 && (
+                  <p className="mt-2 text-[10px] font-bold text-gray-400">
+                    Ingen pengaflytt registrerad för den här momsperioden.
+                  </p>
+                )}
+                {!movementLoading && taxAccountMovementReadModel.movements.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {taxAccountMovementReadModel.movements.map(movement => (
+                      <div
+                        key={movement.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-[10px] font-black text-gray-700">
+                            {fmtDate(movement.movement_date)}
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-400">
+                            {taxAccountMovementHistoryText(movement.movement_kind)}
+                          </p>
+                        </div>
+                        <p className="text-sm font-black text-gray-700 tabular-nums">
+                          {fmt(movement.amount)} kr
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         {selectedPeriod &&
           selectedPeriod.status === 'declared' &&

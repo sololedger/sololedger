@@ -1,6 +1,6 @@
 import {
   getPaymentAccountRoleRecommendation,
-  isValidPaymentRoleAccountNumber,
+  isValidPaymentRoleAccountNumberForRole,
   type PaymentAccountRole,
   type PaymentAccountRoleRecommendation,
 } from './accountingKnowledge.ts'
@@ -115,7 +115,12 @@ export function resolveVatV2PaymentSourceConfiguration(
     }
   }
 
-  if (!isValidPaymentRoleAccountNumber(configuredRole.accountNumber)) {
+  if (
+    !isValidPaymentRoleAccountNumberForRole(
+      role,
+      configuredRole.accountNumber
+    )
+  ) {
     return {
       status: 'invalid_configuration',
       choice,
