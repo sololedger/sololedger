@@ -6,6 +6,54 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-32 / F9 Legacy/SIE Reverse-Charge VAT Safety
+
+- KAN-32 reached final production IRL verification on 2026-10-01.
+- Root cause: legacy/manual/SIE VAT inference treated some BAS VAT accounts
+  broadly enough that reverse-charge-shaped rows such as `2614`, `2624`,
+  `2634`, and `2645` could be interpreted as ordinary Swedish VAT even when
+  no authoritative VAT return base field existed.
+- Safety principle preserved: account `2614` or `2645` indicates VAT account
+  shape, not enough by itself to infer fields such as ruta 21.
+- Safety fix commit:
+  `a1bdbb508c0ebd187ac51b6abc0ec3794e2f6a54`.
+- The safety fix blocks/flags ambiguous legacy/manual/SIE reverse-charge
+  indicators instead of guessing, while ordinary Swedish VAT that can be
+  inferred safely and native VAT V2 snapshot-backed reporting continue to work.
+- No migration, DB-write, historical correction, backfill, or manual deploy was
+  needed for the safety fix.
+- IRL test file `KAN-32-IRL-legacy-reverse-charge.se` was imported manually in
+  test company Pontan AB / Testfirma SoloLedger and created an active
+  ambiguous SIE case.
+- Production IRL before cleanup: Momsrapport Q3 2026 stopped correctly with a
+  clear warning; dashboard 2026 showed `MOMS — Kontroll krävs`; VAT detail
+  explained that an imported SIE row with reverse-charge indicator lacked a
+  controllable VAT return field.
+- The larger UX feature for completing VAT facts after SIE import was parked
+  separately as KAN-34:
+  `Komplettera momsuppgifter för tvetydiga legacy/SIE-bokningar`.
+- Undo follow-up root cause: after normal `Ångra import`, the original
+  `sie_import` and generated `sie_import_undo` economically neutralized each
+  other, but KAN-32 evaluated both individually and ignored the authoritative
+  `import_batches.status = 'undone'`.
+- Undo follow-up commit:
+  `5520536af23a29fabaa57b6eb5b3afc46568f697`.
+- The undo fix uses existing SIE batch status as the authoritative signal. It
+  does not net journal rows and does not affect other completed SIE imports or
+  native VAT V2.
+- Production deploy for `5520536af23a29fabaa57b6eb5b3afc46568f697` was
+  verified through GitHub/Vercel as `success`, and
+  `https://sololedger.vercel.app` returned HTTP 200.
+- Final IRL after undo fix: Pontan AB dashboard 2026 showed normally again and
+  no longer `Kontroll krävs`; Momsrapport Q3 2026 worked normally after the
+  KAN-32 test import was undone; active ambiguous SIE import had already been
+  verified to block safely.
+- Local verification for the undo follow-up included targeted VAT report,
+  service, dashboard tests, `npm run typecheck`, targeted ESLint,
+  `npm run test:domain`, and `git diff --check`.
+- KAN-32/F9 is complete. Next External Audit #1 work remains the separate
+  KAN-33 query-completeness investigation, pending leader gate.
+
 ### KAN-31 / F5 + F10 Durable VAT Operation Idempotency
 
 - KAN-31 reached production IRL replay verification on 2026-10-01.

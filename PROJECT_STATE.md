@@ -25,20 +25,35 @@ Last updated: 2026-10-01
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted;
-  KAN-30/F8 is production IRL verified and archived.
-- KAN-31/F5+F10 is production IRL verified and closing in Jira.
+  KAN-30/F8, KAN-31/F5+F10, and KAN-32/F9 are production IRL verified.
+- Jira workflow principle going forward:
+  `To Do -> In Progress -> In Review -> Done`. Move an issue to
+  `In Progress` when active work begins and to `In Review` when implementation
+  is complete and final verification is underway.
 - Live Supabase migration head: `20261001060000`.
 
 ## Current Objective
 
-- Close KAN-31 documentation/Jira only. Do not start KAN-32 in this task.
-- KAN-31 is complete from implementation through production IRL replay:
-  F5, F10-A, and F10-B are fixed and verified.
-- Remaining audit work after KAN-31: F9 plus the separate KAN-33
-  query-completeness investigation.
+- KAN-32/F9 is complete through production deploy, undo follow-up, and final
+  IRL verification. Do not start KAN-33 until Pontus gives the leader gate.
+- KAN-34 exists separately for the parked future UX feature:
+  `Komplettera momsuppgifter för tvetydiga legacy/SIE-bokningar`.
 
 ## Verification State
 
+- KAN-32 safety fix commit:
+  `a1bdbb508c0ebd187ac51b6abc0ec3794e2f6a54`.
+- KAN-32 undo follow-up commit:
+  `5520536af23a29fabaa57b6eb5b3afc46568f697`.
+- Production deploy for `5520536af23a29fabaa57b6eb5b3afc46568f697` was
+  verified through GitHub/Vercel status as `success`, and production returned
+  HTTP 200 from `https://sololedger.vercel.app`.
+- KAN-32 IRL: active ambiguous SIE import in Pontan AB correctly produced
+  `Kontroll krävs` and did not guess VAT return fields.
+- KAN-32 IRL cleanup: after normal `Ångra import`, dashboard 2026 no longer
+  shows `Kontroll krävs`, and Momsrapport Q3 2026 works normally again.
+- No KAN-32 migration, DB-write, manual deploy, historical backfill, or
+  production data correction was required.
 - KAN-31 main implementation commit:
   `ea08d9b8c98b254b73dd933f4fd6dcab9ebc25f1`.
 - KAN-31 ACL fix commit:
@@ -78,7 +93,7 @@ Last updated: 2026-10-01
 
 ## Next Safe Step
 
-- After KAN-31 closeout, wait for the KAN-32 leader gate before starting F9.
-- Keep KAN-33 as a separate investigation.
+- Finish KAN-32 Jira closeout to `Done`, then wait for the KAN-33 leader gate
+  before starting the query-completeness investigation.
 - Payment-account discoverability for the VAT tax-account movement flow remains
   a separate follow-up candidate; it is not part of KAN-31.
