@@ -1,4 +1,12 @@
 import type { VatReturnField } from './vatDomain'
+import {
+  isInputVatAccount,
+  isLegacyReverseChargeVatIndicator,
+  isLegacyVatInferenceSource,
+  isOutputVatAccount,
+  isSettlementAccount,
+  legacyVatRateForAccount,
+} from './legacyVatInference.ts'
 
 export const VAT_REPORT_FIELDS = [
   '05',
@@ -57,6 +65,7 @@ export type VatReportAggregationErrorCode =
   | 'vat_v2_snapshot_malformed'
   | 'vat_v2_snapshot_unsupported'
   | 'vat_v2_snapshot_inconsistent'
+  | 'legacy_reverse_charge_ambiguous'
 
 export interface VatReportAggregationError {
   code: VatReportAggregationErrorCode
@@ -149,40 +158,6 @@ function error(
   path?: string
 ): VatReportAggregationError {
   return { code, transactionId, message, path }
-}
-
-function isOutputVatAccount(accountNumber: string) {
-  return (
-    accountNumber.startsWith('261') ||
-    accountNumber.startsWith('262') ||
-    accountNumber.startsWith('263')
-  )
-}
-
-function isInputVatAccount(accountNumber: string) {
-  return accountNumber.startsWith('264')
-}
-
-function isSettlementAccount(accountNumber: string) {
-  return accountNumber.startsWith('265')
-}
-
-const LEGACY_VAT_INFERENCE_SOURCES = new Set([
-  'manual',
-  'sie_import',
-  'sie_opening_balance',
-  'sie_import_undo',
-])
-
-function isLegacyVatInferenceSource(source: string | null | undefined) {
-  return source == null || LEGACY_VAT_INFERENCE_SOURCES.has(source)
-}
-
-function legacyVatRateForAccount(accountNumber: string): 25 | 12 | 6 | null {
-  if (accountNumber.startsWith('261')) return 25
-  if (accountNumber.startsWith('262')) return 12
-  if (accountNumber.startsWith('263')) return 6
-  return null
 }
 
 function validateSupportedVatV2Snapshot(
@@ -529,10 +504,6 @@ export function aggregateVatReport(input: {
     addField(fields, '48', validated.contribution.field48)
   }
 
-  if (errors.length > 0) {
-    return { status: 'blocked', report: null, errors }
-  }
-
   const legacyVatInferenceTransactionIds = new Set(
     input.transactions
       .filter(tx => isLegacyVatInferenceSource(tx.source))
@@ -559,6 +530,30 @@ export function aggregateVatReport(input: {
     const rows = rowsByTransaction.get(row.transactionId) ?? []
     rows.push(row)
     rowsByTransaction.set(row.transactionId, rows)
+  }
+
+  for (const [transactionId, rows] of rowsByTransaction) {
+    if (rows.some(row => isSettlementAccount(row.accountNumber))) {
+      continue
+    }
+
+    const ambiguousRow = rows.find(row => (
+      row.inReportPeriod &&
+      isLegacyReverseChargeVatIndicator(row.accountNumber)
+    ))
+
+    if (!ambiguousRow) continue
+
+    errors.push(error(
+      'legacy_reverse_charge_ambiguous',
+      transactionId,
+      'Legacy/manual/SIE VAT rows contain reverse-charge indicators but no authoritative VAT treatment or VAT return base field.',
+      ambiguousRow.accountNumber
+    ))
+  }
+
+  if (errors.length > 0) {
+    return { status: 'blocked', report: null, errors }
   }
 
   let outputVat25 = 0

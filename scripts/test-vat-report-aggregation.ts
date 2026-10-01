@@ -157,6 +157,33 @@ function vatV2Rows(transactionId: string, base = 228, vat = 57) {
 
 console.log('\n=== SoloLedger VAT Report Aggregation Tests ===\n')
 
+const legacyReverseChargeShape = aggregateVatReport({
+  transactions: [tx('sie-reverse-charge-like', 'sie_import')],
+  journalRows: [
+    row('sie-reverse-charge-like', '4535', 228, 0),
+    row('sie-reverse-charge-like', '2645', 57, 0),
+    row('sie-reverse-charge-like', '2614', 0, 57),
+    row('sie-reverse-charge-like', '1930', 0, 228),
+  ],
+  vatV2Snapshots: [],
+})
+
+assertEqual(
+  legacyReverseChargeShape.status,
+  'blocked',
+  'KAN-32 RED legacy/SIE reverse-charge-shaped 2614/2645 must not be inferred as domestic sale'
+)
+
+if (legacyReverseChargeShape.status === 'blocked') {
+  assertEqual(
+    legacyReverseChargeShape.errors.some(error => (
+      error.code === 'legacy_reverse_charge_ambiguous'
+    )),
+    true,
+    'KAN-32 RED legacy/SIE reverse-charge-shaped rows -> legacy_reverse_charge_ambiguous'
+  )
+}
+
 const v1Only = assertReady(
   {
     transactions: [
@@ -189,6 +216,21 @@ assertField(v1Only.fields, '48', 40, 'CASE A')
 assertField(v1Only.fields, '49', 47, 'CASE A')
 assertEqual(v1Only.legacy.domesticSalesBase25, 300, 'CASE A -> 25 percent base')
 assertEqual(v1Only.legacy.domesticSalesBase12, 100, 'CASE A -> 12 percent base')
+
+for (const accountNumber of ['2614', '2624', '2634', '2645'] as const) {
+  assertBlocked(
+    {
+      transactions: [tx(`legacy-${accountNumber}`, 'manual')],
+      journalRows: [
+        row(`legacy-${accountNumber}`, accountNumber, accountNumber === '2645' ? 25 : 0, accountNumber === '2645' ? 0 : 25),
+        row(`legacy-${accountNumber}`, '1930', accountNumber === '2645' ? 0 : 25, accountNumber === '2645' ? 25 : 0),
+      ],
+      vatV2Snapshots: [],
+    },
+    'legacy_reverse_charge_ambiguous',
+    `KAN-32 exact ${accountNumber} legacy reverse-charge indicator`
+  )
+}
 
 const unknownSourceDefaultDeny = assertReady(
   {

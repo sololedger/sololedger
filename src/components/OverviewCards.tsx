@@ -1,11 +1,26 @@
 'use client'
 import { DashboardData } from '@/lib/calculations'
 
+interface OverviewTransaction {
+  id: string
+  description: string
+  date: string
+  is_correction?: boolean | null
+  corrects_ver_nr?: number | null
+}
+
+interface OverviewJournalEntry {
+  account_number: string
+  debit: number | string | null
+  credit: number | string | null
+  ver_nr?: number | null
+}
+
 interface OverviewCardsProps {
   data: DashboardData
   taxRate: number
-  transactions: any[]
-  journalMap: any
+  transactions: OverviewTransaction[]
+  journalMap: Record<string, OverviewJournalEntry[] | undefined>
   setActiveModal: (modal: null | 'bank' | 'skatt' | 'moms' | 'resultat') => void
   activeModal: null | 'bank' | 'skatt' | 'moms' | 'resultat'
 }
@@ -80,9 +95,15 @@ export default function OverviewCards({
               Moms
             </p>
 
-            <p className={`text-xl font-black tabular-nums ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {data.momsNetto.toLocaleString('sv-SE')} kr
-            </p>
+            {data.momsManualReviewRequired ? (
+              <p className="text-lg font-black text-amber-600 leading-tight">
+                Kontroll krävs
+              </p>
+            ) : (
+              <p className={`text-xl font-black tabular-nums ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {data.momsNetto.toLocaleString('sv-SE')} kr
+              </p>
+            )}
 
             <p className="text-xs text-green-400 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa detaljer ↗
@@ -152,7 +173,7 @@ export default function OverviewCards({
                 <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
                   {transactions.map(tx => {
                     const journal = journalMap[tx.id] || []
-                    const bankEntry = journal.find((e: any) => e.account_number === '1930')
+                    const bankEntry = journal.find(e => e.account_number === '1930')
                     if (!bankEntry) return null
 
                     const amount = Number(bankEntry.debit) - Number(bankEntry.credit)
@@ -301,7 +322,18 @@ export default function OverviewCards({
                   Hur momsen beräknas
                 </p>
 
-                <div className="space-y-3">
+                {data.momsManualReviewRequired && (
+                  <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                    <p className="text-xs font-black uppercase text-amber-700">
+                      Manuell kontroll krävs
+                    </p>
+                    <p className="text-xs text-amber-700 font-bold mt-1">
+                      {data.momsManualReviewMessage ?? 'Perioden innehåller moms som inte kan tolkas säkert automatiskt.'}
+                    </p>
+                  </div>
+                )}
+
+                <div className={`space-y-3 ${data.momsManualReviewRequired ? 'opacity-55' : ''}`}>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-red-50 rounded-2xl px-5 py-3">
                     <div>
                       <p className="text-xs font-black text-red-600 uppercase">
@@ -338,10 +370,16 @@ export default function OverviewCards({
                     Momsbalans (Utgående − Ingående)
                   </span>
 
-                  <span className={`text-2xl font-black ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {data.momsNetto <= 0 ? 'Få tillbaka: ' : 'Att betala: '}
-                    {Math.abs(data.momsNetto).toLocaleString('sv-SE')} kr
-                  </span>
+                  {data.momsManualReviewRequired ? (
+                    <span className="text-xl font-black text-amber-600">
+                      Kontroll krävs
+                    </span>
+                  ) : (
+                    <span className={`text-2xl font-black ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {data.momsNetto <= 0 ? 'Få tillbaka: ' : 'Att betala: '}
+                      {Math.abs(data.momsNetto).toLocaleString('sv-SE')} kr
+                    </span>
+                  )}
                 </div>
               </>
             )}

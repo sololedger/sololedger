@@ -21,6 +21,14 @@ import {
   buildRecordTaxAccountMovementRpcArgs,
 } from './taxAccountMovementRpc'
 import { createTaxAccountMovementSubmissionError } from './taxAccountMovementErrors'
+import {
+  isInputVatAccount,
+  isLegacyReverseChargeVatIndicator,
+  isLegacyVatInferenceSource,
+  isOutputVatAccount,
+  isSettlementAccount,
+  legacyVatRateForAccount,
+} from './legacyVatInference.ts'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -716,6 +724,8 @@ export interface MomsBreakdown {
   utgaendeMoms: number
   ingaendeMoms: number
   momsNetto: number
+  manualReviewRequired?: boolean
+  manualReviewMessage?: string | null
 
   // För momsrapport/SKV 4700. Optional för bakåtkompatibilitet med befintliga
   // initialvärden i Dashboard/useAccountingData tills UI-steget är uppdaterat.
@@ -730,18 +740,8 @@ export interface MomsBreakdown {
 
 export async function getMomsBreakdown(startDate: string, endDate: string): Promise<MomsBreakdown> {
   const userId = await getUserId()
-
-  const isUtgåendeMomskonto = (acc: string) =>
-    acc.startsWith('261') || acc.startsWith('262') || acc.startsWith('263')
-  const isIngåendeMomskonto = (acc: string) => acc.startsWith('264')
-  const isAvräkningskonto = (acc: string) => acc.startsWith('265')
-
-  const vatRateForAccount = (acc: string): 25 | 12 | 6 | null => {
-    if (acc.startsWith('261')) return 25
-    if (acc.startsWith('262')) return 12
-    if (acc.startsWith('263')) return 6
-    return null
-  }
+  const manualReviewMessage =
+    'Momsöversikten kräver manuell kontroll eftersom perioden innehåller äldre/manuella/SIE-rader med omvänd momsindikator utan kontrollerbar deklarationsruta.'
 
   // STEG 1: hitta de verifikationer som faktiskt har en momsrad (261x–264x)
   // vars EGET raddatum ligger i vald period.
@@ -761,7 +761,7 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
 
   const candidateTransactionIds = Array.from(new Set(
     (period26Rows || [])
-      .filter(r => isUtgåendeMomskonto(r.account_number) || isIngåendeMomskonto(r.account_number))
+      .filter(r => isOutputVatAccount(r.account_number) || isInputVatAccount(r.account_number))
       .map(r => r.transaction_id)
   ))
 
@@ -770,6 +770,8 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
       utgaendeMoms: 0,
       ingaendeMoms: 0,
       momsNetto: 0,
+      manualReviewRequired: false,
+      manualReviewMessage: null,
       utgaendeMoms25: 0,
       utgaendeMoms12: 0,
       utgaendeMoms6: 0,
@@ -794,12 +796,25 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
     .like('account_number', '26%')
   if (allRowsError) throw allRowsError
 
+  const { data: candidateTransactions, error: candidateTransactionsError } = await supabase
+    .from('transactions')
+    .select('id, source')
+    .eq('user_id', userId)
+    .in('id', candidateTransactionIds)
+  if (candidateTransactionsError) throw candidateTransactionsError
+
+  const sourceByTransaction = new Map(
+    (candidateTransactions || []).map(tx => [tx.id, tx.source as string | null])
+  )
+
   const byTransaction: Record<
     string,
     { account_number: string; debit: number; credit: number; date: string }[]
   > = {}
 
   all26Rows?.forEach(e => {
+    if (!isLegacyVatInferenceSource(sourceByTransaction.get(e.transaction_id))) return
+
     const key = e.transaction_id
     if (!byTransaction[key]) byTransaction[key] = []
     byTransaction[key].push({
@@ -814,13 +829,25 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   let utgaendeMoms12 = 0
   let utgaendeMoms6 = 0
   let ingaendeMoms = 0
+  let manualReviewRequired = false
 
   Object.values(byTransaction).forEach(rows => {
     // Om SAMMA verifikation innehåller 265x är det en intern momsombokning.
     // Detta kontrolleras nu över hela verifikationen, även om 265x-raden ligger
     // utanför rapportperioden.
-    const ärOmföring = rows.some(r => isAvräkningskonto(r.account_number))
+    const ärOmföring = rows.some(r => isSettlementAccount(r.account_number))
     if (ärOmföring) return
+
+    const harTvetydigOmvändMoms = rows.some(r => (
+      r.date >= startDate &&
+      r.date <= endDate &&
+      isLegacyReverseChargeVatIndicator(r.account_number)
+    ))
+
+    if (harTvetydigOmvändMoms) {
+      manualReviewRequired = true
+      return
+    }
 
     rows.forEach(r => {
       // Bara momsradens eget datum avgör om beloppet hör till vald period.
@@ -828,12 +855,12 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
 
       const netCredit = r.credit - r.debit
 
-      if (isUtgåendeMomskonto(r.account_number)) {
-        const rate = vatRateForAccount(r.account_number)
+      if (isOutputVatAccount(r.account_number)) {
+        const rate = legacyVatRateForAccount(r.account_number)
         if (rate === 25) utgaendeMoms25 += netCredit
         if (rate === 12) utgaendeMoms12 += netCredit
         if (rate === 6) utgaendeMoms6 += netCredit
-      } else if (isIngåendeMomskonto(r.account_number)) {
+      } else if (isInputVatAccount(r.account_number)) {
         // Avdragsperspektiv: debetöverskott på 264x = positiv ingående moms.
         ingaendeMoms += -netCredit
       }
@@ -864,6 +891,8 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
     utgaendeMoms,
     ingaendeMoms,
     momsNetto,
+    manualReviewRequired,
+    manualReviewMessage: manualReviewRequired ? manualReviewMessage : null,
     utgaendeMoms25,
     utgaendeMoms12,
     utgaendeMoms6,

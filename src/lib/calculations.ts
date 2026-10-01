@@ -1,5 +1,5 @@
 import type { MomsBreakdown } from './accountingService'
-import { calculateBusinessResult } from './resultEngine'
+import { calculateBusinessResult } from './resultEngine.ts'
 
 export interface DashboardBalances {
   [accountNumber: string]: number
@@ -15,6 +15,8 @@ export interface DashboardData {
   utgaendeMoms: number
   ingaendeMoms: number
   momsNetto: number
+  momsManualReviewRequired: boolean
+  momsManualReviewMessage: string | null
   skattReserv: number
   sakertUttag: number
 }
@@ -76,6 +78,8 @@ export function calculateDashboard(
     utgaendeMoms,
     ingaendeMoms,
     momsNetto,
+    manualReviewRequired,
+    manualReviewMessage,
   } = momsBreakdown
 
   const skattemassigVinst = skattemassigtResultat
@@ -100,6 +104,8 @@ export function calculateDashboard(
     utgaendeMoms,
     ingaendeMoms,
     momsNetto,
+    momsManualReviewRequired: manualReviewRequired === true,
+    momsManualReviewMessage: manualReviewMessage ?? null,
     skattReserv,
     sakertUttag,
   }

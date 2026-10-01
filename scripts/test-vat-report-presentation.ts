@@ -227,6 +227,33 @@ if (blocked.status === 'blocked') {
   )
 }
 
+const legacyBlocked = calculateVatReportFromLoadedRows({
+  userId: USER_ID,
+  startDate: START_DATE,
+  endDate: END_DATE,
+  rows: {
+    transactions: [tx({ id: 'legacy-reverse-charge', source: 'manual' })],
+    journalRows: [
+      row({ transactionId: 'legacy-reverse-charge', accountNumber: '4535', debit: 228 }),
+      row({ transactionId: 'legacy-reverse-charge', accountNumber: '2645', debit: 57 }),
+      row({ transactionId: 'legacy-reverse-charge', accountNumber: '2614', credit: 57 }),
+      row({ transactionId: 'legacy-reverse-charge', accountNumber: '1930', credit: 228 }),
+    ],
+    vatV2Snapshots: [],
+  },
+})
+
+assertEqual(legacyBlocked.status, 'blocked', 'KAN-32 legacy reverse-charge presentation -> blocked')
+assertEqual(legacyBlocked.report, null, 'KAN-32 legacy reverse-charge presentation -> no report')
+
+if (legacyBlocked.status === 'blocked') {
+  assertEqual(
+    vatReportBlockedMessage(legacyBlocked.errors),
+    'Momsrapporten kan inte beräknas säkert eftersom ett inköp med omvänd moms saknar kontrollerbart underlag.',
+    'KAN-32 legacy reverse-charge presentation -> safe Swedish message'
+  )
+}
+
 console.log('\n-----------------------------------')
 console.log(`Passed tests: ${passed}`)
 console.log(`Failed tests: ${failed}`)

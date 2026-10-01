@@ -216,6 +216,22 @@ assertField(v1Only.fields, '11', 12, 'CASE A')
 assertField(v1Only.fields, '48', 30, 'CASE A')
 assertField(v1Only.fields, '49', 7, 'CASE A')
 
+assertBlocked(
+  {
+    transactions: [tx({ id: 'legacy-reverse-charge-shape', source: 'sie_import' })],
+    journalRows: [
+      row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '4535', debit: 228 }),
+      row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '2645', debit: 57 }),
+      row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '2614', credit: 57 }),
+      row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '1930', credit: 228 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'legacy_reverse_charge_ambiguous',
+  'KAN-32 legacy/SIE reverse-charge-shaped rows'
+)
+
 const v2Only = assertReady(
   {
     transactions: [tx({ id: 'v2-in-period', source: 'vat_v2' })],
