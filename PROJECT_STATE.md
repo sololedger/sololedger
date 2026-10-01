@@ -18,7 +18,8 @@ Last updated: 2026-10-01
   `rest-version`, `storage-migration`, and `storage-version`. Do not
   read/display secrets and do not add this directory to Git.
 - The canonical external-audit package files `SOLOLEDGER_AUDIT_*.md` are
-  intentionally left untouched by the KAN-33 closeout.
+  intentionally left untouched by the External Audit #1 closeout. They remain
+  the original audit snapshot, not the live closeout record.
 
 ## External Connections
 
@@ -27,6 +28,9 @@ Last updated: 2026-10-01
 - KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted;
   KAN-30/F8, KAN-31/F5+F10, KAN-32/F9, and KAN-33 query completeness are
   production IRL verified.
+- External Audit #1 Jira status verified on 2026-10-01:
+  KAN-29/KAN-30/KAN-31/KAN-32/KAN-33 are `Done`; KAN-34 and KAN-35 remain
+  future backlog in `To Do`.
 - Jira workflow principle going forward:
   `To Do -> In Progress -> In Review -> Done`. Move an issue to
   `In Progress` when active work begins and to `In Review` when implementation
@@ -35,15 +39,26 @@ Last updated: 2026-10-01
 
 ## Current Objective
 
-- KAN-33 is complete through code deploy, production DB migration, and final
-  IRL verification. Final Jira closeout to `Done` is in progress.
+- External Audit #1 is closed. No known audit finding remains open without an
+  explicit non-blocking disposition.
 - KAN-34 exists separately for the parked future UX feature:
-  `Komplettera momsuppgifter för tvetydiga legacy/SIE-bokningar`.
+  `Komplettera momsuppgifter för tvetydiga legacy/SIE-bokningar`; it is not an
+  audit blocker.
 - KAN-35 exists separately as a low-priority UI follow-up:
-  `UI transaction history completeness beyond PostgREST row limits`.
+  `UI transaction history completeness beyond PostgREST row limits`; it is not
+  a source for economic report calculations.
 
 ## Verification State
 
+- External Audit #1 final status:
+  F1-F6 fixed/verified by KAN-29/P0 remediation; F7 documented as false
+  positive/closed; F8 fixed/verified by KAN-30; F5 and F10 fixed/verified by
+  KAN-31; F9 fixed/verified by KAN-32; query-completeness risk fixed/verified
+  by KAN-33.
+- Production sanity for final audit closeout: `HEAD == origin/main` was
+  verified before the final documentation commit, production returned HTTP 200
+  from `https://sololedger.vercel.app`, and relevant migrations are registered
+  remotely through `20261001120000`.
 - KAN-33 implementation commit:
   `d3dd79943572f3760607e04914907faa835d417f`.
 - KAN-33 migration:
@@ -111,7 +126,6 @@ Last updated: 2026-10-01
 
 ## Next Safe Step
 
-- Finish KAN-33 Jira closeout to `Done`, then proceed to External Audit #1
-  final closeout when Pontus gives that gate.
+- External Audit #1 is closed. Wait for Pontus to select the next work item.
 - Payment-account discoverability for the VAT tax-account movement flow remains
   a separate follow-up candidate; it is not part of KAN-31.

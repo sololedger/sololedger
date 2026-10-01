@@ -6,6 +6,32 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### External Audit #1 Final Closeout
+
+- External Audit #1 was closed on 2026-10-01 after KAN-33 reached `Done`.
+- Production sanity at final closeout: local `HEAD` matched `origin/main`,
+  production returned HTTP 200 from `https://sololedger.vercel.app`, and live
+  Supabase migrations were in sync through `20261001120000`.
+- Canonical audit package files `SOLOLEDGER_AUDIT_*.md` were intentionally
+  left untouched. They remain the original external audit snapshot rather than
+  the mutable closeout record.
+- Jira audit work status verified at closeout:
+  KAN-29, KAN-30, KAN-31, KAN-32, and KAN-33 were all `Done`.
+- KAN-34 remains `To Do` as a parked future UX feature for completing VAT facts
+  on ambiguous legacy/SIE rows. It is not an audit blocker because KAN-32
+  already fixed the audit risk by blocking/flagging ambiguous inference rather
+  than guessing.
+- KAN-35 remains `To Do` as a low-priority UI transaction-history pagination
+  follow-up. It is not an audit blocker because KAN-33 removed known silent
+  row-limit risk from economic report/calculation paths.
+- Finding disposition:
+  F1-F6 were fixed/verified by the P0 remediation in KAN-29; F7 was documented
+  as a false positive/design decision; F8 was fixed/verified by KAN-30; F5 and
+  F10 were fixed/verified by KAN-31; F9 was fixed/verified by KAN-32; the
+  query-completeness follow-up was fixed/verified by KAN-33.
+- No known External Audit #1 finding remains open without an explicit
+  non-blocking disposition.
+
 ### KAN-33 External Audit #1 Query Completeness
 
 - KAN-33 reached production IRL verification on 2026-10-01.
@@ -65,8 +91,8 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - Remaining non-economic/UI-only completeness follow-up:
   KAN-35 `UI transaction history completeness beyond PostgREST row limits`,
   low priority, `To Do`.
-- External Audit #1 implementation work is now complete through KAN-33. A
-  separate audit-level final closeout remains pending Pontus' gate.
+- External Audit #1 implementation work is complete through KAN-33. Final
+  audit-level closeout was completed after this workstream.
 
 ### KAN-32 / F9 Legacy/SIE Reverse-Charge VAT Safety
 
@@ -113,8 +139,8 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - Local verification for the undo follow-up included targeted VAT report,
   service, dashboard tests, `npm run typecheck`, targeted ESLint,
   `npm run test:domain`, and `git diff --check`.
-- KAN-32/F9 is complete. Next External Audit #1 work remains the separate
-  KAN-33 query-completeness investigation, pending leader gate.
+- KAN-32/F9 is complete. The later KAN-33 query-completeness investigation is
+  also complete, so no KAN-32 audit blocker remains.
 
 ### KAN-31 / F5 + F10 Durable VAT Operation Idempotency
 
@@ -145,8 +171,8 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - Post-replay production verification: still exactly 1 matching transaction,
   1 VAT audit snapshot, 1 idempotency row, and 4 journal rows; no duplicate
   booking or new verification was created.
-- F5 + F10 are complete. Remaining numbered External Audit #1 point after this
-  closeout: F9, plus the separate KAN-33 query-completeness investigation.
+- F5 + F10 are complete. Later closeouts completed F9 through KAN-32 and the
+  query-completeness investigation through KAN-33.
 
 ### KAN-30 / F8 Atomic User Deletion Lifecycle Coverage
 
