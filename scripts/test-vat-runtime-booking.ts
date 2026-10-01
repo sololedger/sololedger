@@ -1,8 +1,21 @@
 import {
+  VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY,
+  buildVatV2RuntimeBookingFileSignature,
+  buildVatV2RuntimeBookingIntent,
+  buildVatV2RuntimeBookingIntentDraft,
   buildVatV2RuntimeBookingRequest,
+  classifyVatV2RuntimeBookingRpcError,
+  clearVatV2RuntimeBookingIdempotency,
+  clearVatV2RuntimeBookingIdempotencyStorage,
   createVatV2RuntimeSubmitGuard,
+  isVatV2RuntimeBookingIntentDraftMatch,
+  prepareVatV2RuntimeBookingIdempotencyKey,
+  readVatV2RuntimeBookingIdempotencyFromStorage,
+  reusableVatV2RuntimeBookingUploadedFileUrl,
   shouldRequireOrdinaryV1AmountForVatV2Form,
   shouldShowOrdinaryV1FieldsForVatV2Form,
+  vatV2RuntimeBookingSubmissionFailureKind,
+  writeVatV2RuntimeBookingIdempotencyToStorage,
 } from '../src/lib/vatRuntimeBooking.ts'
 import {
   buildVatV2TransactionPreflight,
@@ -18,10 +31,43 @@ import type {
 import type {
   ConfiguredPaymentAccountRole,
 } from '../src/lib/paymentAccountRoles.ts'
+import type {
+  VatV2RuntimeBookingStorageLike,
+} from '../src/lib/vatRuntimeBooking.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message)
+  }
+}
+
+function assertEqual<T>(actual: T, expected: T, message: string) {
+  if (actual !== expected) {
+    throw new Error(`${message}. Expected ${String(expected)}, got ${String(actual)}`)
+  }
+}
+
+function createMemoryStorage(): VatV2RuntimeBookingStorageLike {
+  const values = new Map<string, string>()
+
+  return {
+    getItem(key: string) {
+      return values.get(key) ?? null
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value)
+    },
+    removeItem(key: string) {
+      values.delete(key)
+    },
+  }
+}
+
+function createDeterministicUuidGenerator(prefix: string) {
+  let counter = 0
+  return () => {
+    counter += 1
+    return `${prefix}-${counter}`
   }
 }
 
@@ -108,6 +154,9 @@ assert(
   'Runtime request should be ready only when treatment and payment source are ready'
 )
 
+assert(readyRuntime.status === 'ready', 'Ready runtime request is required below')
+const readyRuntimeRequest = readyRuntime.request
+
 assert(
   readyRuntime.status === 'ready' &&
     readyRuntime.request.paymentAccountNumber === '2017',
@@ -131,6 +180,187 @@ assert(
     !('auditSnapshot' in readyRuntime.request) &&
     !('audit_snapshot' in readyRuntime.request),
   'Runtime request must not carry user id, journal rows, or audit snapshot'
+)
+
+const firstIntent = buildVatV2RuntimeBookingIntent(
+  readyRuntimeRequest,
+  'attachments/vat-v2-receipt.pdf'
+)
+const firstFileSignature = buildVatV2RuntimeBookingFileSignature({
+  lastModified: 1790486400000,
+  name: 'receipt.pdf',
+  size: 12345,
+  type: 'application/pdf',
+})
+const nextIdempotencyKey = createDeterministicUuidGenerator('vat-v2-key')
+const firstPreparedIdempotency = prepareVatV2RuntimeBookingIdempotencyKey(
+  clearVatV2RuntimeBookingIdempotency(),
+  firstIntent,
+  nextIdempotencyKey,
+  firstFileSignature
+)
+const repeatedPreparedIdempotency = prepareVatV2RuntimeBookingIdempotencyKey(
+  firstPreparedIdempotency.state,
+  firstIntent,
+  nextIdempotencyKey
+)
+
+assertEqual(
+  repeatedPreparedIdempotency.key,
+  firstPreparedIdempotency.key,
+  'Unchanged VAT V2 runtime booking intent must reuse the same key'
+)
+
+const idempotencyStorage = createMemoryStorage()
+writeVatV2RuntimeBookingIdempotencyToStorage(
+  idempotencyStorage,
+  firstPreparedIdempotency.state
+)
+const restoredIdempotency =
+  readVatV2RuntimeBookingIdempotencyFromStorage(idempotencyStorage)
+const restoredPreparedIdempotency = prepareVatV2RuntimeBookingIdempotencyKey(
+  restoredIdempotency,
+  firstIntent,
+  nextIdempotencyKey
+)
+
+assertEqual(
+  restoredPreparedIdempotency.key,
+  firstPreparedIdempotency.key,
+  'Same-session restored VAT V2 runtime booking intent must reuse the stored key'
+)
+
+assertEqual(
+  readVatV2RuntimeBookingIdempotencyFromStorage(idempotencyStorage).key,
+  firstPreparedIdempotency.key,
+  'Indeterminate VAT V2 runtime booking failure must leave the stored key available for retry'
+)
+
+clearVatV2RuntimeBookingIdempotencyStorage(idempotencyStorage)
+assertEqual(
+  readVatV2RuntimeBookingIdempotencyFromStorage(idempotencyStorage).key,
+  null,
+  'Successful or replayed VAT V2 runtime booking must clear the stored key'
+)
+
+const changedDescriptionIntent = buildVatV2RuntimeBookingIntent(
+  {
+    ...readyRuntimeRequest,
+    description: 'Adobe Ireland changed',
+  },
+  firstIntent.fileUrl
+)
+const changedDescriptionPrepared = prepareVatV2RuntimeBookingIdempotencyKey(
+  firstPreparedIdempotency.state,
+  changedDescriptionIntent,
+  nextIdempotencyKey
+)
+
+assert(
+  changedDescriptionPrepared.key !== firstPreparedIdempotency.key,
+  'Material VAT V2 runtime booking intent changes must mint a new key'
+)
+
+const changedFileIntent = buildVatV2RuntimeBookingIntent(
+  readyRuntimeRequest,
+  'attachments/vat-v2-different-receipt.pdf'
+)
+const changedFilePrepared = prepareVatV2RuntimeBookingIdempotencyKey(
+  firstPreparedIdempotency.state,
+  changedFileIntent,
+  nextIdempotencyKey
+)
+
+assert(
+  changedFilePrepared.key !== firstPreparedIdempotency.key,
+  'Changed VAT V2 runtime booking file URL must mint a new key'
+)
+
+const restoredUploadDraft = buildVatV2RuntimeBookingIntentDraft(readyRuntimeRequest)
+assert(
+  isVatV2RuntimeBookingIntentDraftMatch(
+    restoredIdempotency.intent,
+    restoredUploadDraft
+  ),
+  'Stored VAT V2 runtime booking upload may be reused when non-file intent matches'
+)
+
+assertEqual(
+  reusableVatV2RuntimeBookingUploadedFileUrl(
+    restoredIdempotency,
+    restoredUploadDraft,
+    firstFileSignature
+  ),
+  firstIntent.fileUrl,
+  'Same selected file may reuse the stored VAT V2 runtime booking upload'
+)
+
+assertEqual(
+  reusableVatV2RuntimeBookingUploadedFileUrl(
+    restoredIdempotency,
+    restoredUploadDraft,
+    null
+  ),
+  firstIntent.fileUrl,
+  'Reloaded VAT V2 runtime booking without a selected file may reuse the stored upload'
+)
+
+assertEqual(
+  reusableVatV2RuntimeBookingUploadedFileUrl(
+    restoredIdempotency,
+    restoredUploadDraft,
+    buildVatV2RuntimeBookingFileSignature({
+      lastModified: 1790572800000,
+      name: 'different-receipt.pdf',
+      size: 54321,
+      type: 'application/pdf',
+    })
+  ),
+  null,
+  'Different selected file must not reuse a stale VAT V2 runtime booking upload'
+)
+
+assert(
+  !isVatV2RuntimeBookingIntentDraftMatch(
+    restoredIdempotency.intent,
+    buildVatV2RuntimeBookingIntentDraft({
+      ...readyRuntimeRequest,
+      description: 'Different supplier',
+    })
+  ),
+  'Stored VAT V2 runtime booking upload must not contaminate a different intent'
+)
+
+const malformedStorage = createMemoryStorage()
+malformedStorage.setItem(
+  VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY,
+  '{"key":null,"intent":"bad"}'
+)
+assertEqual(
+  readVatV2RuntimeBookingIdempotencyFromStorage(malformedStorage).key,
+  null,
+  'Malformed VAT V2 runtime booking idempotency storage must fail closed'
+)
+
+assertEqual(
+  classifyVatV2RuntimeBookingRpcError({
+    code: '23505',
+    message: 'idempotency conflict',
+  }),
+  'authoritative_rejection',
+  'Structured VAT V2 runtime booking RPC errors are authoritative rejections'
+)
+
+assertEqual(
+  classifyVatV2RuntimeBookingRpcError(new TypeError('fetch failed')),
+  'indeterminate',
+  'Thrown network failures are indeterminate VAT V2 runtime booking failures'
+)
+
+assertEqual(
+  vatV2RuntimeBookingSubmissionFailureKind(new Error('plain failure')),
+  'indeterminate',
+  'Plain VAT V2 runtime booking errors default to indeterminate'
 )
 
 const inactiveRuntime = buildVatV2RuntimeBookingRequest({

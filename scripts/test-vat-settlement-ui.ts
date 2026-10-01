@@ -1,12 +1,15 @@
 import {
+  VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY,
   canStartVatSettlementSubmit,
   clearSettlementIdempotency,
+  clearSettlementIdempotencyStorage,
   deriveVatSettlementReadModel,
   fromSettlementOre,
   isVatSettlementSubmitContextCurrent,
   payableOrRefundHeading,
   parseSettlementAmountOre,
   prepareSettlementIdempotencyKey,
+  readSettlementIdempotencyFromStorage,
   settlementActionLabel,
   settlementAmountLabel,
   settlementEventText,
@@ -14,8 +17,10 @@ import {
   settlementStateText,
   toSettlementOre,
   validateVatSettlementInput,
+  writeSettlementIdempotencyToStorage,
   type TaxAccountEventLike,
   type VatSettlementIdempotencyState,
+  type VatSettlementStorageLike,
 } from '../src/lib/vatSettlementUi.ts'
 import type { VatLifecyclePeriodLike } from '../src/lib/vatLifecycleUi.ts'
 import {
@@ -77,6 +82,19 @@ function event(
     amount,
     created_at: '2026-09-28T10:00:00Z',
     ...overrides,
+  }
+}
+
+function memoryStorage(): VatSettlementStorageLike {
+  const values = new Map<string, string>()
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => {
+      values.set(key, value)
+    },
+    removeItem: key => {
+      values.delete(key)
+    },
   }
 }
 
@@ -333,6 +351,25 @@ assertEqual(prepared.key, '00000000-0000-4000-8000-000000000004', 'Period change
 state = clearSettlementIdempotency()
 prepared = prepareSettlementIdempotencyKey(state, intent, nextUuid)
 assertEqual(prepared.key, '00000000-0000-4000-8000-000000000005', 'Success/reset makes next intent new')
+
+const storage = memoryStorage()
+writeSettlementIdempotencyToStorage(storage, prepared.state)
+assert(storage.getItem(VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY), 'Prepared settlement key is persisted for reload retry')
+const restored = readSettlementIdempotencyFromStorage(storage)
+assertEqual(restored.key, prepared.key, 'Stored settlement idempotency key is restored')
+assertEqual(restored.intent?.amount, intent.amount, 'Stored settlement intent is restored')
+clearSettlementIdempotencyStorage(storage)
+assertEqual(
+  readSettlementIdempotencyFromStorage(storage).key,
+  null,
+  'Settlement idempotency storage clears after success or authoritative rejection'
+)
+storage.setItem(VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY, '{"key":1,"intent":{}}')
+assertEqual(
+  readSettlementIdempotencyFromStorage(storage).key,
+  null,
+  'Malformed settlement idempotency storage fails safely'
+)
 
 assert(
   canStartVatSettlementSubmit({

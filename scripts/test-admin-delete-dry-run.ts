@@ -33,6 +33,7 @@ const legacyKeys: AdminDeleteDryRunCountKey[] = [
 const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
   'tax_account_movements',
   'tax_account_events',
+  'vat_v2_booking_idempotency',
   'vat_audit_snapshots',
   'vat_periods',
   'company_payment_account_roles',
@@ -57,26 +58,32 @@ for (const key of ADMIN_DELETE_DRY_RUN_COUNT_KEYS) {
 const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
   tax_account_movements: 1,
   tax_account_events: 2,
-  vat_audit_snapshots: 3,
-  vat_periods: 4,
-  company_payment_account_roles: 5,
-  transactions: 6,
-  journal_entries: 7,
-  attachments: 8,
+  vat_v2_booking_idempotency: 3,
+  vat_audit_snapshots: 4,
+  vat_periods: 5,
+  company_payment_account_roles: 6,
+  transactions: 7,
+  journal_entries: 8,
+  attachments: 9,
 })
 
 assertEqual(normalizedLifecycle.tax_account_movements, 1, 'Movement count is preserved')
 assertEqual(normalizedLifecycle.tax_account_events, 2, 'Event count is preserved')
-assertEqual(normalizedLifecycle.vat_audit_snapshots, 3, 'Audit snapshot count is preserved')
-assertEqual(normalizedLifecycle.vat_periods, 4, 'VAT period count is preserved')
+assertEqual(
+  normalizedLifecycle.vat_v2_booking_idempotency,
+  3,
+  'VAT V2 idempotency count is preserved'
+)
+assertEqual(normalizedLifecycle.vat_audit_snapshots, 4, 'Audit snapshot count is preserved')
+assertEqual(normalizedLifecycle.vat_periods, 5, 'VAT period count is preserved')
 assertEqual(
   normalizedLifecycle.company_payment_account_roles,
-  5,
+  6,
   'Payment-role count is preserved'
 )
-assertEqual(normalizedLifecycle.transactions, 6, 'Legacy transaction count is preserved')
-assertEqual(normalizedLifecycle.journal_entries, 7, 'Legacy journal count is preserved')
-assertEqual(normalizedLifecycle.attachments, 8, 'Storage attachment count is preserved')
+assertEqual(normalizedLifecycle.transactions, 7, 'Legacy transaction count is preserved')
+assertEqual(normalizedLifecycle.journal_entries, 8, 'Legacy journal count is preserved')
+assertEqual(normalizedLifecycle.attachments, 9, 'Storage attachment count is preserved')
 assertEqual(normalizedLifecycle.import_batches, 0, 'Unspecified legacy count remains zero')
 
 const edgeFunctionSource = readFileSync('supabase/functions/delete-user/index.ts', 'utf8')

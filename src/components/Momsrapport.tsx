@@ -43,16 +43,19 @@ import {
   EMPTY_SETTLEMENT_IDEMPOTENCY_STATE,
   canStartVatSettlementSubmit,
   clearSettlementIdempotency,
+  clearSettlementIdempotencyStorage,
   deriveVatSettlementReadModel,
   isVatSettlementSubmitContextCurrent,
   payableOrRefundHeading,
   prepareSettlementIdempotencyKey,
+  readSettlementIdempotencyFromStorage,
   settlementActionLabel,
   settlementAmountLabel,
   settlementEventText,
   settlementQuestion,
   settlementStateText,
   validateVatSettlementInput,
+  writeSettlementIdempotencyToStorage,
   type VatSettlementIdempotencyState,
 } from '@/lib/vatSettlementUi'
 import {
@@ -744,6 +747,11 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
   function resetSettlementIntent() {
     setSettlementIdempotency(clearSettlementIdempotency())
+    clearSettlementIdempotencyStorage(settlementStorage())
+  }
+
+  function settlementStorage() {
+    return typeof window === 'undefined' ? null : window.sessionStorage
   }
 
   function movementStorage() {
@@ -848,17 +856,23 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
 
     const periodId = selectedPeriod.id
     const contextAtStart = selectedPeriodContextKey
+    const intent = {
+      periodId,
+      eventDate: settlementEventDate,
+      amount,
+    }
+    const storedIdempotency =
+      readSettlementIdempotencyFromStorage(settlementStorage())
+    const seedIdempotency =
+      settlementIdempotency.key ? settlementIdempotency : storedIdempotency
     const prepared = prepareSettlementIdempotencyKey(
-      settlementIdempotency,
-      {
-        periodId,
-        eventDate: settlementEventDate,
-        amount,
-      },
+      seedIdempotency,
+      intent,
       () => crypto.randomUUID()
     )
 
     setSettlementIdempotency(prepared.state)
+    writeSettlementIdempotencyToStorage(settlementStorage(), prepared.state)
     settlementInFlightRef.current = true
     setSettlementSubmitting(true)
     setSettlementSubmitError(null)

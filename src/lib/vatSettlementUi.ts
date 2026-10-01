@@ -70,9 +70,18 @@ export interface VatSettlementSelectionContext {
   contextKey: string | null
 }
 
+export interface VatSettlementStorageLike {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
 export function fromSettlementOre(ore: number) {
   return ore / 100
 }
+
+export const VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY =
+  'sololedger.vatSettlement.idempotency.v1'
 
 export function toSettlementOre(value: number | string | null | undefined) {
   if (value == null) return 0
@@ -140,6 +149,20 @@ function sameIntent(
     left?.periodId === right.periodId &&
     left.eventDate === right.eventDate &&
     left.amount === right.amount
+  )
+}
+
+function isStoredState(value: unknown): value is VatSettlementIdempotencyState {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as VatSettlementIdempotencyState
+  const intent = candidate.intent
+  return (
+    typeof candidate.key === 'string' &&
+    intent !== null &&
+    typeof intent === 'object' &&
+    typeof intent.periodId === 'string' &&
+    typeof intent.eventDate === 'string' &&
+    typeof intent.amount === 'number'
   )
 }
 
@@ -304,6 +327,36 @@ export function prepareSettlementIdempotencyKey(
 
 export function clearSettlementIdempotency(): VatSettlementIdempotencyState {
   return { ...EMPTY_SETTLEMENT_IDEMPOTENCY_STATE }
+}
+
+export function readSettlementIdempotencyFromStorage(
+  storage: VatSettlementStorageLike | null | undefined
+): VatSettlementIdempotencyState {
+  if (!storage) return clearSettlementIdempotency()
+
+  try {
+    const stored = storage.getItem(VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY)
+    if (!stored) return clearSettlementIdempotency()
+    const parsed = JSON.parse(stored) as unknown
+    return isStoredState(parsed) ? parsed : clearSettlementIdempotency()
+  } catch {
+    return clearSettlementIdempotency()
+  }
+}
+
+export function writeSettlementIdempotencyToStorage(
+  storage: VatSettlementStorageLike | null | undefined,
+  state: VatSettlementIdempotencyState
+) {
+  if (!storage || !state.key || !state.intent) return
+
+  storage.setItem(VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY, JSON.stringify(state))
+}
+
+export function clearSettlementIdempotencyStorage(
+  storage: VatSettlementStorageLike | null | undefined
+) {
+  storage?.removeItem(VAT_SETTLEMENT_IDEMPOTENCY_STORAGE_KEY)
 }
 
 export function isVatSettlementSubmitContextCurrent(

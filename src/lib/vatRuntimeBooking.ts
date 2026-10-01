@@ -29,6 +29,48 @@ export interface VatV2RuntimeBookingRequest {
   paymentRole: PaymentAccountRole
 }
 
+export interface VatV2RuntimeBookingIntent {
+  date: string
+  description: string
+  treatmentCode: string
+  calculationRate: number
+  deductionEntitlement: string
+  taxableBase: number
+  outputVatAmount: number
+  deductibleInputVatAmount: number
+  acquisitionBaseField: string | null
+  outputVatReportField: string | null
+  deductibleInputVatReportField: string | null
+  paymentAccountNumber: string
+  ruleVersion: string
+  factsVersion: string
+  fileUrl: string | null
+}
+
+export type VatV2RuntimeBookingIntentDraft = Omit<
+  VatV2RuntimeBookingIntent,
+  'fileUrl'
+>
+
+export interface VatV2RuntimeBookingIdempotencyState {
+  fileSignature: string | null
+  intent: VatV2RuntimeBookingIntent | null
+  key: string | null
+}
+
+export interface VatV2RuntimeBookingFileLike {
+  lastModified: number
+  name: string
+  size: number
+  type: string
+}
+
+export interface VatV2RuntimeBookingStorageLike {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
 export interface BuildVatV2RuntimeBookingRequestInput {
   assessmentActive: boolean
   transactionEvent: VatV2RuntimeTransactionEvent
@@ -54,6 +96,35 @@ export type VatV2RuntimeSubmitGuardResult<T> =
   | { status: 'completed'; value: T }
   | { status: 'blocked_duplicate' }
 
+export type VatV2RuntimeBookingSubmissionFailureKind =
+  | 'authoritative_rejection'
+  | 'indeterminate'
+
+export class VatV2RuntimeBookingSubmissionError extends Error {
+  readonly kind: VatV2RuntimeBookingSubmissionFailureKind
+  readonly serverMessage: string | null
+
+  constructor(
+    kind: VatV2RuntimeBookingSubmissionFailureKind,
+    serverMessage: string | null = null
+  ) {
+    super('VAT V2 runtime booking submission failed')
+    this.name = 'VatV2RuntimeBookingSubmissionError'
+    this.kind = kind
+    this.serverMessage = serverMessage
+  }
+}
+
+export const EMPTY_VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STATE:
+  VatV2RuntimeBookingIdempotencyState = {
+    fileSignature: null,
+    intent: null,
+    key: null,
+  }
+
+export const VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY =
+  'sololedger.vatV2RuntimeBooking.idempotency.v1'
+
 export function shouldShowOrdinaryV1FieldsForVatV2Form(input: {
   assessmentActive: boolean
 }) {
@@ -75,6 +146,11 @@ function error(
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100
+}
+
+function normalizeOptionalText(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ''
+  return trimmed === '' ? null : trimmed
 }
 
 function isPositiveCurrencyAmount(value: number) {
@@ -103,6 +179,75 @@ function isValidRuntimePaymentAccount(accountNumber: string) {
   return (
     /^[12]\d{3}$/.test(normalized) &&
     paymentAccountSemanticValidationMessage(normalized) === null
+  )
+}
+
+function isStructuredPostgrestError(
+  error: unknown
+): error is { code: string; message: string } {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown }
+  return typeof candidate.code === 'string' && typeof candidate.message === 'string'
+}
+
+function sameIntent(
+  left: VatV2RuntimeBookingIntent | null,
+  right: VatV2RuntimeBookingIntent
+) {
+  return (
+    left?.date === right.date &&
+    left.description === right.description &&
+    left.treatmentCode === right.treatmentCode &&
+    left.calculationRate === right.calculationRate &&
+    left.deductionEntitlement === right.deductionEntitlement &&
+    left.taxableBase === right.taxableBase &&
+    left.outputVatAmount === right.outputVatAmount &&
+    left.deductibleInputVatAmount === right.deductibleInputVatAmount &&
+    left.acquisitionBaseField === right.acquisitionBaseField &&
+    left.outputVatReportField === right.outputVatReportField &&
+    left.deductibleInputVatReportField === right.deductibleInputVatReportField &&
+    left.paymentAccountNumber === right.paymentAccountNumber &&
+    left.ruleVersion === right.ruleVersion &&
+    left.factsVersion === right.factsVersion &&
+    left.fileUrl === right.fileUrl
+  )
+}
+
+function isStoredIntent(value: unknown): value is VatV2RuntimeBookingIntent {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as VatV2RuntimeBookingIntent
+  return (
+    typeof candidate.date === 'string' &&
+    typeof candidate.description === 'string' &&
+    typeof candidate.treatmentCode === 'string' &&
+    typeof candidate.calculationRate === 'number' &&
+    typeof candidate.deductionEntitlement === 'string' &&
+    typeof candidate.taxableBase === 'number' &&
+    typeof candidate.outputVatAmount === 'number' &&
+    typeof candidate.deductibleInputVatAmount === 'number' &&
+    (typeof candidate.acquisitionBaseField === 'string' ||
+      candidate.acquisitionBaseField === null) &&
+    (typeof candidate.outputVatReportField === 'string' ||
+      candidate.outputVatReportField === null) &&
+    (typeof candidate.deductibleInputVatReportField === 'string' ||
+      candidate.deductibleInputVatReportField === null) &&
+    typeof candidate.paymentAccountNumber === 'string' &&
+    typeof candidate.ruleVersion === 'string' &&
+    typeof candidate.factsVersion === 'string' &&
+    (typeof candidate.fileUrl === 'string' || candidate.fileUrl === null)
+  )
+}
+
+function isStoredIdempotencyState(
+  value: unknown
+): value is VatV2RuntimeBookingIdempotencyState {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as VatV2RuntimeBookingIdempotencyState
+  return (
+    typeof candidate.key === 'string' &&
+    isStoredIntent(candidate.intent) &&
+    (typeof candidate.fileSignature === 'string' ||
+      candidate.fileSignature === null)
   )
 }
 
@@ -249,6 +394,198 @@ export function buildVatV2RuntimeBookingRequest(
     },
     errors: [],
   }
+}
+
+export function buildVatV2RuntimeBookingIntentDraft(
+  request: VatV2RuntimeBookingRequest
+): VatV2RuntimeBookingIntentDraft {
+  const treatment = request.treatment
+  return {
+    date: request.date,
+    description: request.description.trim(),
+    treatmentCode: treatment.code,
+    calculationRate: treatment.calculationRate,
+    deductionEntitlement: treatment.deductibleInputVat.entitlement,
+    taxableBase: treatment.taxableBase,
+    outputVatAmount: treatment.outputVat.amount,
+    deductibleInputVatAmount: treatment.deductibleInputVat.amount,
+    acquisitionBaseField: treatment.acquisitionBaseField ?? null,
+    outputVatReportField: treatment.outputVat.reportField,
+    deductibleInputVatReportField: treatment.deductibleInputVat.reportField,
+    paymentAccountNumber: request.paymentAccountNumber.trim(),
+    ruleVersion: treatment.ruleVersion,
+    factsVersion: treatment.evidence.factsVersion,
+  }
+}
+
+export function buildVatV2RuntimeBookingIntent(
+  request: VatV2RuntimeBookingRequest,
+  fileUrl: string | null | undefined
+): VatV2RuntimeBookingIntent {
+  return {
+    ...buildVatV2RuntimeBookingIntentDraft(request),
+    fileUrl: normalizeOptionalText(fileUrl),
+  }
+}
+
+export function buildVatV2RuntimeBookingFileSignature(
+  file: VatV2RuntimeBookingFileLike | null | undefined
+) {
+  if (!file) return null
+
+  return JSON.stringify({
+    lastModified: file.lastModified,
+    name: file.name,
+    size: file.size,
+    type: file.type,
+  })
+}
+
+export function isVatV2RuntimeBookingIntentDraftMatch(
+  intent: VatV2RuntimeBookingIntent | null,
+  draft: VatV2RuntimeBookingIntentDraft
+) {
+  if (!intent) return false
+
+  return (
+    intent.date === draft.date &&
+    intent.description === draft.description &&
+    intent.treatmentCode === draft.treatmentCode &&
+    intent.calculationRate === draft.calculationRate &&
+    intent.deductionEntitlement === draft.deductionEntitlement &&
+    intent.taxableBase === draft.taxableBase &&
+    intent.outputVatAmount === draft.outputVatAmount &&
+    intent.deductibleInputVatAmount === draft.deductibleInputVatAmount &&
+    intent.acquisitionBaseField === draft.acquisitionBaseField &&
+    intent.outputVatReportField === draft.outputVatReportField &&
+    intent.deductibleInputVatReportField === draft.deductibleInputVatReportField &&
+    intent.paymentAccountNumber === draft.paymentAccountNumber &&
+    intent.ruleVersion === draft.ruleVersion &&
+    intent.factsVersion === draft.factsVersion
+  )
+}
+
+export function reusableVatV2RuntimeBookingUploadedFileUrl(
+  state: VatV2RuntimeBookingIdempotencyState,
+  draft: VatV2RuntimeBookingIntentDraft,
+  fileSignature: string | null
+) {
+  if (
+    !state.intent?.fileUrl ||
+    !isVatV2RuntimeBookingIntentDraftMatch(state.intent, draft)
+  ) {
+    return null
+  }
+
+  if (fileSignature && state.fileSignature !== fileSignature) {
+    return null
+  }
+
+  return state.intent.fileUrl
+}
+
+export function prepareVatV2RuntimeBookingIdempotencyKey(
+  state: VatV2RuntimeBookingIdempotencyState,
+  intent: VatV2RuntimeBookingIntent,
+  generateKey: () => string,
+  fileSignature: string | null = null
+): { state: VatV2RuntimeBookingIdempotencyState; key: string } {
+  if (state.key && sameIntent(state.intent, intent)) {
+    return { state, key: state.key }
+  }
+
+  const key = generateKey()
+  return {
+    key,
+    state: {
+      fileSignature,
+      intent,
+      key,
+    },
+  }
+}
+
+export function clearVatV2RuntimeBookingIdempotency():
+  VatV2RuntimeBookingIdempotencyState {
+  return { ...EMPTY_VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STATE }
+}
+
+export function readVatV2RuntimeBookingIdempotencyFromStorage(
+  storage: VatV2RuntimeBookingStorageLike | null | undefined
+): VatV2RuntimeBookingIdempotencyState {
+  if (!storage) return clearVatV2RuntimeBookingIdempotency()
+
+  try {
+    const stored = storage.getItem(VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY)
+    if (!stored) return clearVatV2RuntimeBookingIdempotency()
+    const parsed = JSON.parse(stored) as unknown
+    return isStoredIdempotencyState(parsed)
+      ? parsed
+      : clearVatV2RuntimeBookingIdempotency()
+  } catch {
+    return clearVatV2RuntimeBookingIdempotency()
+  }
+}
+
+export function writeVatV2RuntimeBookingIdempotencyToStorage(
+  storage: VatV2RuntimeBookingStorageLike | null | undefined,
+  state: VatV2RuntimeBookingIdempotencyState
+) {
+  if (!storage || !state.key || !state.intent) return
+
+  try {
+    storage.setItem(
+      VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY,
+      JSON.stringify(state)
+    )
+  } catch {
+    // If sessionStorage is unavailable, server-side idempotency still protects
+    // the submitted key for this in-memory attempt.
+  }
+}
+
+export function clearVatV2RuntimeBookingIdempotencyStorage(
+  storage: VatV2RuntimeBookingStorageLike | null | undefined
+) {
+  try {
+    storage?.removeItem(VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY)
+  } catch {
+    // Clearing browser storage is best-effort; a later intent mismatch mints a key.
+  }
+}
+
+export function classifyVatV2RuntimeBookingRpcError(
+  error: unknown
+): VatV2RuntimeBookingSubmissionFailureKind {
+  return isStructuredPostgrestError(error)
+    ? 'authoritative_rejection'
+    : 'indeterminate'
+}
+
+export function createVatV2RuntimeBookingSubmissionError(error: unknown) {
+  return new VatV2RuntimeBookingSubmissionError(
+    classifyVatV2RuntimeBookingRpcError(error),
+    isStructuredPostgrestError(error) ? error.message : null
+  )
+}
+
+export function vatV2RuntimeBookingSubmissionFailureKind(
+  error: unknown
+): VatV2RuntimeBookingSubmissionFailureKind {
+  if (error instanceof VatV2RuntimeBookingSubmissionError) return error.kind
+  return 'indeterminate'
+}
+
+export function vatV2RuntimeBookingSubmissionErrorMessage(
+  kindOrError: VatV2RuntimeBookingSubmissionFailureKind | unknown
+) {
+  const kind = vatV2RuntimeBookingSubmissionFailureKind(kindOrError)
+
+  if (kind === 'authoritative_rejection') {
+    return 'VAT V2-bokningen kunde inte registreras. Kontrollera uppgifterna och försök igen.'
+  }
+
+  return 'SoloLedger kunde inte bekräfta om VAT V2-bokningen registrerades. Försök igen med samma uppgifter; då används samma försök så dubbelregistrering undviks.'
 }
 
 export function createVatV2RuntimeSubmitGuard() {

@@ -11,6 +11,7 @@ type Action = 'dry-run' | 'delete'
 const TABLES = [
   'tax_account_movements',
   'tax_account_events',
+  'vat_v2_booking_idempotency',
   'vat_audit_snapshots',
   'vat_periods',
   'company_payment_account_roles',

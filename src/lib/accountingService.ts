@@ -12,6 +12,7 @@ import {
   buildRecordVatSettlementRpcArgs,
 } from './vatSettlementRpc'
 import { createVatSettlementSubmissionError } from './vatSettlementErrors'
+import { createVatV2RuntimeBookingSubmissionError } from './vatRuntimeBooking'
 import {
   RECORD_TAX_ACCOUNT_MOVEMENT_RPC_NAME,
   TAX_ACCOUNT_MOVEMENT_PERIOD_FILTER_COLUMN,
@@ -77,11 +78,13 @@ export interface BookVatV2EuServiceReverseChargeInput {
   description: string
   treatment: VatTreatment
   paymentAccountNumber: string
+  idempotencyKey: string
   fileUrl?: string | null
 }
 
 export interface BookVatV2EuServiceReverseChargeResult {
   success: true
+  idempotentReplay: boolean
   transactionId: string
   verNr: number
   vatAuditSnapshotId: string
@@ -98,10 +101,12 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
   })
 
   if (journalPlanResult.status !== 'ready') {
-    throw new Error(
-      'VAT V2-bokningen stoppades före persistens: ' +
-      journalPlanResult.validation.errors.map(error => error.message).join(' ')
-    )
+    throw createVatV2RuntimeBookingSubmissionError({
+      code: 'VAT_V2_RUNTIME_BOOKING_INVALID_JOURNAL_PLAN',
+      message:
+        'VAT V2-bokningen stoppades före persistens: ' +
+        journalPlanResult.validation.errors.map(error => error.message).join(' '),
+    })
   }
 
   const auditSnapshotResult = buildVatAuditSnapshot({
@@ -110,10 +115,12 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
   })
 
   if (auditSnapshotResult.status !== 'ready') {
-    throw new Error(
-      'VAT V2-audit snapshot kunde inte skapas: ' +
-      auditSnapshotResult.validation.errors.map(error => error.message).join(' ')
-    )
+    throw createVatV2RuntimeBookingSubmissionError({
+      code: 'VAT_V2_RUNTIME_BOOKING_INVALID_AUDIT_SNAPSHOT',
+      message:
+        'VAT V2-audit snapshot kunde inte skapas: ' +
+        auditSnapshotResult.validation.errors.map(error => error.message).join(' '),
+    })
   }
 
   const payload = {
@@ -132,27 +139,36 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
     payment_account_number: input.paymentAccountNumber,
     rule_version: input.treatment.ruleVersion,
     facts_version: input.treatment.evidence.factsVersion,
+    idempotency_key: input.idempotencyKey,
     file_url: input.fileUrl ?? null,
   }
 
-  const { data, error } = await supabase.rpc(
-    'book_vat_v2_eu_service_reverse_charge_atomic',
-    { p_payload: payload }
-  )
+  let response: Awaited<ReturnType<typeof supabase.rpc>>
+  try {
+    response = await supabase.rpc(
+      'book_vat_v2_eu_service_reverse_charge_atomic',
+      { p_payload: payload }
+    )
+  } catch (error) {
+    throw createVatV2RuntimeBookingSubmissionError(error)
+  }
+
+  const { data, error } = response
 
   if (error) {
-    throw new Error(
-      'VAT V2-bokningen misslyckades och rullades tillbaka: ' +
-      error.message
-    )
+    throw createVatV2RuntimeBookingSubmissionError(error)
   }
 
   if (!data?.success) {
-    throw new Error('VAT V2-bokningen misslyckades av okänd anledning.')
+    throw createVatV2RuntimeBookingSubmissionError({
+      code: 'VAT_V2_RUNTIME_BOOKING_UNSUCCESSFUL_RESPONSE',
+      message: 'The VAT V2 runtime booking RPC returned an unsuccessful response.',
+    })
   }
 
   return {
     success: true,
+    idempotentReplay: Boolean(data.idempotent_replay),
     transactionId: data.transaction_id as string,
     verNr: Number(data.ver_nr),
     vatAuditSnapshotId: data.vat_audit_snapshot_id as string,

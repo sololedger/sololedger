@@ -26,6 +26,7 @@ BEGIN;
 \ir ../migrations/20260929183000_add_tax_account_movement.sql
 \ir ../migrations/20260930120000_audit1_p0_vat_lifecycle_semantics.sql
 \ir ../migrations/20260930163000_kan30_delete_user_data_vat_lifecycle.sql
+\ir ../migrations/20260930190000_kan31_idempotency_replay.sql
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(p_condition boolean, p_message text)
 RETURNS void
@@ -281,6 +282,7 @@ BEGIN
     + (SELECT count(*) FROM public.tax_account_events WHERE user_id = p_user_id)
     + (SELECT count(*) FROM public.tax_account_movements WHERE user_id = p_user_id)
     + (SELECT count(*) FROM public.transactions WHERE user_id = p_user_id)
+    + (SELECT count(*) FROM public.vat_v2_booking_idempotency WHERE user_id = p_user_id)
     + (SELECT count(*) FROM public.vat_audit_snapshots WHERE user_id = p_user_id)
     + (SELECT count(*) FROM public.vat_periods WHERE user_id = p_user_id)
     + (SELECT count(*) FROM public.ver_nr_sequences WHERE user_id = p_user_id)
@@ -539,6 +541,7 @@ DECLARE
   v_period_id uuid;
   v_tx_id uuid;
   v_snapshot_id uuid;
+  v_idempotency_id uuid;
   v_result jsonb;
 BEGIN
   v_user_id := pg_temp.create_delete_user_fixture('residual');
@@ -577,14 +580,44 @@ BEGIN
   )
   RETURNING id INTO v_snapshot_id;
 
+  INSERT INTO public.vat_v2_booking_idempotency (
+    user_id,
+    idempotency_key,
+    request_canonical,
+    transaction_id,
+    vat_audit_snapshot_id,
+    result
+  ) VALUES (
+    v_user_id,
+    gen_random_uuid(),
+    jsonb_build_object(
+      'date', date '1801-02-01',
+      'description', 'KAN-30 VAT audit snapshot',
+      'treatment_code', 'EU_SERVICE_REVERSE_CHARGE',
+      'payment_account_number', '1930'
+    ),
+    v_tx_id,
+    v_snapshot_id,
+    jsonb_build_object(
+      'success', true,
+      'idempotent_replay', false,
+      'transaction_id', v_tx_id,
+      'ver_nr', 1,
+      'vat_audit_snapshot_id', v_snapshot_id
+    )
+  )
+  RETURNING id INTO v_idempotency_id;
+
   v_result := public.delete_user_data_atomic(v_user_id);
 
+  PERFORM pg_temp.assert_delete_result_count(v_result, 'vat_v2_booking_idempotency', 1, 'residual user VAT V2 idempotency row deleted');
   PERFORM pg_temp.assert_delete_result_count(v_result, 'vat_audit_snapshots', 1, 'residual user audit snapshot deleted');
   PERFORM pg_temp.assert_delete_result_count(v_result, 'vat_periods', 1, 'residual user VAT period deleted');
   PERFORM pg_temp.assert_delete_result_count(v_result, 'company_payment_account_roles', 1, 'residual user payment role deleted');
   PERFORM pg_temp.assert_delete_result_count(v_result, 'profiles', 1, 'residual user profile deleted');
   PERFORM pg_temp.assert_no_delete_context(v_user_id, 'residual user successful delete leaves no current-backend context');
   PERFORM pg_temp.assert_no_known_app_rows(v_user_id, 'residual user leaves no known app rows');
+  PERFORM pg_temp.assert_eq((SELECT count(*)::integer FROM public.vat_v2_booking_idempotency WHERE id = v_idempotency_id), 0, 'VAT V2 idempotency row is gone');
   PERFORM pg_temp.assert_eq((SELECT count(*)::integer FROM public.vat_audit_snapshots WHERE id = v_snapshot_id), 0, 'audit snapshot row is gone');
   PERFORM pg_temp.assert_eq((SELECT count(*)::integer FROM public.vat_periods WHERE id = v_period_id), 0, 'open VAT period row is gone');
 END;

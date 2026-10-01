@@ -1,6 +1,7 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
   'tax_account_movements',
   'tax_account_events',
+  'vat_v2_booking_idempotency',
   'vat_audit_snapshots',
   'vat_periods',
   'company_payment_account_roles',
@@ -25,6 +26,7 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
 > = {
   tax_account_movements: 'skattekontorörelser',
   tax_account_events: 'momsavräkningshändelser',
+  vat_v2_booking_idempotency: 'VAT V2-idempotensposter',
   vat_audit_snapshots: 'moms-auditsnapshots',
   vat_periods: 'momsperioder',
   company_payment_account_roles: 'betalningskontoinställningar',

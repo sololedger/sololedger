@@ -28,7 +28,22 @@ import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage 
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
-import type { VatV2RuntimeBookingRequest } from '@/lib/vatRuntimeBooking'
+import {
+  buildVatV2RuntimeBookingFileSignature,
+  buildVatV2RuntimeBookingIntent,
+  buildVatV2RuntimeBookingIntentDraft,
+  clearVatV2RuntimeBookingIdempotency,
+  clearVatV2RuntimeBookingIdempotencyStorage,
+  prepareVatV2RuntimeBookingIdempotencyKey,
+  readVatV2RuntimeBookingIdempotencyFromStorage,
+  reusableVatV2RuntimeBookingUploadedFileUrl,
+  VatV2RuntimeBookingSubmissionError,
+  vatV2RuntimeBookingSubmissionErrorMessage,
+  vatV2RuntimeBookingSubmissionFailureKind,
+  writeVatV2RuntimeBookingIdempotencyToStorage,
+  type VatV2RuntimeBookingIdempotencyState,
+  type VatV2RuntimeBookingRequest,
+} from '@/lib/vatRuntimeBooking'
 import {
   isTransactionSystemManagedInUi,
   transactionSourceUiLabel,
@@ -86,6 +101,10 @@ export default function Home() {
   // två extremt snabba submit-events. Ref:en sätts direkt och stoppar ett andra
   // anrop innan något async-arbete eller databasanrop startas.
   const submitInFlightRef = useRef(false)
+  const vatV2RuntimeBookingIdempotencyRef =
+    useRef<VatV2RuntimeBookingIdempotencyState>(
+      clearVatV2RuntimeBookingIdempotency()
+    )
   const [showSieImport, setShowSieImport] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
@@ -242,6 +261,20 @@ export default function Home() {
     return transactionSourceUiLabel(tx) ?? 'Systemverifikationer'
   }
 
+  function vatV2RuntimeBookingStorage() {
+    try {
+      return typeof window === 'undefined' ? null : window.sessionStorage
+    } catch {
+      return null
+    }
+  }
+
+  function resetVatV2RuntimeBookingIdempotency() {
+    vatV2RuntimeBookingIdempotencyRef.current =
+      clearVatV2RuntimeBookingIdempotency()
+    clearVatV2RuntimeBookingIdempotencyStorage(vatV2RuntimeBookingStorage())
+  }
+
   async function handleVatV2RuntimeBooking(
     request: VatV2RuntimeBookingRequest,
     file: File | null
@@ -275,17 +308,51 @@ export default function Home() {
         throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
       }
 
-      let fileUrl = ''
-      if (file) {
+      const intentDraft = buildVatV2RuntimeBookingIntentDraft(request)
+      const fileSignature = buildVatV2RuntimeBookingFileSignature(file)
+      const storedIdempotency =
+        readVatV2RuntimeBookingIdempotencyFromStorage(
+          vatV2RuntimeBookingStorage()
+        )
+      const reusableUploadedFileUrl =
+        reusableVatV2RuntimeBookingUploadedFileUrl(
+          storedIdempotency,
+          intentDraft,
+          fileSignature
+        )
+
+      let fileUrl: string | null = reusableUploadedFileUrl
+      if (!fileUrl && file) {
         fileUrl = await handleFileUpload(file)
       }
+
+      const intent = buildVatV2RuntimeBookingIntent(request, fileUrl)
+      const idempotencyFileSignature =
+        fileUrl && fileUrl === storedIdempotency.intent?.fileUrl
+          ? storedIdempotency.fileSignature
+          : fileSignature
+      const seedState = vatV2RuntimeBookingIdempotencyRef.current.key
+        ? vatV2RuntimeBookingIdempotencyRef.current
+        : storedIdempotency
+      const preparedIdempotency = prepareVatV2RuntimeBookingIdempotencyKey(
+        seedState,
+        intent,
+        () => crypto.randomUUID(),
+        idempotencyFileSignature
+      )
+      vatV2RuntimeBookingIdempotencyRef.current = preparedIdempotency.state
+      writeVatV2RuntimeBookingIdempotencyToStorage(
+        vatV2RuntimeBookingStorage(),
+        preparedIdempotency.state
+      )
 
       const result = await bookVatV2EuServiceReverseChargeTransaction({
         date: request.date,
         description: request.description,
         treatment: request.treatment,
         paymentAccountNumber: request.paymentAccountNumber,
-        fileUrl: fileUrl || null,
+        idempotencyKey: preparedIdempotency.key,
+        fileUrl,
       })
 
       setLastSubmitted(null)
@@ -303,18 +370,31 @@ export default function Home() {
         await refreshFreeUsageCount()
       } catch (refreshError) {
         console.error('VAT V2-bokning skapad men uppdatering misslyckades:', refreshError)
-        alert(`✅ VAT V2-bokning skapad som VER-${result.verNr}. Uppdatera sidan om den inte syns direkt.`)
+        resetVatV2RuntimeBookingIdempotency()
+        alert(`${result.idempotentReplay ? 'VAT V2-bokningen var redan skapad' : '✅ VAT V2-bokning skapad'} som VER-${result.verNr}. Uppdatera sidan om den inte syns direkt.`)
         return
       }
 
-      alert(`✅ VAT V2-bokning skapad som VER-${result.verNr}.`)
+      resetVatV2RuntimeBookingIdempotency()
+      alert(result.idempotentReplay
+        ? `VAT V2-bokningen var redan skapad som VER-${result.verNr}.`
+        : `✅ VAT V2-bokning skapad som VER-${result.verNr}.`)
     } catch (err: unknown) {
       console.error('Fel vid VAT V2-bokning:', err)
-      throw new Error(
-        err instanceof Error
-          ? err.message
-          : 'VAT V2-bokningen misslyckades.'
-      )
+      if (!(err instanceof VatV2RuntimeBookingSubmissionError)) {
+        throw new Error(
+          err instanceof Error
+            ? err.message
+            : 'VAT V2-bokningen misslyckades.'
+        )
+      }
+      if (
+        vatV2RuntimeBookingSubmissionFailureKind(err) ===
+        'authoritative_rejection'
+      ) {
+        resetVatV2RuntimeBookingIdempotency()
+      }
+      throw new Error(vatV2RuntimeBookingSubmissionErrorMessage(err))
     } finally {
       submitInFlightRef.current = false
       setUploading(false)
