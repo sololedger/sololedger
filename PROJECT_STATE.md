@@ -17,54 +17,48 @@ Last updated: 2026-10-01
   `linked-project.json`, `pooler-url`, `postgres-version`, `project-ref`,
   `rest-version`, `storage-migration`, and `storage-version`. Do not
   read/display secrets and do not add this directory to Git.
+- The canonical external-audit package files `SOLOLEDGER_AUDIT_*.md` are
+  intentionally left untouched by the KAN-31 closeout.
 
 ## External Connections
 
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
-- KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted.
-- KAN-30/F8 is production IRL verified and archived; current local/pre-production
-  work is KAN-31 freeze, checkpoint, and read-only production preflight.
-- Live Supabase migration head: `20260930163000`.
+- KAN-20 and KAN-26 are `Done`; KAN-27 VAT settlement is production-accepted;
+  KAN-30/F8 is production IRL verified and archived.
+- KAN-31/F5+F10 is production IRL verified and closing in Jira.
+- Live Supabase migration head: `20261001060000`.
 
 ## Current Objective
 
-- KAN-31 local RC-D implementation is frozen for checkpoint and read-only
-  production preflight; no live Supabase writes, deploy, Jira mutation, or
-  migration apply has been performed.
-- Local migration prepared:
-  `supabase/migrations/20260930190000_kan31_idempotency_replay.sql`.
-- Scope implemented locally: durable VAT V2 booking idempotency ledger,
-  replay-before-mutable-guard semantics for VAT settlement and tax-account
-  movement exact retries, settlement retry-key session persistence, VAT V2 RPC
-  idempotency-key payload, VAT V2 session-scoped retry identity recovery, and
-  admin deletion/dry-run count coverage for the new user-owned ledger.
-- KAN-31 rollback proof:
-  `supabase/tests/kan31_idempotency_replay_green_candidate.sql`.
+- Close KAN-31 documentation/Jira only. Do not start KAN-32 in this task.
+- KAN-31 is complete from implementation through production IRL replay:
+  F5, F10-A, and F10-B are fixed and verified.
+- Remaining audit work after KAN-31: F9 plus the separate KAN-33
+  query-completeness investigation.
 
 ## Verification State
 
-- KAN-31 local checks passed on 2026-10-01 against the isolated local
-  `sololedger_kan17c_test` PostgreSQL DB with explicit rollback:
-  KAN-31 green replay regression, KAN-30 deletion lifecycle regression, KAN-27
-  settlement regression, tax-account movement regression, payment-account role
-  SQL policy regression, and External Audit #1 Batch 1 SQL regression.
-- App/domain checks passed: VAT settlement UI/service, tax-account movement
-  UI/service, VAT V2 runtime booking, payment-account roles, admin delete
-  dry-run, External Audit #1 Batch 1 TypeScript regression,
-  `npm run test:domain`, and `npm run typecheck`.
-- `git diff --check` passed.
-- Changed-file ESLint was attempted. Helper/test lint for the newly changed
-  pure TS files passed, but full changed-file lint remains blocked by existing
-  unrelated lint errors in `src/app/page.tsx` and
-  `supabase/functions/delete-user/index.ts`.
+- KAN-31 main implementation commit:
+  `ea08d9b8c98b254b73dd933f4fd6dcab9ebc25f1`.
+- KAN-31 ACL fix commit:
+  `37230c6a5e4c65395e87f5bded0011f6f7104c23`.
+- Main migration live: `20260930190000`.
+- ACL migration live: `20261001060000`.
+- `delete-user` Edge Function v9 is live with `verify_jwt: true` and includes
+  `vat_v2_booking_idempotency` in dry-run counting.
+- Production IRL: first VAT V2 booking became VER-18.
+- Controlled replay returned the same VER-18 with `idempotent_replay: true`.
+- Post-replay production verification still showed exactly 1 matching
+  transaction, 1 VAT audit snapshot, 1 idempotency row, and 4 journal rows.
+- No duplicate booking or new verification was created.
 
 ## Live Migration State
 
 - Active live migrations include the reconciled CLI baseline and all active
-  migrations through `20260930163000`.
+  migrations through `20261001060000`.
 - Current head:
-  `20260930163000_kan30_delete_user_data_vat_lifecycle.sql`.
+  `20261001060000_kan31_vat_v2_idempotency_acl_fix.sql`.
 - Future production DB migrations should use the official Supabase CLI flow
   preserving repo migration versions.
 - Do not use MCP `apply_migration` for timestamped repo migrations where
@@ -84,8 +78,7 @@ Last updated: 2026-10-01
 
 ## Next Safe Step
 
-- Complete the authorized KAN-31 commit/push and read-only production preflight.
-- Migration apply, deploy, Jira mutation, and production writes require a later
-  explicit leader gate.
+- After KAN-31 closeout, wait for the KAN-32 leader gate before starting F9.
+- Keep KAN-33 as a separate investigation.
 - Payment-account discoverability for the VAT tax-account movement flow remains
   a separate follow-up candidate; it is not part of KAN-31.

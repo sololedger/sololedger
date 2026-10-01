@@ -6,6 +6,38 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-31 / F5 + F10 Durable VAT Operation Idempotency
+
+- KAN-31 reached production IRL replay verification on 2026-10-01.
+- F5 fixed: VAT V2 now has durable protection against duplicate booking on
+  retry through `vat_v2_booking_idempotency`.
+- F10-A fixed: VAT V2 retry identity survives reload within the same browser
+  session for the same operation intent.
+- F10-B fixed: an already completed operation can be reconfirmed by exact
+  same-key replay even if the year is later locked, while a new operation is
+  still blocked by the mutable guards.
+- Main implementation commit:
+  `ea08d9b8c98b254b73dd933f4fd6dcab9ebc25f1`.
+- ACL fix commit:
+  `37230c6a5e4c65395e87f5bded0011f6f7104c23`.
+- Main migration live: `20260930190000`.
+- ACL migration live: `20261001060000`.
+- The ACL fix leaves `service_role` with SELECT-only access to
+  `vat_v2_booking_idempotency`; ordinary app roles have no direct table access
+  and RLS remains enabled.
+- `delete-user` Edge Function v9 is live with `verify_jwt: true` and includes
+  `vat_v2_booking_idempotency` in dry-run counting.
+- Production IRL used disposable test company `TESTNAMN AB`.
+- First booking: date `2026-10-01`, description
+  `KAN-31 idempotency IRL 2026-10-01 001`, amount `100`, created VER-18.
+- Controlled replay used the same idempotency key and canonical payload and
+  returned the same transaction/snapshot/VER-18 with `idempotent_replay: true`.
+- Post-replay production verification: still exactly 1 matching transaction,
+  1 VAT audit snapshot, 1 idempotency row, and 4 journal rows; no duplicate
+  booking or new verification was created.
+- F5 + F10 are complete. Remaining numbered External Audit #1 point after this
+  closeout: F9, plus the separate KAN-33 query-completeness investigation.
+
 ### KAN-30 / F8 Atomic User Deletion Lifecycle Coverage
 
 - KAN-30 / F8 reached `PRODUCTION IRL VERIFIED` on 2026-09-30.
