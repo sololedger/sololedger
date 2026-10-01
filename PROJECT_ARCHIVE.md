@@ -6,6 +6,68 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-33 External Audit #1 Query Completeness
+
+- KAN-33 reached production IRL verification on 2026-10-01.
+- Implementation commit:
+  `d3dd79943572f3760607e04914907faa835d417f`.
+- Live migration:
+  `supabase/migrations/20261001120000_kan33_account_balance_rpcs.sql`.
+- Migration SHA-256:
+  `995578DB38841CC4CA031573C9F62182D96B1DDDA6BAB804885C41D93CA73A76`.
+- The migration is live in Supabase production project `wbaxmuvudpnkvuliicuy`
+  as version `20261001120000`.
+- Root cause: several accounting/report read paths could depend on
+  PostgREST/Supabase default row limits or `.in(...)` list limits, which could
+  silently truncate large user datasets and make economic figures look
+  complete when they were not.
+- Phase 1 added `src/lib/supabaseFetchAll.ts`, a strict fetch-all helper that
+  requires exact counts, pages until the verified count is reached, rejects
+  query/count drift/mismatch/missing count, and deduplicates chunk input values.
+- VAT report reads were moved to strict fetch-all/chunked fetch while
+  preserving VAT V2 and KAN-32 semantics.
+- Phase 2 added read-only server-side saldo aggregation RPCs:
+  `get_period_account_balances(date,date)` and
+  `get_cumulative_account_balances(date)`.
+- The RPCs derive tenant from `auth.uid()`, use `SECURITY INVOKER`, explicitly
+  filter both `transactions.user_id` and `journal_entries.user_id`, grant
+  execute only to `authenticated`, and do not weaken RLS.
+- Dashboard, result, balance, and NE paths now use complete server-side
+  aggregation instead of client-side journal-row loading.
+- Phase 3 made SIE export complete-safe for current-year transactions,
+  current-year journal rows, prior-year transaction/journal data used for
+  `#RES -1`, account rows, and opening-balance candidates. `#VER`, `#RES`,
+  `#IB`, and `#UB` now fail closed if source completeness cannot be verified.
+- Dashboard VAT breakdown and available VAT years were also moved to complete
+  fetch-all paths.
+- Automated evidence included:
+  `node scripts/test-supabase-fetch-all.ts`, `npm run test:domain`,
+  `scripts/test-sie-export-completeness.ts`, `scripts/test-vat-report-service.ts`,
+  local SQL regression `scripts/test-account-balance-rpcs.sql`,
+  `npm run typecheck`, scoped ESLint, and `git diff --check`.
+- The >1000-row regressions verify complete fetches, correct VAT/SIE/account
+  sums, and multi-user isolation. These tests are the evidence for exact
+  completeness and amounts.
+- Full repo lint still has old unrelated debt; scoped KAN-33 lint was green.
+- Production DB post-apply verification showed migration registered exactly
+  once; both RPCs existed with expected signatures; both were `SECURITY
+  INVOKER`; `PUBLIC` and `anon` lacked execute; `authenticated` had execute;
+  RLS policy fingerprint and pre-existing public-function fingerprint were
+  unchanged.
+- Production IRL on Pontan AB after F5 verified that Ekonomiöversikten,
+  NE-bilagan, Momsrapport, and SIE-export 2026 load/work normally after the
+  migration, with no new observed errors, empty economic views, or obvious
+  regressions. Exact amounts were not manually validated in IRL because Pontan
+  AB contains many test verifications.
+- Code/product view mapping verified: there are no separate result/balance
+  report UI views beyond existing Ekonomiöversikt, NE-bilaga, Momsrapport, and
+  SIE export paths.
+- Remaining non-economic/UI-only completeness follow-up:
+  KAN-35 `UI transaction history completeness beyond PostgREST row limits`,
+  low priority, `To Do`.
+- External Audit #1 implementation work is now complete through KAN-33. A
+  separate audit-level final closeout remains pending Pontus' gate.
+
 ### KAN-32 / F9 Legacy/SIE Reverse-Charge VAT Safety
 
 - KAN-32 reached final production IRL verification on 2026-10-01.
