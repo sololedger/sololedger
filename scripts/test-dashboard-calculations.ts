@@ -1,4 +1,5 @@
 import { calculateDashboard } from '../src/lib/calculations.ts'
+import { isLegacyVatInferenceTransaction } from '../src/lib/legacyVatInference.ts'
 
 let passed = 0
 let failed = 0
@@ -63,6 +64,31 @@ assertEqual(
   'ambiguous dashboard VAT breakdown carries manual review message'
 )
 assertEqual(flaggedDashboard.momsNetto, 0, 'ambiguous dashboard VAT net does not invent a payable amount')
+
+assertEqual(
+  isLegacyVatInferenceTransaction({
+    source: 'sie_import',
+    importBatchStatus: 'undone',
+  }),
+  false,
+  'dashboard VAT source filter ignores original transaction from undone SIE batch'
+)
+assertEqual(
+  isLegacyVatInferenceTransaction({
+    source: 'sie_import_undo',
+    importBatchStatus: 'undone',
+  }),
+  false,
+  'dashboard VAT source filter ignores SIE undo transaction from undone batch'
+)
+assertEqual(
+  isLegacyVatInferenceTransaction({
+    source: 'sie_import',
+    importBatchStatus: 'completed',
+  }),
+  true,
+  'dashboard VAT source filter still includes completed SIE batch'
+)
 
 console.log('\n-----------------------------------')
 console.log(`Passed tests: ${passed}`)

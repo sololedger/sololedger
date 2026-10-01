@@ -36,6 +36,8 @@ export interface VatReportTransactionRow {
   user_id: string
   date: string
   source: string | null
+  import_batch_id?: string | null
+  import_batch_status?: string | null
 }
 
 export interface VatReportJournalEntryRow {
@@ -237,6 +239,7 @@ function buildVatReportAggregatorInput(input: {
     transactions.push({
       id: row.id,
       source: row.source,
+      importBatchStatus: row.import_batch_status ?? null,
       inReportPeriod: isInPeriod(row.date, input.startDate, input.endDate),
     })
     seenTransactions.add(row.id)
@@ -334,7 +337,7 @@ async function loadTransactionsByIds(
 
   const { data, error } = await db
     .from('transactions')
-    .select('id, user_id, date, source')
+    .select('id, user_id, date, source, import_batch_id')
     .eq('user_id', userId)
     .in('id', transactionIds)
 
@@ -382,7 +385,7 @@ export async function getVatReportForPeriod(
   const { data: periodVatV2Transactions, error: vatV2TransactionError } =
     await db
       .from('transactions')
-      .select('id, user_id, date, source')
+      .select('id, user_id, date, source, import_batch_id')
       .eq('user_id', userId)
       .eq('source', 'vat_v2')
       .gte('date', startDate)
@@ -417,6 +420,34 @@ export async function getVatReportForPeriod(
   }
 
   const allTransactionRows = Array.from(allTransactionsById.values())
+  const importBatchIds = Array.from(new Set(
+    allTransactionRows
+      .map(row => row.import_batch_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  ))
+  const { data: importBatchRows, error: importBatchError } =
+    importBatchIds.length === 0
+      ? { data: [] as { id: string; status: string | null }[], error: null }
+      : await db
+        .from('import_batches')
+        .select('id, status')
+        .eq('user_id', userId)
+        .in('id', importBatchIds)
+
+  if (importBatchError) {
+    return queryError('Could not load SIE import batch status for VAT report.', importBatchError)
+  }
+
+  const importBatchStatusById = new Map(
+    ((importBatchRows ?? []) as { id: string; status: string | null }[])
+      .map(row => [row.id, row.status])
+  )
+  const allTransactionRowsWithBatchStatus = allTransactionRows.map(row => ({
+    ...row,
+    import_batch_status: row.import_batch_id
+      ? importBatchStatusById.get(row.import_batch_id) ?? null
+      : null,
+  }))
   const { data: all26Rows, error: all26Error } =
     relevantTransactionIds.length === 0
       ? { data: [] as VatReportJournalEntryRow[], error: null }
@@ -449,7 +480,7 @@ export async function getVatReportForPeriod(
     startDate,
     endDate,
     rows: {
-      transactions: allTransactionRows,
+      transactions: allTransactionRowsWithBatchStatus,
       journalRows: (all26Rows ?? []) as VatReportJournalEntryRow[],
       vatV2Snapshots: (snapshotRows ?? []) as VatReportAuditSnapshotRow[],
     },

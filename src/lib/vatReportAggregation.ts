@@ -2,7 +2,7 @@ import type { VatReturnField } from './vatDomain'
 import {
   isInputVatAccount,
   isLegacyReverseChargeVatIndicator,
-  isLegacyVatInferenceSource,
+  isLegacyVatInferenceTransaction,
   isOutputVatAccount,
   isSettlementAccount,
   legacyVatRateForAccount,
@@ -32,6 +32,7 @@ export type VatReportFields = Record<VatReturnField, number>
 export interface VatReportTransactionInput {
   id: string
   source?: string | null
+  importBatchStatus?: string | null
   /**
    * Data loading scopes native VAT V2 report contribution by transaction.date.
    * A VAT V2 transaction outside the selected period may still be present to
@@ -506,7 +507,10 @@ export function aggregateVatReport(input: {
 
   const legacyVatInferenceTransactionIds = new Set(
     input.transactions
-      .filter(tx => isLegacyVatInferenceSource(tx.source))
+      .filter(tx => isLegacyVatInferenceTransaction({
+        source: tx.source,
+        importBatchStatus: tx.importBatchStatus,
+      }))
       .map(tx => tx.id)
   )
   const legacyRows = input.journalRows.filter(

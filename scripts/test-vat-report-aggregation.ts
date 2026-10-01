@@ -76,9 +76,10 @@ function assertField(
 
 function tx(
   id: string,
-  source: string | null = 'manual'
+  source: string | null = 'manual',
+  importBatchStatus: string | null = null
 ): VatReportTransactionInput {
-  return { id, source }
+  return { id, source, importBatchStatus }
 }
 
 function row(
@@ -158,7 +159,7 @@ function vatV2Rows(transactionId: string, base = 228, vat = 57) {
 console.log('\n=== SoloLedger VAT Report Aggregation Tests ===\n')
 
 const legacyReverseChargeShape = aggregateVatReport({
-  transactions: [tx('sie-reverse-charge-like', 'sie_import')],
+  transactions: [tx('sie-reverse-charge-like', 'sie_import', 'completed')],
   journalRows: [
     row('sie-reverse-charge-like', '4535', 228, 0),
     row('sie-reverse-charge-like', '2645', 57, 0),
@@ -183,6 +184,66 @@ if (legacyReverseChargeShape.status === 'blocked') {
     'KAN-32 RED legacy/SIE reverse-charge-shaped rows -> legacy_reverse_charge_ambiguous'
   )
 }
+
+const undoneSieImport = assertReady(
+  {
+    transactions: [tx('undone-sie-reverse-charge-like', 'sie_import', 'undone')],
+    journalRows: [
+      row('undone-sie-reverse-charge-like', '4535', 100, 0),
+      row('undone-sie-reverse-charge-like', '2645', 25, 0),
+      row('undone-sie-reverse-charge-like', '2614', 0, 25),
+      row('undone-sie-reverse-charge-like', '1930', 0, 100),
+    ],
+    vatV2Snapshots: [],
+  },
+  'KAN-32 undo original transaction from undone SIE batch'
+)
+
+assertField(undoneSieImport.fields, '05', 0, 'KAN-32 undo original')
+assertField(undoneSieImport.fields, '10', 0, 'KAN-32 undo original')
+assertField(undoneSieImport.fields, '48', 0, 'KAN-32 undo original')
+assertField(undoneSieImport.fields, '49', 0, 'KAN-32 undo original')
+
+const undoneSieImportWithUndoTransaction = assertReady(
+  {
+    transactions: [
+      tx('undone-original-full-year', 'sie_import', 'undone'),
+      tx('undone-correction-full-year', 'sie_import_undo', 'undone'),
+    ],
+    journalRows: [
+      row('undone-original-full-year', '4535', 100, 0),
+      row('undone-original-full-year', '2645', 25, 0),
+      row('undone-original-full-year', '2614', 0, 25),
+      row('undone-original-full-year', '1930', 0, 100),
+      row('undone-correction-full-year', '1930', 100, 0),
+      row('undone-correction-full-year', '2614', 25, 0),
+      row('undone-correction-full-year', '2645', 0, 25),
+      row('undone-correction-full-year', '4535', 0, 100),
+    ],
+    vatV2Snapshots: [],
+  },
+  'KAN-32 undo full-year dashboard shape with original and SIE undo'
+)
+
+assertField(undoneSieImportWithUndoTransaction.fields, '05', 0, 'KAN-32 undo full-year')
+assertField(undoneSieImportWithUndoTransaction.fields, '10', 0, 'KAN-32 undo full-year')
+assertField(undoneSieImportWithUndoTransaction.fields, '48', 0, 'KAN-32 undo full-year')
+assertField(undoneSieImportWithUndoTransaction.fields, '49', 0, 'KAN-32 undo full-year')
+
+assertBlocked(
+  {
+    transactions: [tx('other-completed-sie-reverse-charge-like', 'sie_import', 'completed')],
+    journalRows: [
+      row('other-completed-sie-reverse-charge-like', '4535', 100, 0),
+      row('other-completed-sie-reverse-charge-like', '2645', 25, 0),
+      row('other-completed-sie-reverse-charge-like', '2614', 0, 25),
+      row('other-completed-sie-reverse-charge-like', '1930', 0, 100),
+    ],
+    vatV2Snapshots: [],
+  },
+  'legacy_reverse_charge_ambiguous',
+  'KAN-32 other completed SIE batch still blocks'
+)
 
 const v1Only = assertReady(
   {

@@ -24,7 +24,7 @@ import { createTaxAccountMovementSubmissionError } from './taxAccountMovementErr
 import {
   isInputVatAccount,
   isLegacyReverseChargeVatIndicator,
-  isLegacyVatInferenceSource,
+  isLegacyVatInferenceTransaction,
   isOutputVatAccount,
   isSettlementAccount,
   legacyVatRateForAccount,
@@ -798,13 +798,39 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
 
   const { data: candidateTransactions, error: candidateTransactionsError } = await supabase
     .from('transactions')
-    .select('id, source')
+    .select('id, source, import_batch_id')
     .eq('user_id', userId)
     .in('id', candidateTransactionIds)
   if (candidateTransactionsError) throw candidateTransactionsError
 
-  const sourceByTransaction = new Map(
-    (candidateTransactions || []).map(tx => [tx.id, tx.source as string | null])
+  const importBatchIds = Array.from(new Set(
+    (candidateTransactions || [])
+      .map(tx => tx.import_batch_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  ))
+  const { data: importBatches, error: importBatchesError } =
+    importBatchIds.length === 0
+      ? { data: [] as { id: string; status: string | null }[], error: null }
+      : await supabase
+        .from('import_batches')
+        .select('id, status')
+        .eq('user_id', userId)
+        .in('id', importBatchIds)
+  if (importBatchesError) throw importBatchesError
+
+  const importBatchStatusById = new Map(
+    (importBatches || []).map(batch => [batch.id, batch.status as string | null])
+  )
+  const transactionById = new Map(
+    (candidateTransactions || []).map(tx => [
+      tx.id,
+      {
+        source: tx.source as string | null,
+        importBatchStatus: tx.import_batch_id
+          ? importBatchStatusById.get(tx.import_batch_id) ?? null
+          : null,
+      },
+    ])
   )
 
   const byTransaction: Record<
@@ -813,7 +839,10 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   > = {}
 
   all26Rows?.forEach(e => {
-    if (!isLegacyVatInferenceSource(sourceByTransaction.get(e.transaction_id))) return
+    if (!isLegacyVatInferenceTransaction(transactionById.get(e.transaction_id) ?? {
+      source: undefined,
+      importBatchStatus: null,
+    })) return
 
     const key = e.transaction_id
     if (!byTransaction[key]) byTransaction[key] = []

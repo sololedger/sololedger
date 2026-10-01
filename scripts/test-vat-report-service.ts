@@ -34,11 +34,15 @@ function assertEqual(
   failed++
 }
 
-function assertReady(rows: LoadedVatReportRows, description: string) {
+function assertReady(
+  rows: LoadedVatReportRows,
+  description: string,
+  period = { startDate: START_DATE, endDate: END_DATE }
+) {
   const result = calculateVatReportFromLoadedRows({
     userId: USER_ID,
-    startDate: START_DATE,
-    endDate: END_DATE,
+    startDate: period.startDate,
+    endDate: period.endDate,
     rows,
   })
 
@@ -55,12 +59,13 @@ function assertBlocked(
   rows: LoadedVatReportRows,
   serviceCode: VatReportServiceErrorCode,
   aggregationCode: VatReportAggregationErrorCode | null,
-  description: string
+  description: string,
+  period = { startDate: START_DATE, endDate: END_DATE }
 ) {
   const result = calculateVatReportFromLoadedRows({
     userId: USER_ID,
-    startDate: START_DATE,
-    endDate: END_DATE,
+    startDate: period.startDate,
+    endDate: period.endDate,
     rows,
   })
 
@@ -100,12 +105,16 @@ function tx(input: {
   date?: string
   source?: string | null
   userId?: string
+  importBatchId?: string | null
+  importBatchStatus?: string | null
 }): VatReportTransactionRow {
   return {
     id: input.id,
     user_id: input.userId ?? USER_ID,
     date: input.date ?? '2026-08-15',
     source: input.source ?? 'manual',
+    import_batch_id: input.importBatchId ?? null,
+    import_batch_status: input.importBatchStatus ?? null,
   }
 }
 
@@ -218,7 +227,14 @@ assertField(v1Only.fields, '49', 7, 'CASE A')
 
 assertBlocked(
   {
-    transactions: [tx({ id: 'legacy-reverse-charge-shape', source: 'sie_import' })],
+    transactions: [
+      tx({
+        id: 'legacy-reverse-charge-shape',
+        source: 'sie_import',
+        importBatchId: 'batch-completed',
+        importBatchStatus: 'completed',
+      }),
+    ],
     journalRows: [
       row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '4535', debit: 228 }),
       row({ transactionId: 'legacy-reverse-charge-shape', accountNumber: '2645', debit: 57 }),
@@ -230,6 +246,111 @@ assertBlocked(
   'aggregation_blocked',
   'legacy_reverse_charge_ambiguous',
   'KAN-32 legacy/SIE reverse-charge-shaped rows'
+)
+
+const undoneSieQ3 = assertReady(
+  {
+    transactions: [
+      tx({
+        id: 'undone-sie-original-q3',
+        source: 'sie_import',
+        importBatchId: 'batch-undone',
+        importBatchStatus: 'undone',
+      }),
+    ],
+    journalRows: [
+      row({ transactionId: 'undone-sie-original-q3', accountNumber: '4535', debit: 100 }),
+      row({ transactionId: 'undone-sie-original-q3', accountNumber: '2645', debit: 25 }),
+      row({ transactionId: 'undone-sie-original-q3', accountNumber: '2614', credit: 25 }),
+      row({ transactionId: 'undone-sie-original-q3', accountNumber: '1930', credit: 100 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'KAN-32 Q3 original transaction from undone SIE batch'
+)
+
+assertField(undoneSieQ3.fields, '10', 0, 'KAN-32 Q3 undone original')
+assertField(undoneSieQ3.fields, '48', 0, 'KAN-32 Q3 undone original')
+assertField(undoneSieQ3.fields, '49', 0, 'KAN-32 Q3 undone original')
+
+const undoneSieFullYearDashboardShape = assertReady(
+  {
+    transactions: [
+      tx({
+        id: 'undone-sie-original-full-year',
+        source: 'sie_import',
+        importBatchId: 'batch-undone',
+        importBatchStatus: 'undone',
+      }),
+      tx({
+        id: 'undone-sie-correction-full-year',
+        source: 'sie_import_undo',
+        importBatchId: 'batch-undone',
+        importBatchStatus: 'undone',
+        date: '2026-10-01',
+      }),
+    ],
+    journalRows: [
+      row({ transactionId: 'undone-sie-original-full-year', accountNumber: '4535', debit: 100 }),
+      row({ transactionId: 'undone-sie-original-full-year', accountNumber: '2645', debit: 25 }),
+      row({ transactionId: 'undone-sie-original-full-year', accountNumber: '2614', credit: 25 }),
+      row({ transactionId: 'undone-sie-original-full-year', accountNumber: '1930', credit: 100 }),
+      row({
+        transactionId: 'undone-sie-correction-full-year',
+        accountNumber: '1930',
+        debit: 100,
+        date: '2026-10-01',
+      }),
+      row({
+        transactionId: 'undone-sie-correction-full-year',
+        accountNumber: '2614',
+        debit: 25,
+        date: '2026-10-01',
+      }),
+      row({
+        transactionId: 'undone-sie-correction-full-year',
+        accountNumber: '2645',
+        credit: 25,
+        date: '2026-10-01',
+      }),
+      row({
+        transactionId: 'undone-sie-correction-full-year',
+        accountNumber: '4535',
+        credit: 100,
+        date: '2026-10-01',
+      }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'KAN-32 full-year dashboard shape with undone original and SIE undo',
+  { startDate: '2026-01-01', endDate: '2026-12-31' }
+)
+
+assertField(undoneSieFullYearDashboardShape.fields, '10', 0, 'KAN-32 full-year undone')
+assertField(undoneSieFullYearDashboardShape.fields, '48', 0, 'KAN-32 full-year undone')
+assertField(undoneSieFullYearDashboardShape.fields, '49', 0, 'KAN-32 full-year undone')
+
+assertBlocked(
+  {
+    transactions: [
+      tx({
+        id: 'other-completed-sie-reverse-charge-shape',
+        source: 'sie_import',
+        importBatchId: 'other-batch-completed',
+        importBatchStatus: 'completed',
+      }),
+    ],
+    journalRows: [
+      row({ transactionId: 'other-completed-sie-reverse-charge-shape', accountNumber: '4535', debit: 100 }),
+      row({ transactionId: 'other-completed-sie-reverse-charge-shape', accountNumber: '2645', debit: 25 }),
+      row({ transactionId: 'other-completed-sie-reverse-charge-shape', accountNumber: '2614', credit: 25 }),
+      row({ transactionId: 'other-completed-sie-reverse-charge-shape', accountNumber: '1930', credit: 100 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'legacy_reverse_charge_ambiguous',
+  'KAN-32 other completed SIE batch still blocks'
 )
 
 const v2Only = assertReady(

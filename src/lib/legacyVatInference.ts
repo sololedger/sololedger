@@ -5,6 +5,12 @@ export const LEGACY_VAT_INFERENCE_SOURCES = new Set([
   'sie_import_undo',
 ])
 
+const LEGACY_SIE_IMPORT_SOURCES = new Set([
+  'sie_import',
+  'sie_opening_balance',
+  'sie_import_undo',
+])
+
 const LEGACY_REVERSE_CHARGE_VAT_ACCOUNTS = new Set([
   '2614',
   '2624',
@@ -14,6 +20,23 @@ const LEGACY_REVERSE_CHARGE_VAT_ACCOUNTS = new Set([
 
 export function isLegacyVatInferenceSource(source: string | null | undefined) {
   return source == null || LEGACY_VAT_INFERENCE_SOURCES.has(source)
+}
+
+export function isLegacyVatInferenceTransaction(input: {
+  source: string | null | undefined
+  importBatchStatus?: string | null
+}) {
+  if (!isLegacyVatInferenceSource(input.source)) return false
+
+  if (
+    input.source != null &&
+    LEGACY_SIE_IMPORT_SOURCES.has(input.source) &&
+    input.importBatchStatus === 'undone'
+  ) {
+    return false
+  }
+
+  return true
 }
 
 export function isOutputVatAccount(accountNumber: string) {
