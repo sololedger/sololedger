@@ -1,5 +1,6 @@
 import {
   calculateVatReportFromLoadedRows,
+  getVatReportForPeriodFromDb,
   type LoadedVatReportRows,
   type VatReportAuditSnapshotRow,
   type VatReportJournalEntryRow,
@@ -195,6 +196,93 @@ function vatV2JournalRows(transactionId: string, date = '2026-08-15') {
     row({ transactionId, accountNumber: '2614', credit: 57, date }),
     row({ transactionId, accountNumber: '1930', credit: 228, date }),
   ]
+}
+
+type FakeTableName =
+  | 'transactions'
+  | 'journal_entries'
+  | 'import_batches'
+  | 'vat_audit_snapshots'
+
+type FakeRow = Record<string, unknown>
+type FakeDbRows = Record<FakeTableName, FakeRow[]>
+
+class FakeVatReportQuery {
+  private readonly rows: FakeRow[]
+  private filters: Array<(row: FakeRow) => boolean> = []
+  private fromIndex = 0
+  private toIndex = 999
+
+  constructor(rows: FakeRow[]) {
+    this.rows = rows
+  }
+
+  eq(column: string, value: unknown) {
+    this.filters.push(row => row[column] === value)
+    return this
+  }
+
+  gte(column: string, value: string) {
+    this.filters.push(row => String(row[column]) >= value)
+    return this
+  }
+
+  lte(column: string, value: string) {
+    this.filters.push(row => String(row[column]) <= value)
+    return this
+  }
+
+  like(column: string, value: string) {
+    if (!value.endsWith('%')) {
+      throw new Error(`Fake query only supports prefix LIKE patterns: ${value}`)
+    }
+    const prefix = value.slice(0, -1)
+    this.filters.push(row => String(row[column]).startsWith(prefix))
+    return this
+  }
+
+  in(column: string, values: string[]) {
+    const allowed = new Set(values)
+    this.filters.push(row => allowed.has(String(row[column])))
+    return this
+  }
+
+  range(from: number, to: number) {
+    const next = new FakeVatReportQuery(this.rows)
+    next.filters = [...this.filters]
+    next.fromIndex = from
+    next.toIndex = to
+    return next
+  }
+
+  then<TResult1 = unknown, TResult2 = never>(
+    onfulfilled?: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+  ): PromiseLike<TResult1 | TResult2> {
+    const filtered = this.filters.reduce(
+      (rows, filter) => rows.filter(filter),
+      this.rows
+    )
+    const result = {
+      data: filtered.slice(this.fromIndex, this.toIndex + 1),
+      error: null,
+      count: filtered.length,
+    }
+
+    return Promise.resolve(result).then(onfulfilled, onrejected)
+  }
+}
+
+function fakeDb(rows: FakeDbRows) {
+  return {
+    from(table: FakeTableName) {
+      return {
+        select() {
+          return new FakeVatReportQuery(rows[table])
+        },
+      }
+    },
+  }
 }
 
 console.log('\n=== SoloLedger VAT Report Service Tests ===\n')
@@ -484,6 +572,43 @@ assertBlocked(
   null,
   'CASE H other tenant rows rejected'
 )
+
+const manyVatRows = Array.from({ length: 1001 }, (_, index) => ({
+  id: `many-vat-${index}`,
+  user_id: USER_ID,
+  date: '2026-08-15',
+  source: 'manual',
+  import_batch_id: null,
+}))
+
+const manyVatJournalRows = manyVatRows.map(transaction => ({
+  user_id: USER_ID,
+  transaction_id: transaction.id,
+  account_number: '2611',
+  debit: 0,
+  credit: 25,
+  date: '2026-08-15',
+}))
+
+const manyVatReport = await getVatReportForPeriodFromDb(
+  fakeDb({
+    transactions: manyVatRows,
+    journal_entries: manyVatJournalRows,
+    import_batches: [],
+    vat_audit_snapshots: [],
+  }) as Parameters<typeof getVatReportForPeriodFromDb>[0],
+  USER_ID,
+  START_DATE,
+  END_DATE
+)
+
+assertEqual(manyVatReport.status, 'ready', 'KAN-33 1001 VAT rows -> ready')
+
+if (manyVatReport.status === 'ready') {
+  assertField(manyVatReport.report.fields, '05', 100100, 'KAN-33 1001 VAT rows')
+  assertField(manyVatReport.report.fields, '10', 25025, 'KAN-33 1001 VAT rows')
+  assertField(manyVatReport.report.fields, '49', 25025, 'KAN-33 1001 VAT rows')
+}
 
 console.log('\n-----------------------------------')
 console.log(`Passed tests: ${passed}`)

@@ -2,6 +2,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
+  fetchAllRows,
+  type FetchAllRangeQuery,
+} from '@/lib/supabaseFetchAll'
+import {
   closeVatPeriod,
   declareVatPeriod,
   ensureVatPeriods,
@@ -92,6 +96,31 @@ import {
 } from '@/lib/taxAccountMovementErrors'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
+
+type AvailableYearFilterQuery<T> = FetchAllRangeQuery<T> & {
+  eq(column: string, value: unknown): AvailableYearFilterQuery<T>
+  not(column: string, operator: string, value: unknown): AvailableYearFilterQuery<T>
+}
+
+type AvailableYearQuery = {
+  select(
+    columns: string,
+    options?: { count?: 'exact' }
+  ): AvailableYearFilterQuery<unknown>
+}
+
+type AvailableYearClient = {
+  from(table: string): AvailableYearQuery
+}
+
+interface JournalDateRow {
+  date: string | null
+}
+
+interface VatPeriodYearRow {
+  period_start: string
+  period_end: string
+}
 
 function fmt(n: number) {
   return Math.abs(n).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -317,27 +346,30 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      const db = supabase as unknown as AvailableYearClient
 
-      const { data, error } = await supabase
-        .from('journal_entries')
-        .select('date')
-        .eq('user_id', user.id)
-        .not('date', 'is', null)
-        .order('date', { ascending: false })
-
-      if (error) throw error
-
-      const { data: periodData, error: periodError } = await supabase
-        .from('vat_periods')
-        .select('period_start, period_end')
-        .eq('user_id', user.id)
-
-      if (periodError) throw periodError
+      const [journalDates, periodData] = await Promise.all([
+        fetchAllRows<JournalDateRow>({
+          context: 'VAT report available journal years',
+          createQuery: () => db
+            .from('journal_entries')
+            .select('date', { count: 'exact' })
+            .eq('user_id', user.id)
+            .not('date', 'is', null) as AvailableYearFilterQuery<JournalDateRow>,
+        }),
+        fetchAllRows<VatPeriodYearRow>({
+          context: 'VAT report available VAT period years',
+          createQuery: () => db
+            .from('vat_periods')
+            .select('period_start, period_end', { count: 'exact' })
+            .eq('user_id', user.id) as AvailableYearFilterQuery<VatPeriodYearRow>,
+        }),
+      ])
 
       const yearsSet = new Set<number>()
       yearsSet.add(currentYear)
 
-      data?.forEach(row => {
+      journalDates.forEach(row => {
         if (row.date) {
           const y = new Date(row.date).getFullYear()
           if (!isNaN(y)) yearsSet.add(y)

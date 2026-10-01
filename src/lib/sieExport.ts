@@ -1,12 +1,69 @@
-import { supabase } from './supabaseClient'
-import { getBalanceSheetBalances } from './accountingService'
+import {
+  fetchAllRows,
+  fetchAllRowsByChunks,
+  type FetchAllRangeQuery,
+} from './supabaseFetchAll.ts'
+
+type SieSupabaseFilterQuery<T> = FetchAllRangeQuery<T> & {
+  eq(column: string, value: unknown): SieSupabaseFilterQuery<T>
+  gte(column: string, value: string): SieSupabaseFilterQuery<T>
+  lte(column: string, value: string): SieSupabaseFilterQuery<T>
+  in(column: string, values: string[]): SieSupabaseFilterQuery<T>
+  maybeSingle(): PromiseLike<{ data: T | null; error: unknown }>
+}
+
+type SieSupabaseQuery = {
+  select(
+    columns: string,
+    options?: { count?: 'exact' }
+  ): SieSupabaseFilterQuery<unknown> & {
+    maybeSingle(): PromiseLike<{ data: unknown; error: unknown }>
+  }
+}
+
+type SieSupabaseClient = {
+  from(table: string): SieSupabaseQuery
+}
+
+type SieTransactionRow = {
+  id: string
+  date: string
+  description: string
+  is_correction: boolean | null
+  corrects_ver_nr: number | null
+  source?: string | null
+  import_batch_id?: string | null
+}
+
+type SieAccountRow = {
+  name: string | null
+  debit_account: string | null
+  credit_account: string | null
+}
+
+type SieProfileRow = {
+  company_name: string | null
+  org_nr: string | null
+}
+
+type SieJournalEntryRow = {
+  id?: string
+  user_id: string
+  transaction_id: string
+  ver_nr: number | string
+  account_number: string
+  debit: number | string | null
+  credit: number | string | null
+  description: string | null
+  date: string
+}
 
 function formatDate(date: string) {
   return date.replaceAll('-', '')
 }
 
-function groupByTransaction(entries: any[]) {
-  const map = new Map<string, any[]>()
+function groupByTransaction(entries: SieJournalEntryRow[]) {
+  const map = new Map<string, SieJournalEntryRow[]>()
 
   entries.forEach(e => {
     // En verifikation är en transaction med flera journal_entries.
@@ -61,11 +118,28 @@ function escapeSIEText(text: string): string {
 }
 
 export async function exportSIE(year: number) {
+  const [{ supabase }, { getBalanceSheetBalances }] = await Promise.all([
+    import('./supabaseClient.ts'),
+    import('./accountingService.ts'),
+  ])
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Inte inloggad")
 
-  const today = new Date()
+  return exportSIEForUserFromDb(
+    supabase as unknown as SieSupabaseClient,
+    user.id,
+    year,
+    getBalanceSheetBalances
+  )
+}
 
+export async function exportSIEForUserFromDb(
+  db: SieSupabaseClient,
+  userId: string,
+  year: number,
+  loadBalanceSheetBalances: (year: number) => Promise<Record<string, number>>,
+  today = new Date()
+) {
   // ───────────────────────────────
   // Hämta data parallellt
   // ───────────────────────────────
@@ -74,55 +148,78 @@ export async function exportSIE(year: number) {
   // via journal_entries.date rad för rad. Se motivering vid #VER-utskriften
   // nedan. Samma mönster som redan används i accountingService.ts
   // (getAccountBalances/getBalanceSheetBalances).
-  const [{ data: yearTransactions, error: txError }, { data: accounts }, { data: profile }, { data: jan1Transactions }, { data: prevYearTransactions, error: prevTxError }] = await Promise.all([
-    supabase
-      .from('transactions')
-      .select('id, date, description, is_correction, corrects_ver_nr')
-      .eq('user_id', user.id)
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`),
+  const [
+    yearTransactions,
+    accounts,
+    profileResponse,
+    jan1Transactions,
+    prevYearTransactions,
+  ] = await Promise.all([
+    fetchAllRows<SieTransactionRow>({
+      context: 'SIE export year transactions',
+      createQuery: () => db
+        .from('transactions')
+        .select('id, date, description, is_correction, corrects_ver_nr', { count: 'exact' })
+        .eq('user_id', userId)
+        .gte('date', `${year}-01-01`)
+        .lte('date', `${year}-12-31`) as FetchAllRangeQuery<SieTransactionRow>,
+    }),
 
-    supabase
-      .from('accounts')
-      .select('name, debit_account, credit_account')
-      .eq('user_id', user.id),
+    fetchAllRows<SieAccountRow>({
+      context: 'SIE export accounts',
+      createQuery: () => db
+        .from('accounts')
+        .select('name, debit_account, credit_account', { count: 'exact' })
+        .eq('user_id', userId) as FetchAllRangeQuery<SieAccountRow>,
+    }),
 
-    supabase
-      .from('profiles')
-      .select('company_name, org_nr')
-      .eq('id', user.id)
-      .maybeSingle(),
+    (
+      db
+        .from('profiles')
+        .select('company_name, org_nr')
+        .eq('id', userId) as SieSupabaseFilterQuery<SieProfileRow>
+    ).maybeSingle(),
 
     // Kandidater för öppningsbalans - bara transaktioner daterade exakt
     // årets första dag behöver kontrolleras mot källa/beskrivning nedan.
-    supabase
-      .from('transactions')
-      .select('id, source, description')
-      .eq('user_id', user.id)
-      .eq('date', `${year}-01-01`),
+    fetchAllRows<Pick<SieTransactionRow, 'id' | 'source' | 'description'>>({
+      context: 'SIE export opening balance transaction candidates',
+      createQuery: () => db
+        .from('transactions')
+        .select('id, source, description', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('date', `${year}-01-01`) as FetchAllRangeQuery<
+          Pick<SieTransactionRow, 'id' | 'source' | 'description'>
+        >,
+    }),
 
     // P1-fix (SIE 4C, jämförelseår): behövs för att avgöra om föregående
     // räkenskapsår "finns" samt som underlag för #RES -1 nedan.
-    supabase
-      .from('transactions')
-      .select('id, date')
-      .eq('user_id', user.id)
-      .gte('date', `${year - 1}-01-01`)
-      .lte('date', `${year - 1}-12-31`)
+    fetchAllRows<Pick<SieTransactionRow, 'id' | 'date'>>({
+      context: 'SIE export previous year transactions',
+      createQuery: () => db
+        .from('transactions')
+        .select('id, date', { count: 'exact' })
+        .eq('user_id', userId)
+        .gte('date', `${year - 1}-01-01`)
+        .lte('date', `${year - 1}-12-31`) as FetchAllRangeQuery<
+          Pick<SieTransactionRow, 'id' | 'date'>
+        >,
+    })
   ])
 
-  if (txError) throw txError
-  if (prevTxError) throw prevTxError
+  if (profileResponse.error) throw profileResponse.error
+  const profile = profileResponse.data as SieProfileRow | null
 
-  const yearTransactionIds = (yearTransactions || []).map(t => t.id)
+  const yearTransactionIds = yearTransactions.map(t => t.id)
 
   // transaction_id -> transactions.date, används för #VER-datumet nedan.
-  const transactionById = new Map<string, any>(
-    (yearTransactions || []).map(t => [t.id, t])
+  const transactionById = new Map<string, SieTransactionRow>(
+    yearTransactions.map(t => [t.id, t])
   )
 
   const transactionDateById = new Map<string, string>(
-    (yearTransactions || []).map(t => [t.id, t.date])
+    yearTransactions.map(t => [t.id, t.date])
   )
 
   // Hämta ALLA journal_entries för dessa transaktioner, utan eget
@@ -130,17 +227,22 @@ export async function exportSIE(year: number) {
   // ett annat transdat än sin verifikations eget datum (se P0-analysen),
   // men det ska aldrig påverka VILKET ÅRS export hela verifikationen hamnar
   // i. Undviker en tom/ogiltig .in()-fråga om året saknar transaktioner.
-  let entries: any[] = []
+  let entries: SieJournalEntryRow[] = []
   if (yearTransactionIds.length > 0) {
-    const { data: yearEntries, error: entriesError } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('transaction_id', yearTransactionIds)
-      .order('date', { ascending: true })
-      .order('ver_nr', { ascending: true })
-    if (entriesError) throw entriesError
-    entries = yearEntries || []
+    entries = await fetchAllRowsByChunks<SieJournalEntryRow, string>({
+      context: 'SIE export year journal entries',
+      values: yearTransactionIds,
+      createQuery: ids => db
+        .from('journal_entries')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('transaction_id', ids) as FetchAllRangeQuery<SieJournalEntryRow>,
+    })
+    entries.sort((a, b) => {
+      const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime()
+      if (dateDiff !== 0) return dateDiff
+      return Number(a.ver_nr) - Number(b.ver_nr)
+    })
   }
 
   // ───────────────────────────────
@@ -159,7 +261,7 @@ export async function exportSIE(year: number) {
   // en separat, senare detekterings-/varningsfunktion - inte automatisk
   // exkludering här.
   const openingBalanceTxIds = new Set(
-    (jan1Transactions || [])
+    jan1Transactions
       .filter(t =>
         t.source === 'sie_opening_balance' ||
         (t.source === 'sie_import' && t.description === 'Öppningsbalans')
@@ -172,22 +274,24 @@ export async function exportSIE(year: number) {
 
   // Flyttat hit (oförändrad kod, se tidigare BALANS-sektion) - behövs redan
   // här för att avgöra om #RAR -1 ska skrivas, innan headern byggs.
-  const prevYearBalances = await getBalanceSheetBalances(year - 1)
-  const currentBalances = await getBalanceSheetBalances(year)
+  const prevYearBalances = await loadBalanceSheetBalances(year - 1)
+  const currentBalances = await loadBalanceSheetBalances(year)
 
-  const prevYearTransactionIds = (prevYearTransactions || []).map(t => t.id)
+  const prevYearTransactionIds = prevYearTransactions.map(t => t.id)
 
   // Hämta föregående års journalrader redan här så att konton som endast
   // förekommer i #RES -1 också kan deklareras med #KONTO innan saldoposterna skrivs.
-  let prevYearEntries: any[] = []
+  let prevYearEntries: SieJournalEntryRow[] = []
   if (prevYearTransactionIds.length > 0) {
-    const { data: previousEntries, error: prevEntriesError } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('transaction_id', prevYearTransactionIds)
-    if (prevEntriesError) throw prevEntriesError
-    prevYearEntries = previousEntries || []
+    prevYearEntries = await fetchAllRowsByChunks<SieJournalEntryRow, string>({
+      context: 'SIE export previous year journal entries',
+      values: prevYearTransactionIds,
+      createQuery: ids => db
+        .from('journal_entries')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('transaction_id', ids) as FetchAllRangeQuery<SieJournalEntryRow>,
+    })
   }
 
   // P1-fix (SIE 4C): föregående räkenskapsår räknas som "finns" om det
@@ -231,7 +335,7 @@ export async function exportSIE(year: number) {
   const konton = new Map<string, string>()
 
   // 1. Bygg först upp kontolistan från databasen (utan onödiga överskrivningar)
-  accounts?.forEach(acc => {
+  accounts.forEach(acc => {
     if (acc.debit_account && !konton.has(acc.debit_account)) {
       konton.set(acc.debit_account, acc.name || `Konto ${acc.debit_account}`)
     }
@@ -241,7 +345,7 @@ export async function exportSIE(year: number) {
   })
   
   // Säkring: lägg till konton från innevarande års journalrader som saknas i kontoplanen
-  entries?.forEach(e => {
+  entries.forEach(e => {
     const accountNumber = e.account_number.toString()
     if (!konton.has(accountNumber)) {
       konton.set(accountNumber, `Konto ${accountNumber}`)

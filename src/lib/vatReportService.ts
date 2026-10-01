@@ -6,6 +6,11 @@ import {
   type VatReportSnapshotInput,
   type VatReportTransactionInput,
 } from './vatReportAggregation.ts'
+import {
+  fetchAllRows,
+  fetchAllRowsByChunks,
+  type FetchAllRangeQuery,
+} from './supabaseFetchAll.ts'
 
 export type VatReportServiceErrorCode =
   | 'query_failed'
@@ -78,12 +83,7 @@ type VatReportInputBuildResult =
       errors: VatReportServiceError[]
     }
 
-type VatReportQueryResult = {
-  data: unknown
-  error: unknown
-}
-
-type VatReportSupabaseFilterQuery = PromiseLike<VatReportQueryResult> & {
+type VatReportSupabaseFilterQuery = FetchAllRangeQuery<unknown> & {
   eq(column: string, value: unknown): VatReportSupabaseFilterQuery
   gte(column: string, value: string): VatReportSupabaseFilterQuery
   lte(column: string, value: string): VatReportSupabaseFilterQuery
@@ -92,7 +92,10 @@ type VatReportSupabaseFilterQuery = PromiseLike<VatReportQueryResult> & {
 }
 
 type VatReportSupabaseQuery = {
-  select(columns: string): VatReportSupabaseFilterQuery
+  select(
+    columns: string,
+    options?: { count?: 'exact' }
+  ): VatReportSupabaseFilterQuery
 }
 
 type VatReportSupabaseClient = {
@@ -335,13 +338,152 @@ async function loadTransactionsByIds(
 ): Promise<{ data: VatReportTransactionRow[]; error: unknown }> {
   if (transactionIds.length === 0) return { data: [], error: null }
 
-  const { data, error } = await db
-    .from('transactions')
-    .select('id, user_id, date, source, import_batch_id')
-    .eq('user_id', userId)
-    .in('id', transactionIds)
+  try {
+    const data = await fetchAllRowsByChunks<VatReportTransactionRow, string>({
+      context: 'VAT report transactions',
+      values: transactionIds,
+      createQuery: ids => db
+        .from('transactions')
+        .select('id, user_id, date, source, import_batch_id', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('id', ids) as FetchAllRangeQuery<VatReportTransactionRow>,
+    })
 
-  return { data: (data ?? []) as VatReportTransactionRow[], error }
+    return { data, error: null }
+  } catch (error) {
+    return { data: [], error }
+  }
+}
+
+export async function getVatReportForPeriodFromDb(
+  db: VatReportSupabaseClient,
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<VatReportServiceResult> {
+  try {
+    const period26Rows = await fetchAllRows<
+      Pick<VatReportJournalEntryRow, 'user_id' | 'transaction_id' | 'account_number' | 'date'>
+    >({
+      context: 'VAT report candidate journal rows',
+      createQuery: () => db
+        .from('journal_entries')
+        .select('user_id, transaction_id, account_number, date', { count: 'exact' })
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .like('account_number', '26%') as FetchAllRangeQuery<
+          Pick<VatReportJournalEntryRow, 'user_id' | 'transaction_id' | 'account_number' | 'date'>
+        >,
+    })
+
+    const periodCandidateTransactionIds = Array.from(new Set(
+      period26Rows
+        .filter(row => isVatReportCandidateAccount(row.account_number))
+        .map(row => row.transaction_id)
+    ))
+
+    const periodVatV2TransactionRows = await fetchAllRows<VatReportTransactionRow>({
+      context: 'native VAT V2 transactions',
+      createQuery: () => db
+        .from('transactions')
+        .select('id, user_id, date, source, import_batch_id', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('source', 'vat_v2')
+        .gte('date', startDate)
+        .lte('date', endDate) as FetchAllRangeQuery<VatReportTransactionRow>,
+    })
+
+    const periodVatV2TransactionIds = periodVatV2TransactionRows.map(row => row.id)
+    const relevantTransactionIds = Array.from(new Set([
+      ...periodCandidateTransactionIds,
+      ...periodVatV2TransactionIds,
+    ]))
+    const { data: candidateTransactionRows, error: transactionError } =
+      await loadTransactionsByIds(db, userId, relevantTransactionIds)
+
+    if (transactionError) {
+      return queryError('Could not load VAT report transactions.', transactionError)
+    }
+
+    const allTransactionsById = new Map<string, VatReportTransactionRow>()
+
+    for (const row of candidateTransactionRows) {
+      allTransactionsById.set(row.id, row)
+    }
+
+    for (const row of periodVatV2TransactionRows) {
+      allTransactionsById.set(row.id, row)
+    }
+
+    const allTransactionRows = Array.from(allTransactionsById.values())
+    const importBatchIds = Array.from(new Set(
+      allTransactionRows
+        .map(row => row.import_batch_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ))
+    const importBatchRows =
+      importBatchIds.length === 0
+        ? [] as { id: string; status: string | null }[]
+        : await fetchAllRowsByChunks<{ id: string; status: string | null }, string>({
+          context: 'SIE import batch status for VAT report',
+          values: importBatchIds,
+          createQuery: ids => db
+            .from('import_batches')
+            .select('id, status', { count: 'exact' })
+            .eq('user_id', userId)
+            .in('id', ids) as FetchAllRangeQuery<{ id: string; status: string | null }>,
+        })
+
+    const importBatchStatusById = new Map(
+      importBatchRows.map(row => [row.id, row.status])
+    )
+    const allTransactionRowsWithBatchStatus = allTransactionRows.map(row => ({
+      ...row,
+      import_batch_status: row.import_batch_id
+        ? importBatchStatusById.get(row.import_batch_id) ?? null
+        : null,
+    }))
+    const all26Rows =
+      relevantTransactionIds.length === 0
+        ? [] as VatReportJournalEntryRow[]
+        : await fetchAllRowsByChunks<VatReportJournalEntryRow, string>({
+          context: 'complete VAT report journal rows',
+          values: relevantTransactionIds,
+          createQuery: ids => db
+            .from('journal_entries')
+            .select('user_id, transaction_id, account_number, debit, credit, date', { count: 'exact' })
+            .eq('user_id', userId)
+            .in('transaction_id', ids)
+            .like('account_number', '26%') as FetchAllRangeQuery<VatReportJournalEntryRow>,
+        })
+
+    const snapshotRows =
+      periodVatV2TransactionIds.length === 0
+        ? [] as VatReportAuditSnapshotRow[]
+        : await fetchAllRowsByChunks<VatReportAuditSnapshotRow, string>({
+          context: 'VAT V2 audit snapshots',
+          values: periodVatV2TransactionIds,
+          createQuery: ids => db
+            .from('vat_audit_snapshots')
+            .select('user_id, transaction_id, snapshot, created_at', { count: 'exact' })
+            .eq('user_id', userId)
+            .in('transaction_id', ids) as FetchAllRangeQuery<VatReportAuditSnapshotRow>,
+        })
+
+    return calculateVatReportFromLoadedRows({
+      userId,
+      startDate,
+      endDate,
+      rows: {
+        transactions: allTransactionRowsWithBatchStatus,
+        journalRows: all26Rows,
+        vatV2Snapshots: snapshotRows,
+      },
+    })
+  } catch (err) {
+    return queryError('Could not load complete VAT report source data.', err)
+  }
 }
 
 export async function getVatReportForPeriod(
@@ -352,137 +494,16 @@ export async function getVatReportForPeriod(
     import('./supabaseClient'),
     import('./accountingService'),
   ])
-  const db = supabase as unknown as VatReportSupabaseClient
-  let userId: string
 
   try {
-    userId = await getUserId()
+    const userId = await getUserId()
+    return getVatReportForPeriodFromDb(
+      supabase as unknown as VatReportSupabaseClient,
+      userId,
+      startDate,
+      endDate
+    )
   } catch (err) {
     return queryError('Could not determine authenticated user for VAT report.', err)
   }
-
-  const { data: period26Rows, error: period26Error } = await db
-    .from('journal_entries')
-    .select('user_id, transaction_id, account_number, date')
-    .eq('user_id', userId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .like('account_number', '26%')
-
-  if (period26Error) {
-    return queryError('Could not load VAT report candidate journal rows.', period26Error)
-  }
-
-  const periodCandidateTransactionIds = Array.from(new Set(
-    ((period26Rows ?? []) as Pick<
-      VatReportJournalEntryRow,
-      'account_number' | 'transaction_id'
-    >[])
-      .filter(row => isVatReportCandidateAccount(row.account_number))
-      .map(row => row.transaction_id)
-  ))
-
-  const { data: periodVatV2Transactions, error: vatV2TransactionError } =
-    await db
-      .from('transactions')
-      .select('id, user_id, date, source, import_batch_id')
-      .eq('user_id', userId)
-      .eq('source', 'vat_v2')
-      .gte('date', startDate)
-      .lte('date', endDate)
-
-  if (vatV2TransactionError) {
-    return queryError('Could not load native VAT V2 transactions.', vatV2TransactionError)
-  }
-
-  const periodVatV2TransactionRows =
-    (periodVatV2Transactions ?? []) as VatReportTransactionRow[]
-  const periodVatV2TransactionIds = periodVatV2TransactionRows.map(row => row.id)
-  const relevantTransactionIds = Array.from(new Set([
-    ...periodCandidateTransactionIds,
-    ...periodVatV2TransactionIds,
-  ]))
-  const { data: candidateTransactionRows, error: transactionError } =
-    await loadTransactionsByIds(db, userId, relevantTransactionIds)
-
-  if (transactionError) {
-    return queryError('Could not load VAT report transactions.', transactionError)
-  }
-
-  const allTransactionsById = new Map<string, VatReportTransactionRow>()
-
-  for (const row of candidateTransactionRows) {
-    allTransactionsById.set(row.id, row)
-  }
-
-  for (const row of periodVatV2TransactionRows) {
-    allTransactionsById.set(row.id, row)
-  }
-
-  const allTransactionRows = Array.from(allTransactionsById.values())
-  const importBatchIds = Array.from(new Set(
-    allTransactionRows
-      .map(row => row.import_batch_id)
-      .filter((id): id is string => typeof id === 'string' && id.length > 0)
-  ))
-  const { data: importBatchRows, error: importBatchError } =
-    importBatchIds.length === 0
-      ? { data: [] as { id: string; status: string | null }[], error: null }
-      : await db
-        .from('import_batches')
-        .select('id, status')
-        .eq('user_id', userId)
-        .in('id', importBatchIds)
-
-  if (importBatchError) {
-    return queryError('Could not load SIE import batch status for VAT report.', importBatchError)
-  }
-
-  const importBatchStatusById = new Map(
-    ((importBatchRows ?? []) as { id: string; status: string | null }[])
-      .map(row => [row.id, row.status])
-  )
-  const allTransactionRowsWithBatchStatus = allTransactionRows.map(row => ({
-    ...row,
-    import_batch_status: row.import_batch_id
-      ? importBatchStatusById.get(row.import_batch_id) ?? null
-      : null,
-  }))
-  const { data: all26Rows, error: all26Error } =
-    relevantTransactionIds.length === 0
-      ? { data: [] as VatReportJournalEntryRow[], error: null }
-      : await db
-        .from('journal_entries')
-        .select('user_id, transaction_id, account_number, debit, credit, date')
-        .eq('user_id', userId)
-        .in('transaction_id', relevantTransactionIds)
-        .like('account_number', '26%')
-
-  if (all26Error) {
-    return queryError('Could not load complete VAT report journal rows.', all26Error)
-  }
-
-  const { data: snapshotRows, error: snapshotError } =
-    periodVatV2TransactionIds.length === 0
-      ? { data: [] as VatReportAuditSnapshotRow[], error: null }
-      : await db
-        .from('vat_audit_snapshots')
-        .select('user_id, transaction_id, snapshot, created_at')
-        .eq('user_id', userId)
-        .in('transaction_id', periodVatV2TransactionIds)
-
-  if (snapshotError) {
-    return queryError('Could not load VAT V2 audit snapshots.', snapshotError)
-  }
-
-  return calculateVatReportFromLoadedRows({
-    userId,
-    startDate,
-    endDate,
-    rows: {
-      transactions: allTransactionRowsWithBatchStatus,
-      journalRows: (all26Rows ?? []) as VatReportJournalEntryRow[],
-      vatV2Snapshots: (snapshotRows ?? []) as VatReportAuditSnapshotRow[],
-    },
-  })
 }

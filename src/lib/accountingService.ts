@@ -29,6 +29,11 @@ import {
   isSettlementAccount,
   legacyVatRateForAccount,
 } from './legacyVatInference.ts'
+import {
+  fetchAllRows,
+  fetchAllRowsByChunks,
+  type FetchAllRangeQuery,
+} from './supabaseFetchAll'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -45,6 +50,77 @@ interface BookTransactionInput {
   type: string
   vat_rate?: number | null
   file_url?: string | null
+}
+
+interface AccountBalanceRpcRow {
+  account_number: string
+  balance: number | string | null
+}
+
+type AccountingSupabaseFilterQuery<T> = FetchAllRangeQuery<T> & {
+  eq(column: string, value: unknown): AccountingSupabaseFilterQuery<T>
+  gte(column: string, value: string): AccountingSupabaseFilterQuery<T>
+  lte(column: string, value: string): AccountingSupabaseFilterQuery<T>
+  like(column: string, value: string): AccountingSupabaseFilterQuery<T>
+  in(column: string, values: string[]): AccountingSupabaseFilterQuery<T>
+}
+
+type AccountingSupabaseQuery = {
+  select(
+    columns: string,
+    options?: { count?: 'exact' }
+  ): AccountingSupabaseFilterQuery<unknown>
+}
+
+type AccountingSupabaseClient = {
+  from(table: string): AccountingSupabaseQuery
+}
+
+interface MomsBreakdownPeriodVatRow {
+  account_number: string
+  transaction_id: string
+}
+
+interface MomsBreakdownJournalRow {
+  account_number: string
+  debit: number | string | null
+  credit: number | string | null
+  transaction_id: string
+  date: string
+}
+
+interface MomsBreakdownTransactionRow {
+  id: string
+  source: string | null
+  import_batch_id: string | null
+}
+
+interface MomsBreakdownImportBatchRow {
+  id: string
+  status: string | null
+}
+
+function normalizeAccountBalanceRows(
+  rows: AccountBalanceRpcRow[] | null | undefined,
+  options: { balanceSheetOnly?: boolean } = {}
+) {
+  const balances: Record<string, number> = {}
+
+  for (const row of rows ?? []) {
+    const acc = row.account_number.toString()
+
+    if (
+      options.balanceSheetOnly === true &&
+      !acc.startsWith('1') &&
+      !acc.startsWith('2')
+    ) {
+      continue
+    }
+
+    balances[acc] = Number(row.balance ?? 0)
+  }
+
+  return balances
 }
 
 export async function bookTransaction(tx: BookTransactionInput) {
@@ -218,35 +294,15 @@ export async function updateTransaction(
 export async function getAccountBalances(year: number) {
   const startDate = `${year}-01-01`
   const endDate = `${year}-12-31`
-  const userId = await getUserId()
 
-  const { data: txs, error: txError } = await supabase
-    .from('transactions')
-    .select('id')
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .eq('user_id', userId)
-  if (txError) throw txError
-
-  const ids = txs?.map(t => t.id) || []
-  if (ids.length === 0) return {}
-
-  // SÄKERHETSBÄLTE: Filtrera även journalrader på user_id för att undvika data-läckage
-  const { data: entries, error: entryError } = await supabase
-    .from('journal_entries')
-    .select('account_number, debit, credit')
-    .in('transaction_id', ids)
-    .eq('user_id', userId)
-  if (entryError) throw entryError
-
-  const balances: Record<string, number> = {}
-  entries?.forEach(e => {
-    const acc = e.account_number.toString()
-    balances[acc] = Math.round(
-      ((balances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
-    ) / 100
+  const { data, error } = await supabase.rpc('get_period_account_balances', {
+    p_start_date: startDate,
+    p_end_date: endDate,
   })
-  return balances
+
+  if (error) throw error
+
+  return normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
 }
 
 /**
@@ -255,52 +311,21 @@ export async function getAccountBalances(year: number) {
  * getAccountBalances() som bara summerar det angivna kalenderårets egna
  * rörelser.
  *
- * Steg 1 av carry-forward-arbetet: helt fristående funktion. Används INTE
- * av någon befintlig konsument ännu - getAccountBalances() och alla dess
- * nuvarande anropare (Dashboard, NE-bilagan, SIE-export m.fl.) är oförändrade.
- *
- * Samma saldokonvention (debit - credit per konto) och samma dubbla
- * user_id-filtrering (transactions + journal_entries) som
- * getAccountBalances() - se den funktionen för bakgrund.
+ * Själva summeringen sker server-side via read-only RPC så klienten inte
+ * behöver ladda alla journalrader när datamängden växer.
  */
 export async function getBalanceSheetBalances(year: number) {
   const endDate = `${year}-12-31`
-  const userId = await getUserId()
 
-  // Ingen nedre datumgräns - det är hela poängen: alla transaktioner
-  // sedan bokföringens start, inte bara det valda kalenderåret.
-  const { data: txs, error: txError } = await supabase
-    .from('transactions')
-    .select('id')
-    .lte('date', endDate)
-    .eq('user_id', userId)
-  if (txError) throw txError
-
-  const ids = txs?.map(t => t.id) || []
-  if (ids.length === 0) return {}
-
-  // SÄKERHETSBÄLTE: samma dubbla user_id-filtrering som getAccountBalances()
-  const { data: entries, error: entryError } = await supabase
-    .from('journal_entries')
-    .select('account_number, debit, credit')
-    .in('transaction_id', ids)
-    .eq('user_id', userId)
-  if (entryError) throw entryError
-
-  const balances: Record<string, number> = {}
-  entries?.forEach(e => {
-    const acc = e.account_number.toString()
-
-    // Endast balanskonton (1xxx-2xxx). Resultatkonton (3xxx-8xxx) hanteras
-    // fortsatt uteslutande av getAccountBalances() och ska inte vara
-    // kumulativa.
-    if (!acc.startsWith('1') && !acc.startsWith('2')) return
-
-    balances[acc] = Math.round(
-      ((balances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
-    ) / 100
+  const { data, error } = await supabase.rpc('get_cumulative_account_balances', {
+    p_through_date: endDate,
   })
-  return balances
+
+  if (error) throw error
+
+  return normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null, {
+    balanceSheetOnly: true,
+  })
 }
 
 export type VatPeriodType = 'month' | 'quarter' | 'year'
@@ -740,6 +765,7 @@ export interface MomsBreakdown {
 
 export async function getMomsBreakdown(startDate: string, endDate: string): Promise<MomsBreakdown> {
   const userId = await getUserId()
+  const db = supabase as unknown as AccountingSupabaseClient
   const manualReviewMessage =
     'Momsöversikten kräver manuell kontroll eftersom perioden innehåller äldre/manuella/SIE-rader med omvänd momsindikator utan kontrollerbar deklarationsruta.'
 
@@ -750,17 +776,21 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   // verifikationen är en intern momsombokning. En SIE-verifikation kan ha olika
   // datum på sina #TRANS-rader och 265x-raden kan därför ligga precis utanför
   // perioden. Det var den tidigare periodgränsbuggen.
-  const { data: period26Rows, error: periodError } = await supabase
-    .from('journal_entries')
-    .select('account_number, transaction_id')
-    .eq('user_id', userId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .like('account_number', '26%')
-  if (periodError) throw periodError
+  const period26Rows = await fetchAllRows<MomsBreakdownPeriodVatRow>({
+    context: 'dashboard VAT candidate journal rows',
+    createQuery: () => db
+      .from('journal_entries')
+      .select('account_number, transaction_id', { count: 'exact' })
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .like('account_number', '26%') as AccountingSupabaseFilterQuery<
+        MomsBreakdownPeriodVatRow
+      >,
+  })
 
   const candidateTransactionIds = Array.from(new Set(
-    (period26Rows || [])
+    period26Rows
       .filter(r => isOutputVatAccount(r.account_number) || isInputVatAccount(r.account_number))
       .map(r => r.transaction_id)
   ))
@@ -788,41 +818,57 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   //
   // Själva momsbeloppen summeras fortfarande ENDAST från rader vars datum
   // ligger inom [startDate, endDate].
-  const { data: all26Rows, error: allRowsError } = await supabase
-    .from('journal_entries')
-    .select('account_number, debit, credit, transaction_id, date')
-    .eq('user_id', userId)
-    .in('transaction_id', candidateTransactionIds)
-    .like('account_number', '26%')
-  if (allRowsError) throw allRowsError
-
-  const { data: candidateTransactions, error: candidateTransactionsError } = await supabase
-    .from('transactions')
-    .select('id, source, import_batch_id')
-    .eq('user_id', userId)
-    .in('id', candidateTransactionIds)
-  if (candidateTransactionsError) throw candidateTransactionsError
+  const [all26Rows, candidateTransactions] = await Promise.all([
+    fetchAllRowsByChunks<MomsBreakdownJournalRow, string>({
+      context: 'dashboard VAT complete journal rows',
+      values: candidateTransactionIds,
+      createQuery: ids => db
+        .from('journal_entries')
+        .select('account_number, debit, credit, transaction_id, date', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('transaction_id', ids)
+        .like('account_number', '26%') as AccountingSupabaseFilterQuery<
+          MomsBreakdownJournalRow
+        >,
+    }),
+    fetchAllRowsByChunks<MomsBreakdownTransactionRow, string>({
+      context: 'dashboard VAT transactions',
+      values: candidateTransactionIds,
+      createQuery: ids => db
+        .from('transactions')
+        .select('id, source, import_batch_id', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('id', ids) as AccountingSupabaseFilterQuery<
+          MomsBreakdownTransactionRow
+        >,
+    }),
+  ])
 
   const importBatchIds = Array.from(new Set(
-    (candidateTransactions || [])
+    candidateTransactions
       .map(tx => tx.import_batch_id)
       .filter((id): id is string => typeof id === 'string' && id.length > 0)
   ))
-  const { data: importBatches, error: importBatchesError } =
+  const importBatches =
     importBatchIds.length === 0
-      ? { data: [] as { id: string; status: string | null }[], error: null }
-      : await supabase
-        .from('import_batches')
-        .select('id, status')
-        .eq('user_id', userId)
-        .in('id', importBatchIds)
-  if (importBatchesError) throw importBatchesError
+      ? [] as MomsBreakdownImportBatchRow[]
+      : await fetchAllRowsByChunks<MomsBreakdownImportBatchRow, string>({
+        context: 'dashboard VAT import batches',
+        values: importBatchIds,
+        createQuery: ids => db
+          .from('import_batches')
+          .select('id, status', { count: 'exact' })
+          .eq('user_id', userId)
+          .in('id', ids) as AccountingSupabaseFilterQuery<
+            MomsBreakdownImportBatchRow
+          >,
+      })
 
   const importBatchStatusById = new Map(
-    (importBatches || []).map(batch => [batch.id, batch.status as string | null])
+    importBatches.map(batch => [batch.id, batch.status as string | null])
   )
   const transactionById = new Map(
-    (candidateTransactions || []).map(tx => [
+    candidateTransactions.map(tx => [
       tx.id,
       {
         source: tx.source as string | null,
@@ -838,7 +884,7 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
     { account_number: string; debit: number; credit: number; date: string }[]
   > = {}
 
-  all26Rows?.forEach(e => {
+  all26Rows.forEach(e => {
     if (!isLegacyVatInferenceTransaction(transactionById.get(e.transaction_id) ?? {
       source: undefined,
       importBatchStatus: null,
@@ -1114,51 +1160,31 @@ function computeResultat(balances: Record<string, number>) {
  *
  * Bygger INGEN egen R1-R8-logik. Bygger bara ett kumulativt balansobjekt,
  * exakt samma mönster som getBalanceSheetBalances() (ingen nedre
- * datumgräns, samma dubbla user_id-filtrering, samma debit-credit-
- * konvention), men utan kontoprefix-filter - computeResultat() läser
- * ändå bara de resultatkonton (3xxx-8xxx) den bryr sig om, så en äkta
- * öppningsbalans (som bara innehåller balanskonton, t.ex. 1930/2010)
- * påverkar aldrig detta resultat, oavsett dess source/type.
+ * datumgräns och samma debit-credit-konvention), men utan kontoprefix-filter.
+ * computeResultat() läser ändå bara de resultatkonton (3xxx-8xxx) den bryr
+ * sig om, så en äkta öppningsbalans (som bara innehåller balanskonton, t.ex.
+ * 1930/2010) påverkar aldrig detta resultat, oavsett dess source/type.
  *
  * Returnerar HELA computeResultat()-resultatet (inte bara bokfRes), så att
  * R1-R8-nedbrytningen också går att inspektera isolerat vid verifiering -
  * kostar inget extra eftersom computeResultat() redan räknar ut alla
  * fälten tillsammans.
  *
- * Ännu inte kopplad till getNEData/B10 eller någon UI - helt fristående
- * i detta steg.
+ * Själva summeringen sker server-side via read-only RPC så klienten inte
+ * behöver ladda alla journalrader när datamängden växer.
  */
 export async function getCumulativeResultat(year: number) {
   const endDate = `${year}-12-31`
-  const userId = await getUserId()
 
-  const { data: txs, error: txError } = await supabase
-    .from('transactions')
-    .select('id')
-    .lte('date', endDate)
-    .eq('user_id', userId)
-  if (txError) throw txError
-
-  const ids = txs?.map(t => t.id) || []
-  if (ids.length === 0) return computeResultat({})
-
-  // SÄKERHETSBÄLTE: samma dubbla user_id-filtrering som getBalanceSheetBalances()
-  const { data: entries, error: entryError } = await supabase
-    .from('journal_entries')
-    .select('account_number, debit, credit')
-    .in('transaction_id', ids)
-    .eq('user_id', userId)
-  if (entryError) throw entryError
-
-  const cumulativeBalances: Record<string, number> = {}
-  entries?.forEach(e => {
-    const acc = e.account_number.toString()
-    cumulativeBalances[acc] = Math.round(
-      ((cumulativeBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
-    ) / 100
+  const { data, error } = await supabase.rpc('get_cumulative_account_balances', {
+    p_through_date: endDate,
   })
 
-  return computeResultat(cumulativeBalances)
+  if (error) throw error
+
+  return computeResultat(
+    normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
+  )
 }
 
 export async function getNEData(year: number) {
