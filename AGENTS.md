@@ -12,10 +12,20 @@ Correct bookkeeping, auditability, user isolation, and data integrity always com
 
 Core principle: **Osäker → SoloLedger gissar inte.**
 
+## Communication With Pontus
+
+- Leader-facing answers to Pontus should normally be in simple, understandable Swedish.
+- Start with the meaning: what is wrong, whether it is risky, and what we do next.
+- Avoid unnecessary programming jargon in leader-facing summaries.
+- Keep technical detail in Codex instructions, implementation notes, and documentation unless Pontus explicitly asks for it.
+- Be explicit about uncertainty; never say something is verified until it has actually been verified.
+
 ## Sources Of Truth
 
 - Live Supabase is the source of truth for the current database structure, constraints, indexes, RLS policies, grants, and deployed RPC definitions.
 - The local repository is the source of truth for application code.
+- `AGENTS.md` is the permanent project rulebook; `PROJECT_STATE.md` is the current handoff/checkpoint; `PROJECT_ARCHIVE.md` is completed evidence/history that should not clutter current state; `Architecture.md` is the current technical map; Jira is the work queue/status/backlog.
+- A new session should read the durable docs before changing the project. Chat history must never be the only source of important project truth.
 - Do not guess database structure, RPC signatures, function bodies, existing application behavior, or accounting rules. Inspect the relevant source first.
 - Before modifying an existing RPC, read the live deployed definition with `pg_get_functiondef()` and check related constraints, indexes, RLS policies, and grants when relevant.
 - The files in `supabase/migrations/` are historical migrations. Future DB changes should be new, small migration files unless the user explicitly asks for something else.
@@ -107,6 +117,16 @@ Supabase CLI may create or recreate `supabase/.temp/`. In the verified SoloLedge
 ## Database And Supabase Rules
 
 Central bookkeeping writes should remain server-side/database-side through RPCs, not recreated as multi-step client writes.
+
+Established SoloLedger Supabase context:
+
+- Production Supabase project ref: `wbaxmuvudpnkvuliicuy`.
+- Use the established CLI entry point `npx --yes supabase@latest` for Supabase CLI work unless a task verifies a better project-specific path first.
+- Start from the durable docs, current Git state, `supabase/migrations/`, and the verified live project context before inspecting or changing Supabase.
+- For live read-only inspection, migrations, and post-change verification, prefer the already proven path: inspect live state first, prepare local migration/tests, verify safely, apply through the official Supabase CLI flow that preserves repo/live migration identity, then verify the exact live migration/version and relevant definitions.
+- Do not spend time trying many alternative connection methods when the established CLI/workflow is available. If tooling/auth fails, report it as a tooling/auth problem until evidence shows a product or database defect.
+- Never ask Pontus to paste secrets into chat. Never read, display, copy, or hash pgpass or credential contents.
+- `supabase/.temp/` is generated CLI state and must not be committed merely to make Git clean.
 
 Important RPCs include:
 
@@ -204,6 +224,10 @@ When changing DB behavior:
 - Verify relevant state claims before sensitive decisions.
 - Do not write secrets or real sensitive user data in `PROJECT_STATE.md` or `PROJECT_ARCHIVE.md`.
 - If project documentation, `PROJECT_STATE.md`, migrations, live DB state, and implementation disagree, report the discrepancy and verify the relevant source of truth before acting.
+
+Planned handoff rule: when Pontus asks to make the project handoff-ready, verify that important work is committed or clearly identified, `PROJECT_STATE.md` is current, `AGENTS.md` only changed for new permanent rules, Git status and HEAD/origin state are understood, Jira status is reasonably current, the next step is explicit, and remaining untracked/generated files are explained. Report `HANDOFF READY` only when those checks are actually true.
+
+Unexpected-session recovery: if a prior session died mid-task or context is missing, start read-only. Read durable docs, check Git status, unstaged/staged diffs, recent relevant commits, Jira/current state, and identify any uncommitted work before writing anything. Do not assume `main` is clean or that the previous task finished.
 
 ## Retention
 
