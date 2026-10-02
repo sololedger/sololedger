@@ -7,6 +7,7 @@ import {
   shouldOfferGenericTransactionCorrection,
   shouldOfferGenericTransactionEdit,
 } from '@/lib/transactionSourceUi'
+import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -113,7 +114,7 @@ export default function TransactionTable({
         journal.some((e: any) =>
           String(e.account_number || '').startsWith('3') && Number(e.credit) > 0
         ) ||
-        tx.type === 'egen_insättning'
+        isOwnerDepositCategoryId(tx.type)
       )
 
     // En KORRVER är i sig en giltig ny bokföringspost. Därför stryks inte

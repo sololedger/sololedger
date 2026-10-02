@@ -35,6 +35,7 @@ import {
   shouldShowOrdinaryV1FieldsForVatV2Form,
   type VatV2RuntimeBookingRequest,
 } from '@/lib/vatRuntimeBooking'
+import { getTransactionCategoryUiGroup } from '@/lib/accountCategoryUi'
 
 export interface FormData {
   date: string
@@ -525,23 +526,15 @@ export default function TransactionForm({
                 >
                   {(() => {
                     const income = kontoplan.filter(
-                      k =>
-                        k.credit_account?.startsWith('3')
+                      k => getTransactionCategoryUiGroup(k) === 'income'
                     )
 
                     const special = kontoplan.filter(
-                      k =>
-                        k.id === 'ingående_balans' ||
-                        k.id === 'skattekonto_default' ||
-                        k.id === 'egen_insättning' ||
-                        k.id === 'eget_uttag' ||
-                        k.id === 'periodisering'
+                      k => getTransactionCategoryUiGroup(k) === 'other'
                     )
 
                     const costs = kontoplan.filter(
-                      k =>
-                        !income.includes(k) &&
-                        !special.includes(k)
+                      k => getTransactionCategoryUiGroup(k) === 'cost'
                     )
 
                     return (
