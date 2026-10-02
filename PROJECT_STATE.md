@@ -7,8 +7,9 @@ Last updated: 2026-10-02
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Current commit: `e925b944c8059fc5f665e8b810fc0b8d8871e252`
-  (`docs: refresh architecture overview`)
+- Latest completed checkpoint before this final state update:
+  `f38cd2fa8e91fcde6f475256916e48bc24fa664f`
+  (`docs: version external audit snapshot`)
 - Verified before this handoff-doc refresh: `HEAD == origin/main`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
@@ -62,6 +63,9 @@ Verified read-only from Jira on 2026-10-02:
   (`Fix account category UI aliases`).
 - `Architecture.md` was fully refreshed and pushed:
   `e925b944c8059fc5f665e8b810fc0b8d8871e252`.
+- The immutable External Audit #1 snapshot package `SOLOLEDGER_AUDIT_*.md`
+  was versioned and pushed:
+  `f38cd2fa8e91fcde6f475256916e48bc24fa664f`.
 
 ## Account-Plan Hygiene
 
@@ -100,15 +104,12 @@ Verified read-only from Jira on 2026-10-02:
 ## Git / Local Files
 
 - `HEAD == origin/main` was verified at commit
-  `e925b944c8059fc5f665e8b810fc0b8d8871e252` before editing this state file.
-- The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are still
-  untracked snapshot files and should remain untouched until a separate leader
-  decision.
-- `KAN-32-IRL-legacy-reverse-charge.se` remains an untracked IRL test fixture
-  from the completed KAN-32 verification. Do not delete or commit it without a
-  separate decision.
-- `supabase/.temp/` remains generated local Supabase CLI state and should not
-  be committed.
+  `f38cd2fa8e91fcde6f475256916e48bc24fa664f` before this final state update.
+- The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
+  an immutable historical snapshot.
+- `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
+  longer present in the repo worktree.
+- `supabase/.temp/` remains generated local Supabase CLI state and is ignored.
 
 ## Local Test Environment
 
@@ -124,9 +125,5 @@ Verified read-only from Jira on 2026-10-02:
 
 ## Next Safe Step
 
-1. Leader review of the `AGENTS.md` and `PROJECT_STATE.md` changes.
-2. If approved, commit/push only those handoff docs.
-3. Separately decide what to do with `SOLOLEDGER_AUDIT_*.md` and
-   `KAN-32-IRL-legacy-reverse-charge.se`.
-4. Run final handoff check.
-5. Then move to a new leader chat/session if desired.
+1. Move to a new leader chat/session if desired.
+2. Otherwise select the next work item from Jira/backlog.
