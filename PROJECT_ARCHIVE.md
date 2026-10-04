@@ -6,6 +6,23 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-37 Central Payment Account Settings
+
+- KAN-37 reached `Done` in Jira on 2026-10-04 after Pontus IRL-verified the
+  local and Production flows.
+- Production `main`/`origin/main` checkpoint: `db93f2d` (`KAN-37 fix payment
+  account loading race`).
+- Scope completed: central `Betalningskonton` in Profil backed by
+  `company_payment_account_roles`; non-blocking Bokföringssidan prompt; VAT V2
+  and Momsrapport guidance to Profil; preserved 2013 semantics for private
+  withdrawal from tax account; and explicit account-plan load-state handling so
+  saved roles do not flash as missing while the account plan is still loading.
+- Verified behavior included Profile selection/persistence, reminder removal,
+  VAT V2 business/private paths, missing-2018 blocking, Momsrapport
+  pre-submit guidance, and the payment-account loading race fix.
+- KAN-37 intentionally did not change the VAT V2 RPC contract. KAN-38 remains
+  the separate follow-up for server-side payment-role enforcement/hardening.
+
 ### External Audit #1 Final Closeout
 
 - External Audit #1 was closed on 2026-10-01 after KAN-33 reached `Done`.

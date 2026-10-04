@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
+import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
 import { buildVatAuditSnapshot } from './vatAuditSnapshot'
 import { buildVatJournalPlan } from './vatJournalPlan'
@@ -162,6 +163,7 @@ export interface BookVatV2EuServiceReverseChargeInput {
   description: string
   treatment: VatTreatment
   paymentAccountNumber: string
+  paymentRole: PaymentAccountRole
   idempotencyKey: string
   fileUrl?: string | null
 }
@@ -220,7 +222,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
     output_vat_report_field: input.treatment.outputVat.reportField,
     deductible_input_vat_report_field:
       input.treatment.deductibleInputVat.reportField,
-    payment_account_number: input.paymentAccountNumber,
+    payment_account_role: input.paymentRole,
     rule_version: input.treatment.ruleVersion,
     facts_version: input.treatment.evidence.factsVersion,
     idempotency_key: input.idempotencyKey,

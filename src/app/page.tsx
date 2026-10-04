@@ -384,6 +384,7 @@ export default function Home() {
         description: request.description,
         treatment: request.treatment,
         paymentAccountNumber: request.paymentAccountNumber,
+        paymentRole: request.paymentRole,
         idempotencyKey: preparedIdempotency.key,
         fileUrl,
       })

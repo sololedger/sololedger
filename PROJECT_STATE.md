@@ -7,10 +7,9 @@ Last updated: 2026-10-04
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Latest pushed checkpoint before this local race-fix follow-up:
-  `7e1aef6` (`KAN-37 centralize payment account settings`).
-- Before the KAN-37 race-fix work resumed, local `main` and `origin/main`
-  pointed to `7e1aef6`.
+- `origin/main`: `db93f2d` (`KAN-37 fix payment account loading race`).
+- Current local checkout contains the KAN-38 checkpoint work and must remain
+  unpushed until Pontus/leader chat explicitly approves the production risk.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -35,82 +34,62 @@ Last updated: 2026-10-04
 - Live Supabase migration head documented/verified from audit closeout:
   `20261001120000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
-- `supabase/.temp/` may exist as generated Supabase CLI state only. Verified
-  filenames currently include `cli-latest`, `gotrue-version`,
-  `linked-project.json`, `pooler-url`, `postgres-version`, `project-ref`,
-  `rest-version`, `storage-migration`, and `storage-version`. Do not
+- `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
 
 ## Jira Status Snapshot
 
 Verified from Jira on 2026-10-04:
 
-- Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33.
+- Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
+  KAN-37.
+- In Review: KAN-38, assigned to Pontus for review/final testing.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
-  KAN-34, KAN-35, KAN-36, KAN-38.
-- In Review: KAN-37
-  `Central konfiguration av betalningskonton i Profil`, assigned to Pontus
-  with Codex verification comment.
+  KAN-34, KAN-35, KAN-36.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
+- KAN-37 is completed/pushed/deployed/IRL-verified by Pontus.
 - KAN-36 is future inventory/depreciation product work.
-- KAN-38 is the future follow-up for VAT V2 RPC central payment-role
-  enforcement/hardening.
+- KAN-38 implementation is locally verified and waiting for Pontus/leader
+  approval before any live Supabase migration or push/deploy.
+
+## Product Acceptance Direction
+
+- Primary acceptance path remains a real small Swedish enskild firma without
+  employees. When facts are missing, SoloLedger asks, blocks, or explains; it
+  must not guess.
+- Parked real Adobe EU-service scenario remains blocked from live data changes
+  until the Skatteverket/Adobe outcome is known.
 
 ## Current Active Work
 
-- KAN-37 initial implementation was pushed as `7e1aef6` and IRL-tested.
-- Current local follow-up fixes the remaining Bokföringssidan loading flash:
-  a saved payment-account role no longer becomes `missing_account` while the
-  account plan is still unloaded/loading/unavailable.
-- Scope completed: central `Betalningskonton` in Profil backed by
-  `company_payment_account_roles`; non-blocking Bokföringssidan prompt; VAT V2
-  and Momsrapport guidance to Profil; 2013 semantics preserved for private
-  withdrawal from tax account; explicit account-plan load state in
-  `useAccountingData`.
-- IRL verified by Pontus: Profile selection/persistence, Bokföringssidan
-  reminder removal, VAT V2 business/private paths, missing-2018 blocking, and
-  Momsrapport pre-submit guidance. No tax-account movement was registered in
-  IRL testing.
-- Follow-up correction: payment-role status now distinguishes account-plan
-  `unloaded/loading/error` from loaded + genuinely missing account; dashboard
-  reminders require both role state and account-plan state to be evaluable.
-- No DB migration, Supabase write, deploy, or push was performed for this
-  follow-up. The upcoming checkpoint is local only until Pontus approves push.
-- Verification for the local follow-up:
-  targeted payment-role race regression test, `npm run typecheck`,
-  `npm run test:domain`, relevant targeted lint, `npm run build`,
-  `git diff --check`, and adversarial diff review.
-  Sandboxed builds fail only when Google Fonts network fetch is blocked; the
-  approved network build passed.
-- Full/touched-file lint still exposes older repo lint debt in `page.tsx`,
-  `ProfileSettings`, and `useAccountingData`. Targeted lint for the changed
-  payment-role status/test/Momsrapport surface passed.
-
-## Account-Plan Hygiene
-
-- New canonical users currently get 9 seeded default categories, 14 quick
-  suggestions, and 14 system accounts. See `Architecture.md` for the exact
-  current model.
-- The older real user's legacy account cleanup is completed and verified.
-  No further live-data repair is currently planned for that user.
-- Do not put identifying user data in project docs.
-- There is no general automatic default-upgrade engine. Future design should
-  be conservative/fingerprint-aware: never overwrite legitimate user changes
-  or historically used category IDs just because defaults changed.
-
-## Inventory / Depreciation
-
-- SoloLedger has partial BAS/knowledge/report support for inventory and
-  depreciation: guided 1220 knowledge, 7830 system/report support, NE handling
-  for existing 12xx/783x rows, and generic SIE export for used BAS accounts.
-- There is no dedicated inventory register, useful-life/depreciation plan, or
-  automatic annual depreciation entry flow.
-- Future work is captured by KAN-36.
+- KAN-38 local implementation is complete and not live-applied.
+- Scope completed: new migration replaces only
+  `public.book_vat_v2_eu_service_reverse_charge_atomic(jsonb)` so new VAT V2
+  EU-service bookings send `payment_account_role` and the RPC resolves the
+  current account from `company_payment_account_roles` for `auth.uid()`.
+- New bookings reject client-supplied `payment_account_number`; successful
+  idempotency replay remains before mutable Profile/account/year/VAT guards.
+- Audit/idempotency result now records both `paymentAccountRole` and the
+  server-resolved `paymentAccountNumber` for the booking-time configuration.
+- Existing successful legacy idempotency rows remain replayable with the old
+  account-number payload, and old local browser idempotency state is normalized
+  to payment role for stable replay after refresh.
+- No live Supabase migration/write, deploy, push, or real user-data change has
+  been performed for KAN-38.
+- Verification completed locally: rollback SQL regression on
+  `sololedger_kan17c_test`, VAT V2 runtime test, `npm run typecheck`,
+  `npm run test:domain`, targeted ESLint for touched non-`page.tsx` files,
+  `npm run build` with approved network access for Google Fonts, and
+  `git diff --check`.
+- Known non-blocker: including `src/app/page.tsx` in a broader targeted lint
+  still exposes older unrelated `page.tsx` debt already tracked under KAN-24 /
+  KAN-25.
 
 ## Known Non-Blockers / Debt
 
 - Full repo lint still has older unrelated debt.
 - KAN-24 and KAN-25 remain To Do for scoped `page.tsx` technical debt.
+- KAN-36 remains future inventory/depreciation product work.
 - KAN-34 remains future UX for completing VAT facts on ambiguous legacy/SIE
   rows.
 - KAN-35 remains low-priority UI transaction-history completeness follow-up.
@@ -122,11 +101,11 @@ Verified from Jira on 2026-10-04:
 
 ## Git / Local Files
 
-- This local follow-up checkpoint is expected to change:
-  `PROJECT_STATE.md`, `scripts/test-payment-account-role-status.ts`,
-  `src/app/page.tsx`, `src/components/Momsrapport.tsx`,
-  `src/components/ProfileSettings.tsx`, `src/hooks/useAccountingData.ts`, and
-  `src/lib/paymentAccountRoleStatus.ts`.
+- KAN-38 checkpoint files: `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`,
+  `scripts/test-vat-runtime-booking.ts`, `src/app/page.tsx`,
+  `src/lib/accountingService.ts`, `src/lib/vatRuntimeBooking.ts`,
+  `supabase/migrations/20261004152057_kan38_vat_v2_payment_role_enforcement.sql`,
+  and `supabase/tests/kan38_vat_v2_payment_role_enforcement_candidate.sql`.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -147,8 +126,11 @@ Verified from Jira on 2026-10-04:
 
 ## Next Safe Step
 
-1. Pontus should F5-test localhost for the Bokföringssidan loading flash.
-2. Push this KAN-37 follow-up only after explicit approval, treating push to
-   `main` as production deploy.
-3. Keep KAN-37 in Jira `In Review` for Pontus final process; do not set Done.
-4. Keep KAN-38 as separate future DB/RPC hardening work.
+1. Pontus/leader chat reviews KAN-38 and decides whether to approve live
+   Supabase migration application.
+2. If approved, apply the KAN-38 migration through the official Supabase CLI
+   flow that preserves the repo migration version, then verify the live
+   function definition, grants, and exact migration version.
+3. Push to `main` only after separate explicit approval, because it triggers
+   Vercel Production deploy.
+4. Keep KAN-38 out of `Done` until Pontus final testing is complete.

@@ -165,6 +165,12 @@ assert(
 
 assert(
   readyRuntime.status === 'ready' &&
+    readyRuntime.request.paymentRole === 'owner_private_payment',
+  'Runtime booking sends payment role for server-side account resolution'
+)
+
+assert(
+  readyRuntime.status === 'ready' &&
     readyRuntime.request.treatment.taxableBase === 1000,
   'Runtime booking carries the explicit VAT V2 acquisition base'
 )
@@ -186,6 +192,13 @@ const firstIntent = buildVatV2RuntimeBookingIntent(
   readyRuntimeRequest,
   'attachments/vat-v2-receipt.pdf'
 )
+
+assert(
+  !('paymentAccountNumber' in firstIntent) &&
+    firstIntent.paymentRole === 'owner_private_payment',
+  'VAT V2 runtime intent stores payment role, not authoritative account number'
+)
+
 const firstFileSignature = buildVatV2RuntimeBookingFileSignature({
   lastModified: 1790486400000,
   name: 'receipt.pdf',
@@ -211,6 +224,26 @@ assertEqual(
   'Unchanged VAT V2 runtime booking intent must reuse the same key'
 )
 
+const sameRoleChangedAccountIntent = buildVatV2RuntimeBookingIntent(
+  {
+    ...readyRuntimeRequest,
+    paymentAccountNumber: '2018',
+  },
+  firstIntent.fileUrl
+)
+const sameRoleChangedAccountPrepared =
+  prepareVatV2RuntimeBookingIdempotencyKey(
+    firstPreparedIdempotency.state,
+    sameRoleChangedAccountIntent,
+    nextIdempotencyKey
+  )
+
+assertEqual(
+  sameRoleChangedAccountPrepared.key,
+  firstPreparedIdempotency.key,
+  'VAT V2 runtime idempotency is role-based, not account-number based'
+)
+
 const idempotencyStorage = createMemoryStorage()
 writeVatV2RuntimeBookingIdempotencyToStorage(
   idempotencyStorage,
@@ -228,6 +261,38 @@ assertEqual(
   restoredPreparedIdempotency.key,
   firstPreparedIdempotency.key,
   'Same-session restored VAT V2 runtime booking intent must reuse the stored key'
+)
+
+const legacyIdempotencyStorage = createMemoryStorage()
+const legacyStoredIntentBase = Object.fromEntries(
+  Object.entries(firstIntent).filter(([key]) => key !== 'paymentRole')
+)
+legacyIdempotencyStorage.setItem(
+  VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY,
+  JSON.stringify({
+    fileSignature: firstFileSignature,
+    intent: {
+      ...legacyStoredIntentBase,
+      paymentAccountNumber: '2017',
+    },
+    key: 'legacy-vat-v2-key',
+  })
+)
+const restoredLegacyIdempotency =
+  readVatV2RuntimeBookingIdempotencyFromStorage(legacyIdempotencyStorage)
+assertEqual(
+  restoredLegacyIdempotency.intent?.paymentRole,
+  'owner_private_payment',
+  'Legacy stored VAT V2 payment account is normalized to payment role'
+)
+assertEqual(
+  prepareVatV2RuntimeBookingIdempotencyKey(
+    restoredLegacyIdempotency,
+    firstIntent,
+    nextIdempotencyKey
+  ).key,
+  'legacy-vat-v2-key',
+  'Legacy stored VAT V2 key is reused after role normalization'
 )
 
 assertEqual(
@@ -259,6 +324,25 @@ const changedDescriptionPrepared = prepareVatV2RuntimeBookingIdempotencyKey(
 assert(
   changedDescriptionPrepared.key !== firstPreparedIdempotency.key,
   'Material VAT V2 runtime booking intent changes must mint a new key'
+)
+
+const changedPaymentRoleIntent = buildVatV2RuntimeBookingIntent(
+  {
+    ...readyRuntimeRequest,
+    paymentAccountNumber: '1940',
+    paymentRole: 'business_payment_account',
+  },
+  firstIntent.fileUrl
+)
+const changedPaymentRolePrepared = prepareVatV2RuntimeBookingIdempotencyKey(
+  firstPreparedIdempotency.state,
+  changedPaymentRoleIntent,
+  nextIdempotencyKey
+)
+
+assert(
+  changedPaymentRolePrepared.key !== firstPreparedIdempotency.key,
+  'Changed VAT V2 payment role must mint a new key'
 )
 
 const changedFileIntent = buildVatV2RuntimeBookingIntent(

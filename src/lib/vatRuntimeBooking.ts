@@ -41,7 +41,7 @@ export interface VatV2RuntimeBookingIntent {
   acquisitionBaseField: string | null
   outputVatReportField: string | null
   deductibleInputVatReportField: string | null
-  paymentAccountNumber: string
+  paymentRole: PaymentAccountRole
   ruleVersion: string
   factsVersion: string
   fileUrl: string | null
@@ -206,17 +206,37 @@ function sameIntent(
     left.acquisitionBaseField === right.acquisitionBaseField &&
     left.outputVatReportField === right.outputVatReportField &&
     left.deductibleInputVatReportField === right.deductibleInputVatReportField &&
-    left.paymentAccountNumber === right.paymentAccountNumber &&
+    left.paymentRole === right.paymentRole &&
     left.ruleVersion === right.ruleVersion &&
     left.factsVersion === right.factsVersion &&
     left.fileUrl === right.fileUrl
   )
 }
 
-function isStoredIntent(value: unknown): value is VatV2RuntimeBookingIntent {
-  if (!value || typeof value !== 'object') return false
+function paymentRoleFromLegacyStoredAccount(
+  accountNumber: unknown
+): PaymentAccountRole | null {
+  if (typeof accountNumber !== 'string') return null
+  const normalized = accountNumber.trim()
+  if (/^1\d{3}$/.test(normalized)) return 'business_payment_account'
+  if (/^2\d{3}$/.test(normalized)) return 'owner_private_payment'
+  return null
+}
+
+function parseStoredIntent(value: unknown): VatV2RuntimeBookingIntent | null {
+  if (!value || typeof value !== 'object') return null
   const candidate = value as VatV2RuntimeBookingIntent
-  return (
+  const paymentRole =
+    candidate.paymentRole === 'business_payment_account' ||
+    candidate.paymentRole === 'owner_private_payment'
+      ? candidate.paymentRole
+      : paymentRoleFromLegacyStoredAccount(
+          (value as { paymentAccountNumber?: unknown }).paymentAccountNumber
+        )
+
+  if (!paymentRole) return null
+
+  const hasStoredIntentShape =
     typeof candidate.date === 'string' &&
     typeof candidate.description === 'string' &&
     typeof candidate.treatmentCode === 'string' &&
@@ -231,24 +251,53 @@ function isStoredIntent(value: unknown): value is VatV2RuntimeBookingIntent {
       candidate.outputVatReportField === null) &&
     (typeof candidate.deductibleInputVatReportField === 'string' ||
       candidate.deductibleInputVatReportField === null) &&
-    typeof candidate.paymentAccountNumber === 'string' &&
     typeof candidate.ruleVersion === 'string' &&
     typeof candidate.factsVersion === 'string' &&
     (typeof candidate.fileUrl === 'string' || candidate.fileUrl === null)
-  )
+  if (!hasStoredIntentShape) return null
+
+  return {
+    date: candidate.date,
+    description: candidate.description,
+    treatmentCode: candidate.treatmentCode,
+    calculationRate: candidate.calculationRate,
+    deductionEntitlement: candidate.deductionEntitlement,
+    taxableBase: candidate.taxableBase,
+    outputVatAmount: candidate.outputVatAmount,
+    deductibleInputVatAmount: candidate.deductibleInputVatAmount,
+    acquisitionBaseField: candidate.acquisitionBaseField,
+    outputVatReportField: candidate.outputVatReportField,
+    deductibleInputVatReportField: candidate.deductibleInputVatReportField,
+    paymentRole,
+    ruleVersion: candidate.ruleVersion,
+    factsVersion: candidate.factsVersion,
+    fileUrl: candidate.fileUrl,
+  }
 }
 
-function isStoredIdempotencyState(
+function parseStoredIdempotencyState(
   value: unknown
-): value is VatV2RuntimeBookingIdempotencyState {
-  if (!value || typeof value !== 'object') return false
+): VatV2RuntimeBookingIdempotencyState | null {
+  if (!value || typeof value !== 'object') return null
   const candidate = value as VatV2RuntimeBookingIdempotencyState
-  return (
-    typeof candidate.key === 'string' &&
-    isStoredIntent(candidate.intent) &&
-    (typeof candidate.fileSignature === 'string' ||
-      candidate.fileSignature === null)
-  )
+  const intent = parseStoredIntent(candidate.intent)
+
+  if (
+    typeof candidate.key !== 'string' ||
+    !intent ||
+    !(
+      typeof candidate.fileSignature === 'string' ||
+      candidate.fileSignature === null
+    )
+  ) {
+    return null
+  }
+
+  return {
+    fileSignature: candidate.fileSignature,
+    intent,
+    key: candidate.key,
+  }
 }
 
 function validateRuntimeTreatment(
@@ -412,7 +461,7 @@ export function buildVatV2RuntimeBookingIntentDraft(
     acquisitionBaseField: treatment.acquisitionBaseField ?? null,
     outputVatReportField: treatment.outputVat.reportField,
     deductibleInputVatReportField: treatment.deductibleInputVat.reportField,
-    paymentAccountNumber: request.paymentAccountNumber.trim(),
+    paymentRole: request.paymentRole,
     ruleVersion: treatment.ruleVersion,
     factsVersion: treatment.evidence.factsVersion,
   }
@@ -459,7 +508,7 @@ export function isVatV2RuntimeBookingIntentDraftMatch(
     intent.acquisitionBaseField === draft.acquisitionBaseField &&
     intent.outputVatReportField === draft.outputVatReportField &&
     intent.deductibleInputVatReportField === draft.deductibleInputVatReportField &&
-    intent.paymentAccountNumber === draft.paymentAccountNumber &&
+    intent.paymentRole === draft.paymentRole &&
     intent.ruleVersion === draft.ruleVersion &&
     intent.factsVersion === draft.factsVersion
   )
@@ -519,9 +568,10 @@ export function readVatV2RuntimeBookingIdempotencyFromStorage(
     const stored = storage.getItem(VAT_V2_RUNTIME_BOOKING_IDEMPOTENCY_STORAGE_KEY)
     if (!stored) return clearVatV2RuntimeBookingIdempotency()
     const parsed = JSON.parse(stored) as unknown
-    return isStoredIdempotencyState(parsed)
-      ? parsed
-      : clearVatV2RuntimeBookingIdempotency()
+    return (
+      parseStoredIdempotencyState(parsed) ??
+      clearVatV2RuntimeBookingIdempotency()
+    )
   } catch {
     return clearVatV2RuntimeBookingIdempotency()
   }
