@@ -7,9 +7,8 @@ Last updated: 2026-10-04
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- `origin/main`: `db93f2d` (`KAN-37 fix payment account loading race`).
-- Current local checkout contains the KAN-38 checkpoint work and must remain
-  unpushed until Pontus/leader chat explicitly approves the production risk.
+- Local `main` / `origin/main`: `8740c4d`
+  (`KAN-38 enforce VAT V2 payment roles`).
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -31,8 +30,8 @@ Last updated: 2026-10-04
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Supabase production project ref: `wbaxmuvudpnkvuliicuy`
-- Live Supabase migration head documented/verified from audit closeout:
-  `20261001120000`.
+- Live Supabase migration head documented/verified after KAN-38:
+  `20261004152057`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
@@ -42,15 +41,16 @@ Last updated: 2026-10-04
 Verified from Jira on 2026-10-04:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
-  KAN-37.
-- In Review: KAN-38, assigned to Pontus for review/final testing.
+  KAN-37, KAN-38.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
-  KAN-34, KAN-35, KAN-36.
+  KAN-34, KAN-35, KAN-36, KAN-39.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
 - KAN-37 is completed/pushed/deployed/IRL-verified by Pontus.
 - KAN-36 is future inventory/depreciation product work.
-- KAN-38 implementation is locally verified and waiting for Pontus/leader
-  approval before any live Supabase migration or push/deploy.
+- KAN-38 is completed, live-migrated, Production-deployed, and IRL-accepted by
+  Pontus on a separate test account.
+- KAN-39 is the follow-up UX finding from KAN-38 acceptance: clearer
+  bookkeeping form inputs and non-duplicated VAT V2 missing-role validation.
 
 ## Product Acceptance Direction
 
@@ -62,33 +62,16 @@ Verified from Jira on 2026-10-04:
 
 ## Current Active Work
 
-- KAN-38 local implementation is complete and not live-applied.
-- Scope completed: new migration replaces only
-  `public.book_vat_v2_eu_service_reverse_charge_atomic(jsonb)` so new VAT V2
-  EU-service bookings send `payment_account_role` and the RPC resolves the
-  current account from `company_payment_account_roles` for `auth.uid()`.
-- New bookings reject client-supplied `payment_account_number`; successful
-  idempotency replay remains before mutable Profile/account/year/VAT guards.
-- Audit/idempotency result now records both `paymentAccountRole` and the
-  server-resolved `paymentAccountNumber` for the booking-time configuration.
-- Existing successful legacy idempotency rows remain replayable with the old
-  account-number payload, and old local browser idempotency state is normalized
-  to payment role for stable replay after refresh.
-- No live Supabase migration/write, deploy, push, or real user-data change has
-  been performed for KAN-38.
-- Verification completed locally: rollback SQL regression on
-  `sololedger_kan17c_test`, VAT V2 runtime test, `npm run typecheck`,
-  `npm run test:domain`, targeted ESLint for touched non-`page.tsx` files,
-  `npm run build` with approved network access for Google Fonts, and
-  `git diff --check`.
-- Known non-blocker: including `src/app/page.tsx` in a broader targeted lint
-  still exposes older unrelated `page.tsx` debt already tracked under KAN-24 /
-  KAN-25.
+- No implementation is active.
+- KAN-39 is available as a small UX follow-up. Do not implement it until Pontus
+  selects/approves it as the next work item.
 
 ## Known Non-Blockers / Debt
 
 - Full repo lint still has older unrelated debt.
 - KAN-24 and KAN-25 remain To Do for scoped `page.tsx` technical debt.
+- KAN-39 covers KAN-38 acceptance UX findings: weak affordance/contrast for
+  Date/Description fields and duplicated missing-payment-role validation text.
 - KAN-36 remains future inventory/depreciation product work.
 - KAN-34 remains future UX for completing VAT facts on ambiguous legacy/SIE
   rows.
@@ -101,11 +84,10 @@ Verified from Jira on 2026-10-04:
 
 ## Git / Local Files
 
-- KAN-38 checkpoint files: `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`,
-  `scripts/test-vat-runtime-booking.ts`, `src/app/page.tsx`,
-  `src/lib/accountingService.ts`, `src/lib/vatRuntimeBooking.ts`,
-  `supabase/migrations/20261004152057_kan38_vat_v2_payment_role_enforcement.sql`,
-  and `supabase/tests/kan38_vat_v2_payment_role_enforcement_candidate.sql`.
+- Working tree should be clean except for any explicitly approved docs-only
+  finalization checkpoint after KAN-38 closeout.
+- KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
+  Production.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -126,11 +108,8 @@ Verified from Jira on 2026-10-04:
 
 ## Next Safe Step
 
-1. Pontus/leader chat reviews KAN-38 and decides whether to approve live
-   Supabase migration application.
-2. If approved, apply the KAN-38 migration through the official Supabase CLI
-   flow that preserves the repo migration version, then verify the live
-   function definition, grants, and exact migration version.
-3. Push to `main` only after separate explicit approval, because it triggers
-   Vercel Production deploy.
-4. Keep KAN-38 out of `Done` until Pontus final testing is complete.
+1. Commit the docs-only KAN-38 finalization checkpoint locally if not already
+   done; do not push it without separate approval because `main` deploys
+   Production.
+2. Pontus/leader chat chooses the next work item, likely KAN-39 if the new UX
+   finding should be handled next.

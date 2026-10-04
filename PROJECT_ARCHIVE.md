@@ -6,6 +6,43 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-38 VAT V2 Server-Side Payment Role Enforcement
+
+- KAN-38 reached `Done` in Jira on 2026-10-04 after Pontus IRL-accepted the
+  Production flow on a separate test account.
+- Production `main`/`origin/main` checkpoint:
+  `8740c4dadc135433ad27826a04b8dc61799c0c74`
+  (`KAN-38 enforce VAT V2 payment roles`).
+- Live Supabase migration:
+  `supabase/migrations/20261004152057_kan38_vat_v2_payment_role_enforcement.sql`,
+  registered live as version `20261004152057`.
+- Scope completed: `book_vat_v2_eu_service_reverse_charge_atomic(jsonb)` now
+  treats payment role as the authoritative client/server contract for new VAT
+  V2 EU-service bookings. The RPC resolves the actual payment account from
+  `company_payment_account_roles` for `auth.uid()`, validates role semantics
+  and the user's account plan, rejects new client-supplied
+  `payment_account_number`, and records both role and server-resolved account
+  in booking-time audit/idempotency metadata.
+- Legacy idempotency behavior was preserved: exact old account-number replay
+  remains stable, and a role-based replay of an old successful operation only
+  succeeds when immutable canonical fields match and the role matches the old
+  account class. Role match alone is not enough.
+- Automated verification included rollback SQL regression on
+  `sololedger_kan17c_test`, VAT V2 runtime tests, `npm run typecheck`,
+  `npm run test:domain`, targeted ESLint, `npm run build`, `git diff --check`,
+  pre-deploy read-only live review, live migration verification, and Vercel
+  Production deployment verification.
+- Production IRL acceptance verified business role `1930` created
+  `VER-4 / TEST V2` with `2614 K`, `1930 K`, `2645 D`, `4535 D`; private role
+  `2018` created `VER-5 / TEST V2 PRIVAT` with `2614 K`, `2018 K`, `2645 D`,
+  `4535 D`; and missing business role blocked before booking with no `VER-6`
+  or observed partial write. `business_payment_account = 1930` was restored on
+  the test account afterward.
+- UX follow-up from acceptance was captured separately as KAN-39: clearer
+  Date/Description input affordance and non-duplicated VAT V2 missing-role
+  validation text. KAN-39 is UX-only and must not change bookkeeping logic or
+  security rules.
+
 ### KAN-37 Central Payment Account Settings
 
 - KAN-37 reached `Done` in Jira on 2026-10-04 after Pontus IRL-verified the
