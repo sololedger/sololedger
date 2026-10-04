@@ -215,11 +215,6 @@ export default function TransactionForm({
     setVatV2SubmitError(null)
 
     if (vatV2RuntimeBooking.status !== 'ready') {
-      setVatV2SubmitError(
-        vatV2RuntimeBooking.errors
-          .map(describeVatV2RuntimeBookingError)
-          .join(' ')
-      )
       return
     }
 
@@ -326,10 +321,10 @@ export default function TransactionForm({
                     date: e.target.value,
                   })
                 }
-                className={`p-3 rounded-xl outline-none font-bold text-xs ${
+                className={`p-3 rounded-xl border outline-none font-bold text-xs transition-colors ${
                   editingBooked || isYearLocked
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-50'
+                    ? 'border-gray-100 bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'border-gray-200 bg-white text-gray-700 shadow-sm focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100'
                 } ${isYearLocked ? 'opacity-40' : ''}`}
                 required
               />
@@ -435,13 +430,13 @@ export default function TransactionForm({
                     description: e.target.value,
                   })
                 }
-                className={`p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs transition-all ${
+                className={`p-3 rounded-xl border outline-none font-bold text-xs transition-all ${
                   isYearLocked
-                    ? 'opacity-40 cursor-not-allowed'
-                    : ''
+                    ? 'border-gray-100 bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'
+                    : 'border-gray-200 bg-white text-gray-700 shadow-sm focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100'
                 } ${
                   descriptionHighlight
-                    ? 'ring-2 ring-amber-400 bg-amber-50 animate-pulse'
+                    ? 'border-amber-300 ring-2 ring-amber-400 bg-amber-50 animate-pulse'
                     : ''
                 }`}
                 placeholder={

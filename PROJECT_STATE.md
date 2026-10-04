@@ -7,8 +7,10 @@ Last updated: 2026-10-04
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Local `main` / `origin/main`: `8740c4d`
-  (`KAN-38 enforce VAT V2 payment roles`).
+- `origin/main`: `8740c4d` (`KAN-38 enforce VAT V2 payment roles`),
+  deployed to Production.
+- Local `main`: ahead of `origin/main` with the KAN-38 docs-only closeout
+  checkpoint `64d1132` plus the current local KAN-39 UX checkpoint.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -42,15 +44,18 @@ Verified from Jira on 2026-10-04:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38.
+- In Review: KAN-39.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
-  KAN-34, KAN-35, KAN-36, KAN-39.
+  KAN-34, KAN-35, KAN-36.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
 - KAN-37 is completed/pushed/deployed/IRL-verified by Pontus.
 - KAN-36 is future inventory/depreciation product work.
 - KAN-38 is completed, live-migrated, Production-deployed, and IRL-accepted by
   Pontus on a separate test account.
-- KAN-39 is the follow-up UX finding from KAN-38 acceptance: clearer
-  bookkeeping form inputs and non-duplicated VAT V2 missing-role validation.
+- KAN-39 is the follow-up UX finding from KAN-38 acceptance. It is implemented
+  locally and ready for Pontus review: Date/Description fields have clearer
+  input affordance, and VAT V2 missing-payment-role no longer shows duplicate
+  submit text.
 
 ## Product Acceptance Direction
 
@@ -62,16 +67,13 @@ Verified from Jira on 2026-10-04:
 
 ## Current Active Work
 
-- No implementation is active.
-- KAN-39 is available as a small UX follow-up. Do not implement it until Pontus
-  selects/approves it as the next work item.
+- KAN-39 implementation is complete locally and should stay unpushed until
+  Pontus/leader chat explicitly approves Production push.
 
 ## Known Non-Blockers / Debt
 
 - Full repo lint still has older unrelated debt.
 - KAN-24 and KAN-25 remain To Do for scoped `page.tsx` technical debt.
-- KAN-39 covers KAN-38 acceptance UX findings: weak affordance/contrast for
-  Date/Description fields and duplicated missing-payment-role validation text.
 - KAN-36 remains future inventory/depreciation product work.
 - KAN-34 remains future UX for completing VAT facts on ambiguous legacy/SIE
   rows.
@@ -84,10 +86,12 @@ Verified from Jira on 2026-10-04:
 
 ## Git / Local Files
 
-- Working tree should be clean except for any explicitly approved docs-only
-  finalization checkpoint after KAN-38 closeout.
+- Working tree should be clean after the local KAN-39 checkpoint commit.
 - KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
   Production.
+- KAN-38 docs-only closeout checkpoint `64d1132` remains local above
+  Production and must not be dropped.
+- KAN-39 local checkpoint is intentionally not pushed or deployed.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -108,8 +112,7 @@ Verified from Jira on 2026-10-04:
 
 ## Next Safe Step
 
-1. Commit the docs-only KAN-38 finalization checkpoint locally if not already
-   done; do not push it without separate approval because `main` deploys
-   Production.
-2. Pontus/leader chat chooses the next work item, likely KAN-39 if the new UX
-   finding should be handled next.
+1. Pontus reviews KAN-39 locally or approves a Production push review.
+2. Do not push `main` without explicit approval because it deploys Production.
+3. After push/deploy, Pontus should IRL-test Date/Description affordance and
+   VAT V2 missing-payment-role presentation before KAN-39 is set Done.
