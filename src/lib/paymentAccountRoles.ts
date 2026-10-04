@@ -4,13 +4,13 @@ import {
   type PaymentAccountRole,
 } from './accountingKnowledge'
 import { supabase } from './supabaseClient'
-
-export type { PaymentAccountRole }
-
-export interface ConfiguredPaymentAccountRole {
-  role: PaymentAccountRole
-  accountNumber: string
-}
+export {
+  mergeConfiguredPaymentAccountRole,
+  removeConfiguredPaymentAccountRole,
+  type ConfiguredPaymentAccountRole,
+  type PaymentAccountRole,
+} from './paymentAccountRoleState'
+import type { ConfiguredPaymentAccountRole } from './paymentAccountRoleState'
 
 interface PaymentAccountRoleRow {
   role: string

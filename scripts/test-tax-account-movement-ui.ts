@@ -18,6 +18,7 @@ import {
   writeTaxAccountMovementIdempotencyToStorage,
   nextTaxAccountMovementChoiceForContext,
   prepareTaxAccountMovementIdempotencyKey,
+  paymentRoleRequiredForTaxAccountMovement,
   type TaxAccountMovementIdempotencyState,
   type TaxAccountMovementLike,
   type TaxAccountMovementStorageLike,
@@ -173,6 +174,26 @@ assertEqual(
   taxAccountMovementKindForChoice('refund', 'owner_private'),
   'tax_account_to_owner_private',
   'Refund private choice maps to tax-account-to-private movement'
+)
+assertEqual(
+  paymentRoleRequiredForTaxAccountMovement('business_to_tax_account'),
+  'business_payment_account',
+  'Business-to-tax-account movement requires the business payment role'
+)
+assertEqual(
+  paymentRoleRequiredForTaxAccountMovement('tax_account_to_business'),
+  'business_payment_account',
+  'Tax-account-to-business movement requires the business payment role'
+)
+assertEqual(
+  paymentRoleRequiredForTaxAccountMovement('owner_private_to_tax_account'),
+  'owner_private_payment',
+  'Private payment into the tax account requires the owner-private payment role'
+)
+assertEqual(
+  paymentRoleRequiredForTaxAccountMovement('tax_account_to_owner_private'),
+  null,
+  'Private withdrawal from the tax account keeps the 2013 semantics and requires no owner-private payment role'
 )
 assertEqual(
   taxAccountMovementKindForChoice('payable', 'not_yet'),

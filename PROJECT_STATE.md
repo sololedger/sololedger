@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-02
+Last updated: 2026-10-04
 
 ## Current Baseline
 
@@ -8,8 +8,7 @@ Last updated: 2026-10-02
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
 - Latest completed checkpoint before this final state update:
-  `f38cd2fa8e91fcde6f475256916e48bc24fa664f`
-  (`docs: version external audit snapshot`)
+  `4dd70a7` (`docs: finalize project handoff state`)
 - Verified before this handoff-doc refresh: `HEAD == origin/main`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
@@ -41,31 +40,42 @@ Last updated: 2026-10-02
 
 ## Jira Status Snapshot
 
-Verified read-only from Jira on 2026-10-02:
+Verified from Jira on 2026-10-04:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
-  KAN-34, KAN-35, KAN-36.
+  KAN-34, KAN-35, KAN-36, KAN-38.
+- In Review: KAN-37
+  `Central konfiguration av betalningskonton i Profil`, assigned to Pontus
+  with Codex verification comment.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
-- KAN-36 is future product work:
-  `Inventarier - anskaffning, avskrivningsplan och årlig avskrivning`.
+- KAN-36 is future inventory/depreciation product work.
+- KAN-38 is the future follow-up for VAT V2 RPC central payment-role
+  enforcement/hardening.
 
-## Completed Hygiene Since External Audit #1
+## Current Active Work
 
-- External Audit #1 is closed. No known audit finding remains open without an
-  explicit non-blocking disposition.
-- KAN-3 and KAN-13 were closed during Jira hygiene.
-- KAN-21 was closed after leader-approved closeout review; remaining broad
-  regression/concurrency hardening belongs under KAN-23, not KAN-21.
-- Account-plan UI compatibility for canonical/legacy category IDs is
-  implemented and pushed:
-  `6997141ad91299d62389c1895c5848b5ab35a15d`
-  (`Fix account category UI aliases`).
-- `Architecture.md` was fully refreshed and pushed:
-  `e925b944c8059fc5f665e8b810fc0b8d8871e252`.
-- The immutable External Audit #1 snapshot package `SOLOLEDGER_AUDIT_*.md`
-  was versioned and pushed:
-  `f38cd2fa8e91fcde6f475256916e48bc24fa664f`.
+- KAN-37 implementation is complete, IRL-tested, corrected, and ready for this
+  local checkpoint commit.
+- Scope completed locally: central `Betalningskonton` in Profil backed by
+  `company_payment_account_roles`; non-blocking Bokföringssidan prompt; VAT V2
+  and Momsrapport guidance to Profil; 2013 semantics preserved for private
+  withdrawal from tax account.
+- IRL verified by Pontus: Profile selection/persistence, Bokföringssidan
+  reminder removal, VAT V2 business/private paths, missing-2018 blocking, and
+  Momsrapport pre-submit guidance. No tax-account movement was registered in
+  IRL testing.
+- Final corrections: loading/unloaded role state no longer counts as missing
+  configuration; user-facing payment-account copy is less internal.
+- No DB migration, Supabase write, deploy, or push was performed for KAN-37.
+- Final verification:
+  `npm run typecheck`, `npm run test:domain`, relevant targeted lint,
+  `npm run build`, `git diff --check`, and adversarial diff review.
+  Sandboxed builds fail only when Google Fonts network fetch is blocked; the
+  approved network build passed.
+- Full `npm run lint` still fails on older unrelated repo lint debt. Targeted
+  lint for new payment-role state/status/hook/tax-account support and tests
+  passed.
 
 ## Account-Plan Hygiene
 
@@ -103,8 +113,18 @@ Verified read-only from Jira on 2026-10-02:
 
 ## Git / Local Files
 
-- `HEAD == origin/main` was verified at commit
-  `f38cd2fa8e91fcde6f475256916e48bc24fa664f` before this final state update.
+- Before KAN-37 checkpoint, `HEAD == origin/main` was verified at commit
+  `4dd70a7`.
+- KAN-37 dirty tracked files:
+  `PROJECT_STATE.md`, `package.json`, payment-role/tax-account tests,
+  `src/app/page.tsx`, `Momsrapport`, `ProfileSettings`, `TransactionForm`,
+  `useAccountingData`, `accountingKnowledge`, `paymentAccountRoles`, and
+  `taxAccountMovementUi`.
+- KAN-37 new untracked files:
+  `scripts/test-payment-account-role-status.ts`,
+  `src/hooks/usePaymentAccountRoleConfiguration.ts`,
+  `src/lib/paymentAccountRoleState.ts`,
+  `src/lib/paymentAccountRoleStatus.ts`.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -125,5 +145,6 @@ Verified read-only from Jira on 2026-10-02:
 
 ## Next Safe Step
 
-1. Move to a new leader chat/session if desired.
-2. Otherwise select the next work item from Jira/backlog.
+1. Push the KAN-37 checkpoint only after explicit approval.
+2. Keep KAN-37 in Jira `In Review` for Pontus final process; do not set Done.
+3. Keep KAN-38 as separate future DB/RPC hardening work.

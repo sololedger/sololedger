@@ -1,4 +1,5 @@
 import type { VatLifecyclePeriodLike } from './vatLifecycleUi'
+import type { PaymentAccountRole } from './paymentAccountRoles'
 
 export type TaxAccountMovementDirection = 'payable' | 'refund'
 export type TaxAccountMovementState = 'unmoved' | 'partially_moved' | 'fully_moved'
@@ -247,6 +248,20 @@ export function taxAccountMovementKindForChoice(
   if (direction === 'refund') {
     if (choice === 'business_account') return 'tax_account_to_business'
     if (choice === 'owner_private') return 'tax_account_to_owner_private'
+  }
+
+  return null
+}
+
+export function paymentRoleRequiredForTaxAccountMovement(
+  kind: TaxAccountMovementKind | null
+): PaymentAccountRole | null {
+  if (kind === 'business_to_tax_account' || kind === 'tax_account_to_business') {
+    return 'business_payment_account'
+  }
+
+  if (kind === 'owner_private_to_tax_account') {
+    return 'owner_private_payment'
   }
 
   return null

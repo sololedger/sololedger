@@ -1,4 +1,9 @@
 import {
+  mergeConfiguredPaymentAccountRole,
+  removeConfiguredPaymentAccountRole,
+  type ConfiguredPaymentAccountRole as StoredConfiguredPaymentAccountRole,
+} from '../src/lib/paymentAccountRoleState.ts'
+import {
   getPaymentAccountRoleRecommendation,
   getSystemAccount,
   isPaymentAccountRole,
@@ -162,6 +167,41 @@ const configuredMappings: ConfiguredPaymentAccountRole[] = []
 assert(
   configuredMappings.length === 0,
   'System recommendations alone do not create configured mappings'
+)
+
+const savedBusinessMapping: StoredConfiguredPaymentAccountRole = {
+  role: 'business_payment_account',
+  accountNumber: '1940',
+}
+const savedPrivateMapping: StoredConfiguredPaymentAccountRole = {
+  role: 'owner_private_payment',
+  accountNumber: '2017',
+}
+
+const mergedMappings = mergeConfiguredPaymentAccountRole(
+  [savedBusinessMapping],
+  savedPrivateMapping
+)
+
+assert(
+  mergedMappings.length === 2,
+  'Saving one payment role preserves the other configured role'
+)
+
+assert(
+  mergeConfiguredPaymentAccountRole(
+    mergedMappings,
+    { role: 'business_payment_account', accountNumber: '1930' }
+  ).find(role => role.role === 'business_payment_account')?.accountNumber === '1930',
+  'Saving an existing payment role replaces that role in local UI state'
+)
+
+assert(
+  removeConfiguredPaymentAccountRole(
+    mergedMappings,
+    'business_payment_account'
+  ).length === 1,
+  'Clearing one payment role removes only that role from local UI state'
 )
 
 const preflightWithoutPaymentRole = buildVatV2TransactionPreflight({

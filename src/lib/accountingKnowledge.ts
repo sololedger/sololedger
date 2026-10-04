@@ -1499,7 +1499,7 @@ export const SYSTEM_ACCOUNTS: SystemAccount[] = [
     availability: 'system',
     usageType: 'system',
     description:
-      'SoloLedgers nuvarande systemförslag för privata pengar eller privata utlägg som förs in i verksamheten. 2017 finns kvar som relaterat K1/BAS-konto för egna insättningar och kapitaltillskott.',
+      'Vanlig rekommendation för privata pengar eller privata utlägg som förs in i verksamheten. 2017 finns kvar som relaterat K1/BAS-konto för egna insättningar och kapitaltillskott.',
     userSelectable: false,
   },
 
@@ -1667,7 +1667,7 @@ export const PAYMENT_ACCOUNT_ROLE_RECOMMENDATIONS:
       accountNumber: '2018',
       label: 'Egen insättning',
       summary:
-        'SoloLedgers nuvarande systemförslag när ägaren har betalat ett verksamhetsinköp privat.',
+        'Vanlig rekommendation när ägaren har betalat ett verksamhetsinköp privat.',
     },
   }
 

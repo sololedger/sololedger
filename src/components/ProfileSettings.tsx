@@ -6,6 +6,16 @@ import type {
   DomesticSalesVatTreatment,
   ForeignPurchaseReporting,
 } from '@/lib/vatDomain'
+import type {
+  ConfiguredPaymentAccountRole,
+  PaymentAccountRole,
+} from '@/lib/paymentAccountRoles'
+import {
+  buildPaymentAccountRoleSetups,
+  paymentAccountRoleOptionLabel,
+  paymentAccountRoleSetupSummary,
+  type PaymentAccountRoleAccountLike,
+} from '@/lib/paymentAccountRoleStatus'
 
 type PersistedDefaultDeductionEntitlement = Exclude<DeductionEntitlement, 'partial'>
 
@@ -15,6 +25,17 @@ interface Props {
   onProfileUpdate: (updated: any) => void
   onUpdatePassword: (newPassword: string) => Promise<{ success: true } | { success: false; error: string }>
   onBookkeepingChanged?: () => Promise<void> | void
+  kontoplan: PaymentAccountRoleAccountLike[]
+  paymentAccountRoles: ConfiguredPaymentAccountRole[]
+  paymentAccountRolesLoading: boolean
+  paymentAccountRolesLoaded: boolean
+  paymentAccountRolesError: string | null
+  onRefreshPaymentAccountRoles: () => Promise<void>
+  onSavePaymentAccountRole: (
+    role: PaymentAccountRole,
+    accountNumber: string
+  ) => Promise<ConfiguredPaymentAccountRole>
+  onClearPaymentAccountRole: (role: PaymentAccountRole) => Promise<void>
 }
 
 interface SieImportBatch {
@@ -28,7 +49,21 @@ interface SieImportBatch {
   undone_at: string | null
 }
 
-export default function ProfileSettings({ user, profile, onProfileUpdate, onUpdatePassword, onBookkeepingChanged }: Props) {
+export default function ProfileSettings({
+  user,
+  profile,
+  onProfileUpdate,
+  onUpdatePassword,
+  onBookkeepingChanged,
+  kontoplan,
+  paymentAccountRoles,
+  paymentAccountRolesLoading,
+  paymentAccountRolesLoaded,
+  paymentAccountRolesError,
+  onRefreshPaymentAccountRoles,
+  onSavePaymentAccountRole,
+  onClearPaymentAccountRole,
+}: Props) {
   const [companyName, setCompanyName] = useState(profile?.company_name || '')
   const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
   const [vatStatus, setVatStatus] = useState<'registered' | 'not_registered' | 'unknown'>(profile?.vat_status || 'unknown')
@@ -45,6 +80,15 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
   const [sieImportsError, setSieImportsError] = useState<string | null>(null)
   const [undoingImportId, setUndoingImportId] = useState<string | null>(null)
   const [sieUndoNotice, setSieUndoNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
+  const [paymentRoleDrafts, setPaymentRoleDrafts] =
+    useState<Record<PaymentAccountRole, string>>({
+      business_payment_account: '',
+      owner_private_payment: '',
+    })
+  const [paymentRoleSaving, setPaymentRoleSaving] =
+    useState<PaymentAccountRole | null>(null)
+  const [paymentRoleNotice, setPaymentRoleNotice] =
+    useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -81,6 +125,22 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
     setForeignPurchaseReporting(profile?.foreign_purchase_reporting || 'unknown')
     setDefaultDeductionEntitlement(profile?.default_deduction_entitlement || 'unknown')
   }, [profile])
+
+  const paymentRoleSetups = buildPaymentAccountRoleSetups({
+    configuredRoles: paymentAccountRoles,
+    accounts: kontoplan,
+  })
+
+  useEffect(() => {
+    setPaymentRoleDrafts({
+      business_payment_account:
+        paymentRoleSetups.find(setup => setup.role === 'business_payment_account')
+          ?.accountNumber ?? '',
+      owner_private_payment:
+        paymentRoleSetups.find(setup => setup.role === 'owner_private_payment')
+          ?.accountNumber ?? '',
+    })
+  }, [paymentAccountRoles, kontoplan])
 
   useEffect(() => {
     if (!user?.id) {
@@ -221,6 +281,66 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
     }
   }
 
+  async function handleSavePaymentRole(role: PaymentAccountRole) {
+    const setup = paymentRoleSetups.find(candidate => candidate.role === role)
+    const accountNumber = paymentRoleDrafts[role]
+    const option = setup?.options.find(
+      candidate => candidate.accountNumber === accountNumber
+    )
+
+    if (!setup || !option) {
+      setPaymentRoleNotice({
+        type: 'error',
+        text: 'Välj ett giltigt konto från kontoplanen innan du sparar.',
+      })
+      return
+    }
+
+    setPaymentRoleSaving(role)
+    setPaymentRoleNotice(null)
+    try {
+      await onSavePaymentAccountRole(role, option.accountNumber)
+      setPaymentRoleNotice({
+        type: 'success',
+        text: `${setup.label} är sparat som ${paymentAccountRoleOptionLabel(option)}.`,
+      })
+    } catch (err: any) {
+      setPaymentRoleNotice({
+        type: 'error',
+        text: err?.message || 'Kunde inte spara betalningskontot.',
+      })
+    } finally {
+      setPaymentRoleSaving(null)
+    }
+  }
+
+  async function handleClearPaymentRole(role: PaymentAccountRole) {
+    const setup = paymentRoleSetups.find(candidate => candidate.role === role)
+    const ok = window.confirm(
+      `Rensa ${setup?.label.toLowerCase() ?? 'betalningskontot'}?\n\n` +
+      'Flöden som behöver kontot kommer att stoppas tills du väljer ett nytt.'
+    )
+    if (!ok) return
+
+    setPaymentRoleSaving(role)
+    setPaymentRoleNotice(null)
+    try {
+      await onClearPaymentAccountRole(role)
+      setPaymentRoleDrafts(current => ({ ...current, [role]: '' }))
+      setPaymentRoleNotice({
+        type: 'success',
+        text: `${setup?.label ?? 'Betalningskontot'} är rensat.`,
+      })
+    } catch (err: any) {
+      setPaymentRoleNotice({
+        type: 'error',
+        text: err?.message || 'Kunde inte rensa betalningskontot.',
+      })
+    } finally {
+      setPaymentRoleSaving(null)
+    }
+  }
+
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault()
     setPasswordNotice(null)
@@ -322,6 +442,144 @@ export default function ProfileSettings({ user, profile, onProfileUpdate, onUpda
             )}
           </div>
         </div>
+      </div>
+
+      {/* Betalningskonton */}
+      <div id="betalningskonton" className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Betalningskonton</h2>
+            <p className="text-[10px] text-gray-400 font-bold mt-2 max-w-2xl">
+              Välj vilka konton SoloLedger ska använda när betalningar görs från företaget eller med privata pengar. 1930 och 2018 är rekommendationer - du väljer själv vilka konton som ska användas.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void onRefreshPaymentAccountRoles()}
+            disabled={paymentAccountRolesLoading}
+            className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[10px] font-black uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
+            Uppdatera
+          </button>
+        </div>
+
+        {paymentRoleNotice && (
+          <div className={`mb-4 rounded-xl px-4 py-3 text-[11px] font-bold ${
+            paymentRoleNotice.type === 'error'
+              ? 'border border-red-200 bg-red-50 text-red-600'
+              : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}>
+            {paymentRoleNotice.text}
+          </div>
+        )}
+
+        {paymentAccountRolesError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[11px] font-bold text-red-600">
+            {paymentAccountRolesError}
+          </div>
+        )}
+
+        {!paymentAccountRolesLoaded || paymentAccountRolesLoading ? (
+          <p className="text-[11px] font-bold text-gray-400">Laddar betalningskonton...</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {paymentRoleSetups.map(setup => {
+              const savingThisRole = paymentRoleSaving === setup.role
+              const selected = paymentRoleDrafts[setup.role]
+              const selectedIsValid = setup.options.some(
+                option => option.accountNumber === selected
+              )
+              const canSave =
+                selectedIsValid &&
+                !savingThisRole &&
+                selected !== (setup.accountNumber ?? '')
+
+              return (
+                <div key={setup.role} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">
+                        {setup.label}
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold text-gray-600">
+                        {setup.purpose}
+                      </p>
+                      <p className="mt-2 text-[10px] font-bold text-gray-400">
+                        Rekommendation: {setup.recommendation.accountNumber} ({setup.recommendation.label}).
+                      </p>
+                    </div>
+
+                    <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${
+                      setup.status === 'configured'
+                        ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-100 bg-amber-50 text-amber-700'
+                    }`}>
+                      {paymentAccountRoleSetupSummary(setup)}
+                      {setup.validationMessage && (
+                        <span className="block mt-1">{setup.validationMessage}</span>
+                      )}
+                    </div>
+
+                    {!setup.recommendedOption && (
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-700">
+                        Rekommenderat konto {setup.recommendation.accountNumber} finns inte som giltigt val i din nuvarande kontoplan. Välj ett annat giltigt konto, eller lägg först till kontot i Kontoplan.
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
+                        Välj konto
+                      </label>
+                      <select
+                        value={selected}
+                        onChange={e => {
+                          setPaymentRoleDrafts(current => ({
+                            ...current,
+                            [setup.role]: e.target.value,
+                          }))
+                          setPaymentRoleNotice(null)
+                        }}
+                        disabled={paymentAccountRolesLoading || savingThisRole}
+                        className="w-full bg-white rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors disabled:text-gray-300"
+                      >
+                        <option value="">
+                          {setup.options.length === 0
+                            ? 'Inga giltiga konton i kontoplanen'
+                            : 'Välj konto'}
+                        </option>
+                        {setup.options.map(option => (
+                          <option key={option.accountNumber} value={option.accountNumber}>
+                            {paymentAccountRoleOptionLabel(option)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => void handleSavePaymentRole(setup.role)}
+                        disabled={!canSave}
+                        className="h-10 flex-1 rounded-xl bg-emerald-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400"
+                      >
+                        {savingThisRole ? 'Sparar...' : 'Spara valt konto'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleClearPaymentRole(setup.role)}
+                        disabled={savingThisRole || setup.status === 'unconfigured'}
+                        className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-black uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40"
+                      >
+                        Rensa
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Företagsinformation */}

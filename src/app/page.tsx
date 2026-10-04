@@ -28,6 +28,11 @@ import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage 
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
+import { usePaymentAccountRoleConfiguration } from '@/hooks/usePaymentAccountRoleConfiguration'
+import {
+  buildPaymentAccountRoleSetups,
+  paymentAccountRoleConfigurationNeedsAction,
+} from '@/lib/paymentAccountRoleStatus'
 import {
   buildVatV2RuntimeBookingFileSignature,
   buildVatV2RuntimeBookingIntent,
@@ -84,9 +89,22 @@ export default function Home() {
     loadKontoplanOptions,
     momsBreakdown,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
+  const paymentAccountRoles = usePaymentAccountRoleConfiguration(user?.id)
 
   const isAdmin = profile?.role === 'admin'
   const companyVatProfileResult = profileToCompanyVatProfile(profile)
+  const paymentAccountRoleSetups = buildPaymentAccountRoleSetups({
+    configuredRoles: paymentAccountRoles.configuredRoles,
+    accounts: kontoplan,
+  })
+  const paymentAccountRolesNeedAction = paymentAccountRoleConfigurationNeedsAction({
+    state: {
+      loaded: paymentAccountRoles.loaded,
+      loading: paymentAccountRoles.loading,
+      error: paymentAccountRoles.error,
+    },
+    setups: paymentAccountRoleSetups,
+  })
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingBooked, setEditingBooked] = useState(false)
@@ -1010,6 +1028,26 @@ export default function Home() {
             </div>
           )}
 
+          {paymentAccountRolesNeedAction && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-blue-50 border-2 border-blue-100 rounded-[2rem] px-6 py-4 mb-4 shadow-sm">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-blue-700">
+                  Slutför betalningskonton
+                </p>
+                <p className="text-[10px] font-bold text-blue-600 mt-0.5">
+                  Vanlig bokföring fungerar ändå. Utlandsinköp och vissa skattekontoflöden behöver däremot veta vilka konton du har valt.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('profil')}
+                className="h-10 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700"
+              >
+                Öppna Profil
+              </button>
+            </div>
+          )}
+
           <div id="transaction-form-section">
             <TransactionForm
               userId={user.id}
@@ -1032,6 +1070,12 @@ export default function Home() {
               lastSubmitted={lastSubmitted}
               onSaveFavorite={handleFavorite}
               onDismissFavorite={() => setLastSubmitted(null)}
+              paymentAccountRoles={paymentAccountRoles.configuredRoles}
+              paymentAccountRolesLoading={paymentAccountRoles.loading}
+              paymentAccountRolesLoaded={paymentAccountRoles.loaded}
+              paymentAccountRolesError={paymentAccountRoles.error}
+              onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
+              onOpenPaymentAccountSettings={() => setActiveTab('profil')}
             />
           </div>
 
@@ -1062,7 +1106,16 @@ export default function Home() {
           requiredLevel="paid"
           fallback={<Paywall feature="Momsrapport" user={user} />}
         >
-          <Momsrapport profile={profile} onBookkeepingRefresh={refreshDataWithStatus} />
+          <Momsrapport
+            profile={profile}
+            onBookkeepingRefresh={refreshDataWithStatus}
+            paymentAccountRolesLoading={paymentAccountRoles.loading}
+            paymentAccountRolesLoaded={paymentAccountRoles.loaded}
+            paymentAccountRolesError={paymentAccountRoles.error}
+            paymentAccountRoleSetups={paymentAccountRoleSetups}
+            onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
+            onOpenPaymentAccountSettings={() => setActiveTab('profil')}
+          />
         </SubscriptionGuard>
       ) : activeTab === 'faq' ? (
         <FAQ />
@@ -1073,6 +1126,14 @@ export default function Home() {
           onProfileUpdate={(updated) => setProfile(updated)} 
           onUpdatePassword={updatePassword}
           onBookkeepingChanged={refreshData}
+          kontoplan={kontoplan}
+          paymentAccountRoles={paymentAccountRoles.configuredRoles}
+          paymentAccountRolesLoading={paymentAccountRoles.loading}
+          paymentAccountRolesLoaded={paymentAccountRoles.loaded}
+          paymentAccountRolesError={paymentAccountRoles.error}
+          onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
+          onSavePaymentAccountRole={paymentAccountRoles.saveRole}
+          onClearPaymentAccountRole={paymentAccountRoles.clearRole}
         />
       ) : activeTab === 'admin' && isAdmin ? (
         <AdminPanel />

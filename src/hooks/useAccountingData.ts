@@ -45,7 +45,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     try {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, name, default_vat_rate, credit_account')
+        .select('id, name, default_vat_rate, debit_account, credit_account')
         .eq('user_id', user.id)
         .order('name')
       if (error) throw error

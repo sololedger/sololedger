@@ -78,6 +78,7 @@ import {
   nextTaxAccountMovementChoiceForContext,
   prepareTaxAccountMovementIdempotencyKey,
   readTaxAccountMovementIdempotencyFromStorage,
+  paymentRoleRequiredForTaxAccountMovement,
   taxAccountMovementActionLabel,
   taxAccountMovementAmountLabel,
   taxAccountMovementHistoryText,
@@ -96,6 +97,11 @@ import {
 } from '@/lib/taxAccountMovementErrors'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
+import {
+  paymentAccountRoleSetupNeedsAction,
+  paymentAccountRoleSetupSummary,
+  type PaymentAccountRoleSetup,
+} from '@/lib/paymentAccountRoleStatus'
 
 type AvailableYearFilterQuery<T> = FetchAllRangeQuery<T> & {
   eq(column: string, value: unknown): AvailableYearFilterQuery<T>
@@ -189,9 +195,24 @@ function soloLedgerDeclarationAuditText(period: VatPeriod) {
 type MomsrapportProps = {
   profile: AuthProfile
   onBookkeepingRefresh?: () => Promise<AccountingRefreshResult>
+  paymentAccountRolesLoading: boolean
+  paymentAccountRolesLoaded: boolean
+  paymentAccountRolesError: string | null
+  paymentAccountRoleSetups: PaymentAccountRoleSetup[]
+  onRefreshPaymentAccountRoles: () => Promise<void>
+  onOpenPaymentAccountSettings: () => void
 }
 
-export default function Momsrapport({ profile, onBookkeepingRefresh }: MomsrapportProps) {
+export default function Momsrapport({
+  profile,
+  onBookkeepingRefresh,
+  paymentAccountRolesLoading,
+  paymentAccountRolesLoaded,
+  paymentAccountRolesError,
+  paymentAccountRoleSetups,
+  onRefreshPaymentAccountRoles,
+  onOpenPaymentAccountSettings,
+}: MomsrapportProps) {
   const currentYear = new Date().getFullYear()
   const todayIso = formatLocalDateOnly(new Date())
   const ensuredKeysRef = useRef<Set<string>>(new Set())
@@ -575,6 +596,33 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     taxAccountMovementReadModel.direction,
     movementChoice
   )
+  const selectedMovementRequiredPaymentRole =
+    paymentRoleRequiredForTaxAccountMovement(selectedMovementKind)
+  const selectedMovementPaymentRoleSetup =
+    selectedMovementRequiredPaymentRole === null
+      ? null
+      : paymentAccountRoleSetups.find(
+          setup => setup.role === selectedMovementRequiredPaymentRole
+        ) ?? null
+  const selectedMovementPaymentRoleReady =
+    selectedMovementRequiredPaymentRole === null ||
+    (
+      paymentAccountRolesLoaded &&
+      !paymentAccountRolesLoading &&
+      !paymentAccountRolesError &&
+      selectedMovementPaymentRoleSetup !== null &&
+      !paymentAccountRoleSetupNeedsAction(selectedMovementPaymentRoleSetup)
+    )
+  const selectedMovementPaymentRoleGuidance =
+    selectedMovementRequiredPaymentRole === null
+      ? null
+      : paymentAccountRolesLoading || !paymentAccountRolesLoaded
+      ? 'Kontrollerar betalningskonton...'
+      : paymentAccountRolesError
+      ? paymentAccountRolesError
+      : selectedMovementPaymentRoleSetup
+      ? paymentAccountRoleSetupSummary(selectedMovementPaymentRoleSetup)
+      : 'Betalningskontot för den här rörelsen saknas.'
   const settlementValidation = validateVatSettlementInput({
     eventDate: settlementEventDate,
     amountText: settlementAmountText,
@@ -599,6 +647,7 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
     taxAccountMovementReadModel.actionable &&
     taxAccountMovementReadModel.state !== 'fully_moved' &&
     selectedMovementKind !== null &&
+    selectedMovementPaymentRoleReady &&
     hasCurrentTaxAccountMovements &&
     !movementLoading &&
     !movementSubmitting &&
@@ -1669,6 +1718,37 @@ export default function Momsrapport({ profile, onBookkeepingRefresh }: Momsrappo
                   </button>
                 </div>
               )}
+
+              {taxAccountMovementReadModel.state !== 'fully_moved' &&
+                selectedMovementKind &&
+                !selectedMovementPaymentRoleReady &&
+                selectedMovementPaymentRoleGuidance && (
+                  <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                    <p className="text-[10px] font-black uppercase text-amber-700">
+                      Betalningskonto behöver slutföras
+                    </p>
+                    <p className="mt-1 text-[10px] font-bold text-amber-700">
+                      {selectedMovementPaymentRoleGuidance}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={onOpenPaymentAccountSettings}
+                        className="rounded-lg bg-amber-600 px-3 py-2 text-[9px] font-black uppercase text-white shadow-sm transition-colors hover:bg-amber-700"
+                      >
+                        Öppna Profil
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onRefreshPaymentAccountRoles()}
+                        disabled={paymentAccountRolesLoading}
+                        className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        Uppdatera
+                      </button>
+                    </div>
+                  </div>
+                )}
 
               {taxAccountMovementReadModel.state !== 'fully_moved' &&
                 selectedMovementKind &&
