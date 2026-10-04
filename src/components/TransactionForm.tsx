@@ -131,9 +131,12 @@ export default function TransactionForm({
   const [vatV2PaymentSourceChoice, setVatV2PaymentSourceChoice] =
     useState<VatV2PaymentSourceChoice>('business_account')
   const [vatV2SubmitError, setVatV2SubmitError] = useState<string | null>(null)
+  const [vatV2BlockedSubmitAttempted, setVatV2BlockedSubmitAttempted] =
+    useState(false)
   const vatV2SubmitGuard = useRef<ReturnType<
     typeof createVatV2RuntimeSubmitGuard
   > | null>(null)
+  const vatV2StatusRef = useRef<HTMLDivElement | null>(null)
   const isNotVatRegistered = vatStatus === 'not_registered'
   const showVatV2Assessment = !editingId && !editingBooked
   const vatV2AssessmentEnabled =
@@ -182,8 +185,34 @@ export default function TransactionForm({
     date: formData.date,
     description: formData.description,
   })
+  const vatV2PreflightBlockerMessages =
+    vatV2Preflight.status === 'ready'
+      ? []
+      : vatV2Preflight.validation.errors.map(describeVatV2PreflightError)
+  const vatV2RuntimeBlockerMessages =
+    vatV2RuntimeBooking.status === 'blocked'
+      ? vatV2RuntimeBooking.errors
+          .filter(
+            runtimeError =>
+              !(
+                vatV2Preflight.status !== 'ready' &&
+                runtimeError.code === 'vat_treatment_not_ready'
+              )
+          )
+          .map(describeVatV2RuntimeBookingError)
+      : []
+  const vatV2BlockedSubmitMessages = Array.from(
+    new Set([
+      ...vatV2PreflightBlockerMessages,
+      ...vatV2RuntimeBlockerMessages,
+    ])
+  )
+  const vatV2BlockedSubmitActive =
+    vatV2BlockedSubmitAttempted && vatV2RuntimeBooking.status === 'blocked'
+
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2SubmitError(null)
+    setVatV2BlockedSubmitAttempted(false)
     setVatV2Facts(prev => ({
       ...prev,
       ...update,
@@ -193,6 +222,7 @@ export default function TransactionForm({
   function handleVatV2Toggle(enabled: boolean) {
     vatV2SubmitGuard.current = null
     setVatV2SubmitError(null)
+    setVatV2BlockedSubmitAttempted(false)
     setVatV2Facts(
       enabled
         ? { ...initialVatV2Facts, enabled: true }
@@ -215,8 +245,12 @@ export default function TransactionForm({
     setVatV2SubmitError(null)
 
     if (vatV2RuntimeBooking.status !== 'ready') {
+      setVatV2BlockedSubmitAttempted(true)
+      requestAnimationFrame(() => vatV2StatusRef.current?.focus())
       return
     }
+
+    setVatV2BlockedSubmitAttempted(false)
 
     if (!vatV2SubmitGuard.current) {
       vatV2SubmitGuard.current = createVatV2RuntimeSubmitGuard()
@@ -315,12 +349,13 @@ export default function TransactionForm({
                 type="date"
                 value={formData.date}
                 disabled={editingBooked || isYearLocked}
-                onChange={e =>
+                onChange={e => {
                   setFormData({
                     ...formData,
                     date: e.target.value,
                   })
-                }
+                  setVatV2BlockedSubmitAttempted(false)
+                }}
                 className={`p-3 rounded-xl border outline-none font-bold text-xs transition-colors ${
                   editingBooked || isYearLocked
                     ? 'border-gray-100 bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -424,12 +459,13 @@ export default function TransactionForm({
                 type="text"
                 value={formData.description}
                 disabled={isYearLocked}
-                onChange={e =>
+                onChange={e => {
                   setFormData({
                     ...formData,
                     description: e.target.value,
                   })
-                }
+                  setVatV2BlockedSubmitAttempted(false)
+                }}
                 className={`p-3 rounded-xl border outline-none font-bold text-xs transition-all ${
                   isYearLocked
                     ? 'border-gray-100 bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'
@@ -736,6 +772,7 @@ export default function TransactionForm({
                           onClick={() => {
                             setVatV2PaymentSourceChoice(choice)
                             setVatV2SubmitError(null)
+                            setVatV2BlockedSubmitAttempted(false)
                           }}
                           className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                             selected
@@ -803,35 +840,59 @@ export default function TransactionForm({
                 </div>
 
                 <div
+                  ref={vatV2StatusRef}
+                  tabIndex={vatV2BlockedSubmitActive ? -1 : undefined}
+                  role={vatV2BlockedSubmitActive ? 'alert' : 'status'}
                   className={`mt-4 rounded-xl border px-4 py-3 ${
                     vatV2RuntimeBooking.status === 'ready'
                       ? 'border-emerald-100 bg-emerald-50'
+                      : vatV2BlockedSubmitActive
+                      ? 'border-amber-300 bg-amber-50 shadow-sm ring-2 ring-amber-200'
                       : 'border-amber-100 bg-amber-50'
                   }`}
                 >
                   {vatV2Preflight.status === 'ready' ? (
                     <div>
-                      <p className="text-[10px] font-black uppercase text-emerald-700">
-                        Momsbedömning klar
+                      <p className={`text-[10px] font-black uppercase ${
+                        vatV2BlockedSubmitActive
+                          ? 'text-amber-800'
+                          : 'text-emerald-700'
+                      }`}>
+                        {vatV2BlockedSubmitActive
+                          ? 'Kan inte bokföra ännu'
+                          : 'Momsbedömning klar'}
                       </p>
-                      <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                      <p className={`mt-1 text-[10px] font-bold ${
+                        vatV2RuntimeBooking.status === 'ready'
+                          ? 'text-emerald-700'
+                          : 'text-amber-800'
+                      }`}>
                         Underlag {vatV2Preflight.treatment.taxableBase} kr,
                         utgående moms {vatV2Preflight.treatment.outputVat.amount} kr,
                         beräknad ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
                       </p>
-                      <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                      <p className={`mt-1 text-[10px] font-bold ${
+                        vatV2RuntimeBooking.status === 'ready'
+                          ? 'text-emerald-700'
+                          : 'text-amber-800'
+                      }`}>
                         {vatV2RuntimeBooking.status === 'ready'
                           ? `Redo att bokföra via konto ${vatV2RuntimeBooking.request.paymentAccountNumber}.`
+                          : vatV2BlockedSubmitActive
+                          ? 'Bokföringen stoppades. Åtgärda punkterna nedan och försök igen.'
                           : 'Bokning hålls stängd tills alla uppgifter och betalningskällan är säkra.'}
                       </p>
                       {vatV2RuntimeBooking.status === 'blocked' && (
                         <ul className="mt-2 space-y-1">
-                          {vatV2RuntimeBooking.errors.map((runtimeError, index) => (
+                          {(vatV2BlockedSubmitActive
+                            ? vatV2BlockedSubmitMessages
+                            : vatV2RuntimeBooking.errors.map(describeVatV2RuntimeBookingError)
+                          ).map((message, index) => (
                             <li
-                              key={`${runtimeError.code}-${index}`}
+                              key={`${message}-${index}`}
                               className="text-[10px] font-bold text-amber-700"
                             >
-                              {describeVatV2RuntimeBookingError(runtimeError)}
+                              {message}
                             </li>
                           ))}
                         </ul>
@@ -839,16 +900,30 @@ export default function TransactionForm({
                     </div>
                   ) : (
                     <div>
-                      <p className="text-[10px] font-black uppercase text-amber-700">
-                        Kan inte bedömas säkert ännu
+                      <p className={`text-[10px] font-black uppercase ${
+                        vatV2BlockedSubmitActive
+                          ? 'text-amber-800'
+                          : 'text-amber-700'
+                      }`}>
+                        {vatV2BlockedSubmitActive
+                          ? 'Kan inte bokföra ännu'
+                          : 'Kan inte bedömas säkert ännu'}
                       </p>
+                      {vatV2BlockedSubmitActive && (
+                        <p className="mt-1 text-[10px] font-bold text-amber-800">
+                          Bokföringen stoppades. Åtgärda punkterna nedan och försök igen.
+                        </p>
+                      )}
                       <ul className="mt-1 space-y-1">
-                        {vatV2Preflight.validation.errors.map((preflightError, index) => (
+                        {(vatV2BlockedSubmitActive
+                          ? vatV2BlockedSubmitMessages
+                          : vatV2PreflightBlockerMessages
+                        ).map((message, index) => (
                           <li
-                            key={`${preflightError.code}-${preflightError.path}-${index}`}
+                            key={`${message}-${index}`}
                             className="text-[10px] font-bold text-amber-700"
                           >
-                            {describeVatV2PreflightError(preflightError)}
+                            {message}
                           </li>
                         ))}
                       </ul>

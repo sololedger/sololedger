@@ -10,7 +10,7 @@ Last updated: 2026-10-04
 - `origin/main`: `8740c4d` (`KAN-38 enforce VAT V2 payment roles`),
   deployed to Production.
 - Local `main`: ahead of `origin/main` with the KAN-38 docs-only closeout
-  checkpoint `64d1132` plus the current local KAN-39 UX checkpoint.
+  checkpoint `64d1132` plus local KAN-39 UX checkpoints.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -54,8 +54,9 @@ Verified from Jira on 2026-10-04:
   Pontus on a separate test account.
 - KAN-39 is the follow-up UX finding from KAN-38 acceptance. It is implemented
   locally and ready for Pontus review: Date/Description fields have clearer
-  input affordance, and VAT V2 missing-payment-role no longer shows duplicate
-  submit text.
+  input affordance, VAT V2 missing-payment-role no longer shows duplicate
+  submit text, and blocked VAT V2 submit now visibly changes the same status
+  panel to "Kan inte bokföra ännu" with a combined blocker list.
 
 ## Product Acceptance Direction
 
@@ -91,7 +92,7 @@ Verified from Jira on 2026-10-04:
   Production.
 - KAN-38 docs-only closeout checkpoint `64d1132` remains local above
   Production and must not be dropped.
-- KAN-39 local checkpoint is intentionally not pushed or deployed.
+- KAN-39 local checkpoints are intentionally not pushed or deployed.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -114,5 +115,5 @@ Verified from Jira on 2026-10-04:
 
 1. Pontus reviews KAN-39 locally or approves a Production push review.
 2. Do not push `main` without explicit approval because it deploys Production.
-3. After push/deploy, Pontus should IRL-test Date/Description affordance and
-   VAT V2 missing-payment-role presentation before KAN-39 is set Done.
+3. Before push, Pontus should IRL-test Date/Description affordance and the VAT
+   V2 blocked-submit status change, especially when multiple blockers exist.
