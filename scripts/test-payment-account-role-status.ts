@@ -8,6 +8,7 @@ import {
   paymentAccountRoleSetupSummary,
   resolvePaymentAccountRoleSetup,
   type PaymentAccountRoleAccountLike,
+  type PaymentAccountRoleConfigurationLoadState,
 } from '../src/lib/paymentAccountRoleStatus.ts'
 import type { ConfiguredPaymentAccountRole } from '../src/lib/paymentAccountRoles.ts'
 
@@ -55,6 +56,30 @@ const accounts: PaymentAccountRoleAccountLike[] = [
     credit_account: '2012',
   },
 ]
+
+const loadedState: PaymentAccountRoleConfigurationLoadState = {
+  loaded: true,
+  loading: false,
+  error: null,
+}
+
+const loadingState: PaymentAccountRoleConfigurationLoadState = {
+  loaded: false,
+  loading: true,
+  error: null,
+}
+
+const unloadedState: PaymentAccountRoleConfigurationLoadState = {
+  loaded: false,
+  loading: false,
+  error: null,
+}
+
+const errorState: PaymentAccountRoleConfigurationLoadState = {
+  loaded: false,
+  loading: false,
+  error: 'Kunde inte ladda kontoplanen.',
+}
 
 const businessOptions = buildPaymentAccountRoleOptions(
   'business_payment_account',
@@ -105,6 +130,7 @@ const unconfiguredBusiness = resolvePaymentAccountRoleSetup({
   role: 'business_payment_account',
   configuredRoles: [],
   accounts,
+  accountsState: loadedState,
 })
 
 assertEqual(
@@ -120,7 +146,7 @@ assert(
 
 assert(
   !paymentAccountRoleConfigurationNeedsAction({
-    state: { loaded: false, loading: false, error: null },
+    state: { paymentRoles: unloadedState, accounts: loadedState },
     setups: [unconfiguredBusiness],
   }),
   'Unloaded payment-role state must not show missing-account reminders'
@@ -128,7 +154,7 @@ assert(
 
 assert(
   !paymentAccountRoleConfigurationNeedsAction({
-    state: { loaded: false, loading: true, error: null },
+    state: { paymentRoles: loadingState, accounts: loadedState },
     setups: [unconfiguredBusiness],
   }),
   'Loading payment-role state must not be treated as unconfigured'
@@ -145,7 +171,7 @@ assert(
 
 assert(
   paymentAccountRoleConfigurationNeedsAction({
-    state: { loaded: true, loading: false, error: null },
+    state: { paymentRoles: loadedState, accounts: loadedState },
     setups: [unconfiguredBusiness],
   }),
   'Loaded successful state may show missing-account reminders'
@@ -166,6 +192,7 @@ const configuredBusiness = resolvePaymentAccountRoleSetup({
   role: 'business_payment_account',
   configuredRoles,
   accounts,
+  accountsState: loadedState,
 })
 
 assertEqual(
@@ -191,6 +218,7 @@ const missingRecommendedBusiness = resolvePaymentAccountRoleSetup({
   role: 'business_payment_account',
   configuredRoles: [],
   accounts: missingRecommendationAccounts,
+  accountsState: loadedState,
 })
 
 assertEqual(
@@ -208,6 +236,7 @@ const missingSavedAccount = resolvePaymentAccountRoleSetup({
   role: 'business_payment_account',
   configuredRoles: [{ role: 'business_payment_account', accountNumber: '1950' }],
   accounts,
+  accountsState: loadedState,
 })
 
 assertEqual(
@@ -225,6 +254,7 @@ const invalidSavedAccount = resolvePaymentAccountRoleSetup({
   role: 'owner_private_payment',
   configuredRoles: [{ role: 'owner_private_payment', accountNumber: '1930' }],
   accounts,
+  accountsState: loadedState,
 })
 
 assertEqual(
@@ -236,6 +266,7 @@ assertEqual(
 const allSetups = buildPaymentAccountRoleSetups({
   configuredRoles,
   accounts,
+  accountsState: loadedState,
 })
 
 assertEqual(allSetups.length, 2, 'Both central payment roles are represented')
@@ -248,6 +279,97 @@ assertEqual(
   paymentAccountRoleOptionLabel({ accountNumber: '1930', name: 'Företagskonto' }),
   '1930 Företagskonto',
   'Account option labels are user-readable Swedish account choices'
+)
+
+const loadingSavedBusiness = resolvePaymentAccountRoleSetup({
+  role: 'business_payment_account',
+  configuredRoles: [{ role: 'business_payment_account', accountNumber: '1930' }],
+  accounts: [],
+  accountsState: loadingState,
+})
+
+assertEqual(
+  loadingSavedBusiness.status,
+  'accounts_unavailable',
+  'Saved valid role with accounts still loading is not missing_account'
+)
+
+assert(
+  !paymentAccountRoleSetupNeedsAction(loadingSavedBusiness),
+  'Accounts-unavailable setup does not require replacement while accounts load state is unavailable'
+)
+
+assert(
+  !paymentAccountRoleConfigurationNeedsAction({
+    state: { paymentRoles: loadedState, accounts: loadingState },
+    setups: [loadingSavedBusiness],
+  }),
+  'Saved valid role with accounts still loading does not show dashboard reminder'
+)
+
+const unloadedSavedBusiness = resolvePaymentAccountRoleSetup({
+  role: 'business_payment_account',
+  configuredRoles: [{ role: 'business_payment_account', accountNumber: '1930' }],
+  accounts: [],
+  accountsState: unloadedState,
+})
+
+assertEqual(
+  unloadedSavedBusiness.status,
+  'accounts_unavailable',
+  'Saved valid role with accounts not yet loaded is not missing_account'
+)
+
+assert(
+  !paymentAccountRoleConfigurationNeedsAction({
+    state: { paymentRoles: loadedState, accounts: unloadedState },
+    setups: [unloadedSavedBusiness],
+  }),
+  'Saved valid role with accounts not yet loaded does not show dashboard reminder'
+)
+
+const errorSavedBusiness = resolvePaymentAccountRoleSetup({
+  role: 'business_payment_account',
+  configuredRoles: [{ role: 'business_payment_account', accountNumber: '1930' }],
+  accounts: [],
+  accountsState: errorState,
+})
+
+assertEqual(
+  errorSavedBusiness.status,
+  'accounts_unavailable',
+  'Accounts load error is not treated as missing_account'
+)
+
+assert(
+  !paymentAccountRoleConfigurationNeedsAction({
+    state: { paymentRoles: loadedState, accounts: errorState },
+    setups: [errorSavedBusiness],
+  }),
+  'Accounts load error does not show missing-account reminder'
+)
+
+const loadedMissingSavedAccount = resolvePaymentAccountRoleSetup({
+  role: 'business_payment_account',
+  configuredRoles: [{ role: 'business_payment_account', accountNumber: '1930' }],
+  accounts: accounts.filter(
+    account => account.debit_account !== '1930' && account.credit_account !== '1930'
+  ),
+  accountsState: loadedState,
+})
+
+assertEqual(
+  loadedMissingSavedAccount.status,
+  'missing_account',
+  'Saved valid role with loaded accounts that lack the account is missing_account'
+)
+
+assert(
+  paymentAccountRoleConfigurationNeedsAction({
+    state: { paymentRoles: loadedState, accounts: loadedState },
+    setups: [loadedMissingSavedAccount],
+  }),
+  'Loaded accounts without the saved account show action required'
 )
 
 console.log('Payment account role status tests passed.')

@@ -82,6 +82,9 @@ export default function Home() {
     neData,
     journalMap,
     kontoplan,
+    kontoplanLoading,
+    kontoplanLoaded,
+    kontoplanError,
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
@@ -96,12 +99,24 @@ export default function Home() {
   const paymentAccountRoleSetups = buildPaymentAccountRoleSetups({
     configuredRoles: paymentAccountRoles.configuredRoles,
     accounts: kontoplan,
+    accountsState: {
+      loaded: kontoplanLoaded,
+      loading: kontoplanLoading,
+      error: kontoplanError,
+    },
   })
   const paymentAccountRolesNeedAction = paymentAccountRoleConfigurationNeedsAction({
     state: {
-      loaded: paymentAccountRoles.loaded,
-      loading: paymentAccountRoles.loading,
-      error: paymentAccountRoles.error,
+      paymentRoles: {
+        loaded: paymentAccountRoles.loaded,
+        loading: paymentAccountRoles.loading,
+        error: paymentAccountRoles.error,
+      },
+      accounts: {
+        loaded: kontoplanLoaded,
+        loading: kontoplanLoading,
+        error: kontoplanError,
+      },
     },
     setups: paymentAccountRoleSetups,
   })
@@ -1112,6 +1127,9 @@ export default function Home() {
             paymentAccountRolesLoading={paymentAccountRoles.loading}
             paymentAccountRolesLoaded={paymentAccountRoles.loaded}
             paymentAccountRolesError={paymentAccountRoles.error}
+            kontoplanLoading={kontoplanLoading}
+            kontoplanLoaded={kontoplanLoaded}
+            kontoplanError={kontoplanError}
             paymentAccountRoleSetups={paymentAccountRoleSetups}
             onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
             onOpenPaymentAccountSettings={() => setActiveTab('profil')}
@@ -1127,6 +1145,9 @@ export default function Home() {
           onUpdatePassword={updatePassword}
           onBookkeepingChanged={refreshData}
           kontoplan={kontoplan}
+          kontoplanLoading={kontoplanLoading}
+          kontoplanLoaded={kontoplanLoaded}
+          kontoplanError={kontoplanError}
           paymentAccountRoles={paymentAccountRoles.configuredRoles}
           paymentAccountRolesLoading={paymentAccountRoles.loading}
           paymentAccountRolesLoaded={paymentAccountRoles.loaded}

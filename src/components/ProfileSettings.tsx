@@ -26,6 +26,9 @@ interface Props {
   onUpdatePassword: (newPassword: string) => Promise<{ success: true } | { success: false; error: string }>
   onBookkeepingChanged?: () => Promise<void> | void
   kontoplan: PaymentAccountRoleAccountLike[]
+  kontoplanLoading: boolean
+  kontoplanLoaded: boolean
+  kontoplanError: string | null
   paymentAccountRoles: ConfiguredPaymentAccountRole[]
   paymentAccountRolesLoading: boolean
   paymentAccountRolesLoaded: boolean
@@ -56,6 +59,9 @@ export default function ProfileSettings({
   onUpdatePassword,
   onBookkeepingChanged,
   kontoplan,
+  kontoplanLoading,
+  kontoplanLoaded,
+  kontoplanError,
   paymentAccountRoles,
   paymentAccountRolesLoading,
   paymentAccountRolesLoaded,
@@ -129,6 +135,11 @@ export default function ProfileSettings({
   const paymentRoleSetups = buildPaymentAccountRoleSetups({
     configuredRoles: paymentAccountRoles,
     accounts: kontoplan,
+    accountsState: {
+      loaded: kontoplanLoaded,
+      loading: kontoplanLoading,
+      error: kontoplanError,
+    },
   })
 
   useEffect(() => {
@@ -480,8 +491,18 @@ export default function ProfileSettings({
           </div>
         )}
 
-        {!paymentAccountRolesLoaded || paymentAccountRolesLoading ? (
+        {kontoplanError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[11px] font-bold text-red-600">
+            {kontoplanError}
+          </div>
+        )}
+
+        {paymentAccountRolesLoading || !paymentAccountRolesLoaded || kontoplanLoading || (!kontoplanLoaded && !kontoplanError) ? (
           <p className="text-[11px] font-bold text-gray-400">Laddar betalningskonton...</p>
+        ) : kontoplanError ? (
+          <p className="text-[11px] font-bold text-gray-400">
+            Kontoplanen behöver laddas innan betalningskonton kan kontrolleras.
+          </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {paymentRoleSetups.map(setup => {
@@ -521,7 +542,7 @@ export default function ProfileSettings({
                       )}
                     </div>
 
-                    {!setup.recommendedOption && (
+                    {kontoplanLoaded && !kontoplanLoading && !kontoplanError && !setup.recommendedOption && (
                       <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-700">
                         Rekommenderat konto {setup.recommendation.accountNumber} finns inte som giltigt val i din nuvarande kontoplan. Välj ett annat giltigt konto, eller lägg först till kontot i Kontoplan.
                       </div>
@@ -540,7 +561,7 @@ export default function ProfileSettings({
                           }))
                           setPaymentRoleNotice(null)
                         }}
-                        disabled={paymentAccountRolesLoading || savingThisRole}
+                        disabled={paymentAccountRolesLoading || kontoplanLoading || savingThisRole}
                         className="w-full bg-white rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors disabled:text-gray-300"
                       >
                         <option value="">

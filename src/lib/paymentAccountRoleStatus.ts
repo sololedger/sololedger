@@ -22,6 +22,7 @@ export interface PaymentAccountRoleOption {
 export type PaymentAccountRoleSetupStatus =
   | 'configured'
   | 'unconfigured'
+  | 'accounts_unavailable'
   | 'invalid_configuration'
   | 'missing_account'
 
@@ -42,6 +43,11 @@ export interface PaymentAccountRoleConfigurationLoadState {
   loaded: boolean
   loading: boolean
   error: string | null
+}
+
+export interface PaymentAccountRoleConfigurationEvaluationState {
+  paymentRoles: PaymentAccountRoleConfigurationLoadState
+  accounts: PaymentAccountRoleConfigurationLoadState
 }
 
 export const PAYMENT_ACCOUNT_ROLE_UI:
@@ -119,6 +125,7 @@ export function resolvePaymentAccountRoleSetup(input: {
   role: PaymentAccountRole
   configuredRoles: readonly ConfiguredPaymentAccountRole[]
   accounts: readonly PaymentAccountRoleAccountLike[]
+  accountsState: PaymentAccountRoleConfigurationLoadState
 }): PaymentAccountRoleSetup {
   const recommendation = getPaymentAccountRoleRecommendation(input.role)
   const ui = PAYMENT_ACCOUNT_ROLE_UI[input.role]
@@ -162,6 +169,21 @@ export function resolvePaymentAccountRoleSetup(input: {
     }
   }
 
+  if (!paymentAccountRoleConfigurationCanBeEvaluated(input.accountsState)) {
+    return {
+      role: input.role,
+      label: ui.label,
+      purpose: ui.purpose,
+      recommendation,
+      options,
+      recommendedOption,
+      status: 'accounts_unavailable',
+      accountNumber,
+      accountName: null,
+      validationMessage: input.accountsState.error,
+    }
+  }
+
   const account = findAccountByNumber(input.accounts, accountNumber)
   if (!account) {
     return {
@@ -196,7 +218,7 @@ export function resolvePaymentAccountRoleSetup(input: {
 export function paymentAccountRoleSetupNeedsAction(
   setup: PaymentAccountRoleSetup
 ) {
-  return setup.status !== 'configured'
+  return setup.status !== 'configured' && setup.status !== 'accounts_unavailable'
 }
 
 export function paymentAccountRoleConfigurationCanBeEvaluated(
@@ -205,12 +227,21 @@ export function paymentAccountRoleConfigurationCanBeEvaluated(
   return state.loaded && !state.loading && !state.error
 }
 
+export function paymentAccountRoleConfigurationStateCanBeEvaluated(
+  state: PaymentAccountRoleConfigurationEvaluationState
+) {
+  return (
+    paymentAccountRoleConfigurationCanBeEvaluated(state.paymentRoles) &&
+    paymentAccountRoleConfigurationCanBeEvaluated(state.accounts)
+  )
+}
+
 export function paymentAccountRoleConfigurationNeedsAction(input: {
-  state: PaymentAccountRoleConfigurationLoadState
+  state: PaymentAccountRoleConfigurationEvaluationState
   setups: readonly PaymentAccountRoleSetup[]
 }) {
   return (
-    paymentAccountRoleConfigurationCanBeEvaluated(input.state) &&
+    paymentAccountRoleConfigurationStateCanBeEvaluated(input.state) &&
     input.setups.some(paymentAccountRoleSetupNeedsAction)
   )
 }
@@ -228,12 +259,17 @@ export function paymentAccountRoleSetupSummary(setup: PaymentAccountRoleSetup) {
     return `${setup.label}: sparat konto ${setup.accountNumber} är inte giltigt`
   }
 
+  if (setup.status === 'accounts_unavailable') {
+    return setup.validationMessage ?? `${setup.label}: kontoplanen är inte färdigladdad`
+  }
+
   return `${setup.label}: saknas`
 }
 
 export function buildPaymentAccountRoleSetups(input: {
   configuredRoles: readonly ConfiguredPaymentAccountRole[]
   accounts: readonly PaymentAccountRoleAccountLike[]
+  accountsState: PaymentAccountRoleConfigurationLoadState
 }) {
   return ([
     'business_payment_account',
@@ -243,6 +279,7 @@ export function buildPaymentAccountRoleSetups(input: {
       role,
       configuredRoles: input.configuredRoles,
       accounts: input.accounts,
+      accountsState: input.accountsState,
     })
   )
 }

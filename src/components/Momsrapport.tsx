@@ -198,6 +198,9 @@ type MomsrapportProps = {
   paymentAccountRolesLoading: boolean
   paymentAccountRolesLoaded: boolean
   paymentAccountRolesError: string | null
+  kontoplanLoading: boolean
+  kontoplanLoaded: boolean
+  kontoplanError: string | null
   paymentAccountRoleSetups: PaymentAccountRoleSetup[]
   onRefreshPaymentAccountRoles: () => Promise<void>
   onOpenPaymentAccountSettings: () => void
@@ -209,6 +212,9 @@ export default function Momsrapport({
   paymentAccountRolesLoading,
   paymentAccountRolesLoaded,
   paymentAccountRolesError,
+  kontoplanLoading,
+  kontoplanLoaded,
+  kontoplanError,
   paymentAccountRoleSetups,
   onRefreshPaymentAccountRoles,
   onOpenPaymentAccountSettings,
@@ -610,16 +616,23 @@ export default function Momsrapport({
       paymentAccountRolesLoaded &&
       !paymentAccountRolesLoading &&
       !paymentAccountRolesError &&
+      kontoplanLoaded &&
+      !kontoplanLoading &&
+      !kontoplanError &&
       selectedMovementPaymentRoleSetup !== null &&
       !paymentAccountRoleSetupNeedsAction(selectedMovementPaymentRoleSetup)
     )
   const selectedMovementPaymentRoleGuidance =
     selectedMovementRequiredPaymentRole === null
       ? null
-      : paymentAccountRolesLoading || !paymentAccountRolesLoaded
-      ? 'Kontrollerar betalningskonton...'
       : paymentAccountRolesError
       ? paymentAccountRolesError
+      : paymentAccountRolesLoading || !paymentAccountRolesLoaded
+      ? 'Kontrollerar betalningskonton...'
+      : kontoplanError
+      ? kontoplanError
+      : kontoplanLoading || !kontoplanLoaded
+      ? 'Kontrollerar kontoplanen...'
       : selectedMovementPaymentRoleSetup
       ? paymentAccountRoleSetupSummary(selectedMovementPaymentRoleSetup)
       : 'Betalningskontot för den här rörelsen saknas.'
@@ -1741,7 +1754,7 @@ export default function Momsrapport({
                       <button
                         type="button"
                         onClick={() => void onRefreshPaymentAccountRoles()}
-                        disabled={paymentAccountRolesLoading}
+                        disabled={paymentAccountRolesLoading || kontoplanLoading}
                         className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50"
                       >
                         Uppdatera

@@ -19,7 +19,7 @@ function sortTransactionsByDateAndVer(transactions: any[], jMap: any) {
 
 export type AccountingRefreshResult =
   | { ok: true }
-  | { ok: false; reason: 'error' | 'stale_year'; error?: unknown }
+  | { ok: false; reason: 'error' | 'stale_year' | 'stale_load'; error?: unknown }
 
 // Äger laddning av: transactions, balances, neData, journalMap, kontoplan, isYearLocked.
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
@@ -31,6 +31,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const [neData, setNeData] = useState<any>(null)
   const [journalMap, setJournalMap] = useState<any>({})
   const [kontoplan, setKontoplan] = useState<any[]>([])
+  const [kontoplanLoading, setKontoplanLoading] = useState(false)
+  const [kontoplanLoaded, setKontoplanLoaded] = useState(false)
+  const [kontoplanError, setKontoplanError] = useState<string | null>(null)
   const [momsBreakdown, setMomsBreakdown] = useState({ utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
 
   // Håller alltid det SENAST valda året, oavsett hur gammal closure ett
@@ -40,35 +43,60 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   // orsakade stale-data-buggen (år 2028:s svar skrev över 2027:s state).
   const latestYearRef = useRef(selectedYear)
   latestYearRef.current = selectedYear
+  const kontoplanLoadSeqRef = useRef(0)
 
   async function loadKontoplanOptionsInternal(): Promise<AccountingRefreshResult> {
+    const userId = user?.id
+    const loadSeq = ++kontoplanLoadSeqRef.current
+    if (!userId) {
+      setKontoplan([])
+      setKontoplanLoading(false)
+      setKontoplanLoaded(false)
+      setKontoplanError(null)
+      return { ok: false, reason: 'stale_load' }
+    }
+
+    setKontoplanLoading(true)
+    setKontoplanLoaded(false)
+    setKontoplanError(null)
+
+    const isCurrentLoad = () => loadSeq === kontoplanLoadSeqRef.current
+
     try {
       const { data, error } = await supabase
         .from('accounts')
         .select('id, name, default_vat_rate, debit_account, credit_account')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('name')
       if (error) throw error
-      if (data) {
-        const sorted = [...data].sort((a, b) => {
-          // Intäktskonton (kredit på 3xxx) alltid överst
-          const aIsIncome = a.credit_account?.startsWith('3')
-          const bIsIncome = b.credit_account?.startsWith('3')
-          if (aIsIncome && !bIsIncome) return -1
-          if (!aIsIncome && bIsIncome) return 1
-          // Ingående balans och z-konton alltid nederst
-          const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
-          const bIsZ = b.id === 'ingående_balans' || b.id.toLowerCase().startsWith('z')
-          if (aIsZ && !bIsZ) return 1
-          if (!aIsZ && bIsZ) return -1
-          return a.name.localeCompare(b.name, 'sv')
-        })
-        setKontoplan(sorted)
-      }
+      if (!isCurrentLoad()) return { ok: false, reason: 'stale_load' }
+      const sorted = [...(data ?? [])].sort((a, b) => {
+        // Intäktskonton (kredit på 3xxx) alltid överst
+        const aIsIncome = a.credit_account?.startsWith('3')
+        const bIsIncome = b.credit_account?.startsWith('3')
+        if (aIsIncome && !bIsIncome) return -1
+        if (!aIsIncome && bIsIncome) return 1
+        // Ingående balans och z-konton alltid nederst
+        const aIsZ = a.id === 'ingående_balans' || a.id.toLowerCase().startsWith('z')
+        const bIsZ = b.id === 'ingående_balans' || b.id.toLowerCase().startsWith('z')
+        if (aIsZ && !bIsZ) return 1
+        if (!aIsZ && bIsZ) return -1
+        return a.name.localeCompare(b.name, 'sv')
+      })
+      setKontoplan(sorted)
+      setKontoplanLoaded(true)
       return { ok: true }
     } catch (err) {
       console.error('Fel vid laddning av kontoplan:', err)
+      if (isCurrentLoad()) {
+        setKontoplanLoaded(false)
+        setKontoplanError('Kunde inte ladda kontoplanen.')
+      }
       return { ok: false, reason: 'error', error: err }
+    } finally {
+      if (isCurrentLoad()) {
+        setKontoplanLoading(false)
+      }
     }
   }
 
@@ -142,9 +170,18 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
   // Ladda data när user eller år ändras
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      kontoplanLoadSeqRef.current += 1
+      setKontoplan([])
+      setKontoplanLoaded(false)
+      setKontoplanLoading(false)
+      setKontoplanError(null)
+      return
+    }
     let cancelled = false
     setDataLoading(true)
+    setKontoplanLoaded(false)
+    setKontoplanError(null)
 
     async function load() {
       if (!user?.id) return
@@ -210,7 +247,8 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         setJournalMap(jMap)
         setNeData(neRes)
         setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
-        loadKontoplanOptions()
+        const kontoplanResult = await loadKontoplanOptionsInternal()
+        if (!kontoplanResult.ok) return
       } catch (err) {
         if (!cancelled) console.error('Fel vid laddning av data:', err)
       } finally {
@@ -220,7 +258,10 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      kontoplanLoadSeqRef.current += 1
+    }
   }, [user, selectedYear, subscriptionType])
 
   // Kontrollera om räkenskapsåret är låst
@@ -245,6 +286,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     neData,
     journalMap,
     kontoplan,
+    kontoplanLoading,
+    kontoplanLoaded,
+    kontoplanError,
     dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,

@@ -7,11 +7,14 @@ Last updated: 2026-10-04
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Latest completed checkpoint before this final state update:
-  `4dd70a7` (`docs: finalize project handoff state`)
-- Verified before this handoff-doc refresh: `HEAD == origin/main`.
+- Latest pushed checkpoint before this local race-fix follow-up:
+  `7e1aef6` (`KAN-37 centralize payment account settings`).
+- Before the KAN-37 race-fix work resumed, local `main` and `origin/main`
+  pointed to `7e1aef6`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
+- Push to `main` auto-deploys Vercel Production. Treat any future push to
+  `main` as a production deploy requiring explicit approval for that risk.
 - This checkout has no `.vercel/project.json`; do not use manual Vercel CLI
   deployment without re-verifying team/project context and explicit approval.
 
@@ -55,27 +58,33 @@ Verified from Jira on 2026-10-04:
 
 ## Current Active Work
 
-- KAN-37 implementation is complete, IRL-tested, corrected, and ready for this
-  local checkpoint commit.
-- Scope completed locally: central `Betalningskonton` in Profil backed by
+- KAN-37 initial implementation was pushed as `7e1aef6` and IRL-tested.
+- Current local follow-up fixes the remaining Bokföringssidan loading flash:
+  a saved payment-account role no longer becomes `missing_account` while the
+  account plan is still unloaded/loading/unavailable.
+- Scope completed: central `Betalningskonton` in Profil backed by
   `company_payment_account_roles`; non-blocking Bokföringssidan prompt; VAT V2
   and Momsrapport guidance to Profil; 2013 semantics preserved for private
-  withdrawal from tax account.
+  withdrawal from tax account; explicit account-plan load state in
+  `useAccountingData`.
 - IRL verified by Pontus: Profile selection/persistence, Bokföringssidan
   reminder removal, VAT V2 business/private paths, missing-2018 blocking, and
   Momsrapport pre-submit guidance. No tax-account movement was registered in
   IRL testing.
-- Final corrections: loading/unloaded role state no longer counts as missing
-  configuration; user-facing payment-account copy is less internal.
-- No DB migration, Supabase write, deploy, or push was performed for KAN-37.
-- Final verification:
-  `npm run typecheck`, `npm run test:domain`, relevant targeted lint,
-  `npm run build`, `git diff --check`, and adversarial diff review.
+- Follow-up correction: payment-role status now distinguishes account-plan
+  `unloaded/loading/error` from loaded + genuinely missing account; dashboard
+  reminders require both role state and account-plan state to be evaluable.
+- No DB migration, Supabase write, deploy, or push was performed for this
+  follow-up. The upcoming checkpoint is local only until Pontus approves push.
+- Verification for the local follow-up:
+  targeted payment-role race regression test, `npm run typecheck`,
+  `npm run test:domain`, relevant targeted lint, `npm run build`,
+  `git diff --check`, and adversarial diff review.
   Sandboxed builds fail only when Google Fonts network fetch is blocked; the
   approved network build passed.
-- Full `npm run lint` still fails on older unrelated repo lint debt. Targeted
-  lint for new payment-role state/status/hook/tax-account support and tests
-  passed.
+- Full/touched-file lint still exposes older repo lint debt in `page.tsx`,
+  `ProfileSettings`, and `useAccountingData`. Targeted lint for the changed
+  payment-role status/test/Momsrapport surface passed.
 
 ## Account-Plan Hygiene
 
@@ -113,17 +122,10 @@ Verified from Jira on 2026-10-04:
 
 ## Git / Local Files
 
-- Before KAN-37 checkpoint, `HEAD == origin/main` was verified at commit
-  `4dd70a7`.
-- KAN-37 dirty tracked files:
-  `PROJECT_STATE.md`, `package.json`, payment-role/tax-account tests,
-  `src/app/page.tsx`, `Momsrapport`, `ProfileSettings`, `TransactionForm`,
-  `useAccountingData`, `accountingKnowledge`, `paymentAccountRoles`, and
-  `taxAccountMovementUi`.
-- KAN-37 new untracked files:
-  `scripts/test-payment-account-role-status.ts`,
-  `src/hooks/usePaymentAccountRoleConfiguration.ts`,
-  `src/lib/paymentAccountRoleState.ts`,
+- This local follow-up checkpoint is expected to change:
+  `PROJECT_STATE.md`, `scripts/test-payment-account-role-status.ts`,
+  `src/app/page.tsx`, `src/components/Momsrapport.tsx`,
+  `src/components/ProfileSettings.tsx`, `src/hooks/useAccountingData.ts`, and
   `src/lib/paymentAccountRoleStatus.ts`.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
@@ -145,6 +147,8 @@ Verified from Jira on 2026-10-04:
 
 ## Next Safe Step
 
-1. Push the KAN-37 checkpoint only after explicit approval.
-2. Keep KAN-37 in Jira `In Review` for Pontus final process; do not set Done.
-3. Keep KAN-38 as separate future DB/RPC hardening work.
+1. Pontus should F5-test localhost for the Bokföringssidan loading flash.
+2. Push this KAN-37 follow-up only after explicit approval, treating push to
+   `main` as production deploy.
+3. Keep KAN-37 in Jira `In Review` for Pontus final process; do not set Done.
+4. Keep KAN-38 as separate future DB/RPC hardening work.
