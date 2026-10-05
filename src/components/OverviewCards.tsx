@@ -43,7 +43,7 @@ export default function OverviewCards({
   return (
     <>
       {/* ── ÖVERSIKTSKORT ─────────────────────────────────────────── */}
-      <div className="border border-gray-100 rounded-[2.5rem] p-4 sm:p-6 bg-white shadow-sm mb-6">
+      <div className="sl-section-shell border rounded-[2.5rem] p-4 sm:p-6 bg-white shadow-sm mb-6">
         <h2 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-5 px-2">
           Översikt
         </h2>

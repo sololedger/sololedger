@@ -937,8 +937,11 @@ export default function Home() {
       </h1>
 
       <div className="flex flex-col gap-1 mt-1">
-        <p className="text-[10px] text-gray-400 font-bold">
-          Inloggad som: {user?.email}
+        <p className="text-[10px] text-gray-500 font-bold">
+          Inloggad som:{' '}
+          <span className="text-xs text-gray-700 font-black">
+            {user?.email}
+          </span>
         </p>
 
         {showFreeBanner && (

@@ -270,8 +270,8 @@ export default function TransactionTable({
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
-        <p className="p-12 text-center text-gray-300 italic font-medium">
+      <div className="bg-white rounded-[2.5rem] border sl-section-shell overflow-hidden shadow-sm">
+        <p className="sl-secondary-copy p-12 text-center italic font-medium">
           Inga transaktioner bokförda för {selectedYear}
         </p>
       </div>
@@ -283,9 +283,9 @@ export default function TransactionTable({
   return (
     <>
       {/* ══════════════════════ DESKTOP ══════════════════════ */}
-      <div className="hidden md:block bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+      <div className="hidden md:block bg-white rounded-[2.5rem] border sl-section-shell overflow-hidden shadow-sm">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[9px] font-black uppercase text-gray-400 tracking-widest border-b">
+          <thead className="bg-gray-50 text-[9px] font-black uppercase sl-table-heading tracking-widest border-b border-gray-200">
             <tr>
               <th className="p-8">Datum / Ver</th>
               <th className="p-8">Händelse</th>

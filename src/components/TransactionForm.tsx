@@ -302,7 +302,7 @@ export default function TransactionForm({
       className={`bg-white rounded-[2.5rem] border p-4 sm:p-8 mb-6 shadow-sm transition-all ${
         editingId
           ? 'border-amber-300 shadow-amber-100'
-          : 'border-gray-100'
+          : 'sl-section-shell'
       }`}
     >
       {/* Favorit-chips — visas bara när man inte redigerar */}
@@ -532,10 +532,10 @@ export default function TransactionForm({
                       })
                     }
                     disabled={editingBooked || isYearLocked}
-                    className={`p-3 rounded-xl outline-none font-black text-sm ${
+                    className={`p-3 rounded-xl border outline-none font-black text-sm transition-all ${
                       editingBooked || isYearLocked
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-50'
+                        : 'sl-money-input focus-visible:ring-2 focus-visible:ring-emerald-100'
                     } ${isYearLocked ? 'opacity-40' : ''}`}
                     required={ordinaryV1AmountRequired}
                   />
@@ -591,7 +591,7 @@ export default function TransactionForm({
             </div>
             {isNotVatRegistered && (
               <div className="col-span-2 lg:col-span-12 -mt-1 px-1">
-                <p className="text-[9px] font-bold text-gray-400">
+                <p className="sl-secondary-copy text-[9px] font-bold">
                   Företaget är markerat som inte momsregistrerat. Nya bokningar görs därför med 0 % moms.
                 </p>
               </div>
@@ -626,7 +626,7 @@ export default function TransactionForm({
                 <span className="text-[10px] font-black uppercase text-gray-600 tracking-wide">
                   Utlandsinköp
                 </span>
-                <p className="text-[9px] text-gray-400 font-medium mt-0.5">
+                <p className="sl-secondary-copy text-[9px] font-medium mt-0.5">
                   Bedöm utlandsinköpet och bokför den stödda EU-tjänstvägen.
                 </p>
               </div>
@@ -1053,7 +1053,7 @@ export default function TransactionForm({
                   Periodisera till nästa räkenskapsår
                 </span>
 
-                <p className="text-[9px] text-gray-400 font-medium mt-0.5">
+                <p className="sl-secondary-copy text-[9px] font-medium mt-0.5">
                   Kostnaden avser ett annat år — parkeras på konto 1790 och aktiveras automatiskt.
                 </p>
               </div>

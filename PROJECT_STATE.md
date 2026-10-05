@@ -65,7 +65,7 @@ Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38, KAN-39, KAN-43.
-- In Review: KAN-40, KAN-42.
+- In Review: KAN-40, KAN-42, KAN-45.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
@@ -77,6 +77,9 @@ Verified from Jira on 2026-10-05:
 - KAN-43 is completed, accepted by leadership chat, and Done in Jira.
 - KAN-42 is implemented and Codex-verified, then moved to In Review and
   assigned to Pontus for final testing. Do not set Done before Pontus accepts.
+- KAN-45 is implemented and Codex-verified, then moved to In Review and
+  assigned to Pontus for visual IRL acceptance. Do not set Done before Pontus
+  accepts.
 
 ## Product Acceptance Direction
 
@@ -104,6 +107,11 @@ Verified from Jira on 2026-10-05:
   disables `LÅS RÄKENSKAPSÅR` with a short explanation for those blockers.
   Staging migration head includes `20261005105538_kan42_close_year_ne_guard`;
   Production `wbaxmuvudpnkvuliicuy` has not received this migration.
+- KAN-45 UI/readability polish is implemented locally. It only changes
+  Bokföring presentation styles: clearer amount-input affordance, hidden number
+  spinners, slightly stronger main-section borders, stronger secondary text and
+  table headers, and clearer logged-in email. No accounting logic, Supabase
+  schema, RPC, migration, push, deploy, or Production write was performed.
 - KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
   mismatch. Do not implement it as part of KAN-40.
 
@@ -126,7 +134,7 @@ Verified from Jira on 2026-10-05:
 
 ## Git / Local Files
 
-- Working tree should be clean after the KAN-40 local checkpoint commit.
+- Working tree should be clean after the latest local checkpoint commit.
 - KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
   Production.
 - KAN-38 docs-only closeout checkpoint `64d1132` was formerly local above
@@ -144,6 +152,8 @@ Verified from Jira on 2026-10-05:
 - KAN-42 files are local-only above Production: one Supabase migration, one
   NE UI guard change, and one staging write-E2E spec. The migration is applied
   to staging only. No Production migration, push, or deploy has been performed.
+- KAN-45 files are local-only above Production and affect only frontend
+  readability styles on the Bokföring page. No push/deploy has been performed.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -172,7 +182,8 @@ Verified from Jira on 2026-10-05:
 ## Next Safe Step
 
 1. Do not push `main` without explicit approval because it deploys Production.
-2. KAN-42 next step is Pontus review/IRL testing. Production rollout requires
-   explicit approval for the Production Supabase migration and push/deploy.
-3. Next selected work package can reuse the verified staging/E2E fast path
+2. KAN-45 next step is Pontus visual IRL testing on the Bokföring page.
+3. KAN-42 Production rollout requires explicit approval for the Production
+   Supabase migration and push/deploy.
+4. Next selected work package can reuse the verified staging/E2E fast path
    without rediscovery unless state appears stale.
