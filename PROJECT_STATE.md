@@ -90,10 +90,17 @@ Verified from Jira on 2026-10-05:
   receivable/receivable settlement, a `close_year_atomic` unpaid-invoice guard,
   controlled `customer_invoice` transaction source handling, account 1510, and
   delete-user/admin parity. Production was not migrated, pushed, or deployed.
-- Remaining KAN-46 acceptance is Pontus IRL testing of Jessika's December
-  invoice scenario and later UI work for a proper invoice list/page. Full PDF
-  generation, partial payments, credit invoices, foreign customers, EU/reverse
-  VAT, and Adobe/VAT V2 remain out of scope.
+- KAN-46 Block 2 minimal UI is implemented and staging-E2E verified. The
+  Bokföring view now has an external customer invoice panel for registering
+  invoice facts, seeing `Obetald`/`Betald` separately from
+  `Kundfordran bokförd`, booking year-end receivable through Block 1 RPCs, and
+  registering later payment through the correct payment/settlement RPC. NE year
+  close UI now reflects the customer-invoice blocker while the backend remains
+  authoritative.
+- Remaining KAN-46 acceptance is Pontus/Jessika IRL staging testing of the
+  December invoice scenario and later product work for a fuller invoice page.
+  Full PDF generation, partial payments, credit invoices, foreign customers,
+  EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
   Production. Technical acceptance is PASS, including the 2330/B13 Playwright
   acceptance in staging.
@@ -151,8 +158,16 @@ Verified from Jira on 2026-10-05:
   `02539911f43eb0111cc07e8b8b6f9a7e29f7e5f8` is local only on top of that
   docs checkpoint; do not push `main` without explicit Production-deploy
   approval.
-- Verified handoff Git state after KAN-46 Block 1 checkpoint: `main...origin/main
-  [ahead 2]`, working tree clean.
+- Local docs-only handoff checkpoint `68433d9` documents the post-Block 1
+  handoff state and remains unpushed.
+- KAN-46 Block 2 minimal UI checkpoint is local-only on top of `68433d9`
+  (current HEAD after checkpoint). It is not pushed; pushing `main` would
+  deploy Production and requires explicit approval.
+- Verified pre-checkpoint Git state for Block 2 implementation:
+  `main...origin/main [ahead 3]` plus local changes in
+  `src/app/page.tsx`, `src/components/CustomerInvoicesPanel.tsx`,
+  `src/components/NEBilaga.tsx`, `src/lib/accountingService.ts`,
+  `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -182,11 +197,16 @@ Verified from Jira on 2026-10-05:
 - E2E fast path: run `npm run test:e2e:smoke` for read-only smoke,
   `npm run test:e2e:safety` for the fail-safe guard, and
   `npm run test:e2e:write -- <spec>` only for staging write tests.
+- KAN-46 Block 2 verification on 2026-10-05:
+  `npm run typecheck` passed; `npm run test:e2e:write --
+  tests/e2e/kan46-staging-write.spec.ts` passed against hosted staging
+  `fzxqiqenqjzhlyxxpvhg`. An earlier sandboxed E2E attempt failed before UI
+  execution because local network access to staging Supabase was blocked.
 
 ## Next Safe Step
 
-1. Start KAN-46 Block 2: minimal UI for the Block 1 invoice lifecycle plus
-   staging IRL acceptance for Jessika's December invoice scenario.
+1. Pontus/Jessika should manually test KAN-46 Block 2 in staging with a
+   realistic fictive Swedish December invoice scenario.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Production Supabase remains at `20261005105538`; KAN-46 staging is at
    `20261005193000`.

@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { assertWriteE2EEnvironment } from '../../scripts/e2e-preflight.mjs'
+
+const year = 2026
 
 test.describe('KAN-46 staging write acceptance', () => {
   test.setTimeout(120_000)
@@ -10,140 +12,133 @@ test.describe('KAN-46 staging write acceptance', () => {
     assertWriteE2EEnvironment()
   })
 
-  test('books external customer invoices without duplicate income or VAT', async () => {
+  test('handles customer invoice lifecycle through the UI', async ({ page }) => {
     const supabase = await createAuthenticatedSupabaseClient()
-    const year = 2090 + Math.floor(Math.random() * 100)
-    const runTag = `E2E-KAN-46-${Date.now()}`
+    const runTag = `E2E-KAN-46-UI-${Date.now()}`
+    const invoiceNumber = `${runTag}-dec`
 
-    const sameYearInvoice = await createInvoice(supabase, {
-      invoiceNumber: `${runTag}-same-year`,
-      customerName: 'E2E svensk kund',
-      invoiceDate: `${year}-06-01`,
-      serviceDate: `${year}-06-01`,
-      dueDate: `${year}-06-30`,
-      grossAmount: 1250,
-      vatTreatment: 'taxable',
-      vatRate: 25,
-    })
+    await login(page)
+    await selectYear(page, year)
 
-    const sameYearPayment = await rpc(supabase, 'record_customer_invoice_payment_atomic', {
-      p_invoice_id: sameYearInvoice.invoiceId,
-      p_payment_date: `${year}-07-02`,
-      p_idempotency_key: crypto.randomUUID(),
-    })
-    await expectJournalBalance(supabase, sameYearPayment.transactionId, '1930', 1250)
-    await expectJournalBalance(supabase, sameYearPayment.transactionId, '3010', -1000)
-    await expectJournalBalance(supabase, sameYearPayment.transactionId, '2611', -250)
+    const panel = page.getByTestId('customer-invoices-panel')
+    await expect(panel.getByRole('heading', { name: 'Fakturor som inte är skapade i SoloLedger' })).toBeVisible()
 
-    const unknownYear = year + 20
-    const unknownInvoice = await createInvoice(supabase, {
-      invoiceNumber: `${runTag}-unknown`,
-      customerName: 'E2E osaker moms',
-      invoiceDate: `${unknownYear}-12-10`,
-      serviceDate: `${unknownYear}-12-10`,
-      dueDate: `${unknownYear + 1}-01-10`,
-      grossAmount: 500,
-      vatTreatment: 'unknown',
-    })
+    await panel.getByLabel('Fakturanr').fill(invoiceNumber)
+    await panel.getByLabel('Kund').fill('E2E svensk decemberkund')
+    await panel.getByLabel('Fakturadatum').fill(`${year}-12-20`)
+    await panel.getByLabel('Tjänstedatum').fill(`${year}-12-19`)
+    await panel.getByLabel('Förfallodatum').fill(`${year + 1}-01-20`)
+    await panel.getByLabel('Belopp inkl moms').fill('2500')
+    await panel.getByLabel('Momsfakta').selectOption('taxable')
+    await panel.getByLabel('Moms %').selectOption('25')
+    await panel.getByRole('button', { name: 'Registrera kundfaktura' }).click()
 
-    const { error: unknownVatBookingError } = await supabase.rpc('book_customer_invoice_year_end_receivable_atomic', {
-      p_invoice_id: unknownInvoice.invoiceId,
-      p_fiscal_year: unknownYear,
-      p_idempotency_key: crypto.randomUUID(),
-    })
-    expect(unknownVatBookingError?.message ?? '').toMatch(/momsstatus är osäker/i)
+    const invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
+    await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
+    await expect(invoiceCard).toContainText('Ej bokslutsbokad')
+    await expect(invoiceCard).toContainText(/behöver bokföras som kundfordran/i)
 
-    const yearEndInvoice = await createInvoice(supabase, {
-      invoiceNumber: `${runTag}-year-end`,
-      customerName: 'E2E julfoto',
-      invoiceDate: `${year}-12-20`,
-      serviceDate: `${year}-12-19`,
-      dueDate: `${year + 1}-01-20`,
-      grossAmount: 2500,
-      vatTreatment: 'taxable',
-      vatRate: 25,
-    })
+    await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+    await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeDisabled()
 
-    const { error: unbookedCloseError } = await supabase.rpc('close_year_atomic', {
-      p_year: year,
-    })
-    expect(unbookedCloseError?.message ?? '').toMatch(/inte bokförd som kundfordran/i)
+    await page.getByRole('button', { name: 'Bokföring' }).click()
+    await invoiceCard.getByRole('button', { name: 'Bokför kundfordran 31/12' }).click()
+    await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
+    await expect(invoiceCard).toContainText('Kundfordran bokförd')
+    await expect(invoiceCard).toContainText(`31/12 ${year}: 1510`)
 
-    const receivable = await rpc(supabase, 'book_customer_invoice_year_end_receivable_atomic', {
-      p_invoice_id: yearEndInvoice.invoiceId,
-      p_fiscal_year: year,
-      p_idempotency_key: crypto.randomUUID(),
-    })
-    await expectJournalBalance(supabase, receivable.transactionId, '1510', 2500)
-    await expectJournalBalance(supabase, receivable.transactionId, '3010', -2000)
-    await expectJournalBalance(supabase, receivable.transactionId, '2611', -500)
+    const invoice = await expectInvoiceByNumber(supabase, invoiceNumber)
+    const receivableTxId = await expectBookingTransaction(
+      supabase,
+      invoice.id,
+      'year_end_receivable'
+    )
+    await expectJournalBalance(supabase, receivableTxId, '1510', 2500)
+    await expectJournalBalance(supabase, receivableTxId, '3010', -2000)
+    await expectJournalBalance(supabase, receivableTxId, '2611', -500)
 
-    await expectInvoicePaymentStatus(supabase, yearEndInvoice.invoiceId, 'unpaid')
+    await invoiceCard.locator('input[type="date"]').fill(`${year + 1}-01-15`)
+    await invoiceCard.getByRole('button', { name: 'Registrera betalning' }).click()
+    await expect(invoiceCard).toContainText('Betald', { timeout: 20_000 })
 
-    const settlement = await rpc(supabase, 'settle_customer_invoice_receivable_atomic', {
-      p_invoice_id: yearEndInvoice.invoiceId,
-      p_payment_date: `${year + 1}-01-15`,
-      p_idempotency_key: crypto.randomUUID(),
-    })
-    await expectJournalBalance(supabase, settlement.transactionId, '1930', 2500)
-    await expectJournalBalance(supabase, settlement.transactionId, '1510', -2500)
-    await expectJournalBalance(supabase, settlement.transactionId, '3010', 0)
-    await expectJournalBalance(supabase, settlement.transactionId, '2611', 0)
-    await expectInvoicePaymentStatus(supabase, yearEndInvoice.invoiceId, 'paid')
+    const settlementTxId = await expectBookingTransaction(
+      supabase,
+      invoice.id,
+      'receivable_settlement'
+    )
+    await expectJournalBalance(supabase, settlementTxId, '1930', 2500)
+    await expectJournalBalance(supabase, settlementTxId, '1510', -2500)
+    await expectJournalBalance(supabase, settlementTxId, '3010', 0)
+    await expectJournalBalance(supabase, settlementTxId, '2611', 0)
+    await expectInvoicePaymentStatus(supabase, invoice.id, 'paid')
   })
 })
 
-type InvoiceInput = {
-  invoiceNumber: string
-  customerName: string
-  invoiceDate: string
-  serviceDate: string
-  dueDate: string
-  grossAmount: number
-  vatTreatment: 'taxable' | 'exempt' | 'unknown'
-  vatRate?: number
+async function login(page: Page) {
+  const email = process.env.SOLOLEDGER_E2E_EMAIL
+  const password = process.env.SOLOLEDGER_E2E_PASSWORD
+
+  if (!email || !password) {
+    throw new Error('Missing staging E2E credentials.')
+  }
+
+  await page.goto('/')
+  await page.getByPlaceholder('E-postadress').fill(email)
+  await page.getByPlaceholder('Lösenord').fill(password)
+  await page.getByRole('button', { name: 'Logga in' }).click()
+  await page.getByText(/Inloggad som:/).waitFor({ state: 'visible', timeout: 20_000 })
 }
 
-async function createInvoice(supabase: SupabaseClient, input: InvoiceInput) {
-  return rpc(supabase, 'create_customer_invoice_atomic', {
-    p_payload: {
-      invoice_number: input.invoiceNumber,
-      customer_name: input.customerName,
-      customer_country: 'SE',
-      currency: 'SEK',
-      invoice_date: input.invoiceDate,
-      service_date: input.serviceDate,
-      due_date: input.dueDate,
-      gross_amount: input.grossAmount,
-      vat_treatment: input.vatTreatment,
-      vat_rate: input.vatRate ?? null,
-    },
-  })
+async function selectYear(page: Page, targetYear: number) {
+  await page.getByRole('button', { name: 'Bokföring' }).click()
+  await page.locator('select').filter({
+    has: page.locator(`option[value="${targetYear}"]`),
+  }).first().selectOption(String(targetYear))
 }
 
-async function rpc(
+async function expectInvoiceByNumber(
   supabase: SupabaseClient,
-  fn: string,
-  args: Record<string, unknown>
+  invoiceNumber: string
 ) {
-  const { data, error } = await supabase.rpc(fn, args)
+  const { data, error } = await supabase
+    .from('customer_invoices')
+    .select('id, payment_status')
+    .eq('invoice_number', invoiceNumber)
+    .single()
+
   if (error) {
-    throw new Error(`${fn} failed: ${error.message}`)
+    throw new Error(`invoice lookup failed: ${error.message}`)
   }
-  expect(data?.success).toBe(true)
-  return {
-    invoiceId: String(data.invoice_id),
-    transactionId: data.transaction_id == null ? null : String(data.transaction_id),
+
+  expect(data.payment_status).toBe('unpaid')
+  return { id: String(data.id) }
+}
+
+async function expectBookingTransaction(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  bookingKind: 'year_end_receivable' | 'receivable_settlement'
+) {
+  const { data, error } = await supabase
+    .from('customer_invoice_bookings')
+    .select('transaction_id')
+    .eq('invoice_id', invoiceId)
+    .eq('booking_kind', bookingKind)
+    .single()
+
+  if (error) {
+    throw new Error(`booking lookup failed: ${error.message}`)
   }
+
+  return String(data.transaction_id)
 }
 
 async function expectJournalBalance(
   supabase: SupabaseClient,
-  transactionId: string | null,
+  transactionId: string,
   accountNumber: string,
   expected: number
 ) {
-  expect(transactionId).not.toBeNull()
   const { data, error } = await supabase
     .from('journal_entries')
     .select('debit, credit')

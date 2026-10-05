@@ -50,6 +50,7 @@ interface NEBilagaProps {
   neData: NEData | null;
   selectedYear: number;
   isYearLocked: boolean;
+  externalYearCloseBlockReason?: string | null;
   onLockYear: () => Promise<void>;
 }
 
@@ -86,7 +87,13 @@ function Tooltip({ text }: { text: string }) {
   )
 }
 
-export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYear }: NEBilagaProps) {
+export default function NEBilaga({
+  neData,
+  selectedYear,
+  isYearLocked,
+  externalYearCloseBlockReason,
+  onLockYear,
+}: NEBilagaProps) {
   const [showAllNERows, setShowAllNERows] = useState(false)
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
@@ -112,12 +119,15 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
   const unclassifiedNegativeBankBalance = neData.unclassifiedNegativeBankBalance ?? 0
   const hasBalanceDifference = Math.abs(balansDiff) > 1
   const hasUnclassifiedNegativeBank = unclassifiedNegativeBankBalance > 1
-  const yearCloseBlocked = hasBalanceDifference || hasUnclassifiedNegativeBank
+  const yearCloseBlocked =
+    hasBalanceDifference ||
+    hasUnclassifiedNegativeBank ||
+    Boolean(externalYearCloseBlockReason)
   const yearCloseBlockReason = hasUnclassifiedNegativeBank
     ? 'Stäm av negativt saldo i kassa/bank innan räkenskapsåret låses.'
     : hasBalanceDifference
       ? 'Balansräkningen måste balansera innan räkenskapsåret låses.'
-      : null
+      : externalYearCloseBlockReason ?? null
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">

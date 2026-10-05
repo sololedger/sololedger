@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useCallback, useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookTransaction, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
@@ -18,6 +18,7 @@ import TransactionTable from '@/components/TransactionTable'
 import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
+import CustomerInvoicesPanel from '@/components/CustomerInvoicesPanel'
 import SieImportModal from '@/components/SieImportModal'
 
 import SubscriptionGuard from '@/components/SubscriptionGuard'
@@ -141,6 +142,8 @@ export default function Home() {
   const [showSieImport, setShowSieImport] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
+  const [customerInvoiceYearCloseBlocker, setCustomerInvoiceYearCloseBlocker] =
+    useState<string | null>(null)
 
   // SSR-säkert: tomma strängar vid server-render, fylls i av useEffect nedan
   const [formData, setFormData] = useState({
@@ -181,6 +184,11 @@ export default function Home() {
     setFreeUsageCount(count)
     return count
   }
+
+  const refreshBookkeepingAfterCustomerInvoice = useCallback(async () => {
+    await refreshData()
+    await refreshFreeUsageCount()
+  }, [refreshData, user?.id])
 
   // Gratisgränsen gäller TOTALT över alla år, inte bara valt räkenskapsår.
   useEffect(() => {
@@ -1098,6 +1106,14 @@ export default function Home() {
             />
           </div>
 
+          <CustomerInvoicesPanel
+            selectedYear={selectedYear}
+            isYearLocked={isYearLocked}
+            vatStatus={profile?.vat_status ?? 'unknown'}
+            onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
+            onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}
+          />
+
           {!dataLoading && transactions.length === 0 ? (
   <EmptyBookkeepingState
     selectedYear={selectedYear}
@@ -1173,6 +1189,7 @@ export default function Home() {
             neData={neData}
             selectedYear={selectedYear}
             isYearLocked={isYearLocked}
+            externalYearCloseBlockReason={customerInvoiceYearCloseBlocker}
             onLockYear={handleLockYear}
           />
         </SubscriptionGuard>

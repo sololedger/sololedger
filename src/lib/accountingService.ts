@@ -202,6 +202,41 @@ export interface CustomerInvoiceRpcResult {
   paymentStatus?: string
 }
 
+export type CustomerInvoicePaymentStatus = 'unpaid' | 'paid' | 'cancelled'
+export type CustomerInvoiceBookingKind =
+  | 'payment_same_year'
+  | 'year_end_receivable'
+  | 'receivable_settlement'
+
+export interface CustomerInvoiceBooking {
+  id: string
+  invoiceId: string
+  transactionId: string
+  bookingKind: CustomerInvoiceBookingKind
+  bookingDate: string
+  fiscalYear: number
+  grossAmount: number
+  netAmount: number
+  vatAmount: number
+}
+
+export interface CustomerInvoice {
+  id: string
+  invoiceNumber: string
+  customerName: string
+  invoiceDate: string
+  serviceDate: string
+  dueDate: string
+  grossAmount: number
+  netAmount: number | null
+  vatAmount: number | null
+  vatRate: number | null
+  vatTreatment: CustomerInvoiceVatTreatment
+  paymentStatus: CustomerInvoicePaymentStatus
+  paidAt: string | null
+  bookings: CustomerInvoiceBooking[]
+}
+
 type CustomerInvoiceRpcResponse = {
   success?: unknown
   idempotent_replay?: unknown
@@ -211,6 +246,34 @@ type CustomerInvoiceRpcResponse = {
   ver_nr?: unknown
   booking_kind?: unknown
   payment_status?: unknown
+}
+
+type CustomerInvoiceRow = {
+  id: string
+  invoice_number: string
+  customer_name: string
+  invoice_date: string
+  service_date: string
+  due_date: string
+  gross_amount: number | string
+  net_amount: number | string | null
+  vat_amount: number | string | null
+  vat_rate: number | string | null
+  vat_treatment: CustomerInvoiceVatTreatment
+  payment_status: CustomerInvoicePaymentStatus
+  paid_at: string | null
+}
+
+type CustomerInvoiceBookingRow = {
+  id: string
+  invoice_id: string
+  transaction_id: string
+  booking_kind: CustomerInvoiceBookingKind
+  booking_date: string
+  fiscal_year: number | string
+  gross_amount: number | string
+  net_amount: number | string
+  vat_amount: number | string
 }
 
 function mapCustomerInvoiceRpcResult(data: CustomerInvoiceRpcResponse | null): CustomerInvoiceRpcResult {
@@ -227,6 +290,42 @@ function mapCustomerInvoiceRpcResult(data: CustomerInvoiceRpcResponse | null): C
     verNr: data.ver_nr == null ? undefined : Number(data.ver_nr),
     bookingKind: data.booking_kind == null ? undefined : String(data.booking_kind),
     paymentStatus: data.payment_status == null ? undefined : String(data.payment_status),
+  }
+}
+
+function mapCustomerInvoiceBooking(row: CustomerInvoiceBookingRow): CustomerInvoiceBooking {
+  return {
+    id: row.id,
+    invoiceId: row.invoice_id,
+    transactionId: row.transaction_id,
+    bookingKind: row.booking_kind,
+    bookingDate: row.booking_date,
+    fiscalYear: Number(row.fiscal_year),
+    grossAmount: Number(row.gross_amount),
+    netAmount: Number(row.net_amount),
+    vatAmount: Number(row.vat_amount),
+  }
+}
+
+function mapCustomerInvoice(
+  row: CustomerInvoiceRow,
+  bookingsByInvoiceId: Map<string, CustomerInvoiceBooking[]>
+): CustomerInvoice {
+  return {
+    id: row.id,
+    invoiceNumber: row.invoice_number,
+    customerName: row.customer_name,
+    invoiceDate: row.invoice_date,
+    serviceDate: row.service_date,
+    dueDate: row.due_date,
+    grossAmount: Number(row.gross_amount),
+    netAmount: row.net_amount == null ? null : Number(row.net_amount),
+    vatAmount: row.vat_amount == null ? null : Number(row.vat_amount),
+    vatRate: row.vat_rate == null ? null : Number(row.vat_rate),
+    vatTreatment: row.vat_treatment,
+    paymentStatus: row.payment_status,
+    paidAt: row.paid_at,
+    bookings: bookingsByInvoiceId.get(row.id) ?? [],
   }
 }
 
@@ -256,6 +355,50 @@ export async function createCustomerInvoice(
   }
 
   return mapCustomerInvoiceRpcResult(data)
+}
+
+export async function getCustomerInvoices(throughYear: number): Promise<CustomerInvoice[]> {
+  const userId = await getUserId()
+  const throughDate = `${throughYear}-12-31`
+
+  const { data, error } = await supabase
+    .from('customer_invoices')
+    .select('id, invoice_number, customer_name, invoice_date, service_date, due_date, gross_amount, net_amount, vat_amount, vat_rate, vat_treatment, payment_status, paid_at')
+    .eq('user_id', userId)
+    .lte('invoice_date', throughDate)
+    .order('invoice_date', { ascending: false })
+    .order('invoice_number', { ascending: false })
+    .limit(200)
+
+  if (error) {
+    throw new Error('Kunde inte hämta kundfakturor: ' + error.message)
+  }
+
+  const invoiceRows = (data ?? []) as CustomerInvoiceRow[]
+  const invoiceIds = invoiceRows.map(row => row.id)
+  const bookingsByInvoiceId = new Map<string, CustomerInvoiceBooking[]>()
+
+  if (invoiceIds.length > 0) {
+    const { data: bookingData, error: bookingError } = await supabase
+      .from('customer_invoice_bookings')
+      .select('id, invoice_id, transaction_id, booking_kind, booking_date, fiscal_year, gross_amount, net_amount, vat_amount')
+      .eq('user_id', userId)
+      .in('invoice_id', invoiceIds)
+      .order('booking_date', { ascending: true })
+
+    if (bookingError) {
+      throw new Error('Kunde inte hämta kundfakturornas bokningar: ' + bookingError.message)
+    }
+
+    for (const row of (bookingData ?? []) as CustomerInvoiceBookingRow[]) {
+      const booking = mapCustomerInvoiceBooking(row)
+      const existing = bookingsByInvoiceId.get(booking.invoiceId) ?? []
+      existing.push(booking)
+      bookingsByInvoiceId.set(booking.invoiceId, existing)
+    }
+  }
+
+  return invoiceRows.map(row => mapCustomerInvoice(row, bookingsByInvoiceId))
 }
 
 export async function recordCustomerInvoicePayment(
