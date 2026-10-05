@@ -6,6 +6,24 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-39 Clearer Bookkeeping Form and VAT V2 Blocked Submit UX
+
+- KAN-39 reached `Done` in Jira on 2026-10-05 after Pontus final-smoked the
+  Production flow.
+- Production `main`/`origin/main` checkpoint:
+  `bb739642c6fca4faad96751cd8d891eacb69b226`
+  (`KAN-39 clarify blocked VAT V2 submit feedback`).
+- Scope completed: UX-only improvements to the bookkeeping form. `Datum` and
+  `Beskrivning` now have clearer input affordance, VAT V2 no longer shows the
+  previous duplicate red missing-role submit error, and a blocked VAT V2 submit
+  updates the existing status panel to `KAN INTE BOKFÖRA ÄNNU` with a
+  deterministic, deduplicated list of current blockers.
+- No bookkeeping logic, RPC, Supabase migration, or KAN-38 server-side
+  enforcement behavior was changed.
+- Verification included targeted UI regression coverage, `npm run typecheck`,
+  `npm run test:domain`, targeted lint, `npm run build`, `git diff --check`,
+  Vercel Production deployment verification, and Pontus Production smoke.
+
 ### KAN-38 VAT V2 Server-Side Payment Role Enforcement
 
 - KAN-38 reached `Done` in Jira on 2026-10-04 after Pontus IRL-accepted the
