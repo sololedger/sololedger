@@ -31,6 +31,8 @@ const legacyKeys: AdminDeleteDryRunCountKey[] = [
 ]
 
 const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
+  'customer_invoice_bookings',
+  'customer_invoices',
   'tax_account_movements',
   'tax_account_events',
   'vat_v2_booking_idempotency',
@@ -56,6 +58,8 @@ for (const key of ADMIN_DELETE_DRY_RUN_COUNT_KEYS) {
 }
 
 const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
+  customer_invoice_bookings: 10,
+  customer_invoices: 11,
   tax_account_movements: 1,
   tax_account_events: 2,
   vat_v2_booking_idempotency: 3,
@@ -67,6 +71,8 @@ const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
   attachments: 9,
 })
 
+assertEqual(normalizedLifecycle.customer_invoice_bookings, 10, 'Customer invoice booking count is preserved')
+assertEqual(normalizedLifecycle.customer_invoices, 11, 'Customer invoice count is preserved')
 assertEqual(normalizedLifecycle.tax_account_movements, 1, 'Movement count is preserved')
 assertEqual(normalizedLifecycle.tax_account_events, 2, 'Event count is preserved')
 assertEqual(

@@ -50,6 +50,8 @@ Last updated: 2026-10-05
   indicates the stored information is stale.
 - Live Supabase Production migration head documented/verified after KAN-42:
   `20261005105538`.
+- Supabase staging/E2E migration head verified after KAN-46 Block 1:
+  `20261005193000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
@@ -60,7 +62,7 @@ Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38, KAN-39, KAN-40, KAN-42, KAN-43, KAN-45.
-- In Review: none currently tracked in this state file.
+- In Review: KAN-46.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
@@ -82,6 +84,16 @@ Verified from Jira on 2026-10-05:
 
 ## Current Active Work
 
+- KAN-46 Block 1 is implemented, staging-migrated, Codex-verified, and in
+  Jira `In Review` assigned to Pontus. It adds external customer invoice facts,
+  invoice booking links, RPCs for invoice registration/payment/year-end
+  receivable/receivable settlement, a `close_year_atomic` unpaid-invoice guard,
+  controlled `customer_invoice` transaction source handling, account 1510, and
+  delete-user/admin parity. Production was not migrated, pushed, or deployed.
+- Remaining KAN-46 acceptance is Pontus IRL testing of Jessika's December
+  invoice scenario and later UI work for a proper invoice list/page. Full PDF
+  generation, partial payments, credit invoices, foreign customers, EU/reverse
+  VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
   Production. Technical acceptance is PASS, including the 2330/B13 Playwright
   acceptance in staging.
@@ -133,6 +145,10 @@ Verified from Jira on 2026-10-05:
   Production.
 - KAN-39 closeout, KAN-40, KAN-43, KAN-42, and KAN-45 checkpoints through
   `b9d6853` are pushed to `main` and deployed to Production.
+- Local docs-only checkpoint `20f0cff` documents the accepted Production
+  `b9d6853` state and remains unpushed.
+- KAN-46 Block 1 checkpoint is local only on top of that docs checkpoint; do
+  not push `main` without explicit Production-deploy approval.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -146,6 +162,9 @@ Verified from Jira on 2026-10-05:
 - Production-derived local PostgreSQL DB `sololedger_kan17c_test` remains the
   preferred safe DB/RPC regression environment when live data writes are not
   approved.
+- KAN-46 candidate schema was applied to the isolated local PostgreSQL test DB
+  during verification; KAN-46 fixture data was created inside a rollback test
+  transaction and was not retained.
 - PostgreSQL 17 client may exist at
   `C:\Program Files\PostgreSQL\17\bin\psql.exe`.
 - Authorized local credential file for isolated local PostgreSQL verification:
@@ -162,9 +181,9 @@ Verified from Jira on 2026-10-05:
 
 ## Next Safe Step
 
-1. Do not push `main` without explicit approval because it deploys Production.
-2. The current release is deployed and smoke-verified. If this state update is
-   kept, it remains a local docs-only change until Pontus explicitly approves
-   another push.
-3. Next selected work package can reuse the verified staging/E2E fast path
-   without rediscovery unless state appears stale.
+1. Pontus IRL-tests KAN-46 Jessika scenario in staging: register external
+   December invoice, book 31/12 customer receivable, settle January payment, and
+   verify no duplicate income/VAT.
+2. Do not push `main` without explicit approval because it deploys Production.
+3. Production Supabase remains at `20261005105538`; KAN-46 staging is at
+   `20261005193000`.

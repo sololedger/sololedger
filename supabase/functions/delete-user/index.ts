@@ -9,6 +9,8 @@ const corsHeaders = {
 type Action = 'dry-run' | 'delete'
 
 const TABLES = [
+  'customer_invoice_bookings',
+  'customer_invoices',
   'tax_account_movements',
   'tax_account_events',
   'vat_v2_booking_idempotency',

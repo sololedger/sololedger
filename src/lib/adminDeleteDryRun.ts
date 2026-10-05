@@ -1,4 +1,6 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
+  'customer_invoice_bookings',
+  'customer_invoices',
   'tax_account_movements',
   'tax_account_events',
   'vat_v2_booking_idempotency',
@@ -24,6 +26,8 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   AdminDeleteDryRunCountKey,
   string
 > = {
+  customer_invoice_bookings: 'kundfakturabokningar',
+  customer_invoices: 'kundfakturor',
   tax_account_movements: 'skattekontorörelser',
   tax_account_events: 'momsavräkningshändelser',
   vat_v2_booking_idempotency: 'VAT V2-idempotensposter',

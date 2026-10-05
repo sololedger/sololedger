@@ -177,6 +177,156 @@ export interface BookVatV2EuServiceReverseChargeResult {
   vatAuditSnapshotId: string
 }
 
+export type CustomerInvoiceVatTreatment = 'taxable' | 'exempt' | 'unknown'
+
+export interface CreateCustomerInvoiceInput {
+  invoiceNumber: string
+  customerName: string
+  invoiceDate: string
+  serviceDate: string
+  dueDate: string
+  grossAmount: number
+  vatTreatment: CustomerInvoiceVatTreatment
+  vatRate?: number | null
+  attachmentUrl?: string | null
+}
+
+export interface CustomerInvoiceRpcResult {
+  success: true
+  idempotentReplay?: boolean
+  invoiceId: string
+  bookingId?: string
+  transactionId?: string
+  verNr?: number
+  bookingKind?: string
+  paymentStatus?: string
+}
+
+type CustomerInvoiceRpcResponse = {
+  success?: unknown
+  idempotent_replay?: unknown
+  invoice_id?: unknown
+  booking_id?: unknown
+  transaction_id?: unknown
+  ver_nr?: unknown
+  booking_kind?: unknown
+  payment_status?: unknown
+}
+
+function mapCustomerInvoiceRpcResult(data: CustomerInvoiceRpcResponse | null): CustomerInvoiceRpcResult {
+  if (!data?.success) {
+    throw new Error('Kundfakturaåtgärden misslyckades av okänd anledning.')
+  }
+
+  return {
+    success: true,
+    idempotentReplay: data.idempotent_replay === true,
+    invoiceId: String(data.invoice_id),
+    bookingId: data.booking_id == null ? undefined : String(data.booking_id),
+    transactionId: data.transaction_id == null ? undefined : String(data.transaction_id),
+    verNr: data.ver_nr == null ? undefined : Number(data.ver_nr),
+    bookingKind: data.booking_kind == null ? undefined : String(data.booking_kind),
+    paymentStatus: data.payment_status == null ? undefined : String(data.payment_status),
+  }
+}
+
+export async function createCustomerInvoice(
+  input: CreateCustomerInvoiceInput
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('create_customer_invoice_atomic', {
+    p_payload: {
+      invoice_number: input.invoiceNumber,
+      customer_name: input.customerName,
+      customer_country: 'SE',
+      currency: 'SEK',
+      invoice_date: input.invoiceDate,
+      service_date: input.serviceDate,
+      due_date: input.dueDate,
+      gross_amount: input.grossAmount,
+      vat_treatment: input.vatTreatment,
+      vat_rate: input.vatRate ?? null,
+      attachment_url: input.attachmentUrl ?? null,
+    },
+  })
+
+  if (error) {
+    throw new Error('Kundfakturan kunde inte registreras: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
+}
+
+export async function recordCustomerInvoicePayment(
+  invoiceId: string,
+  paymentDate: string,
+  idempotencyKey: string
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc(
+    'record_customer_invoice_payment_atomic',
+    {
+      p_invoice_id: invoiceId,
+      p_payment_date: paymentDate,
+      p_idempotency_key: idempotencyKey,
+    }
+  )
+
+  if (error) {
+    throw new Error('Kundfakturans betalning kunde inte bokföras: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
+}
+
+export async function bookCustomerInvoiceYearEndReceivable(
+  invoiceId: string,
+  fiscalYear: number,
+  idempotencyKey: string
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc(
+    'book_customer_invoice_year_end_receivable_atomic',
+    {
+      p_invoice_id: invoiceId,
+      p_fiscal_year: fiscalYear,
+      p_idempotency_key: idempotencyKey,
+    }
+  )
+
+  if (error) {
+    throw new Error('Kundfordran kunde inte bokföras vid årsskifte: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
+}
+
+export async function settleCustomerInvoiceReceivable(
+  invoiceId: string,
+  paymentDate: string,
+  idempotencyKey: string
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc(
+    'settle_customer_invoice_receivable_atomic',
+    {
+      p_invoice_id: invoiceId,
+      p_payment_date: paymentDate,
+      p_idempotency_key: idempotencyKey,
+    }
+  )
+
+  if (error) {
+    throw new Error('Kundfordran kunde inte regleras: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
+}
+
 export async function bookVatV2EuServiceReverseChargeTransaction(
   input: BookVatV2EuServiceReverseChargeInput
 ): Promise<BookVatV2EuServiceReverseChargeResult> {

@@ -1427,6 +1427,17 @@ export const BOOKING_CATEGORIES: BookingCategory[] = [
  */
 export const SYSTEM_ACCOUNTS: SystemAccount[] = [
   {
+    accountNumber: '1510',
+    name: 'Kundfordringar',
+    group: 'system',
+    availability: 'system',
+    usageType: 'system',
+    description:
+      'Systemkonto för obetalda kundfakturor vid årsskifte. Användaren ska normalt hantera detta via kundfakturaflödet, inte som fri kategori.',
+    userSelectable: false,
+  },
+
+  {
     accountNumber: '1790',
     name: 'Förutbetalda kostnader',
     group: 'periodization',
@@ -1940,6 +1951,7 @@ export const ACCOUNT_PRESETS: AccountPreset[] = [
  * Resultat- och NE-klassificering hör fortfarande hemma i resultEngine.ts.
  */
 export const BAS_ACCOUNT_HELP: Record<string, string> = {
+  '1510': 'Kundfordringar',
   '1790': 'Övriga förutbetalda kostnader och upplupna intäkter',
   '1930': 'Företagskonto / checkkonto / affärskonto',
   '2010': 'Eget kapital',

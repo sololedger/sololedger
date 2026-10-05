@@ -16,6 +16,7 @@ export interface TransactionSourceUiPolicy {
     | 'vat_v2'
     | 'vat_settlement'
     | 'tax_account_movement'
+    | 'customer_invoice'
 }
 
 const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
@@ -66,6 +67,14 @@ const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
     genericCorrectionOffered: false,
     label: 'Skattekontorörelse',
     kind: 'tax_account_movement',
+  },
+  customer_invoice: {
+    source: 'customer_invoice',
+    systemManaged: true,
+    genericEditOffered: false,
+    genericCorrectionOffered: false,
+    label: 'Kundfaktura',
+    kind: 'customer_invoice',
   },
 }
 
