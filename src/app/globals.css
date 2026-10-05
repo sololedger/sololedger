@@ -25,7 +25,8 @@ html {
 }
 
 .sl-section-shell {
-  border-color: #e5e7eb;
+  border-color: #eef2f7;
+  box-shadow: 0 14px 36px -28px rgb(15 23 42 / 0.28);
 }
 
 .sl-secondary-copy {
