@@ -7,15 +7,10 @@ Last updated: 2026-10-05
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `bb73964`
-  (`KAN-39 clarify blocked VAT V2 submit feedback`).
-- Local `main` is intentionally ahead of `origin/main` with unpushed local
-  checkpoints:
-  - `936b188` docs-only KAN-39 closeout.
-  - KAN-40 local checkpoint for NE negative-bank handling.
-  - `4047047` KAN-43 staging/E2E safeguards.
-  - KAN-42 local checkpoint for authoritative year-close guards.
-- Production is verified on `bb73964`.
+- Origin/Production `main`: `b9d6853`
+  (`KAN-45 tune section card elevation`).
+- Production is verified on `b9d6853` after the KAN-40/KAN-42/KAN-43/KAN-45
+  rollout.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -53,8 +48,8 @@ Last updated: 2026-10-05
 - Future work packages should reuse these verified refs/configs and avoid
   Supabase/Vercel listing or Playwright-auth rediscovery unless something
   indicates the stored information is stale.
-- Live Supabase migration head documented/verified after KAN-38:
-  `20261004152057`.
+- Live Supabase Production migration head documented/verified after KAN-42:
+  `20261005105538`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
@@ -64,8 +59,8 @@ Last updated: 2026-10-05
 Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
-  KAN-37, KAN-38, KAN-39, KAN-43.
-- In Review: KAN-40, KAN-42, KAN-45.
+  KAN-37, KAN-38, KAN-39, KAN-40, KAN-42, KAN-43, KAN-45.
+- In Review: none currently tracked in this state file.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
@@ -74,12 +69,8 @@ Verified from Jira on 2026-10-05:
 - KAN-38 is completed, live-migrated, Production-deployed, and IRL-accepted by
   Pontus on a separate test account.
 - KAN-39 is completed, pushed, Production-deployed, smoke-tested, and Done.
-- KAN-43 is completed, accepted by leadership chat, and Done in Jira.
-- KAN-42 is implemented and Codex-verified, then moved to In Review and
-  assigned to Pontus for final testing. Do not set Done before Pontus accepts.
-- KAN-45 is implemented and Codex-verified, then moved to In Review and
-  assigned to Pontus for visual IRL acceptance. Do not set Done before Pontus
-  accepts.
+- KAN-40, KAN-42, KAN-43, and KAN-45 are completed, Production-rolled out,
+  smoke-verified, and Done in Jira.
 
 ## Product Acceptance Direction
 
@@ -91,8 +82,9 @@ Verified from Jira on 2026-10-05:
 
 ## Current Active Work
 
-- KAN-40 implementation and Codex verification are complete locally. Technical
-  acceptance is PASS, including the 2330/B13 Playwright acceptance in staging.
+- KAN-40 implementation and Codex verification are complete and deployed to
+  Production. Technical acceptance is PASS, including the 2330/B13 Playwright
+  acceptance in staging.
 - KAN-43 staging/E2E setup is accepted by leadership chat and checkpointed
   locally. Write-E2E uses `.env.e2e.local`, staging ref allowlist, and the
   dedicated Playwright user. `test:e2e:write` is staging-only and fail-closed
@@ -100,18 +92,16 @@ Verified from Jira on 2026-10-05:
   or uses a non-E2E user. `test:e2e:smoke` remains read-only/non-destructive.
   `test:e2e:safety` verifies the guard, including explicit Production-ref
   denial.
-- KAN-42 year-close integrity is implemented locally and applied/tested only on
-  staging `fzxqiqenqjzhlyxxpvhg`. `close_year_atomic` now preserves the open
-  SoloLedger VAT period guard and also blocks year closing when cumulative NE
-  balance does not balance or 19xx has unresolved negative cash/bank. UI now
-  disables `LÅS RÄKENSKAPSÅR` with a short explanation for those blockers.
-  Staging migration head includes `20261005105538_kan42_close_year_ne_guard`;
-  Production `wbaxmuvudpnkvuliicuy` has not received this migration.
-- KAN-45 UI/readability polish is implemented locally. It only changes
+- KAN-42 year-close integrity is implemented and deployed to Production.
+  `close_year_atomic` preserves the open SoloLedger VAT period guard and also
+  blocks year closing when cumulative NE balance does not balance or 19xx has
+  unresolved negative cash/bank. UI disables `LÅS RÄKENSKAPSÅR` with a short
+  explanation for those blockers. Production migration head includes
+  `20261005105538_kan42_close_year_ne_guard`.
+- KAN-45 UI/readability polish is implemented and deployed to Production. It only changes
   Bokföring presentation styles: clearer amount-input affordance, hidden number
   spinners, slightly stronger main-section borders, stronger secondary text and
-  table headers, and clearer logged-in email. No accounting logic, Supabase
-  schema, RPC, migration, push, deploy, or Production write was performed.
+  table headers, and clearer logged-in email. No accounting logic was changed.
 - KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
   mismatch. Do not implement it as part of KAN-40.
 
@@ -134,26 +124,17 @@ Verified from Jira on 2026-10-05:
 
 ## Git / Local Files
 
-- Working tree should be clean after the latest local checkpoint commit.
+- Working tree was clean immediately after the Production rollout push.
 - KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
   Production.
 - KAN-38 docs-only closeout checkpoint `64d1132` was formerly local above
   Production; it is now part of pushed `main`.
 - KAN-39 checkpoints through `bb73964` are pushed to `main` and deployed to
   Production.
-- KAN-39 docs-only closeout checkpoint `936b188` is local-only above
-  Production.
-- KAN-40 NE negative-bank checkpoint is local-only above Production. It changes
-  NE balance calculation/UI and domain tests only; no Supabase write, deploy,
-  push, or migration has been performed.
-- KAN-43 staging/E2E files are local-only above Production. No push/deploy has
-  been performed. Local git-ignored files hold staging E2E env/auth state; do
-  not copy credentials into Git, Jira, `PROJECT_STATE.md`, or chat.
-- KAN-42 files are local-only above Production: one Supabase migration, one
-  NE UI guard change, and one staging write-E2E spec. The migration is applied
-  to staging only. No Production migration, push, or deploy has been performed.
-- KAN-45 files are local-only above Production and affect only frontend
-  readability styles on the Bokföring page. No push/deploy has been performed.
+- KAN-39 closeout, KAN-40, KAN-43, KAN-42, and KAN-45 checkpoints through
+  `b9d6853` are pushed to `main` and deployed to Production.
+- Local git-ignored files hold staging E2E env/auth state; do not copy
+  credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -182,8 +163,8 @@ Verified from Jira on 2026-10-05:
 ## Next Safe Step
 
 1. Do not push `main` without explicit approval because it deploys Production.
-2. KAN-45 next step is Pontus visual IRL testing on the Bokföring page.
-3. KAN-42 Production rollout requires explicit approval for the Production
-   Supabase migration and push/deploy.
-4. Next selected work package can reuse the verified staging/E2E fast path
+2. The current release is deployed and smoke-verified. If this state update is
+   kept, it remains a local docs-only change until Pontus explicitly approves
+   another push.
+3. Next selected work package can reuse the verified staging/E2E fast path
    without rediscovery unless state appears stale.
