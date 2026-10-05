@@ -50,8 +50,8 @@ Last updated: 2026-10-05
   indicates the stored information is stale.
 - Live Supabase Production migration head documented/verified after KAN-42:
   `20261005105538`.
-- Supabase staging/E2E migration head verified after KAN-46 Block 1:
-  `20261005193000`.
+- Supabase staging/E2E migration head verified after KAN-46 Block 3:
+  `20261005203000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
@@ -90,16 +90,17 @@ Verified from Jira on 2026-10-05:
   receivable/receivable settlement, a `close_year_atomic` unpaid-invoice guard,
   controlled `customer_invoice` transaction source handling, account 1510, and
   delete-user/admin parity. Production was not migrated, pushed, or deployed.
-- KAN-46 Block 2 minimal UI is implemented and staging-E2E verified. The
-  Bokföring view now has an external customer invoice panel for registering
-  invoice facts, seeing `Obetald`/`Betald` separately from
-  `Kundfordran bokförd`, booking year-end receivable through Block 1 RPCs, and
-  registering later payment through the correct payment/settlement RPC. NE year
-  close UI now reflects the customer-invoice blocker while the backend remains
-  authoritative.
-- Remaining KAN-46 acceptance is Pontus/Jessika IRL staging testing of the
-  December invoice scenario and later product work for a fuller invoice page.
-  Full PDF generation, partial payments, credit invoices, foreign customers,
+- KAN-46 Block 2 minimal UI is implemented, staging-E2E verified, and manually
+  accepted by Pontus for the December invoice scenario.
+- KAN-46 Block 3 product UX is implemented and staging-E2E verified. Bokföring
+  no longer preselects a category; ordinary booking is blocked until a category
+  is chosen. Selecting `Försäljning` explains direct paid sale vs customer
+  invoice. A dedicated `Fakturor` tab handles customer invoice registration,
+  mandatory PDF/image attachment upload, unpaid/paid status, separate
+  bokslut-status, collective year-end inclusion, attachment opening, and later
+  payment. The accounting engine still uses the Block 1 RPCs; no client-side
+  accounting duplication was added.
+- Full PDF generation, partial payments, credit invoices, foreign customers,
   EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
   Production. Technical acceptance is PASS, including the 2330/B13 Playwright
@@ -160,14 +161,19 @@ Verified from Jira on 2026-10-05:
   approval.
 - Local docs-only handoff checkpoint `68433d9` documents the post-Block 1
   handoff state and remains unpushed.
-- KAN-46 Block 2 minimal UI checkpoint is local-only on top of `68433d9`
-  (current HEAD after checkpoint). It is not pushed; pushing `main` would
-  deploy Production and requires explicit approval.
-- Verified pre-checkpoint Git state for Block 2 implementation:
-  `main...origin/main [ahead 3]` plus local changes in
+- KAN-46 Block 2 minimal UI checkpoint `64b281f` is local-only on top of
+  `68433d9`. It is not pushed; pushing `main` would deploy Production and
+  requires explicit approval.
+- KAN-46 Block 3 is implemented in the working tree before checkpoint in
   `src/app/page.tsx`, `src/components/CustomerInvoicesPanel.tsx`,
-  `src/components/NEBilaga.tsx`, `src/lib/accountingService.ts`,
+  `src/components/Layout.tsx`, `src/components/TransactionForm.tsx`,
+  `src/lib/accountingService.ts`, `src/lib/customerInvoiceUi.ts`,
+  `supabase/migrations/20261005203000_ensure_attachments_storage_bucket.sql`,
   `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
+- Supabase CLI local link was switched from Production ref
+  `wbaxmuvudpnkvuliicuy` to staging ref `fzxqiqenqjzhlyxxpvhg` before applying
+  the Block 3 staging-only bucket migration. `supabase/.temp/` remains
+  generated/ignored state.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -202,11 +208,20 @@ Verified from Jira on 2026-10-05:
   tests/e2e/kan46-staging-write.spec.ts` passed against hosted staging
   `fzxqiqenqjzhlyxxpvhg`. An earlier sandboxed E2E attempt failed before UI
   execution because local network access to staging Supabase was blocked.
+- KAN-46 Block 3 verification on 2026-10-05:
+  `npm run typecheck` passed; `npm run test:e2e:write --
+  tests/e2e/kan46-staging-write.spec.ts` passed against hosted staging
+  `fzxqiqenqjzhlyxxpvhg`. A first Block 3 E2E run exposed that staging lacked
+  the documented private `attachments` bucket; migration
+  `20261005203000_ensure_attachments_storage_bucket.sql` was applied to staging
+  only and then the focused E2E passed. Production was not migrated.
 
 ## Next Safe Step
 
-1. Pontus/Jessika should manually test KAN-46 Block 2 in staging with a
-   realistic fictive Swedish December invoice scenario.
+1. Pontus/Jessika should manually test KAN-46 Block 3 in staging with a
+   realistic fictive Swedish December invoice scenario through the new
+   `Fakturor` tab and confirm ordinary Bokföring no longer preselects a
+   category.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Production Supabase remains at `20261005105538`; KAN-46 staging is at
-   `20261005193000`.
+   `20261005203000`.

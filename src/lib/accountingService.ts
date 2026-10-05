@@ -234,6 +234,7 @@ export interface CustomerInvoice {
   vatTreatment: CustomerInvoiceVatTreatment
   paymentStatus: CustomerInvoicePaymentStatus
   paidAt: string | null
+  attachmentUrl: string | null
   bookings: CustomerInvoiceBooking[]
 }
 
@@ -262,6 +263,7 @@ type CustomerInvoiceRow = {
   vat_treatment: CustomerInvoiceVatTreatment
   payment_status: CustomerInvoicePaymentStatus
   paid_at: string | null
+  attachment_url: string | null
 }
 
 type CustomerInvoiceBookingRow = {
@@ -325,6 +327,7 @@ function mapCustomerInvoice(
     vatTreatment: row.vat_treatment,
     paymentStatus: row.payment_status,
     paidAt: row.paid_at,
+    attachmentUrl: row.attachment_url,
     bookings: bookingsByInvoiceId.get(row.id) ?? [],
   }
 }
@@ -363,7 +366,7 @@ export async function getCustomerInvoices(throughYear: number): Promise<Customer
 
   const { data, error } = await supabase
     .from('customer_invoices')
-    .select('id, invoice_number, customer_name, invoice_date, service_date, due_date, gross_amount, net_amount, vat_amount, vat_rate, vat_treatment, payment_status, paid_at')
+    .select('id, invoice_number, customer_name, invoice_date, service_date, due_date, gross_amount, net_amount, vat_amount, vat_rate, vat_treatment, payment_status, paid_at, attachment_url')
     .eq('user_id', userId)
     .lte('invoice_date', throughDate)
     .order('invoice_date', { ascending: false })

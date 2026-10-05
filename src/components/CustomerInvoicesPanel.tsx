@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 import {
   bookCustomerInvoiceYearEndReceivable,
   createCustomerInvoice,
@@ -10,11 +11,23 @@ import {
   type CustomerInvoice,
   type CustomerInvoiceVatTreatment,
 } from '@/lib/accountingService'
+import {
+  customerInvoiceHasUnsafeVatBlocker,
+  customerInvoiceNeedsYearEndBooking,
+  customerInvoicePaymentLabel,
+  customerInvoiceVatLabel,
+  customerInvoiceYearCloseBlockerFor,
+  customerInvoiceYearEndLabel,
+  fmtCustomerInvoiceCurrency,
+  hasAnyCustomerInvoiceYearEndBooking,
+  hasCustomerInvoiceYearEndBooking,
+} from '@/lib/customerInvoiceUi'
 
 interface CustomerInvoicesPanelProps {
   selectedYear: number
   isYearLocked: boolean
   vatStatus: 'registered' | 'not_registered' | 'unknown'
+  onUploadAttachment: (file: File) => Promise<string>
   onBookkeepingChanged: () => Promise<void>
   onYearCloseBlockerChange: (reason: string | null) => void
 }
@@ -28,78 +41,48 @@ interface InvoiceFormState {
   grossAmount: string
   vatTreatment: CustomerInvoiceVatTreatment
   vatRate: string
+  attachment: File | null
 }
 
-const initialForm = (selectedYear: number, vatStatus: CustomerInvoicesPanelProps['vatStatus']): InvoiceFormState => ({
-  invoiceNumber: '',
-  customerName: '',
-  invoiceDate: `${selectedYear}-12-20`,
-  serviceDate: `${selectedYear}-12-20`,
-  dueDate: `${selectedYear + 1}-01-20`,
-  grossAmount: '',
-  vatTreatment: vatStatus === 'not_registered' ? 'exempt' : 'unknown',
-  vatRate: '25',
-})
-
-function fmtCurrency(value: number | null | undefined) {
-  if (value == null) return 'Saknas'
-  return `${value.toLocaleString('sv-SE', {
-    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })} kr`
-}
-
-function vatLabel(invoice: CustomerInvoice) {
-  if (invoice.vatTreatment === 'unknown') return 'Moms oklar'
-  if (invoice.vatTreatment === 'exempt') return 'Momsfri / ej moms'
-  return `${invoice.vatRate ?? '?'}% moms`
-}
-
-function hasYearEndReceivable(invoice: CustomerInvoice, fiscalYear: number) {
-  return invoice.bookings.some(booking =>
-    booking.bookingKind === 'year_end_receivable' &&
-    booking.fiscalYear === fiscalYear
-  )
-}
-
-function hasAnyYearEndReceivable(invoice: CustomerInvoice) {
-  return invoice.bookings.some(booking => booking.bookingKind === 'year_end_receivable')
-}
-
-function yearCloseBlockerFor(invoice: CustomerInvoice, fiscalYear: number) {
-  const yearEnd = `${fiscalYear}-12-31`
-  if (
-    invoice.paymentStatus !== 'unpaid' ||
-    invoice.invoiceDate > yearEnd ||
-    invoice.serviceDate > yearEnd
-  ) {
-    return null
+function initialForm(vatStatus: CustomerInvoicesPanelProps['vatStatus']): InvoiceFormState {
+  return {
+    invoiceNumber: '',
+    customerName: '',
+    invoiceDate: '',
+    serviceDate: '',
+    dueDate: '',
+    grossAmount: '',
+    vatTreatment: vatStatus === 'not_registered' ? 'exempt' : 'unknown',
+    vatRate: '25',
+    attachment: null,
   }
+}
 
-  if (invoice.vatTreatment === 'unknown') {
-    return `Kundfaktura ${invoice.invoiceNumber} har osäker momsstatus. Slutför momsfakta innan år ${fiscalYear} låses.`
+function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
+  if (booking.bookingKind === 'year_end_receivable') {
+    return `${booking.bookingDate}: togs med i bokslutet`
   }
-
-  if (!hasYearEndReceivable(invoice, fiscalYear)) {
-    return `Kundfaktura ${invoice.invoiceNumber} är obetald och behöver bokföras som kundfordran per 31/12 innan år ${fiscalYear} låses.`
+  if (booking.bookingKind === 'receivable_settlement') {
+    return `${booking.bookingDate}: betalning efter bokslut`
   }
-
-  return null
+  return `${booking.bookingDate}: betalning bokförd`
 }
 
 export default function CustomerInvoicesPanel({
   selectedYear,
   isYearLocked,
   vatStatus,
+  onUploadAttachment,
   onBookkeepingChanged,
   onYearCloseBlockerChange,
 }: CustomerInvoicesPanelProps) {
-  const [form, setForm] = useState<InvoiceFormState>(() => initialForm(selectedYear, vatStatus))
+  const [form, setForm] = useState<InvoiceFormState>(() => initialForm(vatStatus))
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([])
   const [loading, setLoading] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null)
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
@@ -110,7 +93,7 @@ export default function CustomerInvoicesPanel({
     } catch (error) {
       setNotice({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Kunde inte hämta kundfakturor.',
+        text: error instanceof Error ? error.message : 'Kunde inte hämta fakturor.',
       })
     } finally {
       setLoading(false)
@@ -118,13 +101,21 @@ export default function CustomerInvoicesPanel({
   }, [selectedYear])
 
   useEffect(() => {
-    setForm(initialForm(selectedYear, vatStatus))
+    setForm(prev => ({
+      ...prev,
+      vatTreatment: prev.vatTreatment === 'unknown' && vatStatus === 'not_registered'
+        ? 'exempt'
+        : prev.vatTreatment,
+    }))
+  }, [vatStatus])
+
+  useEffect(() => {
     void loadInvoices()
-  }, [loadInvoices, selectedYear, vatStatus])
+  }, [loadInvoices])
 
   const yearEndBlockers = useMemo(
     () => invoices
-      .map(invoice => yearCloseBlockerFor(invoice, selectedYear))
+      .map(invoice => customerInvoiceYearCloseBlockerFor(invoice, selectedYear))
       .filter((reason): reason is string => Boolean(reason)),
     [invoices, selectedYear]
   )
@@ -134,6 +125,16 @@ export default function CustomerInvoicesPanel({
   }, [onYearCloseBlockerChange, yearEndBlockers])
 
   const unpaidInvoices = invoices.filter(invoice => invoice.paymentStatus === 'unpaid')
+  const yearEndCandidates = invoices.filter(invoice =>
+    customerInvoiceNeedsYearEndBooking(invoice, selectedYear)
+  )
+  const unsafeVatBlockers = invoices.filter(invoice =>
+    customerInvoiceHasUnsafeVatBlocker(invoice, selectedYear)
+  )
+  const yearEndTotal = yearEndCandidates.reduce(
+    (sum, invoice) => sum + invoice.grossAmount,
+    0
+  )
 
   async function refreshAfterAction(message: string) {
     await loadInvoices()
@@ -151,7 +152,11 @@ export default function CustomerInvoicesPanel({
       if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
         throw new Error('Fakturabeloppet måste vara större än 0.')
       }
+      if (!form.attachment) {
+        throw new Error('Lägg till fakturaunderlaget innan du registrerar fakturan.')
+      }
 
+      const attachmentUrl = await onUploadAttachment(form.attachment)
       await createCustomerInvoice({
         invoiceNumber: form.invoiceNumber,
         customerName: form.customerName,
@@ -161,14 +166,15 @@ export default function CustomerInvoicesPanel({
         grossAmount,
         vatTreatment: form.vatTreatment,
         vatRate: form.vatTreatment === 'taxable' ? Number(form.vatRate) : null,
+        attachmentUrl,
       })
 
-      setForm(initialForm(selectedYear, vatStatus))
-      await refreshAfterAction('Kundfakturan är registrerad. Ingen bokföring skapades förrän betalning eller bokslut hanteras.')
+      setForm(initialForm(vatStatus))
+      await refreshAfterAction('Fakturan är registrerad. Ingen bokföring skapades ännu.')
     } catch (error) {
       setNotice({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Kundfakturan kunde inte registreras.',
+        text: error instanceof Error ? error.message : 'Fakturan kunde inte registreras.',
       })
     } finally {
       setBusyKey(null)
@@ -185,11 +191,44 @@ export default function CustomerInvoicesPanel({
         selectedYear,
         crypto.randomUUID()
       )
-      await refreshAfterAction(`Kundfordran för faktura ${invoice.invoiceNumber} är bokförd per 31/12.`)
+      await refreshAfterAction(`Faktura ${invoice.invoiceNumber} är med i bokslutet.`)
     } catch (error) {
       setNotice({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Kundfordran kunde inte bokföras.',
+        text: error instanceof Error ? error.message : 'Fakturan kunde inte tas med i bokslutet.',
+      })
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function handleBookAllYearEndReceivables() {
+    if (yearEndCandidates.length === 0) return
+    setNotice(null)
+    setBusyKey('year-end-all')
+
+    let completed = 0
+    try {
+      for (const invoice of yearEndCandidates) {
+        await bookCustomerInvoiceYearEndReceivable(
+          invoice.id,
+          selectedYear,
+          crypto.randomUUID()
+        )
+        completed += 1
+      }
+
+      await refreshAfterAction(
+        `${completed} obetalda fakturor är med i bokslutet för ${selectedYear}.`
+      )
+    } catch (error) {
+      await loadInvoices()
+      await onBookkeepingChanged()
+      setNotice({
+        type: 'error',
+        text: error instanceof Error
+          ? `${completed} fakturor hann hanteras. Sedan stoppade SoloLedger: ${error.message}`
+          : `${completed} fakturor hann hanteras. Sedan stoppade SoloLedger åtgärden.`,
       })
     } finally {
       setBusyKey(null)
@@ -198,7 +237,7 @@ export default function CustomerInvoicesPanel({
 
   async function handlePayment(invoice: CustomerInvoice) {
     const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
-    const hasReceivable = hasAnyYearEndReceivable(invoice)
+    const hasReceivable = hasAnyCustomerInvoiceYearEndBooking(invoice)
     setNotice(null)
     setBusyKey(`payment-${invoice.id}`)
 
@@ -211,17 +250,33 @@ export default function CustomerInvoicesPanel({
 
       await refreshAfterAction(
         hasReceivable
-          ? `Betalningen för faktura ${invoice.invoiceNumber} är bokförd mot 1510 utan ny intäkt eller moms.`
-          : `Betalningen för faktura ${invoice.invoiceNumber} är bokförd som betald försäljning.`
+          ? `Betalningen för faktura ${invoice.invoiceNumber} är registrerad utan ny intäkt eller moms.`
+          : `Betalningen för faktura ${invoice.invoiceNumber} är registrerad som direkt betald försäljning.`
       )
     } catch (error) {
       setNotice({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Betalningen kunde inte bokföras.',
+        text: error instanceof Error ? error.message : 'Betalningen kunde inte registreras.',
       })
     } finally {
       setBusyKey(null)
     }
+  }
+
+  async function openAttachment(invoice: CustomerInvoice) {
+    if (!invoice.attachmentUrl) return
+    const { data, error } = await supabase
+      .storage
+      .from('attachments')
+      .createSignedUrl(invoice.attachmentUrl, 60)
+    if (error || !data?.signedUrl) {
+      setNotice({
+        type: 'error',
+        text: error?.message ?? 'Kunde inte öppna fakturaunderlaget.',
+      })
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -232,18 +287,31 @@ export default function CustomerInvoicesPanel({
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-            Externa kundfakturor
+            Fakturor
           </p>
           <h2 className="mt-1 text-lg font-black tracking-tight text-gray-900">
-            Fakturor som inte är skapade i SoloLedger
+            Kundfakturor som ska följas upp
           </h2>
           <p className="mt-2 text-xs font-bold leading-relaxed text-gray-500">
-            Vanlig försäljning bokförs direkt när den är betald. Här registrerar du en extern kundfaktura först, och låter SoloLedger bokföra betalning eller kundfordran när det är dags.
+            Direktbetalningar bokförs i Bokföring. Här registreras kundfakturor som skickats ut men inte nödvändigtvis är betalda.
           </p>
         </div>
 
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-[10px] font-bold leading-relaxed text-emerald-800">
-          Konto 1510 väljs aldrig manuellt här. Årsskiftesbokningen styrs av backend.
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+            <p className="text-[9px] font-black uppercase text-gray-400">Obetalda</p>
+            <p className="mt-1 text-lg font-black text-gray-900">{unpaidInvoices.length}</p>
+          </div>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <p className="text-[9px] font-black uppercase text-blue-500">Bokslut</p>
+            <p className="mt-1 text-lg font-black text-blue-700">{yearEndCandidates.length}</p>
+          </div>
+          <div className="col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 sm:col-span-1">
+            <p className="text-[9px] font-black uppercase text-emerald-600">Summa</p>
+            <p className="mt-1 text-sm font-black text-emerald-700">
+              {fmtCustomerInvoiceCurrency(yearEndTotal)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -260,18 +328,38 @@ export default function CustomerInvoicesPanel({
         </div>
       )}
 
-      {yearEndBlockers.length > 0 && (
+      {(yearEndCandidates.length > 0 || unsafeVatBlockers.length > 0) && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">
-            Inför bokslut {selectedYear}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {yearEndBlockers.map(reason => (
-              <li key={reason} className="text-[10px] font-bold leading-relaxed text-amber-800">
-                {reason}
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+                Obetalda fakturor vid årets slut
+              </p>
+              <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
+                {yearEndCandidates.length} kan tas med i bokslutet nu.
+                {unsafeVatBlockers.length > 0
+                  ? ` ${unsafeVatBlockers.length} stoppas tills momsfakta är klar.`
+                  : ''}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleBookAllYearEndReceivables()}
+              disabled={isYearLocked || yearEndCandidates.length === 0 || busyKey === 'year-end-all'}
+              className="h-10 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {busyKey === 'year-end-all' ? 'Hanterar...' : 'Ta med fakturorna i bokslutet'}
+            </button>
+          </div>
+          {yearEndBlockers.length > 0 && (
+            <ul className="mt-3 space-y-1">
+              {yearEndBlockers.map(reason => (
+                <li key={reason} className="text-[10px] font-bold leading-relaxed text-amber-800">
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -375,19 +463,47 @@ export default function CustomerInvoicesPanel({
           )}
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <span className="text-[9px] font-black uppercase text-gray-500">
+            Fakturaunderlag
+          </span>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-[9px] font-black uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-emerald-700">
+            <span>Välj fil</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={event =>
+                setForm(prev => ({
+                  ...prev,
+                  attachment: event.target.files?.[0] ?? null,
+                }))
+              }
+              className="hidden"
+              required
+            />
+          </label>
+          <span
+            className={`max-w-[260px] truncate text-[10px] font-bold ${
+              form.attachment ? 'text-emerald-700' : 'text-amber-700'
+            }`}
+          >
+            {form.attachment ? form.attachment.name : 'Underlag krävs för kundfaktura'}
+          </span>
+        </div>
+
         {form.vatTreatment === 'unknown' && (
           <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-[10px] font-bold text-amber-800">
-            Du kan spara fakturan med osäker momsstatus, men SoloLedger kommer att stoppa betalnings- och bokslutsbokning tills momsfakta är klar.
+            Fakturan kan sparas, men betalning och bokslut stoppas tills momsfakta är klar.
           </p>
         )}
 
         <div className="mt-4 flex justify-end">
           <button
             type="submit"
-            disabled={busyKey === 'create' || isYearLocked}
+            disabled={busyKey === 'create' || isYearLocked || !form.attachment}
             className="h-10 rounded-xl bg-emerald-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {busyKey === 'create' ? 'Registrerar...' : 'Registrera kundfaktura'}
+            {busyKey === 'create' ? 'Registrerar...' : 'Registrera faktura'}
           </button>
         </div>
       </form>
@@ -408,131 +524,154 @@ export default function CustomerInvoicesPanel({
 
         {loading ? (
           <p className="rounded-xl bg-gray-50 px-4 py-6 text-center text-xs font-bold text-gray-400">
-            Hämtar kundfakturor...
+            Hämtar fakturor...
           </p>
         ) : invoices.length === 0 ? (
           <p className="rounded-xl bg-gray-50 px-4 py-6 text-center text-xs font-bold text-gray-400">
-            Inga externa kundfakturor registrerade till och med {selectedYear}.
+            Inga kundfakturor registrerade till och med {selectedYear}.
           </p>
         ) : (
-          <div className="space-y-3">
-            {invoices.map(invoice => {
-              const receivableBooked = hasYearEndReceivable(invoice, selectedYear)
-              const anyReceivableBooked = hasAnyYearEndReceivable(invoice)
-              const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
-              const blocker = yearCloseBlockerFor(invoice, selectedYear)
+          <div className="overflow-hidden rounded-xl border border-gray-100">
+            <div className="hidden grid-cols-6 gap-3 bg-gray-50 px-4 py-3 text-[9px] font-black uppercase text-gray-400 md:grid">
+              <span>Faktura</span>
+              <span>Kund</span>
+              <span>Datum</span>
+              <span>Förfaller</span>
+              <span>Belopp</span>
+              <span>Status</span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {invoices.map(invoice => {
+                const receivableBooked = hasCustomerInvoiceYearEndBooking(invoice, selectedYear)
+                const anyReceivableBooked = hasAnyCustomerInvoiceYearEndBooking(invoice)
+                const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
+                const expanded = expandedInvoiceId === invoice.id
+                const paymentLabel = customerInvoicePaymentLabel(invoice)
+                const yearEndLabel = customerInvoiceYearEndLabel(invoice, selectedYear)
+                const blocker = customerInvoiceYearCloseBlockerFor(invoice, selectedYear)
 
-              return (
-                <div
-                  key={invoice.id}
-                  data-testid="customer-invoice-card"
-                  className="rounded-xl border border-gray-100 bg-gray-50/60 p-4"
-                >
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-black text-gray-900">
-                          {invoice.invoiceNumber} - {invoice.customerName}
-                        </h3>
+                return (
+                  <div
+                    key={invoice.id}
+                    data-testid="customer-invoice-card"
+                    className="bg-white px-4 py-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedInvoiceId(expanded ? null : invoice.id)}
+                      className="grid w-full grid-cols-1 gap-2 text-left md:grid-cols-6 md:items-center md:gap-3"
+                    >
+                      <span className="text-xs font-black text-gray-900">{invoice.invoiceNumber}</span>
+                      <span className="text-xs font-bold text-gray-600">{invoice.customerName}</span>
+                      <span className="text-[10px] font-bold text-gray-500">{invoice.invoiceDate}</span>
+                      <span className="text-[10px] font-bold text-gray-500">{invoice.dueDate}</span>
+                      <span className="text-xs font-black text-gray-900">
+                        {fmtCustomerInvoiceCurrency(invoice.grossAmount)}
+                      </span>
+                      <span className="flex flex-wrap gap-1.5">
                         <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase ${
                           invoice.paymentStatus === 'paid'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : 'border-amber-200 bg-amber-50 text-amber-800'
                         }`}>
-                          {invoice.paymentStatus === 'paid' ? 'Betald' : 'Obetald'}
+                          {paymentLabel}
                         </span>
                         <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase ${
                           anyReceivableBooked
                             ? 'border-blue-200 bg-blue-50 text-blue-700'
                             : 'border-gray-200 bg-white text-gray-500'
                         }`}>
-                          {anyReceivableBooked ? 'Kundfordran bokförd' : 'Ej bokslutsbokad'}
+                          {yearEndLabel}
                         </span>
-                      </div>
+                      </span>
+                    </button>
 
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">
-                        <span>Faktura {invoice.invoiceDate}</span>
-                        <span>Tjänst {invoice.serviceDate}</span>
-                        <span>Förfaller {invoice.dueDate}</span>
-                        <span>{fmtCurrency(invoice.grossAmount)}</span>
-                        <span>{vatLabel(invoice)}</span>
-                      </div>
-
-                      {invoice.bookings.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {invoice.bookings.map(booking => (
-                            <span
-                              key={booking.id}
-                              className="rounded-md border border-gray-200 bg-white px-2 py-1 font-mono text-[9px] font-bold text-gray-500"
-                            >
-                              {booking.bookingKind === 'year_end_receivable'
-                                ? `31/12 ${booking.fiscalYear}: 1510`
-                                : booking.bookingKind === 'receivable_settlement'
-                                ? `${booking.bookingDate}: 1930/1510`
-                                : `${booking.bookingDate}: betald försäljning`}
-                            </span>
-                          ))}
+                    {expanded && (
+                      <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">
+                          <span>Tjänst {invoice.serviceDate}</span>
+                          <span>{customerInvoiceVatLabel(invoice)}</span>
+                          <span>{invoice.attachmentUrl ? 'Underlag bifogat' : 'Underlag saknas'}</span>
                         </div>
-                      )}
 
-                      {blocker && (
-                        <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-800">
-                          {blocker}
-                        </p>
-                      )}
-                    </div>
+                        {invoice.bookings.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {invoice.bookings.map(booking => (
+                              <span
+                                key={booking.id}
+                                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[9px] font-bold text-gray-500"
+                              >
+                                {invoiceBookingLabel(booking)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
-                    <div className="flex flex-col gap-2 xl:w-80">
-                      {invoice.paymentStatus === 'unpaid' && !receivableBooked && (
-                        <button
-                          type="button"
-                          onClick={() => void handleBookYearEndReceivable(invoice)}
-                          disabled={isYearLocked || busyKey === `year-end-${invoice.id}`}
-                          className="h-10 rounded-xl bg-blue-600 px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                        >
-                          {busyKey === `year-end-${invoice.id}` ? 'Bokför...' : 'Bokför kundfordran 31/12'}
-                        </button>
-                      )}
+                        {blocker && (
+                          <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-800">
+                            {blocker}
+                          </p>
+                        )}
 
-                      {invoice.paymentStatus === 'unpaid' && (
-                        <div className="flex gap-2">
-                          <input
-                            type="date"
-                            value={paymentDate}
-                            onChange={event => setPaymentDates(prev => ({
-                              ...prev,
-                              [invoice.id]: event.target.value,
-                            }))}
-                            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void handlePayment(invoice)}
-                            disabled={busyKey === `payment-${invoice.id}`}
-                            className="h-10 rounded-xl bg-emerald-600 px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                          >
-                            {busyKey === `payment-${invoice.id}` ? 'Bokför...' : 'Registrera betalning'}
-                          </button>
+                        <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex flex-wrap gap-2">
+                            {invoice.attachmentUrl && (
+                              <button
+                                type="button"
+                                onClick={() => void openAttachment(invoice)}
+                                className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+                              >
+                                Öppna underlag
+                              </button>
+                            )}
+
+                            {invoice.paymentStatus === 'unpaid' && !receivableBooked && (
+                              <button
+                                type="button"
+                                onClick={() => void handleBookYearEndReceivable(invoice)}
+                                disabled={isYearLocked || busyKey === `year-end-${invoice.id}`}
+                                className="h-9 rounded-xl bg-blue-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                              >
+                                {busyKey === `year-end-${invoice.id}` ? 'Hanterar...' : 'Ta med i bokslutet'}
+                              </button>
+                            )}
+                          </div>
+
+                          {invoice.paymentStatus === 'unpaid' && (
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={paymentDate}
+                                onChange={event => setPaymentDates(prev => ({
+                                  ...prev,
+                                  [invoice.id]: event.target.value,
+                                }))}
+                                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void handlePayment(invoice)}
+                                disabled={busyKey === `payment-${invoice.id}`}
+                                className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                              >
+                                {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      {invoice.vatTreatment === 'unknown' && invoice.paymentStatus === 'unpaid' && (
-                        <p className="text-[9px] font-bold leading-relaxed text-amber-700">
-                          Betalning och bokslut stoppas tills fakturans momsstatus är säker.
-                        </p>
-                      )}
-                    </div>
+                        {invoice.vatTreatment === 'unknown' && invoice.paymentStatus === 'unpaid' && (
+                          <p className="mt-2 text-[9px] font-bold leading-relaxed text-amber-700">
+                            SoloLedger stoppar betalning och bokslut tills fakturans momsstatus är säker.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        )}
-
-        {unpaidInvoices.length > 0 && (
-          <p className="mt-3 text-[10px] font-bold text-gray-500">
-            Obetalda fakturor är inte samma sak som bokslutsbokade kundfordringar. Kontrollera båda statusmarkeringarna inför årsskifte.
-          </p>
         )}
       </div>
     </section>

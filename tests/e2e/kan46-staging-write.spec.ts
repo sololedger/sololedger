@@ -19,9 +19,10 @@ test.describe('KAN-46 staging write acceptance', () => {
 
     await login(page)
     await selectYear(page, year)
+    await page.getByRole('button', { name: 'Fakturor' }).click()
 
     const panel = page.getByTestId('customer-invoices-panel')
-    await expect(panel.getByRole('heading', { name: 'Fakturor som inte är skapade i SoloLedger' })).toBeVisible()
+    await expect(panel.getByRole('heading', { name: 'Kundfakturor som ska följas upp' })).toBeVisible()
 
     await panel.getByLabel('Fakturanr').fill(invoiceNumber)
     await panel.getByLabel('Kund').fill('E2E svensk decemberkund')
@@ -31,21 +32,28 @@ test.describe('KAN-46 staging write acceptance', () => {
     await panel.getByLabel('Belopp inkl moms').fill('2500')
     await panel.getByLabel('Momsfakta').selectOption('taxable')
     await panel.getByLabel('Moms %').selectOption('25')
-    await panel.getByRole('button', { name: 'Registrera kundfaktura' }).click()
+    await panel.locator('input[type="file"]').setInputFiles({
+      name: `${invoiceNumber}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n% SoloLedger KAN-46 E2E invoice\n%%EOF\n'),
+    })
+    await panel.getByRole('button', { name: 'Registrera faktura' }).click()
 
     const invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
-    await expect(invoiceCard).toContainText('Ej bokslutsbokad')
-    await expect(invoiceCard).toContainText(/behöver bokföras som kundfordran/i)
+    await expect(invoiceCard).toContainText('Inte med i bokslutet')
+    await invoiceCard.getByRole('button').first().click()
+    await expect(invoiceCard).toContainText(/behöver tas med i bokslutet/i)
 
     await page.getByRole('button', { name: 'NE-Bilaga' }).click()
     await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeDisabled()
 
-    await page.getByRole('button', { name: 'Bokföring' }).click()
-    await invoiceCard.getByRole('button', { name: 'Bokför kundfordran 31/12' }).click()
+    await page.getByRole('button', { name: 'Fakturor' }).click()
+    await panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' }).click()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
-    await expect(invoiceCard).toContainText('Kundfordran bokförd')
-    await expect(invoiceCard).toContainText(`31/12 ${year}: 1510`)
+    await expect(invoiceCard).toContainText('Med i bokslutet')
+    await invoiceCard.getByRole('button').first().click()
+    await expect(invoiceCard).toContainText(`${year}-12-31: togs med i bokslutet`)
 
     const invoice = await expectInvoiceByNumber(supabase, invoiceNumber)
     const receivableTxId = await expectBookingTransaction(

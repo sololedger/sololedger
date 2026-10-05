@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useCallback, useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction } from '@/lib/accountingService'
+import { bookTransaction, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction, getCustomerInvoices } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { encodeCP437 } from '@/lib/cp437'
 import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
@@ -54,6 +54,7 @@ import {
   isTransactionSystemManagedInUi,
   transactionSourceUiLabel,
 } from '@/lib/transactionSourceUi'
+import { customerInvoiceYearCloseBlockerFor } from '@/lib/customerInvoiceUi'
 
 export default function Home() {
   const {
@@ -190,6 +191,34 @@ export default function Home() {
     await refreshFreeUsageCount()
   }, [refreshData, user?.id])
 
+  useEffect(() => {
+    let cancelled = false
+
+    if (!user?.id) {
+      setCustomerInvoiceYearCloseBlocker(null)
+      return
+    }
+
+    getCustomerInvoices(selectedYear)
+      .then(invoices => {
+        if (cancelled) return
+        const blocker = invoices
+          .map(invoice => customerInvoiceYearCloseBlockerFor(invoice, selectedYear))
+          .find((reason): reason is string => Boolean(reason)) ?? null
+        setCustomerInvoiceYearCloseBlocker(blocker)
+      })
+      .catch(error => {
+        console.error('Kunde inte läsa fakturor inför årslåsning:', error)
+        if (!cancelled) {
+          setCustomerInvoiceYearCloseBlocker('Kunde inte kontrollera obetalda kundfakturor inför årslåsning.')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedYear, user?.id])
+
   // Gratisgränsen gäller TOTALT över alla år, inte bara valt räkenskapsår.
   useEffect(() => {
     let cancelled = false
@@ -254,20 +283,6 @@ export default function Home() {
       alert('SIE-export misslyckades: ' + err.message)
     }
   }
-
-  // Sätter default-typ/momssats på formuläret första gången kontoplanen laddas,
-  // motsvarar det som tidigare gjordes inuti loadKontoplanOptions.
-  useEffect(() => {
-    if (!formData.type && kontoplan[0]) {
-      setFormData(prev => ({
-        ...prev,
-        type: kontoplan[0].id,
-        vatRate: profile?.vat_status === 'not_registered'
-          ? 0
-          : Number(kontoplan[0].default_vat_rate) || 0,
-      }))
-    }
-  }, [kontoplan, profile?.vat_status])
 
   // UI-skyddet speglar serverregeln: när profilen uttryckligen är markerad
   // som inte momsregistrerad ska formuläret aldrig bära med sig en momssats.
@@ -403,6 +418,8 @@ export default function Home() {
         date: new Date().toISOString().split('T')[0],
         description: '',
         amount: '',
+        type: '',
+        vatRate: 0,
         file: null,
       }))
       setPeriodisera(false)
@@ -454,6 +471,9 @@ export default function Home() {
         alert(`${describeSystemManagedTransaction(editingTx)} är systemverifikationer och kan inte ändras.`)
         return
       }
+    } else if (!formData.type) {
+      alert('Välj kategori innan du bokför.')
+      return
     }
 
     submitInFlightRef.current = true
@@ -535,6 +555,8 @@ export default function Home() {
         date: new Date().toISOString().split('T')[0],
         description: '',
         amount: '',
+        type: '',
+        vatRate: 0,
         file: null
       }))
       setPeriodisera(false)
@@ -933,6 +955,8 @@ export default function Home() {
           ? 'Ekonomiöversikt'
           : activeTab === 'kontoplan'
             ? 'Kontoplan'
+            : activeTab === 'fakturor'
+              ? 'Fakturor'
             : activeTab === 'faq'
               ? 'Hjälp & FAQ'
               : activeTab === 'moms'
@@ -1103,16 +1127,9 @@ export default function Home() {
               paymentAccountRolesError={paymentAccountRoles.error}
               onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
               onOpenPaymentAccountSettings={() => setActiveTab('profil')}
+              onOpenCustomerInvoices={() => setActiveTab('fakturor')}
             />
           </div>
-
-          <CustomerInvoicesPanel
-            selectedYear={selectedYear}
-            isYearLocked={isYearLocked}
-            vatStatus={profile?.vat_status ?? 'unknown'}
-            onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
-            onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}
-          />
 
           {!dataLoading && transactions.length === 0 ? (
   <EmptyBookkeepingState
@@ -1134,6 +1151,15 @@ export default function Home() {
 )}        </>
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />
+      ) : activeTab === 'fakturor' ? (
+        <CustomerInvoicesPanel
+          selectedYear={selectedYear}
+          isYearLocked={isYearLocked}
+          vatStatus={profile?.vat_status ?? 'unknown'}
+          onUploadAttachment={handleFileUpload}
+          onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
+          onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}
+        />
       ) : activeTab === 'moms' ? (
         <SubscriptionGuard
           user={user}

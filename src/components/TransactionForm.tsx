@@ -81,6 +81,7 @@ interface TransactionFormProps {
   paymentAccountRolesError: string | null
   onRefreshPaymentAccountRoles: () => Promise<void>
   onOpenPaymentAccountSettings: () => void
+  onOpenCustomerInvoices: () => void
 }
 
 const initialVatV2Facts: VatV2TransactionFacts = {
@@ -121,6 +122,7 @@ export default function TransactionForm({
   paymentAccountRolesError,
   onRefreshPaymentAccountRoles,
   onOpenPaymentAccountSettings,
+  onOpenCustomerInvoices,
 }: TransactionFormProps) {
   const [favName, setFavName] = useState('')
   const [showFavInput, setShowFavInput] = useState(false)
@@ -209,6 +211,17 @@ export default function TransactionForm({
   )
   const vatV2BlockedSubmitActive =
     vatV2BlockedSubmitAttempted && vatV2RuntimeBooking.status === 'blocked'
+  const ordinaryCategoryMissing =
+    showOrdinaryV1Fields &&
+    !editingBooked &&
+    !vatV2AssessmentEnabled &&
+    !formData.type
+  const showSalesFlowChoice =
+    showOrdinaryV1Fields &&
+    !editingId &&
+    !editingBooked &&
+    !vatV2AssessmentEnabled &&
+    formData.type === 'forsaljning'
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2SubmitError(null)
@@ -374,6 +387,15 @@ export default function TransactionForm({
                 <select
                   value={formData.type}
                   onChange={e => {
+                    if (!e.target.value) {
+                      setFormData({
+                        ...formData,
+                        type: '',
+                        vatRate: 0,
+                      })
+                      return
+                    }
+
                     const acc = kontoplan.find(
                       k => k.id === e.target.value
                     )
@@ -387,6 +409,7 @@ export default function TransactionForm({
                     })
                   }}
                   disabled={editingBooked || isYearLocked}
+                  required
                   className={`p-3 rounded-xl outline-none font-bold text-xs ${
                     editingBooked || isYearLocked
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -408,6 +431,10 @@ export default function TransactionForm({
 
                     return (
                       <>
+                        <option value="" disabled>
+                          Välj kategori...
+                        </option>
+
                         <optgroup label="── Intäkter ──">
                           {income.map(item => (
                             <option
@@ -556,11 +583,11 @@ export default function TransactionForm({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  disabled={uploading || isYearLocked}
+                  disabled={uploading || isYearLocked || ordinaryCategoryMissing}
                   className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                     uploading
                       ? 'bg-gray-400'
-                      : isYearLocked
+                      : isYearLocked || ordinaryCategoryMissing
                       ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                       : vatV2AssessmentEnabled
                       ? 'bg-indigo-500 hover:bg-indigo-600'
@@ -596,6 +623,28 @@ export default function TransactionForm({
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {showSalesFlowChoice && (
+          <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                  Försäljning
+                </p>
+                <p className="mt-1 text-[10px] font-bold text-emerald-700">
+                  Direkt betald försäljning bokförs här. Kundfakturor registreras i Fakturor och bokförs när de betalas eller tas med i bokslutet.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenCustomerInvoices}
+                className="h-10 rounded-xl bg-white px-4 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-sm ring-1 ring-emerald-200 transition-colors hover:bg-emerald-100"
+              >
+                Registrera kundfaktura
+              </button>
+            </div>
           </div>
         )}
 
@@ -1115,11 +1164,11 @@ export default function TransactionForm({
             <div className="flex gap-2">
               <button
                 type="submit"
-                disabled={uploading || isYearLocked}
+                disabled={uploading || isYearLocked || ordinaryCategoryMissing}
                 className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                   uploading
                     ? 'bg-gray-400'
-                    : isYearLocked
+                    : isYearLocked || ordinaryCategoryMissing
                     ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                     : vatV2AssessmentEnabled
                     ? 'bg-indigo-500 hover:bg-indigo-600'

@@ -77,6 +77,17 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
       </button>
 
       <button
+        onClick={() => setActiveTab('fakturor')}
+        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+          activeTab === 'fakturor'
+            ? 'bg-white text-emerald-600 shadow-sm'
+            : 'text-gray-400 hover:text-gray-600'
+        }`}
+      >
+        Fakturor
+      </button>
+
+      <button
         onClick={() => setActiveTab('ne')}
         className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'ne'
@@ -169,6 +180,17 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
           }`}
         >
           Kontoplan
+        </button>
+
+        <button
+          onClick={() => selectMobileTab('fakturor')}
+          className={`px-4 py-3 rounded-xl font-bold text-sm text-left transition-all ${
+            activeTab === 'fakturor'
+              ? 'bg-white text-emerald-600 shadow-sm'
+              : 'text-gray-500 hover:bg-white'
+          }`}
+        >
+          Fakturor
         </button>
 
         <button
