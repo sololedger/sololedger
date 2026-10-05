@@ -147,8 +147,12 @@ Verified from Jira on 2026-10-05:
   `b9d6853` are pushed to `main` and deployed to Production.
 - Local docs-only checkpoint `20f0cff` documents the accepted Production
   `b9d6853` state and remains unpushed.
-- KAN-46 Block 1 checkpoint is local only on top of that docs checkpoint; do
-  not push `main` without explicit Production-deploy approval.
+- KAN-46 Block 1 checkpoint
+  `02539911f43eb0111cc07e8b8b6f9a7e29f7e5f8` is local only on top of that
+  docs checkpoint; do not push `main` without explicit Production-deploy
+  approval.
+- Verified handoff Git state after KAN-46 Block 1 checkpoint: `main...origin/main
+  [ahead 2]`, working tree clean.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -181,9 +185,8 @@ Verified from Jira on 2026-10-05:
 
 ## Next Safe Step
 
-1. Pontus IRL-tests KAN-46 Jessika scenario in staging: register external
-   December invoice, book 31/12 customer receivable, settle January payment, and
-   verify no duplicate income/VAT.
+1. Start KAN-46 Block 2: minimal UI for the Block 1 invoice lifecycle plus
+   staging IRL acceptance for Jessika's December invoice scenario.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Production Supabase remains at `20261005105538`; KAN-46 staging is at
    `20261005193000`.
