@@ -1,4 +1,5 @@
 import type { CustomerInvoice } from '@/lib/accountingService'
+import { formatIsoDateSv } from '@/lib/dateUi'
 
 export function fmtCustomerInvoiceCurrency(value: number | null | undefined) {
   if (value == null) return 'Saknas'
@@ -12,6 +13,14 @@ export function customerInvoiceVatLabel(invoice: CustomerInvoice) {
   if (invoice.vatTreatment === 'unknown') return 'Moms oklar'
   if (invoice.vatTreatment === 'exempt') return 'Momsfri / ej moms'
   return `${invoice.vatRate ?? '?'}% moms`
+}
+
+function isoYear(isoDate: string) {
+  return Number(isoDate.slice(0, 4))
+}
+
+export function customerInvoiceYearEndFiscalYear(invoice: CustomerInvoice) {
+  return Math.max(isoYear(invoice.invoiceDate), isoYear(invoice.serviceDate))
 }
 
 export function hasCustomerInvoiceYearEndBooking(
@@ -35,8 +44,12 @@ export function customerInvoicePaymentLabel(invoice: CustomerInvoice) {
 }
 
 export function customerInvoiceYearEndLabel(invoice: CustomerInvoice, fiscalYear: number) {
-  if (hasCustomerInvoiceYearEndBooking(invoice, fiscalYear)) {
-    return 'Med i bokslutet'
+  const targetFiscalYear = customerInvoiceYearEndFiscalYear(invoice)
+  if (hasCustomerInvoiceYearEndBooking(invoice, targetFiscalYear)) {
+    return `Med i bokslutet ${targetFiscalYear}`
+  }
+  if (targetFiscalYear !== fiscalYear) {
+    return `Avser bokslut ${targetFiscalYear}`
   }
   return 'Inte med i bokslutet'
 }
@@ -45,9 +58,11 @@ export function customerInvoiceYearCloseBlockerFor(
   invoice: CustomerInvoice,
   fiscalYear: number
 ) {
+  const targetFiscalYear = customerInvoiceYearEndFiscalYear(invoice)
   const yearEnd = `${fiscalYear}-12-31`
   if (
     invoice.paymentStatus !== 'unpaid' ||
+    targetFiscalYear !== fiscalYear ||
     invoice.invoiceDate > yearEnd ||
     invoice.serviceDate > yearEnd
   ) {
@@ -69,9 +84,11 @@ export function customerInvoiceNeedsYearEndBooking(
   invoice: CustomerInvoice,
   fiscalYear: number
 ) {
+  const targetFiscalYear = customerInvoiceYearEndFiscalYear(invoice)
   const yearEnd = `${fiscalYear}-12-31`
   return (
     invoice.paymentStatus === 'unpaid' &&
+    targetFiscalYear === fiscalYear &&
     invoice.invoiceDate <= yearEnd &&
     invoice.serviceDate <= yearEnd &&
     invoice.vatTreatment !== 'unknown' &&
@@ -83,11 +100,17 @@ export function customerInvoiceHasUnsafeVatBlocker(
   invoice: CustomerInvoice,
   fiscalYear: number
 ) {
+  const targetFiscalYear = customerInvoiceYearEndFiscalYear(invoice)
   const yearEnd = `${fiscalYear}-12-31`
   return (
     invoice.paymentStatus === 'unpaid' &&
+    targetFiscalYear === fiscalYear &&
     invoice.invoiceDate <= yearEnd &&
     invoice.serviceDate <= yearEnd &&
     invoice.vatTreatment === 'unknown'
   )
+}
+
+export function formatCustomerInvoiceDate(isoDate: string) {
+  return formatIsoDateSv(isoDate)
 }

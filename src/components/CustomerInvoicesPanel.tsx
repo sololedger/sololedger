@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import SwedishDateInput from '@/components/SwedishDateInput'
 import {
   bookCustomerInvoiceYearEndReceivable,
   createCustomerInvoice,
@@ -18,9 +19,9 @@ import {
   customerInvoiceVatLabel,
   customerInvoiceYearCloseBlockerFor,
   customerInvoiceYearEndLabel,
+  formatCustomerInvoiceDate,
   fmtCustomerInvoiceCurrency,
   hasAnyCustomerInvoiceYearEndBooking,
-  hasCustomerInvoiceYearEndBooking,
 } from '@/lib/customerInvoiceUi'
 
 interface CustomerInvoicesPanelProps {
@@ -60,12 +61,12 @@ function initialForm(vatStatus: CustomerInvoicesPanelProps['vatStatus']): Invoic
 
 function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
   if (booking.bookingKind === 'year_end_receivable') {
-    return `${booking.bookingDate}: togs med i bokslutet`
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: togs med i bokslutet`
   }
   if (booking.bookingKind === 'receivable_settlement') {
-    return `${booking.bookingDate}: betalning efter bokslut`
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning efter bokslut`
   }
-  return `${booking.bookingDate}: betalning bokförd`
+  return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning bokförd`
 }
 
 export default function CustomerInvoicesPanel({
@@ -303,7 +304,7 @@ export default function CustomerInvoicesPanel({
             <p className="mt-1 text-lg font-black text-gray-900">{unpaidInvoices.length}</p>
           </div>
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-            <p className="text-[9px] font-black uppercase text-blue-500">Bokslut</p>
+            <p className="text-[9px] font-black uppercase text-blue-500">Kvar inför bokslut</p>
             <p className="mt-1 text-lg font-black text-blue-700">{yearEndCandidates.length}</p>
           </div>
           <div className="col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 sm:col-span-1">
@@ -336,7 +337,10 @@ export default function CustomerInvoicesPanel({
                 Obetalda fakturor vid årets slut
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
-                {yearEndCandidates.length} kan tas med i bokslutet nu.
+                En faktura som fortfarande är obetald den 31 december måste tas med i rätt års bokföring. Då hamnar intäkt, moms och kundfordran på rätt år.
+              </p>
+              <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
+                {yearEndCandidates.length} fakturor återstår för bokslut {selectedYear}.
                 {unsafeVatBlockers.length > 0
                   ? ` ${unsafeVatBlockers.length} stoppas tills momsfakta är klar.`
                   : ''}
@@ -387,10 +391,9 @@ export default function CustomerInvoicesPanel({
 
           <label className="flex flex-col gap-1">
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Fakturadatum</span>
-            <input
-              type="date"
+            <SwedishDateInput
               value={form.invoiceDate}
-              onChange={event => setForm(prev => ({ ...prev, invoiceDate: event.target.value }))}
+              onChange={value => setForm(prev => ({ ...prev, invoiceDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
             />
@@ -398,10 +401,9 @@ export default function CustomerInvoicesPanel({
 
           <label className="flex flex-col gap-1">
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Tjänstedatum</span>
-            <input
-              type="date"
+            <SwedishDateInput
               value={form.serviceDate}
-              onChange={event => setForm(prev => ({ ...prev, serviceDate: event.target.value }))}
+              onChange={value => setForm(prev => ({ ...prev, serviceDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
             />
@@ -409,10 +411,9 @@ export default function CustomerInvoicesPanel({
 
           <label className="flex flex-col gap-1">
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Förfallodatum</span>
-            <input
-              type="date"
+            <SwedishDateInput
               value={form.dueDate}
-              onChange={event => setForm(prev => ({ ...prev, dueDate: event.target.value }))}
+              onChange={value => setForm(prev => ({ ...prev, dueDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
             />
@@ -532,18 +533,19 @@ export default function CustomerInvoicesPanel({
           </p>
         ) : (
           <div className="overflow-hidden rounded-xl border border-gray-100">
-            <div className="hidden grid-cols-6 gap-3 bg-gray-50 px-4 py-3 text-[9px] font-black uppercase text-gray-400 md:grid">
+            <div className="hidden grid-cols-7 gap-3 bg-gray-50 px-4 py-3 text-[9px] font-black uppercase text-gray-400 md:grid">
               <span>Faktura</span>
               <span>Kund</span>
               <span>Datum</span>
               <span>Förfaller</span>
               <span>Belopp</span>
               <span>Status</span>
+              <span>Detaljer</span>
             </div>
             <div className="divide-y divide-gray-100">
               {invoices.map(invoice => {
-                const receivableBooked = hasCustomerInvoiceYearEndBooking(invoice, selectedYear)
                 const anyReceivableBooked = hasAnyCustomerInvoiceYearEndBooking(invoice)
+                const needsYearEndBooking = customerInvoiceNeedsYearEndBooking(invoice, selectedYear)
                 const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
                 const expanded = expandedInvoiceId === invoice.id
                 const paymentLabel = customerInvoicePaymentLabel(invoice)
@@ -559,12 +561,12 @@ export default function CustomerInvoicesPanel({
                     <button
                       type="button"
                       onClick={() => setExpandedInvoiceId(expanded ? null : invoice.id)}
-                      className="grid w-full grid-cols-1 gap-2 text-left md:grid-cols-6 md:items-center md:gap-3"
+                      className="grid w-full grid-cols-1 gap-2 text-left md:grid-cols-7 md:items-center md:gap-3"
                     >
                       <span className="text-xs font-black text-gray-900">{invoice.invoiceNumber}</span>
                       <span className="text-xs font-bold text-gray-600">{invoice.customerName}</span>
-                      <span className="text-[10px] font-bold text-gray-500">{invoice.invoiceDate}</span>
-                      <span className="text-[10px] font-bold text-gray-500">{invoice.dueDate}</span>
+                      <span className="text-[10px] font-bold text-gray-500">{formatCustomerInvoiceDate(invoice.invoiceDate)}</span>
+                      <span className="text-[10px] font-bold text-gray-500">{formatCustomerInvoiceDate(invoice.dueDate)}</span>
                       <span className="text-xs font-black text-gray-900">
                         {fmtCustomerInvoiceCurrency(invoice.grossAmount)}
                       </span>
@@ -584,12 +586,15 @@ export default function CustomerInvoicesPanel({
                           {yearEndLabel}
                         </span>
                       </span>
+                      <span className="text-[9px] font-black uppercase text-emerald-600 md:text-right">
+                        {expanded ? 'Stäng' : 'Visa detaljer'}
+                      </span>
                     </button>
 
                     {expanded && (
                       <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">
-                          <span>Tjänst {invoice.serviceDate}</span>
+                          <span>Tjänst {formatCustomerInvoiceDate(invoice.serviceDate)}</span>
                           <span>{customerInvoiceVatLabel(invoice)}</span>
                           <span>{invoice.attachmentUrl ? 'Underlag bifogat' : 'Underlag saknas'}</span>
                         </div>
@@ -625,7 +630,7 @@ export default function CustomerInvoicesPanel({
                               </button>
                             )}
 
-                            {invoice.paymentStatus === 'unpaid' && !receivableBooked && (
+                            {needsYearEndBooking && (
                               <button
                                 type="button"
                                 onClick={() => void handleBookYearEndReceivable(invoice)}
@@ -639,12 +644,12 @@ export default function CustomerInvoicesPanel({
 
                           {invoice.paymentStatus === 'unpaid' && (
                             <div className="flex gap-2">
-                              <input
-                                type="date"
+                              <SwedishDateInput
                                 value={paymentDate}
-                                onChange={event => setPaymentDates(prev => ({
+                                ariaLabel="Betalningsdatum"
+                                onChange={value => setPaymentDates(prev => ({
                                   ...prev,
-                                  [invoice.id]: event.target.value,
+                                  [invoice.id]: value,
                                 }))}
                                 className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
                               />

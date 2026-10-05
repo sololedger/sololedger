@@ -97,6 +97,7 @@ import {
 } from '@/lib/taxAccountMovementErrors'
 import type { AccountingRefreshResult } from '@/hooks/useAccountingData'
 import type { AuthProfile } from '@/hooks/useAuth'
+import SwedishDateInput from './SwedishDateInput'
 import {
   paymentAccountRoleSetupNeedsAction,
   paymentAccountRoleSetupSummary,
@@ -1414,12 +1415,11 @@ export default function Momsrapport({
               <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
                 {DECLARATION_SUBMITTED_ON_LABEL}
               </label>
-              <input
-                type="date"
+              <SwedishDateInput
                 value={declarationSubmittedOnValue}
                 min={selectedPeriod?.period_end}
                 max={todayIso}
-                onChange={e => setDeclarationSubmittedOn(e.target.value)}
+                onChange={setDeclarationSubmittedOn}
                 disabled={declaring || closing || periodsLoading || loading}
                 className="h-[42px] bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-sky-300 disabled:text-gray-300 disabled:cursor-not-allowed"
               />
@@ -1689,12 +1689,11 @@ export default function Momsrapport({
                     <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
                       Datum för överföringen
                     </label>
-                    <input
-                      type="date"
+                    <SwedishDateInput
                       value={movementDate}
                       max={todayIso}
-                      onChange={e => {
-                        setMovementDate(e.target.value)
+                      onChange={value => {
+                        setMovementDate(value)
                         setMovementSubmitError(null)
                       }}
                       disabled={movementSubmitting || movementLoading}
@@ -1910,12 +1909,11 @@ export default function Momsrapport({
                     <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
                       Datum på skattekontot
                     </label>
-                    <input
-                      type="date"
+                    <SwedishDateInput
                       value={settlementEventDate}
                       max={todayIso}
-                      onChange={e => {
-                        setSettlementEventDate(e.target.value)
+                      onChange={value => {
+                        setSettlementEventDate(value)
                         setSettlementSubmitError(null)
                         resetSettlementIntent()
                       }}

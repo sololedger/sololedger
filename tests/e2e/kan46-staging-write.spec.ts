@@ -26,9 +26,9 @@ test.describe('KAN-46 staging write acceptance', () => {
 
     await panel.getByLabel('Fakturanr').fill(invoiceNumber)
     await panel.getByLabel('Kund').fill('E2E svensk decemberkund')
-    await panel.getByLabel('Fakturadatum').fill(`${year}-12-20`)
-    await panel.getByLabel('Tjänstedatum').fill(`${year}-12-19`)
-    await panel.getByLabel('Förfallodatum').fill(`${year + 1}-01-20`)
+    await panel.getByLabel('Fakturadatum').fill(`20/12/${year}`)
+    await panel.getByLabel('Tjänstedatum').fill(`19/12/${year}`)
+    await panel.getByLabel('Förfallodatum').fill(`20/01/${year + 1}`)
     await panel.getByLabel('Belopp inkl moms').fill('2500')
     await panel.getByLabel('Momsfakta').selectOption('taxable')
     await panel.getByLabel('Moms %').selectOption('25')
@@ -53,7 +53,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
     await expect(invoiceCard).toContainText('Med i bokslutet')
     await invoiceCard.getByRole('button').first().click()
-    await expect(invoiceCard).toContainText(`${year}-12-31: togs med i bokslutet`)
+    await expect(invoiceCard).toContainText(`31/12/${year}: togs med i bokslutet`)
 
     const invoice = await expectInvoiceByNumber(supabase, invoiceNumber)
     const receivableTxId = await expectBookingTransaction(
@@ -65,7 +65,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expectJournalBalance(supabase, receivableTxId, '3010', -2000)
     await expectJournalBalance(supabase, receivableTxId, '2611', -500)
 
-    await invoiceCard.locator('input[type="date"]').fill(`${year + 1}-01-15`)
+    await invoiceCard.getByLabel('Betalningsdatum').fill(`15/01/${year + 1}`)
     await invoiceCard.getByRole('button', { name: 'Registrera betalning' }).click()
     await expect(invoiceCard).toContainText('Betald', { timeout: 20_000 })
 
@@ -79,6 +79,11 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expectJournalBalance(supabase, settlementTxId, '3010', 0)
     await expectJournalBalance(supabase, settlementTxId, '2611', 0)
     await expectInvoicePaymentStatus(supabase, invoice.id, 'paid')
+
+    await selectYear(page, year + 1)
+    await page.getByRole('button', { name: 'Fakturor' }).click()
+    await expect(panel).not.toContainText(`fakturor återstår för bokslut ${year + 1}`)
+    await expect(panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' })).toHaveCount(0)
   })
 })
 

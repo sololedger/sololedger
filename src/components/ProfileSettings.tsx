@@ -16,6 +16,7 @@ import {
   paymentAccountRoleSetupSummary,
   type PaymentAccountRoleAccountLike,
 } from '@/lib/paymentAccountRoleStatus'
+import SwedishDateInput from './SwedishDateInput'
 
 type PersistedDefaultDeductionEntitlement = Exclude<DeductionEntitlement, 'partial'>
 
@@ -676,10 +677,9 @@ export default function ProfileSettings({
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">SoloLedger hanterar momsperioder från</label>
                   <p className="text-[10px] text-gray-400 font-bold mb-3">Från detta datum får SoloLedger skapa och guida nya momsperioder. Importerad historik ändras inte.</p>
-                  <input
-                    type="date"
+                  <SwedishDateInput
                     value={vatManagementFrom}
-                    onChange={e => setVatManagementFrom(e.target.value)}
+                    onChange={setVatManagementFrom}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
                   />
                 </div>

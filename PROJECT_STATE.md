@@ -100,6 +100,22 @@ Verified from Jira on 2026-10-05:
   bokslut-status, collective year-end inclusion, attachment opening, and later
   payment. The accounting engine still uses the Block 1 RPCs; no client-side
   accounting duplication was added.
+- KAN-46 Block 3 manual acceptance polish is implemented locally and UI-E2E
+  verified: user-facing date entry now uses Swedish `dd/mm/åååå`, year-end copy
+  explains why unpaid 31/12 invoices must be included, invoice rows have an
+  explicit `Visa detaljer` affordance, the summary metric says what remains
+  before year end, and the UI no longer offers already-handled 2026 invoices as
+  2027 year-end work.
+- Root cause of the reported 2027 two-invoice behavior: two older unpaid E2E
+  invoices had invoice/service dates in December 2026 and already had
+  `year_end_receivable` bookings for fiscal year 2026. The UI helper and live
+  `close_year_atomic` both looked at "all unpaid invoices up to selected
+  31/12" and then checked for a year-end booking in the selected year, so the
+  2026 invoices appeared as missing 2027 year-end work. Local migration
+  `20261005210000_fix_customer_invoice_year_end_scope.sql` prepares the server
+  fix, but it has not been applied to staging because the approval reviewer
+  rejected replacing the large `close_year_atomic` RPC without explicit user
+  approval.
 - Full PDF generation, partial payments, credit invoices, foreign customers,
   EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
@@ -164,11 +180,17 @@ Verified from Jira on 2026-10-05:
 - KAN-46 Block 2 minimal UI checkpoint `64b281f` is local-only on top of
   `68433d9`. It is not pushed; pushing `main` would deploy Production and
   requires explicit approval.
-- KAN-46 Block 3 is implemented in the working tree before checkpoint in
-  `src/app/page.tsx`, `src/components/CustomerInvoicesPanel.tsx`,
-  `src/components/Layout.tsx`, `src/components/TransactionForm.tsx`,
-  `src/lib/accountingService.ts`, `src/lib/customerInvoiceUi.ts`,
-  `supabase/migrations/20261005203000_ensure_attachments_storage_bucket.sql`,
+- KAN-46 Block 3 checkpoint `a3a0ec4` is local-only on top of `64b281f`.
+  It is not pushed; pushing `main` would deploy Production and requires
+  explicit approval.
+- KAN-46 Block 3 manual acceptance fixes are implemented in the working tree
+  before checkpoint in `src/components/CustomerInvoicesPanel.tsx`,
+  `src/components/Momsrapport.tsx`, `src/components/ProfileSettings.tsx`,
+  `src/components/SwedishDateInput.tsx`, `src/components/TransactionForm.tsx`,
+  `src/lib/customerInvoiceUi.ts`, `src/lib/dateUi.ts`,
+  `supabase/migrations/20261005210000_fix_customer_invoice_year_end_scope.sql`,
+  `tests/e2e/kan40-staging-write.spec.ts`,
+  `tests/e2e/kan42-staging-write.spec.ts`,
   `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
 - Supabase CLI local link was switched from Production ref
   `wbaxmuvudpnkvuliicuy` to staging ref `fzxqiqenqjzhlyxxpvhg` before applying
@@ -200,6 +222,10 @@ Verified from Jira on 2026-10-05:
   local Next app -> `fzxqiqenqjzhlyxxpvhg` -> dedicated Playwright user.
   Local files `.env.e2e.local` and `tests/e2e/.auth/` are git-ignored.
   Production smoke after deploy should remain read-only/non-destructive.
+- For manual local staging testing, start `npm run dev` with `.env.e2e.local`
+  loaded and open `http://localhost:3000`. Do not use
+  `http://127.0.0.1:3000` for manual browser testing because Next dev HMR can
+  cross-origin block `/_next/webpack-hmr`.
 - E2E fast path: run `npm run test:e2e:smoke` for read-only smoke,
   `npm run test:e2e:safety` for the fail-safe guard, and
   `npm run test:e2e:write -- <spec>` only for staging write tests.
@@ -215,13 +241,21 @@ Verified from Jira on 2026-10-05:
   the documented private `attachments` bucket; migration
   `20261005203000_ensure_attachments_storage_bucket.sql` was applied to staging
   only and then the focused E2E passed. Production was not migrated.
+- KAN-46 Block 3 manual acceptance fix verification on 2026-10-05:
+  `npm run typecheck` passed; `npm run test:e2e:write --
+  tests/e2e/kan46-staging-write.spec.ts` passed. An initial E2E attempt found
+  an already-running dev server and was stopped; the immediate rerun passed.
+  No full lint was run. Local server-side migration `20261005210000...` is not
+  applied to staging yet.
 
 ## Next Safe Step
 
-1. Pontus/Jessika should manually test KAN-46 Block 3 in staging with a
-   realistic fictive Swedish December invoice scenario through the new
-   `Fakturor` tab and confirm ordinary Bokföring no longer preselects a
-   category.
-2. Do not push `main` without explicit approval because it deploys Production.
-3. Production Supabase remains at `20261005105538`; KAN-46 staging is at
-   `20261005203000`.
+1. Pontus should explicitly approve applying
+   `20261005210000_fix_customer_invoice_year_end_scope.sql` to staging if the
+   server-side year-scope fix should be live before retest. The UI-side fix is
+   already staging-E2E verified against the current staging backend.
+2. Pontus/Jessika should retest KAN-46 Block 3 in staging via
+   `http://localhost:3000` with `.env.e2e.local` loaded.
+3. Do not push `main` without explicit approval because it deploys Production.
+4. Production Supabase remains at `20261005105538`; KAN-46 staging is still at
+   `20261005203000` until the pending year-scope migration is approved/applied.

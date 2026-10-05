@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
+import SwedishDateInput from './SwedishDateInput'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
   VatCalculationRateInput,
@@ -358,14 +359,14 @@ export default function TransactionForm({
                 Datum
               </label>
 
-              <input
-                type="date"
+              <SwedishDateInput
                 value={formData.date}
+                ariaLabel="Datum"
                 disabled={editingBooked || isYearLocked}
-                onChange={e => {
+                onChange={value => {
                   setFormData({
                     ...formData,
-                    date: e.target.value,
+                    date: value,
                   })
                   setVatV2BlockedSubmitAttempted(false)
                 }}

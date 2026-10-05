@@ -152,7 +152,7 @@ async function bookTransaction(page: Page, categoryId: string, description: stri
 
   const form = bookkeepingForm(page)
 
-  await form.locator('input[type="date"]').fill(`${year}-12-31`)
+  await form.getByLabel('Datum').fill(`31/12/${year}`)
   await form.locator('select').filter({
     has: page.locator(`option[value="${categoryId}"]`),
   }).selectOption(categoryId)
