@@ -110,6 +110,14 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
   const balansDiff = Math.round((tillgangar - kapitalOchSkulder) * 100) / 100
   const negativeBankBalances = neData.negativeBankBalances ?? []
   const unclassifiedNegativeBankBalance = neData.unclassifiedNegativeBankBalance ?? 0
+  const hasBalanceDifference = Math.abs(balansDiff) > 1
+  const hasUnclassifiedNegativeBank = unclassifiedNegativeBankBalance > 1
+  const yearCloseBlocked = hasBalanceDifference || hasUnclassifiedNegativeBank
+  const yearCloseBlockReason = hasUnclassifiedNegativeBank
+    ? 'Stäm av negativt saldo i kassa/bank innan räkenskapsåret låses.'
+    : hasBalanceDifference
+      ? 'Balansräkningen måste balansera innan räkenskapsåret låses.'
+      : null
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -118,13 +126,13 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
           NE-Bilaga Specifikation
         </h2>
 
-        {Math.abs(balansDiff) > 1 && (
+        {hasBalanceDifference && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
             ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Tillgångar matchar inte eget kapital och skulder.
           </div>
         )}
 
-        {unclassifiedNegativeBankBalance > 1 && (
+        {hasUnclassifiedNegativeBank && (
           <div className="mb-8 bg-amber-50 border-2 border-amber-200 p-4 sm:p-6 rounded-2xl text-amber-800 text-xs font-black uppercase italic tracking-widest">
             <div className="text-center">
               Negativt saldo i kassa/bank ({fmt(unclassifiedNegativeBankBalance)}) är inte automatiskt klassat som skuld.
@@ -387,11 +395,11 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
             </button>
 
             <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
-              Math.abs(balansDiff) <= 1
+              !hasBalanceDifference
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                 : 'bg-red-50 border-red-200 text-red-600'
             }`}>
-              {Math.abs(balansDiff) <= 1
+              {!hasBalanceDifference
                 ? '✓ Balansräkningen balanserar'
                 : `⚠ Balansdifferens ${fmt(balansDiff)}`}
             </div>
@@ -408,15 +416,29 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
               </span>
             </div>
           ) : (
-            <button
-              onClick={onLockYear}
-              className="w-full sm:w-auto group flex items-center justify-center gap-2 bg-gray-800 hover:bg-red-700 text-white rounded-2xl px-6 py-3 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <span className="text-base">🔒</span>
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                Lås räkenskapsår {selectedYear}
-              </span>
-            </button>
+            <div className="w-full sm:w-auto">
+              {yearCloseBlockReason && (
+                <div className="mb-3 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-[10px] font-black uppercase italic tracking-wider text-amber-800">
+                  {yearCloseBlockReason}
+                </div>
+              )}
+              <button
+                onClick={onLockYear}
+                disabled={yearCloseBlocked}
+                aria-disabled={yearCloseBlocked}
+                title={yearCloseBlockReason ?? undefined}
+                className={`w-full sm:w-auto group flex items-center justify-center gap-2 rounded-2xl px-6 py-3 transition-all duration-200 shadow-md ${
+                  yearCloseBlocked
+                    ? 'cursor-not-allowed bg-gray-300 text-gray-500 shadow-none'
+                    : 'bg-gray-800 hover:bg-red-700 text-white hover:shadow-lg'
+                }`}
+              >
+                <span className="text-base">🔒</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  Lås räkenskapsår {selectedYear}
+                </span>
+              </button>
+            </div>
           )}
         </div>
       </div>

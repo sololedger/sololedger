@@ -14,6 +14,7 @@ Last updated: 2026-10-05
   - `936b188` docs-only KAN-39 closeout.
   - KAN-40 local checkpoint for NE negative-bank handling.
   - `4047047` KAN-43 staging/E2E safeguards.
+  - KAN-42 local checkpoint for authoritative year-close guards.
 - Production is verified on `bb73964`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
@@ -64,7 +65,7 @@ Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38, KAN-39, KAN-43.
-- In Review: KAN-40.
+- In Review: KAN-40, KAN-42.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
@@ -74,6 +75,8 @@ Verified from Jira on 2026-10-05:
   Pontus on a separate test account.
 - KAN-39 is completed, pushed, Production-deployed, smoke-tested, and Done.
 - KAN-43 is completed, accepted by leadership chat, and Done in Jira.
+- KAN-42 is implemented and Codex-verified, then moved to In Review and
+  assigned to Pontus for final testing. Do not set Done before Pontus accepts.
 
 ## Product Acceptance Direction
 
@@ -85,9 +88,8 @@ Verified from Jira on 2026-10-05:
 
 ## Current Active Work
 
-- KAN-40 implementation and Codex verification are complete locally. Awaiting
-  Pontus IRL testing before any push/deploy decision. Technical acceptance is
-  PASS, including the 2330/B13 Playwright acceptance in staging.
+- KAN-40 implementation and Codex verification are complete locally. Technical
+  acceptance is PASS, including the 2330/B13 Playwright acceptance in staging.
 - KAN-43 staging/E2E setup is accepted by leadership chat and checkpointed
   locally. Write-E2E uses `.env.e2e.local`, staging ref allowlist, and the
   dedicated Playwright user. `test:e2e:write` is staging-only and fail-closed
@@ -95,6 +97,13 @@ Verified from Jira on 2026-10-05:
   or uses a non-E2E user. `test:e2e:smoke` remains read-only/non-destructive.
   `test:e2e:safety` verifies the guard, including explicit Production-ref
   denial.
+- KAN-42 year-close integrity is implemented locally and applied/tested only on
+  staging `fzxqiqenqjzhlyxxpvhg`. `close_year_atomic` now preserves the open
+  SoloLedger VAT period guard and also blocks year closing when cumulative NE
+  balance does not balance or 19xx has unresolved negative cash/bank. UI now
+  disables `LÅS RÄKENSKAPSÅR` with a short explanation for those blockers.
+  Staging migration head includes `20261005105538_kan42_close_year_ne_guard`;
+  Production `wbaxmuvudpnkvuliicuy` has not received this migration.
 - KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
   mismatch. Do not implement it as part of KAN-40.
 
@@ -132,6 +141,9 @@ Verified from Jira on 2026-10-05:
 - KAN-43 staging/E2E files are local-only above Production. No push/deploy has
   been performed. Local git-ignored files hold staging E2E env/auth state; do
   not copy credentials into Git, Jira, `PROJECT_STATE.md`, or chat.
+- KAN-42 files are local-only above Production: one Supabase migration, one
+  NE UI guard change, and one staging write-E2E spec. The migration is applied
+  to staging only. No Production migration, push, or deploy has been performed.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -160,7 +172,7 @@ Verified from Jira on 2026-10-05:
 ## Next Safe Step
 
 1. Do not push `main` without explicit approval because it deploys Production.
-2. KAN-42 year-locking bug remains separate; do not test-click
-   `LÅS RÄKENSKAPSÅR` as part of KAN-40/KAN-43.
+2. KAN-42 next step is Pontus review/IRL testing. Production rollout requires
+   explicit approval for the Production Supabase migration and push/deploy.
 3. Next selected work package can reuse the verified staging/E2E fast path
    without rediscovery unless state appears stale.
