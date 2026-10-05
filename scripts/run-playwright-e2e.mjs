@@ -1,8 +1,21 @@
 import http from 'node:http'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { loadEnvFile } from './e2e-env.mjs'
+import { assertWriteE2EEnvironment } from './e2e-preflight.mjs'
 
 const require = createRequire(import.meta.url)
+const args = process.argv.slice(2)
+const writeMode = args.includes('--write')
+const playwrightArgs = args.filter(arg => arg !== '--write')
+
+if (writeMode) {
+  const envPath = process.env.SOLOLEDGER_E2E_ENV_FILE ?? '.env.e2e.local'
+  loadEnvFile(envPath)
+  process.env.SOLOLEDGER_E2E_WRITE = '1'
+  assertWriteE2EEnvironment()
+}
+
 const host = process.env.PLAYWRIGHT_HOST || '127.0.0.1'
 const port = process.env.PLAYWRIGHT_PORT || '3000'
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://${host}:${port}`
@@ -87,7 +100,7 @@ async function main() {
     return
   }
 
-  const tests = spawn(process.execPath, [playwrightBin, 'test', ...process.argv.slice(2)], {
+  const tests = spawn(process.execPath, [playwrightBin, 'test', ...playwrightArgs], {
     stdio: 'inherit',
     windowsHide: true,
     env: {

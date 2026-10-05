@@ -45,6 +45,9 @@ Last updated: 2026-10-05
 - Jira cloud ID: `42c6216d-73c5-4777-a644-c41ef9bc6a1a`
 - Jira project: `KAN` / `Sololedger`, project ID `10001`
 - Supabase production project ref: `wbaxmuvudpnkvuliicuy`
+- Supabase staging/E2E project ref: `fzxqiqenqjzhlyxxpvhg`
+  (`sololedger-staging`). It is isolated from Production and contains schema
+  from the repo migration chain only; no Production data was copied.
 - Live Supabase migration head documented/verified after KAN-38:
   `20261004152057`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
@@ -79,6 +82,11 @@ Verified from Jira on 2026-10-05:
 
 - KAN-40 implementation and Codex verification are complete locally. Awaiting
   Pontus IRL testing before any push/deploy decision.
+- KAN-43 staging/E2E setup is implemented locally: write-E2E uses
+  `.env.e2e.local`, staging ref allowlist, and a dedicated Playwright user.
+  `test:e2e:write` is staging-only and fail-closed before browser startup if
+  config is missing, ambiguous, points at Production, or uses a non-E2E user.
+  `test:e2e:smoke` remains read-only/non-destructive.
 - KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
   mismatch. Do not implement it as part of KAN-40.
 
@@ -113,6 +121,9 @@ Verified from Jira on 2026-10-05:
 - KAN-40 NE negative-bank checkpoint is local-only above Production. It changes
   NE balance calculation/UI and domain tests only; no Supabase write, deploy,
   push, or migration has been performed.
+- KAN-43 staging/E2E files are local-only above Production. No push/deploy has
+  been performed. Local git-ignored files hold staging E2E env/auth state; do
+  not copy credentials into Git, Jira, `PROJECT_STATE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -130,12 +141,14 @@ Verified from Jira on 2026-10-05:
   `C:\SoloLedger\LocalTest\pgpass.conf`.
 - Never read/display/copy/hash pgpass contents; use it only through
   process/session-local `PGPASSFILE`.
+- Hosted staging/E2E is now the approved target for browser write tests:
+  local Next app -> `fzxqiqenqjzhlyxxpvhg` -> dedicated Playwright user.
+  Local files `.env.e2e.local` and `tests/e2e/.auth/` are git-ignored.
+  Production smoke after deploy should remain read-only/non-destructive.
 
 ## Next Safe Step
 
-1. Pontus IRL-tests KAN-40: create or use a safe test year where 1930 goes
-   negative, open NE/förenklat årsbokslut, verify that SoloLedger warns about
-   unclassified negative kassa/bank instead of silently balancing it as a debt.
-2. Also verify a normal positive bank scenario still balances in NE, and a
-   real credit/debt account such as 2330 appears in B13.
-3. Do not push `main` without explicit approval because it deploys Production.
+1. Leadership reviews KAN-43 local staging/E2E checkpoint.
+2. Do not push `main` without explicit approval because it deploys Production.
+3. KAN-42 year-locking bug remains separate; do not test-click
+   `LÅS RÄKENSKAPSÅR` as part of KAN-40/KAN-43.
