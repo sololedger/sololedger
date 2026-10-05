@@ -35,6 +35,7 @@ import {
   fetchAllRowsByChunks,
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
+import { calculateNeBalanceRows } from './neBalance'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -1246,63 +1247,12 @@ export async function getNEData(year: number) {
     (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
   ) / 100
 
-  // --- BALANSRÄKNING / NE B1-B16 (förenklat årsbokslut, K1) ---
-  //
-  // getBalanceSheetBalances() använder debet-minus-kredit:
-  //   tillgångar -> normalt positiva
-  //   skulder/eget kapital -> normalt negativa
-  //
-  // För förenklat årsbokslut fylls B1-B10 och B13-B16 i.
-  // B11 och B12 används inte i den förenklade NE-balansen.
-
-  const sumBalanceRange = (start: number, end: number) =>
-    Object.entries(balanceSheetBalances)
-      .filter(([acc]) => {
-        const n = parseInt(acc)
-        return Number.isInteger(n) && n >= start && n <= end
-      })
-      .reduce((sum, [, value]) => sum + (value as number), 0)
-
-  const sumBalanceAccounts = (prefixes: string[]) =>
-    Object.entries(balanceSheetBalances)
-      .filter(([acc]) => prefixes.some(prefix => acc.startsWith(prefix)))
-      .reduce((sum, [, value]) => sum + (value as number), 0)
-
-  const round2 = (value: number) => Math.round(value * 100) / 100
-  const assetValue = (value: number) => round2(Math.max(0, value))
-  const liabilityValue = (value: number) => round2(Math.max(0, -value))
-
-  // Tillgångar
-  const B1 = assetValue(sumBalanceRange(1000, 1099)) // Immateriella anläggningstillgångar
-  const B2 = assetValue(
-    sumBalanceRange(1110, 1119) + sumBalanceRange(1150, 1159)
-  ) // Byggnader och markanläggningar
-  const B3 = assetValue(
-    sumBalanceRange(1130, 1139) + sumBalanceRange(1180, 1189)
-  ) // Mark och andra ej avskrivningsbara tillgångar
-  const B4 = assetValue(sumBalanceRange(1220, 1249)) // Maskiner och inventarier
-  const B5 = assetValue(sumBalanceRange(1300, 1399)) // Övriga anläggningstillgångar
-  const B6 = assetValue(sumBalanceRange(1400, 1499)) // Varulager
-  const B7 = assetValue(sumBalanceRange(1500, 1599)) // Kundfordringar
-
-  // B8 omfattar övriga fordringar, inklusive periodiseringar som 1790.
-  // Om moms-/skatteområdet netto har debetsaldo är det också en fordran.
-  const taxRaw = sumBalanceAccounts(['261', '262', '263', '264', '265', '266', '271', '273'])
-  const taxReceivable = Math.max(0, taxRaw)
-  const B8 = assetValue(sumBalanceRange(1600, 1899) + taxReceivable)
-
-  const B9 = assetValue(sumBalanceRange(1900, 1999)) // Kassa och bank
-
-  // Skulder
-  const B13 = liabilityValue(sumBalanceRange(2300, 2399)) // Låneskulder
-  const B14 = liabilityValue(taxRaw) // Skatteskulder / nettomoms m.m.
-  const B15 = liabilityValue(sumBalanceRange(2440, 2449)) // Leverantörsskulder
-  const B16 = liabilityValue(sumBalanceRange(2900, 2999)) // Övriga skulder
+  const neBalanceRows = calculateNeBalanceRows(balanceSheetBalances, B10_total)
 
   // Behåll dessa alias under övergången så att annan befintlig UI-kod inte
   // behöver gå sönder medan NE-vyn flyttas till korrekta B-rutor.
-  const bank = B9
-  const B13_forutbetalda = assetValue(balanceSheetBalances['1790'] || 0)
+  const bank = neBalanceRows.B9
+  const B13_forutbetalda = Math.round(Math.max(0, balanceSheetBalances['1790'] || 0) * 100) / 100
 
   return {
     R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
@@ -1310,9 +1260,8 @@ export async function getNEData(year: number) {
     ejAvdragsgillt: ejAvdr,
     R11, R12, R13, R14, R15, R16, R17,
     IB_kapital, insattningar, uttag,
-    bank, B10_total,
-    B1, B2, B3, B4, B5, B6, B7, B8, B9,
-    B13, B14, B15, B16,
+    bank,
+    ...neBalanceRows,
     B13_forutbetalda,
   }
 }

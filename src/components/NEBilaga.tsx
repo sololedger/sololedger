@@ -38,6 +38,12 @@ interface NEData {
   B15: number;
   B16: number;
   B13_forutbetalda: number;
+  unclassifiedNegativeBankBalance?: number;
+  negativeBankBalances?: {
+    accountNumber: string;
+    balance: number;
+    amount: number;
+  }[];
 }
 
 interface NEBilagaProps {
@@ -102,6 +108,8 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
 
   // Full NE-balanskontroll: B1-B9 = B10 + B13-B16.
   const balansDiff = Math.round((tillgangar - kapitalOchSkulder) * 100) / 100
+  const negativeBankBalances = neData.negativeBankBalances ?? []
+  const unclassifiedNegativeBankBalance = neData.unclassifiedNegativeBankBalance ?? 0
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -113,6 +121,26 @@ export default function NEBilaga({ neData, selectedYear, isYearLocked, onLockYea
         {Math.abs(balansDiff) > 1 && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
             ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Tillgångar matchar inte eget kapital och skulder.
+          </div>
+        )}
+
+        {unclassifiedNegativeBankBalance > 1 && (
+          <div className="mb-8 bg-amber-50 border-2 border-amber-200 p-4 sm:p-6 rounded-2xl text-amber-800 text-xs font-black uppercase italic tracking-widest">
+            <div className="text-center">
+              Negativt saldo i kassa/bank ({fmt(unclassifiedNegativeBankBalance)}) är inte automatiskt klassat som skuld.
+            </div>
+            <div className="mt-2 text-center text-[10px] leading-relaxed tracking-normal normal-case font-bold">
+              SoloLedger flyttar inte 19xx till B13/B16 utan underlag. Stäm av bankkontot och bokför/klassificera eventuell kredit eller skuld innan NE används.
+            </div>
+            {negativeBankBalances.length > 0 && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2 text-[10px] tracking-normal normal-case">
+                {negativeBankBalances.map(row => (
+                  <span key={row.accountNumber} className="rounded-full border border-amber-200 bg-white px-2 py-1">
+                    {row.accountNumber}: {fmt(row.balance)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

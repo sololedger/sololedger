@@ -7,8 +7,12 @@ Last updated: 2026-10-05
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Local `main` / `origin/main`: `bb73964`
+- Origin/Production `main`: `bb73964`
   (`KAN-39 clarify blocked VAT V2 submit feedback`).
+- Local `main` is intentionally ahead of `origin/main` with unpushed local
+  checkpoints:
+  - `936b188` docs-only KAN-39 closeout.
+  - KAN-40 local checkpoint for NE negative-bank handling.
 - Production is verified on `bb73964`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
@@ -53,8 +57,9 @@ Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38, KAN-39.
+- In Review: KAN-40.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
-  KAN-34, KAN-35, KAN-36.
+  KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
 - KAN-37 is completed/pushed/deployed/IRL-verified by Pontus.
 - KAN-36 is future inventory/depreciation product work.
@@ -72,7 +77,10 @@ Verified from Jira on 2026-10-05:
 
 ## Current Active Work
 
-- No implementation is active.
+- KAN-40 implementation and Codex verification are complete locally. Awaiting
+  Pontus IRL testing before any push/deploy decision.
+- KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
+  mismatch. Do not implement it as part of KAN-40.
 
 ## Known Non-Blockers / Debt
 
@@ -87,16 +95,24 @@ Verified from Jira on 2026-10-05:
   VAT/tax-account lifecycle flows.
 - General legacy default-upgrade policy is a future architecture/product topic,
   not implemented.
+- KAN-41: Momskort/dashboard VAT breakdown excludes native VAT V2 transactions
+  while labels can look like total 261x/264x VAT. Momsrapport VAT V2 behavior
+  remains verified separately; this is a UX/product-scope follow-up.
 
 ## Git / Local Files
 
-- Working tree should be clean.
+- Working tree should be clean after the KAN-40 local checkpoint commit.
 - KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
   Production.
 - KAN-38 docs-only closeout checkpoint `64d1132` was formerly local above
   Production; it is now part of pushed `main`.
 - KAN-39 checkpoints through `bb73964` are pushed to `main` and deployed to
   Production.
+- KAN-39 docs-only closeout checkpoint `936b188` is local-only above
+  Production.
+- KAN-40 NE negative-bank checkpoint is local-only above Production. It changes
+  NE balance calculation/UI and domain tests only; no Supabase write, deploy,
+  push, or migration has been performed.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 - `KAN-32-IRL-legacy-reverse-charge.se` was externally archived and is no
@@ -117,5 +133,9 @@ Verified from Jira on 2026-10-05:
 
 ## Next Safe Step
 
-1. Pontus/leader chat chooses the next work item.
-2. Do not push `main` without explicit approval because it deploys Production.
+1. Pontus IRL-tests KAN-40: create or use a safe test year where 1930 goes
+   negative, open NE/förenklat årsbokslut, verify that SoloLedger warns about
+   unclassified negative kassa/bank instead of silently balancing it as a debt.
+2. Also verify a normal positive bank scenario still balances in NE, and a
+   real credit/debt account such as 2330 appears in B13.
+3. Do not push `main` without explicit approval because it deploys Production.
