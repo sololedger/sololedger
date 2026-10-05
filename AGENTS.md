@@ -93,6 +93,9 @@ Available package scripts:
 - `npm run typecheck` - run TypeScript with `tsc --noEmit`.
 - `npm run test:domain` - run the result-engine and accounting-knowledge domain tests.
 - `npm run test:e2e` - run Playwright E2E tests.
+- `npm run test:e2e:smoke` - run read-only/non-destructive public Playwright smoke tests.
+- `npm run test:e2e:write` - run write Playwright E2E tests; this is staging-only and must fail closed before browser startup unless the verified staging config is loaded.
+- `npm run test:e2e:safety` - verify the write-E2E safety guard, including explicit denial of the Production Supabase ref.
 - `npm run test:regression` - run the safe regression suite.
 
 Run only checks relevant to the change, and report any check that could not be run.
@@ -121,6 +124,8 @@ Central bookkeeping writes should remain server-side/database-side through RPCs,
 Established SoloLedger Supabase context:
 
 - Production Supabase project ref: `wbaxmuvudpnkvuliicuy`.
+- Hosted staging/E2E Supabase project: `sololedger-staging`, ref `fzxqiqenqjzhlyxxpvhg`.
+- Staging schema is built from the repository migration chain. Do not copy Production data into staging.
 - Use the established CLI entry point `npx --yes supabase@latest` for Supabase CLI work unless a task verifies a better project-specific path first.
 - Start from the durable docs, current Git state, `supabase/migrations/`, and the verified live project context before inspecting or changing Supabase.
 - For live read-only inspection, migrations, and post-change verification, prefer the already proven path: inspect live state first, prepare local migration/tests, verify safely, apply through the official Supabase CLI flow that preserves repo/live migration identity, then verify the exact live migration/version and relevant definitions.
@@ -188,6 +193,9 @@ When changing DB behavior:
 - `In Review` means Codex implementation and automated verification are complete; Pontus IRL testing remains. Pontus normally sets `Done` after final testing.
 - Destructive or write E2E tests may run only against an explicitly verified isolated test/staging environment and dedicated test user.
 - Never run automated destructive/write E2E against ordinary/live Supabase or real user data.
+- For SoloLedger, the verified hosted write-E2E target is `sololedger-staging` / `fzxqiqenqjzhlyxxpvhg`; Production ref `wbaxmuvudpnkvuliicuy` must always be denied by the write-E2E preflight.
+- Reuse the established staging/E2E identifiers and local config fast path. Do not rediscover/list Supabase or Vercel, and do not rework Playwright auth, unless current state or errors indicate the stored information is stale.
+- The dedicated E2E Auth user already exists. Credentials and Playwright storage state live only in git-ignored local paths such as `.env.e2e.local` and `tests/e2e/.auth/`.
 - Test credentials and auth storage must stay out of Git, `AGENTS.md`, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, and Jira.
 - Public/read-only Playwright smoke tests may run without a dedicated Supabase test project. Authenticated/write tests require a verified test environment first.
 - PostgreSQL 17 client may be available at `C:\Program Files\PostgreSQL\17\bin\psql.exe` even when `psql` is not on PATH. Reuse the existing isolated SoloLedger local PostgreSQL test environment when appropriate instead of recreating it unnecessarily.

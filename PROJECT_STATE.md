@@ -13,6 +13,7 @@ Last updated: 2026-10-05
   checkpoints:
   - `936b188` docs-only KAN-39 closeout.
   - KAN-40 local checkpoint for NE negative-bank handling.
+  - `4047047` KAN-43 staging/E2E safeguards.
 - Production is verified on `bb73964`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
@@ -48,6 +49,9 @@ Last updated: 2026-10-05
 - Supabase staging/E2E project ref: `fzxqiqenqjzhlyxxpvhg`
   (`sololedger-staging`). It is isolated from Production and contains schema
   from the repo migration chain only; no Production data was copied.
+- Future work packages should reuse these verified refs/configs and avoid
+  Supabase/Vercel listing or Playwright-auth rediscovery unless something
+  indicates the stored information is stale.
 - Live Supabase migration head documented/verified after KAN-38:
   `20261004152057`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
@@ -59,7 +63,7 @@ Last updated: 2026-10-05
 Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
-  KAN-37, KAN-38, KAN-39.
+  KAN-37, KAN-38, KAN-39, KAN-43.
 - In Review: KAN-40.
 - To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
@@ -69,6 +73,7 @@ Verified from Jira on 2026-10-05:
 - KAN-38 is completed, live-migrated, Production-deployed, and IRL-accepted by
   Pontus on a separate test account.
 - KAN-39 is completed, pushed, Production-deployed, smoke-tested, and Done.
+- KAN-43 is completed, accepted by leadership chat, and Done in Jira.
 
 ## Product Acceptance Direction
 
@@ -81,12 +86,15 @@ Verified from Jira on 2026-10-05:
 ## Current Active Work
 
 - KAN-40 implementation and Codex verification are complete locally. Awaiting
-  Pontus IRL testing before any push/deploy decision.
-- KAN-43 staging/E2E setup is implemented locally: write-E2E uses
-  `.env.e2e.local`, staging ref allowlist, and a dedicated Playwright user.
-  `test:e2e:write` is staging-only and fail-closed before browser startup if
-  config is missing, ambiguous, points at Production, or uses a non-E2E user.
-  `test:e2e:smoke` remains read-only/non-destructive.
+  Pontus IRL testing before any push/deploy decision. Technical acceptance is
+  PASS, including the 2330/B13 Playwright acceptance in staging.
+- KAN-43 staging/E2E setup is accepted by leadership chat and checkpointed
+  locally. Write-E2E uses `.env.e2e.local`, staging ref allowlist, and the
+  dedicated Playwright user. `test:e2e:write` is staging-only and fail-closed
+  before browser startup if config is missing, ambiguous, points at Production,
+  or uses a non-E2E user. `test:e2e:smoke` remains read-only/non-destructive.
+  `test:e2e:safety` verifies the guard, including explicit Production-ref
+  denial.
 - KAN-41 is a separate backlog bug for the VAT dashboard/momskort label/scope
   mismatch. Do not implement it as part of KAN-40.
 
@@ -145,10 +153,14 @@ Verified from Jira on 2026-10-05:
   local Next app -> `fzxqiqenqjzhlyxxpvhg` -> dedicated Playwright user.
   Local files `.env.e2e.local` and `tests/e2e/.auth/` are git-ignored.
   Production smoke after deploy should remain read-only/non-destructive.
+- E2E fast path: run `npm run test:e2e:smoke` for read-only smoke,
+  `npm run test:e2e:safety` for the fail-safe guard, and
+  `npm run test:e2e:write -- <spec>` only for staging write tests.
 
 ## Next Safe Step
 
-1. Leadership reviews KAN-43 local staging/E2E checkpoint.
-2. Do not push `main` without explicit approval because it deploys Production.
-3. KAN-42 year-locking bug remains separate; do not test-click
+1. Do not push `main` without explicit approval because it deploys Production.
+2. KAN-42 year-locking bug remains separate; do not test-click
    `LÅS RÄKENSKAPSÅR` as part of KAN-40/KAN-43.
+3. Next selected work package can reuse the verified staging/E2E fast path
+   without rediscovery unless state appears stale.
