@@ -7,13 +7,13 @@ Last updated: 2026-10-06
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `0162654e08d24780ef8ab5da8118dcfd04463fec`
-  (`docs: record KAN-49 production release`).
-- Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49
-  release.
+- Origin/Production `main`: `64367a6a9a210534c46130ff05b82638d5361a78`
+  (`KAN-50 refine profile card layout`).
+- Production is deployed on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
+  release; KAN-50 final Production visual acceptance is still pending.
 - Vercel Production deployment:
-  `dpl_35vXDLXKjkY7QgRv2XmCeaUmKraU`
-  (`sololedger-gfm0d7o75-sololedger1.vercel.app`) is `Ready` and aliased to
+  `dpl_3yHfVPwxRCA72Lq3HUuEP78pYMxP`
+  (`sololedger-ab3n8jb93-sololedger1.vercel.app`) is `Ready` and aliased to
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261006143000` after KAN-49 Production DB release.
@@ -50,9 +50,8 @@ Last updated: 2026-10-06
 Verified on 2026-10-06:
 
 - Done includes KAN-14, KAN-46, and KAN-49 after Pontus Production acceptance.
-- KAN-50 is active local work: Profile information hierarchy/readability polish.
-  It must not change VAT policy logic, accounting behavior, profile persistence,
-  or schema.
+- KAN-50 is in `In Review`, assigned to Pontus. Pontus localhost visual
+  acceptance passed before release; final Production visual acceptance remains.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -77,9 +76,9 @@ Verified on 2026-10-06:
 
 ## Open Follow-Ups
 
-- KAN-50 Profile UX polish is in progress locally. Scope: visual hierarchy,
-  spacing, section separation, and neutral VAT help text only. Do not run
-  Playwright/E2E or use staging DB for layout verification.
+- KAN-50 Profile UX polish is deployed to Production at `64367a6`; Vercel is
+  `Ready` and `sololedger.vercel.app` responds. Pontus localhost visual
+  acceptance passed; final Production visual acceptance remains.
 - Jessika's two historical customer invoices predate KAN-46 and are not yet
   represented in the Fakturor registry. Any future backfill must link/preserve
   existing bookkeeping and must not create duplicate revenue/VAT.
@@ -95,10 +94,10 @@ Verified on 2026-10-06:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `0162654`.
-- Local `main` has the KAN-50 Profile UX polish checkpoint above `origin/main`.
-  Do not push without explicit approval because pushing `main` deploys
-  Production.
+- `origin/main` is the deployed Production code at `64367a6`.
+- Local `main` may have a docs-only KAN-50 handoff checkpoint above
+  `origin/main`. Do not push without explicit approval because pushing `main`
+  deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -127,7 +126,8 @@ Verified on 2026-10-06:
 
 ## Next Safe Step
 
-1. Pontus should manually visually review the KAN-50 Profile UX polish locally.
+1. Pontus should manually visually review the KAN-50 Profile UX polish in
+   Production.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Do not start invoice backfill, Adobe corrections, KAN-47, or KAN-48 unless
    Pontus explicitly starts that work.
