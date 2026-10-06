@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 ## Current Baseline
 
@@ -50,8 +50,8 @@ Last updated: 2026-10-05
   indicates the stored information is stale.
 - Live Supabase Production migration head documented/verified after KAN-42:
   `20261005105538`.
-- Supabase staging/E2E migration head verified after KAN-46 Block 3:
-  `20261005203000`.
+- Supabase staging/E2E migration head verified after KAN-46 Block 3B:
+  `20261005213000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
 - `supabase/.temp/` may exist as generated Supabase CLI state only. Do not
   read/display secrets and do not add this directory to Git.
@@ -106,16 +106,17 @@ Verified from Jira on 2026-10-05:
   explicit `Visa detaljer` affordance, the summary metric says what remains
   before year end, and the UI no longer offers already-handled 2026 invoices as
   2027 year-end work.
-- Root cause of the reported 2027 two-invoice behavior: two older unpaid E2E
-  invoices had invoice/service dates in December 2026 and already had
-  `year_end_receivable` bookings for fiscal year 2026. The UI helper and live
-  `close_year_atomic` both looked at "all unpaid invoices up to selected
-  31/12" and then checked for a year-end booking in the selected year, so the
-  2026 invoices appeared as missing 2027 year-end work. Local migration
-  `20261005210000_fix_customer_invoice_year_end_scope.sql` prepares the server
-  fix, but it has not been applied to staging because the approval reviewer
-  rejected replacing the large `close_year_atomic` RPC without explicit user
-  approval.
+- KAN-46 Block 3B corrective integrity work is implemented and staging-migrated.
+  It fixes server-side invoice fiscal-year scoping, adds controlled
+  `Ångra registrerad betalning`, and adds `Redigera faktura` only for unpaid
+  invoices with no `customer_invoice_bookings`. Original customer-invoice
+  accounting history remains append-only: undo creates a traceable correction
+  booking and never deletes/replaces the original payment or legitimate 31/12
+  receivable. Server-side editing rejects any invoice that has already created
+  accounting. The 2027 two-invoice root cause was real year-scope behavior:
+  older 2026 unpaid E2E invoices with existing 2026 receivable bookings were
+  incorrectly considered for 2027 because backend guards previously only checked
+  "unpaid up to selected 31/12" plus selected-year booking absence.
 - Full PDF generation, partial payments, credit invoices, foreign customers,
   EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
@@ -183,13 +184,10 @@ Verified from Jira on 2026-10-05:
 - KAN-46 Block 3 checkpoint `a3a0ec4` is local-only on top of `64b281f`.
   It is not pushed; pushing `main` would deploy Production and requires
   explicit approval.
-- KAN-46 Block 3 manual acceptance fixes are implemented in the working tree
-  before checkpoint in `src/components/CustomerInvoicesPanel.tsx`,
-  `src/components/Momsrapport.tsx`, `src/components/ProfileSettings.tsx`,
-  `src/components/SwedishDateInput.tsx`, `src/components/TransactionForm.tsx`,
-  `src/lib/customerInvoiceUi.ts`, `src/lib/dateUi.ts`,
+- KAN-46 Block 3B changed files for the local checkpoint:
+  `src/components/CustomerInvoicesPanel.tsx`, `src/lib/accountingService.ts`,
   `supabase/migrations/20261005210000_fix_customer_invoice_year_end_scope.sql`,
-  `tests/e2e/kan40-staging-write.spec.ts`,
+  `supabase/migrations/20261005213000_allow_customer_invoice_controlled_reversal.sql`,
   `tests/e2e/kan42-staging-write.spec.ts`,
   `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
 - Supabase CLI local link was switched from Production ref
@@ -247,15 +245,20 @@ Verified from Jira on 2026-10-05:
   an already-running dev server and was stopped; the immediate rerun passed.
   No full lint was run. Local server-side migration `20261005210000...` is not
   applied to staging yet.
+- KAN-46 Block 3B verification on 2026-10-06:
+  `20261005210000_fix_customer_invoice_year_end_scope.sql` and
+  `20261005213000_allow_customer_invoice_controlled_reversal.sql` were applied
+  to staging only after explicit approval. Staging head verified:
+  `20261005213000`. `npm run typecheck` passed.
+  `npm run test:e2e:write -- tests/e2e/kan46-staging-write.spec.ts` passed
+  3/3. `npm run test:e2e:write -- tests/e2e/kan42-staging-write.spec.ts`
+  passed 1/1. Full lint was not run.
 
 ## Next Safe Step
 
-1. Pontus should explicitly approve applying
-   `20261005210000_fix_customer_invoice_year_end_scope.sql` to staging if the
-   server-side year-scope fix should be live before retest. The UI-side fix is
-   already staging-E2E verified against the current staging backend.
-2. Pontus/Jessika should retest KAN-46 Block 3 in staging via
+1. Pontus/Jessika can retest KAN-46 Block 3B UI behavior in staging via
    `http://localhost:3000` with `.env.e2e.local` loaded.
+2. Keep KAN-46 in Jira `In Review` assigned to Pontus until manual acceptance.
 3. Do not push `main` without explicit approval because it deploys Production.
-4. Production Supabase remains at `20261005105538`; KAN-46 staging is still at
-   `20261005203000` until the pending year-scope migration is approved/applied.
+4. Production Supabase remains untouched at migration head `20261005105538`;
+   KAN-46 staging is at `20261005213000`.

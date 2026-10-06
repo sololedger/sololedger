@@ -191,6 +191,10 @@ export interface CreateCustomerInvoiceInput {
   attachmentUrl?: string | null
 }
 
+export interface UpdateCustomerInvoiceInput extends CreateCustomerInvoiceInput {
+  invoiceId: string
+}
+
 export interface CustomerInvoiceRpcResult {
   success: true
   idempotentReplay?: boolean
@@ -207,6 +211,8 @@ export type CustomerInvoiceBookingKind =
   | 'payment_same_year'
   | 'year_end_receivable'
   | 'receivable_settlement'
+  | 'payment_same_year_reversal'
+  | 'receivable_settlement_reversal'
 
 export interface CustomerInvoiceBooking {
   id: string
@@ -218,6 +224,7 @@ export interface CustomerInvoiceBooking {
   grossAmount: number
   netAmount: number
   vatAmount: number
+  reversesBookingId: string | null
 }
 
 export interface CustomerInvoice {
@@ -276,6 +283,7 @@ type CustomerInvoiceBookingRow = {
   gross_amount: number | string
   net_amount: number | string
   vat_amount: number | string
+  reverses_booking_id: string | null
 }
 
 function mapCustomerInvoiceRpcResult(data: CustomerInvoiceRpcResponse | null): CustomerInvoiceRpcResult {
@@ -306,6 +314,7 @@ function mapCustomerInvoiceBooking(row: CustomerInvoiceBookingRow): CustomerInvo
     grossAmount: Number(row.gross_amount),
     netAmount: Number(row.net_amount),
     vatAmount: Number(row.vat_amount),
+    reversesBookingId: row.reverses_booking_id,
   }
 }
 
@@ -360,6 +369,35 @@ export async function createCustomerInvoice(
   return mapCustomerInvoiceRpcResult(data)
 }
 
+export async function updateCustomerInvoiceUnbooked(
+  input: UpdateCustomerInvoiceInput
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('update_customer_invoice_unbooked_atomic', {
+    p_invoice_id: input.invoiceId,
+    p_payload: {
+      invoice_number: input.invoiceNumber,
+      customer_name: input.customerName,
+      customer_country: 'SE',
+      currency: 'SEK',
+      invoice_date: input.invoiceDate,
+      service_date: input.serviceDate,
+      due_date: input.dueDate,
+      gross_amount: input.grossAmount,
+      vat_treatment: input.vatTreatment,
+      vat_rate: input.vatRate ?? null,
+      attachment_url: input.attachmentUrl ?? null,
+    },
+  })
+
+  if (error) {
+    throw new Error('Kundfakturan kunde inte uppdateras: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
+}
+
 export async function getCustomerInvoices(throughYear: number): Promise<CustomerInvoice[]> {
   const userId = await getUserId()
   const throughDate = `${throughYear}-12-31`
@@ -384,7 +422,7 @@ export async function getCustomerInvoices(throughYear: number): Promise<Customer
   if (invoiceIds.length > 0) {
     const { data: bookingData, error: bookingError } = await supabase
       .from('customer_invoice_bookings')
-      .select('id, invoice_id, transaction_id, booking_kind, booking_date, fiscal_year, gross_amount, net_amount, vat_amount')
+      .select('id, invoice_id, transaction_id, booking_kind, booking_date, fiscal_year, gross_amount, net_amount, vat_amount, reverses_booking_id')
       .eq('user_id', userId)
       .in('invoice_id', invoiceIds)
       .order('booking_date', { ascending: true })
@@ -402,6 +440,27 @@ export async function getCustomerInvoices(throughYear: number): Promise<Customer
   }
 
   return invoiceRows.map(row => mapCustomerInvoice(row, bookingsByInvoiceId))
+}
+
+export async function undoCustomerInvoicePayment(
+  invoiceId: string,
+  idempotencyKey: string
+): Promise<CustomerInvoiceRpcResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc(
+    'undo_customer_invoice_payment_atomic',
+    {
+      p_invoice_id: invoiceId,
+      p_idempotency_key: idempotencyKey,
+    }
+  )
+
+  if (error) {
+    throw new Error('Kundfakturans betalning kunde inte ångras: ' + error.message)
+  }
+
+  return mapCustomerInvoiceRpcResult(data)
 }
 
 export async function recordCustomerInvoicePayment(

@@ -51,7 +51,7 @@ test.describe('KAN-42 staging write acceptance', () => {
     await verifyNeBalanced(page)
 
     const negativeBankDescription = `E2E KAN-42 negativ 1930 ${Date.now()}`
-    await bookTransaction(page, 'bankavgift', negativeBankDescription)
+    await bookTransaction(page, 'bankavgift', negativeBankDescription, '999999')
     await verifyYearCloseBlockedInUi(
       page,
       /Negativt saldo i kassa\/bank/i,
@@ -147,7 +147,12 @@ async function expectCategoryOption(page: Page, categoryId: string) {
   })).toHaveCount(1, { timeout: 15_000 })
 }
 
-async function bookTransaction(page: Page, categoryId: string, description: string) {
+async function bookTransaction(
+  page: Page,
+  categoryId: string,
+  description: string,
+  amount = '1000'
+) {
   await page.getByRole('button', { name: 'Bokföring' }).click()
 
   const form = bookkeepingForm(page)
@@ -156,11 +161,11 @@ async function bookTransaction(page: Page, categoryId: string, description: stri
   await form.locator('select').filter({
     has: page.locator(`option[value="${categoryId}"]`),
   }).selectOption(categoryId)
-  await form.locator('input[type="text"]').filter({ visible: true }).first().fill(description)
+  await form.locator('input[type="text"]').filter({ visible: true }).nth(1).fill(description)
   await form.locator('select').filter({
     has: page.locator('option[value="0"]'),
   }).last().selectOption('0')
-  await form.locator('input[type="number"]').fill('1000')
+  await form.locator('input[type="number"]').fill(amount)
   await form.getByRole('button', { name: 'Bokför' }).click()
   await expect(page.getByText(description).first()).toBeVisible({ timeout: 20_000 })
 }
@@ -223,6 +228,8 @@ async function cleanupOwnKan42Bookings(page: Page) {
 
 async function cleanupOwnKan42BookingsByRpc() {
   const supabase = await createAuthenticatedSupabaseClient()
+  await cleanupOwnKan46SameYearUndoBlockers(supabase)
+
   const { data: transactions, error: transactionError } = await supabase
     .from('transactions')
     .select('id, is_correction, corrects_ver_nr')
@@ -278,6 +285,49 @@ async function cleanupOwnKan42BookingsByRpc() {
     }
 
     correctedVerNrs.add(verNr)
+  }
+}
+
+async function cleanupOwnKan46SameYearUndoBlockers(supabase: SupabaseClient) {
+  const { data: invoices, error: invoiceError } = await supabase
+    .from('customer_invoices')
+    .select('id, invoice_date')
+    .gte('invoice_date', `${year}-01-01`)
+    .lte('invoice_date', `${year}-12-31`)
+    .eq('payment_status', 'unpaid')
+    .like('invoice_number', 'E2E-KAN-46-RPC-%-edited')
+
+  if (invoiceError) {
+    throw new Error(`KAN-46 blocker cleanup invoice lookup failed: ${invoiceError.message}`)
+  }
+
+  for (const invoice of invoices ?? []) {
+    const invoiceId = String(invoice.id)
+    const { data: bookings, error: bookingError } = await supabase
+      .from('customer_invoice_bookings')
+      .select('booking_kind')
+      .eq('invoice_id', invoiceId)
+
+    if (bookingError) {
+      throw new Error(`KAN-46 blocker cleanup booking lookup failed: ${bookingError.message}`)
+    }
+
+    const hasYearEndReceivable = (bookings ?? []).some(
+      booking => booking.booking_kind === 'year_end_receivable'
+    )
+    if (hasYearEndReceivable) {
+      continue
+    }
+
+    const { error } = await supabase.rpc('record_customer_invoice_payment_atomic', {
+      p_invoice_id: invoiceId,
+      p_payment_date: invoice.invoice_date,
+      p_idempotency_key: crypto.randomUUID(),
+    })
+
+    if (error) {
+      throw new Error(`KAN-46 blocker cleanup payment failed: ${error.message}`)
+    }
   }
 }
 

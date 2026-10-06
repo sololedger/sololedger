@@ -9,6 +9,8 @@ import {
   getCustomerInvoices,
   recordCustomerInvoicePayment,
   settleCustomerInvoiceReceivable,
+  undoCustomerInvoicePayment,
+  updateCustomerInvoiceUnbooked,
   type CustomerInvoice,
   type CustomerInvoiceVatTreatment,
 } from '@/lib/accountingService'
@@ -66,6 +68,12 @@ function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
   if (booking.bookingKind === 'receivable_settlement') {
     return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning efter bokslut`
   }
+  if (booking.bookingKind === 'payment_same_year_reversal') {
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: direktbetalning ångrad`
+  }
+  if (booking.bookingKind === 'receivable_settlement_reversal') {
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning efter bokslut ångrad`
+  }
   return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning bokförd`
 }
 
@@ -84,6 +92,9 @@ export default function CustomerInvoicesPanel({
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null)
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<InvoiceFormState>(() => initialForm(vatStatus))
+  const [editAttachmentUrl, setEditAttachmentUrl] = useState<string | null>(null)
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
@@ -258,6 +269,95 @@ export default function CustomerInvoicesPanel({
       setNotice({
         type: 'error',
         text: error instanceof Error ? error.message : 'Betalningen kunde inte registreras.',
+      })
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  function beginEdit(invoice: CustomerInvoice) {
+    setNotice(null)
+    setEditingInvoiceId(invoice.id)
+    setEditAttachmentUrl(invoice.attachmentUrl)
+    setEditForm({
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: invoice.customerName,
+      invoiceDate: invoice.invoiceDate,
+      serviceDate: invoice.serviceDate,
+      dueDate: invoice.dueDate,
+      grossAmount: String(invoice.grossAmount),
+      vatTreatment: invoice.vatTreatment,
+      vatRate: String(invoice.vatRate ?? 25),
+      attachment: null,
+    })
+  }
+
+  function cancelEdit() {
+    setEditingInvoiceId(null)
+    setEditAttachmentUrl(null)
+    setEditForm(initialForm(vatStatus))
+  }
+
+  async function handleEditInvoice(invoice: CustomerInvoice, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setNotice(null)
+    setBusyKey(`edit-${invoice.id}`)
+
+    try {
+      const grossAmount = Number(editForm.grossAmount)
+      if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
+        throw new Error('Fakturabeloppet måste vara större än 0.')
+      }
+
+      const attachmentUrl = editForm.attachment
+        ? await onUploadAttachment(editForm.attachment)
+        : editAttachmentUrl
+
+      if (!attachmentUrl) {
+        throw new Error('Fakturaunderlag krävs för kundfaktura.')
+      }
+
+      await updateCustomerInvoiceUnbooked({
+        invoiceId: invoice.id,
+        invoiceNumber: editForm.invoiceNumber,
+        customerName: editForm.customerName,
+        invoiceDate: editForm.invoiceDate,
+        serviceDate: editForm.serviceDate,
+        dueDate: editForm.dueDate,
+        grossAmount,
+        vatTreatment: editForm.vatTreatment,
+        vatRate: editForm.vatTreatment === 'taxable' ? Number(editForm.vatRate) : null,
+        attachmentUrl,
+      })
+
+      cancelEdit()
+      await refreshAfterAction(`Faktura ${editForm.invoiceNumber} är uppdaterad.`)
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Fakturan kunde inte uppdateras.',
+      })
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function handleUndoPayment(invoice: CustomerInvoice) {
+    const confirmed = window.confirm(
+      'SoloLedger skapar en korrigerande bokning för betalningen och gör fakturan obetald igen. Den ursprungliga verifikationen tas inte bort. Vill du fortsätta?'
+    )
+    if (!confirmed) return
+
+    setNotice(null)
+    setBusyKey(`undo-payment-${invoice.id}`)
+
+    try {
+      await undoCustomerInvoicePayment(invoice.id, crypto.randomUUID())
+      await refreshAfterAction(`Betalningen för faktura ${invoice.invoiceNumber} är ångrad. Fakturan är obetald igen.`)
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Betalningen kunde inte ångras.',
       })
     } finally {
       setBusyKey(null)
@@ -551,6 +651,8 @@ export default function CustomerInvoicesPanel({
                 const paymentLabel = customerInvoicePaymentLabel(invoice)
                 const yearEndLabel = customerInvoiceYearEndLabel(invoice, selectedYear)
                 const blocker = customerInvoiceYearCloseBlockerFor(invoice, selectedYear)
+                const canEditInvoice = invoice.paymentStatus === 'unpaid' && invoice.bookings.length === 0
+                const isEditing = editingInvoiceId === invoice.id
 
                 return (
                   <div
@@ -618,6 +720,153 @@ export default function CustomerInvoicesPanel({
                           </p>
                         )}
 
+                        {isEditing ? (
+                          <form
+                            onSubmit={event => void handleEditInvoice(invoice, event)}
+                            className="mt-3 rounded-xl border border-emerald-100 bg-white px-3 py-3"
+                          >
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Fakturanr</span>
+                                <input
+                                  value={editForm.invoiceNumber}
+                                  onChange={event => setEditForm(prev => ({ ...prev, invoiceNumber: event.target.value }))}
+                                  className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Kund</span>
+                                <input
+                                  value={editForm.customerName}
+                                  onChange={event => setEditForm(prev => ({ ...prev, customerName: event.target.value }))}
+                                  className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Fakturadatum</span>
+                                <SwedishDateInput
+                                  value={editForm.invoiceDate}
+                                  onChange={value => setEditForm(prev => ({ ...prev, invoiceDate: value }))}
+                                  className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Tjänstedatum</span>
+                                <SwedishDateInput
+                                  value={editForm.serviceDate}
+                                  onChange={value => setEditForm(prev => ({ ...prev, serviceDate: value }))}
+                                  className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Förfallodatum</span>
+                                <SwedishDateInput
+                                  value={editForm.dueDate}
+                                  onChange={value => setEditForm(prev => ({ ...prev, dueDate: value }))}
+                                  className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Belopp inkl moms</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  value={editForm.grossAmount}
+                                  onChange={event => setEditForm(prev => ({ ...prev, grossAmount: event.target.value }))}
+                                  className="sl-money-input rounded-xl border p-3 text-sm font-black outline-none focus:border-emerald-300"
+                                  required
+                                />
+                              </label>
+
+                              <label className="flex flex-col gap-1">
+                                <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Momsfakta</span>
+                                <select
+                                  value={editForm.vatTreatment}
+                                  onChange={event => setEditForm(prev => ({
+                                    ...prev,
+                                    vatTreatment: event.target.value as CustomerInvoiceVatTreatment,
+                                  }))}
+                                  className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                >
+                                  <option value="unknown">Osäker - stoppa bokning</option>
+                                  <option value="taxable">Momspliktig svensk försäljning</option>
+                                  <option value="exempt">Momsfri / ej moms</option>
+                                </select>
+                              </label>
+
+                              {editForm.vatTreatment === 'taxable' && (
+                                <label className="flex flex-col gap-1">
+                                  <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Moms %</span>
+                                  <select
+                                    value={editForm.vatRate}
+                                    onChange={event => setEditForm(prev => ({ ...prev, vatRate: event.target.value }))}
+                                    className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                  >
+                                    <option value="25">25%</option>
+                                    <option value="12">12%</option>
+                                    <option value="6">6%</option>
+                                  </select>
+                                </label>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                              <span className="text-[9px] font-black uppercase text-gray-500">
+                                Fakturaunderlag
+                              </span>
+                              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-emerald-700">
+                                <span>Byt fil</span>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                                  onChange={event =>
+                                    setEditForm(prev => ({
+                                      ...prev,
+                                      attachment: event.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                  className="hidden"
+                                />
+                              </label>
+                              <span className="max-w-[260px] truncate text-[10px] font-bold text-emerald-700">
+                                {editForm.attachment?.name ?? (editAttachmentUrl ? 'Befintligt underlag behålls' : 'Underlag krävs')}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+                              >
+                                Avbryt
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={busyKey === `edit-${invoice.id}`}
+                                className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                              >
+                                {busyKey === `edit-${invoice.id}` ? 'Sparar...' : 'Spara ändringar'}
+                              </button>
+                            </div>
+                          </form>
+                        ) : !canEditInvoice && invoice.paymentStatus === 'unpaid' && invoice.bookings.length > 0 ? (
+                          <p className="mt-3 rounded-lg border border-gray-100 bg-white px-3 py-2 text-[10px] font-bold text-gray-500">
+                            Fakturan är redan bokförd. Uppgifter som påverkar bokföringen kan inte ändras direkt.
+                          </p>
+                        ) : null}
+
                         <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                           <div className="flex flex-wrap gap-2">
                             {invoice.attachmentUrl && (
@@ -627,6 +876,16 @@ export default function CustomerInvoicesPanel({
                                 className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
                               >
                                 Öppna underlag
+                              </button>
+                            )}
+
+                            {canEditInvoice && !isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => beginEdit(invoice)}
+                                className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+                              >
+                                Redigera faktura
                               </button>
                             )}
 
@@ -662,6 +921,17 @@ export default function CustomerInvoicesPanel({
                                 {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
                               </button>
                             </div>
+                          )}
+
+                          {invoice.paymentStatus === 'paid' && (
+                            <button
+                              type="button"
+                              onClick={() => void handleUndoPayment(invoice)}
+                              disabled={busyKey === `undo-payment-${invoice.id}`}
+                              className="h-9 rounded-xl border border-red-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                            >
+                              {busyKey === `undo-payment-${invoice.id}` ? 'Ångrar...' : 'Ångra registrerad betalning'}
+                            </button>
                           )}
                         </div>
 

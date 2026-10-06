@@ -15,7 +15,8 @@ test.describe('KAN-46 staging write acceptance', () => {
   test('handles customer invoice lifecycle through the UI', async ({ page }) => {
     const supabase = await createAuthenticatedSupabaseClient()
     const runTag = `E2E-KAN-46-UI-${Date.now()}`
-    const invoiceNumber = `${runTag}-dec`
+    const originalInvoiceNumber = `${runTag}-dec`
+    const invoiceNumber = `${runTag}-dec-rev`
 
     await login(page)
     await selectYear(page, year)
@@ -24,7 +25,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     const panel = page.getByTestId('customer-invoices-panel')
     await expect(panel.getByRole('heading', { name: 'Kundfakturor som ska följas upp' })).toBeVisible()
 
-    await panel.getByLabel('Fakturanr').fill(invoiceNumber)
+    await panel.getByLabel('Fakturanr').fill(originalInvoiceNumber)
     await panel.getByLabel('Kund').fill('E2E svensk decemberkund')
     await panel.getByLabel('Fakturadatum').fill(`20/12/${year}`)
     await panel.getByLabel('Tjänstedatum').fill(`19/12/${year}`)
@@ -33,16 +34,33 @@ test.describe('KAN-46 staging write acceptance', () => {
     await panel.getByLabel('Momsfakta').selectOption('taxable')
     await panel.getByLabel('Moms %').selectOption('25')
     await panel.locator('input[type="file"]').setInputFiles({
-      name: `${invoiceNumber}.pdf`,
+      name: `${originalInvoiceNumber}.pdf`,
       mimeType: 'application/pdf',
       buffer: Buffer.from('%PDF-1.4\n% SoloLedger KAN-46 E2E invoice\n%%EOF\n'),
     })
     await panel.getByRole('button', { name: 'Registrera faktura' }).click()
 
-    const invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
+    let invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: originalInvoiceNumber }).first()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
     await expect(invoiceCard).toContainText('Inte med i bokslutet')
     await invoiceCard.getByRole('button').first().click()
+
+    await invoiceCard.getByRole('button', { name: 'Redigera faktura' }).click()
+    await invoiceCard.getByLabel('Fakturanr').fill(invoiceNumber)
+    await invoiceCard.getByLabel('Kund').fill('E2E svensk decemberkund korrigerad')
+    await invoiceCard.getByLabel('Fakturadatum').fill(`20/12/${year}`)
+    await invoiceCard.getByLabel('Tjänstedatum').fill(`20/12/${year}`)
+    await invoiceCard.getByLabel('Belopp inkl moms').fill('3750')
+    await invoiceCard.locator('input[type="file"]').setInputFiles({
+      name: `${invoiceNumber}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n% SoloLedger KAN-46 edited E2E invoice\n%%EOF\n'),
+    })
+    await invoiceCard.getByRole('button', { name: 'Spara ändringar' }).click()
+
+    invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
+    await expect(invoiceCard).toContainText('E2E svensk decemberkund korrigerad', { timeout: 20_000 })
+    await expect(invoiceCard).toContainText('3 750 kr')
     await expect(invoiceCard).toContainText(/behöver tas med i bokslutet/i)
 
     await page.getByRole('button', { name: 'NE-Bilaga' }).click()
@@ -52,7 +70,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     await panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' }).click()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
     await expect(invoiceCard).toContainText('Med i bokslutet')
-    await invoiceCard.getByRole('button').first().click()
+    await invoiceCard.getByRole('button', { name: 'Visa detaljer' }).click()
     await expect(invoiceCard).toContainText(`31/12/${year}: togs med i bokslutet`)
 
     const invoice = await expectInvoiceByNumber(supabase, invoiceNumber)
@@ -61,9 +79,9 @@ test.describe('KAN-46 staging write acceptance', () => {
       invoice.id,
       'year_end_receivable'
     )
-    await expectJournalBalance(supabase, receivableTxId, '1510', 2500)
-    await expectJournalBalance(supabase, receivableTxId, '3010', -2000)
-    await expectJournalBalance(supabase, receivableTxId, '2611', -500)
+    await expectJournalBalance(supabase, receivableTxId, '1510', 3750)
+    await expectJournalBalance(supabase, receivableTxId, '3010', -3000)
+    await expectJournalBalance(supabase, receivableTxId, '2611', -750)
 
     await invoiceCard.getByLabel('Betalningsdatum').fill(`15/01/${year + 1}`)
     await invoiceCard.getByRole('button', { name: 'Registrera betalning' }).click()
@@ -74,16 +92,153 @@ test.describe('KAN-46 staging write acceptance', () => {
       invoice.id,
       'receivable_settlement'
     )
-    await expectJournalBalance(supabase, settlementTxId, '1930', 2500)
-    await expectJournalBalance(supabase, settlementTxId, '1510', -2500)
+    await expectJournalBalance(supabase, settlementTxId, '1930', 3750)
+    await expectJournalBalance(supabase, settlementTxId, '1510', -3750)
     await expectJournalBalance(supabase, settlementTxId, '3010', 0)
     await expectJournalBalance(supabase, settlementTxId, '2611', 0)
     await expectInvoicePaymentStatus(supabase, invoice.id, 'paid')
+
+    page.once('dialog', async dialog => {
+      expect(dialog.message()).toMatch(/korrigerande bokning/i)
+      await dialog.accept()
+    })
+    await invoiceCard.getByRole('button', { name: 'Ångra registrerad betalning' }).click()
+    await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
+    await expect(invoiceCard).toContainText('betalning efter bokslut ångrad')
+
+    const settlementReversalTxId = await expectBookingTransaction(
+      supabase,
+      invoice.id,
+      'receivable_settlement_reversal'
+    )
+    await expectJournalBalance(supabase, settlementReversalTxId, '1930', -3750)
+    await expectJournalBalance(supabase, settlementReversalTxId, '1510', 3750)
+    await expectBookingCount(supabase, invoice.id, 'year_end_receivable', 1)
+    await expectInvoicePaymentStatus(supabase, invoice.id, 'unpaid')
 
     await selectYear(page, year + 1)
     await page.getByRole('button', { name: 'Fakturor' }).click()
     await expect(panel).not.toContainText(`fakturor återstår för bokslut ${year + 1}`)
     await expect(panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' })).toHaveCount(0)
+  })
+
+  test('supports edit-before-booking and same-year payment undo server invariants', async () => {
+    const supabase = await createAuthenticatedSupabaseClient()
+    const runTag = `E2E-KAN-46-RPC-${Date.now()}`
+    const originalNumber = `${runTag}-orig`
+    const editedNumber = `${runTag}-edited`
+
+    const created = await createInvoiceByRpc(supabase, {
+      invoiceNumber: originalNumber,
+      customerName: 'E2E fel kund',
+      invoiceDate: `${year}-10-03`,
+      serviceDate: `${year}-10-03`,
+      dueDate: `${year}-10-20`,
+      grossAmount: 1250,
+      vatTreatment: 'taxable',
+      vatRate: 25,
+      attachmentUrl: `${runTag}/original.pdf`,
+    })
+
+    await updateInvoiceByRpc(supabase, created.invoiceId, {
+      invoiceNumber: editedNumber,
+      customerName: 'E2E korrigerad kund',
+      invoiceDate: `${year}-10-04`,
+      serviceDate: `${year}-10-04`,
+      dueDate: `${year}-10-25`,
+      grossAmount: 2500,
+      vatTreatment: 'taxable',
+      vatRate: 25,
+      attachmentUrl: `${runTag}/replacement.pdf`,
+    })
+
+    await expectInvoiceFacts(supabase, editedNumber, {
+      customerName: 'E2E korrigerad kund',
+      invoiceDate: `${year}-10-04`,
+      grossAmount: 2500,
+      attachmentUrl: `${runTag}/replacement.pdf`,
+    })
+
+    await recordPaymentByRpc(supabase, created.invoiceId, `${year}-10-15`, crypto.randomUUID())
+    const paymentTxId = await expectBookingTransaction(
+      supabase,
+      created.invoiceId,
+      'payment_same_year'
+    )
+    await expectJournalBalance(supabase, paymentTxId, '1930', 2500)
+    await expectJournalBalance(supabase, paymentTxId, '3010', -2000)
+    await expectJournalBalance(supabase, paymentTxId, '2611', -500)
+
+    await expectUpdateInvoiceFailure(supabase, created.invoiceId, /obetalda|redan bokförd/i)
+
+    const undoKey = crypto.randomUUID()
+    const undoResult = await undoPaymentByRpc(supabase, created.invoiceId, undoKey)
+    const reversalTxId = await expectBookingTransaction(
+      supabase,
+      created.invoiceId,
+      'payment_same_year_reversal'
+    )
+    await expectJournalBalance(supabase, reversalTxId, '1930', -2500)
+    await expectJournalBalance(supabase, reversalTxId, '3010', 2000)
+    await expectJournalBalance(supabase, reversalTxId, '2611', 500)
+    await expectInvoicePaymentStatus(supabase, created.invoiceId, 'unpaid')
+
+    const replayResult = await undoPaymentByRpc(supabase, created.invoiceId, undoKey)
+    expect(replayResult.booking_id).toBe(undoResult.booking_id)
+    await expectBookingCount(supabase, created.invoiceId, 'payment_same_year_reversal', 1)
+    await recordPaymentByRpc(supabase, created.invoiceId, `${year}-10-16`, crypto.randomUUID())
+    await expectInvoicePaymentStatus(supabase, created.invoiceId, 'paid')
+  })
+
+  test('keeps year-end receivable intact when settlement is undone and rejects unsafe undo', async () => {
+    const supabase = await createAuthenticatedSupabaseClient()
+    const runTag = `E2E-KAN-46-UNDO-${Date.now()}`
+    const invoiceNumber = `${runTag}-dec`
+
+    const invoice = await createInvoiceByRpc(supabase, {
+      invoiceNumber,
+      customerName: 'E2E bokslutskund',
+      invoiceDate: `${year}-12-20`,
+      serviceDate: `${year}-12-20`,
+      dueDate: `${year + 1}-01-20`,
+      grossAmount: 2500,
+      vatTreatment: 'taxable',
+      vatRate: 25,
+      attachmentUrl: `${runTag}/dec.pdf`,
+    })
+
+    await bookYearEndByRpc(supabase, invoice.invoiceId, year, crypto.randomUUID())
+    await settleReceivableByRpc(supabase, invoice.invoiceId, `${year + 1}-01-15`, crypto.randomUUID())
+    await undoPaymentByRpc(supabase, invoice.invoiceId, crypto.randomUUID())
+
+    await expectBookingCount(supabase, invoice.invoiceId, 'year_end_receivable', 1)
+    await expectBookingCount(supabase, invoice.invoiceId, 'receivable_settlement_reversal', 1)
+    const reversalTxId = await expectBookingTransaction(
+      supabase,
+      invoice.invoiceId,
+      'receivable_settlement_reversal'
+    )
+    await expectJournalBalance(supabase, reversalTxId, '1930', -2500)
+    await expectJournalBalance(supabase, reversalTxId, '1510', 2500)
+    await expectInvoicePaymentStatus(supabase, invoice.invoiceId, 'unpaid')
+    await expectYearEndWrongYearFailure(supabase, invoice.invoiceId, year + 1)
+
+    const lockedYear = 2090 + Math.floor(Date.now() % 1000)
+    const lockedNumber = `${runTag}-locked-${lockedYear}`
+    const lockedInvoice = await createInvoiceByRpc(supabase, {
+      invoiceNumber: lockedNumber,
+      customerName: 'E2E låst år',
+      invoiceDate: `${lockedYear}-08-10`,
+      serviceDate: `${lockedYear}-08-10`,
+      dueDate: `${lockedYear}-08-20`,
+      grossAmount: 1250,
+      vatTreatment: 'exempt',
+      vatRate: null,
+      attachmentUrl: `${runTag}/locked.pdf`,
+    })
+    await recordPaymentByRpc(supabase, lockedInvoice.invoiceId, `${lockedYear}-08-15`, crypto.randomUUID())
+    await closeYearByRpc(supabase, lockedYear)
+    await expectUndoPaymentFailure(supabase, lockedInvoice.invoiceId, /låst räkenskapsår/i)
   })
 })
 
@@ -130,7 +285,12 @@ async function expectInvoiceByNumber(
 async function expectBookingTransaction(
   supabase: SupabaseClient,
   invoiceId: string,
-  bookingKind: 'year_end_receivable' | 'receivable_settlement'
+  bookingKind:
+    | 'payment_same_year'
+    | 'year_end_receivable'
+    | 'receivable_settlement'
+    | 'payment_same_year_reversal'
+    | 'receivable_settlement_reversal'
 ) {
   const { data, error } = await supabase
     .from('customer_invoice_bookings')
@@ -144,6 +304,28 @@ async function expectBookingTransaction(
   }
 
   return String(data.transaction_id)
+}
+
+async function expectBookingCount(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  bookingKind:
+    | 'payment_same_year'
+    | 'year_end_receivable'
+    | 'receivable_settlement'
+    | 'payment_same_year_reversal'
+    | 'receivable_settlement_reversal',
+  expected: number
+) {
+  const { count, error } = await supabase
+    .from('customer_invoice_bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('invoice_id', invoiceId)
+    .eq('booking_kind', bookingKind)
+  if (error) {
+    throw new Error(`booking count failed: ${error.message}`)
+  }
+  expect(count).toBe(expected)
 }
 
 async function expectJournalBalance(
@@ -182,6 +364,204 @@ async function expectInvoicePaymentStatus(
     throw new Error(`invoice lookup failed: ${error.message}`)
   }
   expect(data.payment_status).toBe(expected)
+}
+
+type InvoicePayload = {
+  invoiceNumber: string
+  customerName: string
+  invoiceDate: string
+  serviceDate: string
+  dueDate: string
+  grossAmount: number
+  vatTreatment: 'taxable' | 'exempt' | 'unknown'
+  vatRate: number | null
+  attachmentUrl: string
+}
+
+async function createInvoiceByRpc(
+  supabase: SupabaseClient,
+  payload: InvoicePayload
+) {
+  const { data, error } = await supabase.rpc('create_customer_invoice_atomic', {
+    p_payload: invoiceRpcPayload(payload),
+  })
+  if (error) {
+    throw new Error(`create invoice failed: ${error.message}`)
+  }
+  return { invoiceId: String(data.invoice_id) }
+}
+
+async function updateInvoiceByRpc(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  payload: InvoicePayload
+) {
+  const { error } = await supabase.rpc('update_customer_invoice_unbooked_atomic', {
+    p_invoice_id: invoiceId,
+    p_payload: invoiceRpcPayload(payload),
+  })
+  if (error) {
+    throw new Error(`update invoice failed: ${error.message}`)
+  }
+}
+
+async function expectUpdateInvoiceFailure(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  messagePattern: RegExp
+) {
+  const { error } = await supabase.rpc('update_customer_invoice_unbooked_atomic', {
+    p_invoice_id: invoiceId,
+    p_payload: invoiceRpcPayload({
+      invoiceNumber: `SHOULD-NOT-SAVE-${Date.now()}`,
+      customerName: 'E2E otillåten ändring',
+      invoiceDate: `${year}-10-04`,
+      serviceDate: `${year}-10-04`,
+      dueDate: `${year}-10-25`,
+      grossAmount: 2500,
+      vatTreatment: 'taxable',
+      vatRate: 25,
+      attachmentUrl: `blocked/${Date.now()}.pdf`,
+    }),
+  })
+  expect(error?.message ?? '').toMatch(messagePattern)
+}
+
+async function recordPaymentByRpc(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  paymentDate: string,
+  idempotencyKey: string
+) {
+  const { error } = await supabase.rpc('record_customer_invoice_payment_atomic', {
+    p_invoice_id: invoiceId,
+    p_payment_date: paymentDate,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (error) {
+    throw new Error(`record payment failed: ${error.message}`)
+  }
+}
+
+async function bookYearEndByRpc(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  fiscalYear: number,
+  idempotencyKey: string
+) {
+  const { error } = await supabase.rpc('book_customer_invoice_year_end_receivable_atomic', {
+    p_invoice_id: invoiceId,
+    p_fiscal_year: fiscalYear,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (error) {
+    throw new Error(`book year-end receivable failed: ${error.message}`)
+  }
+}
+
+async function settleReceivableByRpc(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  paymentDate: string,
+  idempotencyKey: string
+) {
+  const { error } = await supabase.rpc('settle_customer_invoice_receivable_atomic', {
+    p_invoice_id: invoiceId,
+    p_payment_date: paymentDate,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (error) {
+    throw new Error(`settle receivable failed: ${error.message}`)
+  }
+}
+
+async function undoPaymentByRpc(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  idempotencyKey: string
+) {
+  const { data, error } = await supabase.rpc('undo_customer_invoice_payment_atomic', {
+    p_invoice_id: invoiceId,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (error) {
+    throw new Error(`undo payment failed: ${error.message}`)
+  }
+  return data
+}
+
+async function expectUndoPaymentFailure(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  messagePattern: RegExp
+) {
+  const { error } = await supabase.rpc('undo_customer_invoice_payment_atomic', {
+    p_invoice_id: invoiceId,
+    p_idempotency_key: crypto.randomUUID(),
+  })
+  expect(error?.message ?? '').toMatch(messagePattern)
+}
+
+async function expectYearEndWrongYearFailure(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  fiscalYear: number
+) {
+  const { error } = await supabase.rpc('book_customer_invoice_year_end_receivable_atomic', {
+    p_invoice_id: invoiceId,
+    p_fiscal_year: fiscalYear,
+    p_idempotency_key: crypto.randomUUID(),
+  })
+  expect(error?.message ?? '').toMatch(/hör till bokslut/i)
+}
+
+async function expectInvoiceFacts(
+  supabase: SupabaseClient,
+  invoiceNumber: string,
+  expected: {
+    customerName: string
+    invoiceDate: string
+    grossAmount: number
+    attachmentUrl: string
+  }
+) {
+  const { data, error } = await supabase
+    .from('customer_invoices')
+    .select('customer_name, invoice_date, gross_amount, attachment_url')
+    .eq('invoice_number', invoiceNumber)
+    .single()
+  if (error) {
+    throw new Error(`invoice fact lookup failed: ${error.message}`)
+  }
+  expect(data.customer_name).toBe(expected.customerName)
+  expect(data.invoice_date).toBe(expected.invoiceDate)
+  expect(Number(data.gross_amount)).toBe(expected.grossAmount)
+  expect(data.attachment_url).toBe(expected.attachmentUrl)
+}
+
+async function closeYearByRpc(supabase: SupabaseClient, targetYear: number) {
+  const { error } = await supabase.rpc('close_year_atomic', {
+    p_year: targetYear,
+  })
+  if (error) {
+    throw new Error(`close year failed: ${error.message}`)
+  }
+}
+
+function invoiceRpcPayload(payload: InvoicePayload) {
+  return {
+    invoice_number: payload.invoiceNumber,
+    customer_name: payload.customerName,
+    customer_country: 'SE',
+    currency: 'SEK',
+    invoice_date: payload.invoiceDate,
+    service_date: payload.serviceDate,
+    due_date: payload.dueDate,
+    gross_amount: payload.grossAmount,
+    vat_treatment: payload.vatTreatment,
+    vat_rate: payload.vatRate,
+    attachment_url: payload.attachmentUrl,
+  }
 }
 
 async function createAuthenticatedSupabaseClient(): Promise<SupabaseClient> {
