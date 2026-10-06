@@ -6,6 +6,26 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-50 Profile UX Polish
+
+- KAN-50 reached `Done` in Jira on 2026-10-06 after Pontus manual Production
+  visual acceptance.
+- Scope completed: Profile `Företagsinformation` hierarchy/readability polish
+  only. The final accepted layout uses a subtle `Företagsuppgifter` card and
+  side-by-side `Momsregistrering` / `Momsbehandling` cards on desktop, with
+  clean responsive stacking on smaller screens.
+- Production Git commit:
+  `64367a6a9a210534c46130ff05b82638d5361a78`
+  (`KAN-50 refine profile card layout`).
+- Vercel Production deployment:
+  `dpl_3yHfVPwxRCA72Lq3HUuEP78pYMxP`,
+  `sololedger-ab3n8jb93-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`.
+- Verification followed the low-risk UI budget: TypeScript and diff checks,
+  no Playwright/E2E, no staging DB, no schema or behavior changes.
+- Future follow-up preserved: a broader UI/UX consistency pass may later align
+  areas such as `Betalningskonton` with the newer Profile card language.
+
 ### KAN-49 Company VAT Number Field
 
 - KAN-49 reached `Done` in Jira on 2026-10-06 after Pontus manual Production
