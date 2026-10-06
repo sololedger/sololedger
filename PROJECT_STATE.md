@@ -15,7 +15,7 @@ Last updated: 2026-10-06
   (`sololedger-hxq6vopry-sololedger1.vercel.app`) is `Ready` and aliased to
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261006120000`.
+  `20261006143000` after KAN-49 Production DB release.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration head:
   `20261006143000` after KAN-49 staging migration.
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
@@ -49,8 +49,8 @@ Last updated: 2026-10-06
 Verified on 2026-10-06:
 
 - Done includes KAN-14 and KAN-46 after Pontus Production acceptance.
-- KAN-49 is the active local task for adding a company VAT number/VAT ID field
-  to the profile. It is in Jira status `In Progress`.
+- KAN-49 is released to Production DB and awaits Pontus manual Production
+  acceptance. Move/keep it in `In Review` after deploy verification.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -72,11 +72,11 @@ Verified on 2026-10-06:
 
 ## Open Follow-Ups
 
-- KAN-49 VAT number / VAT ID field is implemented locally and applied to
-  staging only. Staging verification passed: `profiles.vat_number` exists,
-  `SE860825858101` saves/reads, clearing stores `null`, invalid Swedish format
-  is rejected by the app validation test, and VAT-policy fields remain
-  unchanged. Next approval needed: Production review/promotion decision.
+- KAN-49 VAT number / VAT ID field is released to Production DB and frontend
+  deploy verification is in progress. Production DB read-only verification
+  passed: migration head `20261006143000`, nullable `profiles.vat_number`
+  exists, and `profiles_vat_number_swedish_format_check` is present. No
+  Production profile/test data was created or modified.
 - Jessika's two historical customer invoices predate KAN-46 and are not yet
   represented in the Fakturor registry. Any future backfill must link/preserve
   existing bookkeeping and must not create duplicate revenue/VAT.
@@ -96,9 +96,8 @@ Verified on 2026-10-06:
 - Local `main` is expected to remain ahead of `origin/main` by the two docs-only
   finalization commits `93abf22` and `d3bb531`. Do not push them unless Pontus
   explicitly wants another Production deploy from a docs-only commit.
-- KAN-49 has a local checkpoint commit above the two docs-only commits. Do not
-  push without explicit Pontus approval because pushing `main` deploys
-  Production.
+- KAN-49 has local checkpoint commit `1e318d9` plus a release-docs checkpoint
+  to be pushed under Pontus's explicit KAN-49 Production release approval.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -127,8 +126,10 @@ Verified on 2026-10-06:
 
 ## Next Safe Step
 
-1. Await Pontus Production review/promotion decision for KAN-49.
-2. Do not push `main` again without explicit approval because it deploys
-   Production.
+1. Push the approved KAN-49 release to `origin/main`, verify Vercel Production
+   deployment/alias, and move KAN-49 to `In Review` for Pontus manual
+   acceptance.
+2. After the approved KAN-49 push, do not push `main` again without explicit
+   approval because it deploys Production.
 3. Do not start invoice backfill, Adobe corrections, KAN-47, or KAN-48 unless
    Pontus explicitly starts that work.
