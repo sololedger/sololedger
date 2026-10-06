@@ -117,6 +117,13 @@ Verified from Jira on 2026-10-05:
   older 2026 unpaid E2E invoices with existing 2026 receivable bookings were
   incorrectly considered for 2027 because backend guards previously only checked
   "unpaid up to selected 31/12" plus selected-year booking absence.
+- KAN-46 final UI polish after manual Block 3B acceptance is implemented
+  locally. It restores a calendar/date-picker affordance while keeping Swedish
+  `dd/mm/åååå` visible date entry, makes expanded invoice rows visually grouped,
+  and replaces the native browser confirm for payment undo with an in-app
+  Swedish confirmation dialog. No accounting RPC, schema, migration, or backend
+  logic was changed in this polish pass. Future TransactionTable search/filter
+  work was split out to Jira `KAN-47`.
 - Full PDF generation, partial payments, credit invoices, foreign customers,
   EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
@@ -184,11 +191,18 @@ Verified from Jira on 2026-10-05:
 - KAN-46 Block 3 checkpoint `a3a0ec4` is local-only on top of `64b281f`.
   It is not pushed; pushing `main` would deploy Production and requires
   explicit approval.
-- KAN-46 Block 3B changed files for the local checkpoint:
+- KAN-46 Block 3B checkpoint `91d8296` is local-only on top of `a3a0ec4`.
+  It is not pushed; pushing `main` would deploy Production and requires
+  explicit approval.
+- KAN-46 Block 3B changed files in checkpoint `91d8296`:
   `src/components/CustomerInvoicesPanel.tsx`, `src/lib/accountingService.ts`,
   `supabase/migrations/20261005210000_fix_customer_invoice_year_end_scope.sql`,
   `supabase/migrations/20261005213000_allow_customer_invoice_controlled_reversal.sql`,
   `tests/e2e/kan42-staging-write.spec.ts`,
+  `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
+- KAN-46 final UI polish changed files for the next local checkpoint:
+  `src/components/CustomerInvoicesPanel.tsx`,
+  `src/components/SwedishDateInput.tsx`,
   `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
 - Supabase CLI local link was switched from Production ref
   `wbaxmuvudpnkvuliicuy` to staging ref `fzxqiqenqjzhlyxxpvhg` before applying
@@ -253,10 +267,16 @@ Verified from Jira on 2026-10-05:
   `npm run test:e2e:write -- tests/e2e/kan46-staging-write.spec.ts` passed
   3/3. `npm run test:e2e:write -- tests/e2e/kan42-staging-write.spec.ts`
   passed 1/1. Full lint was not run.
+- KAN-46 final UI polish verification on 2026-10-06:
+  `npm run typecheck` passed. `npm run test:e2e:write --
+  tests/e2e/kan46-staging-write.spec.ts` passed 3/3. The focused UI E2E
+  covers Swedish date typing, native calendar input selection, invalid date
+  rejection, the Swedish undo modal cancel/confirm flow, and the existing
+  verified undo RPC path. Full lint was not run.
 
 ## Next Safe Step
 
-1. Pontus/Jessika can retest KAN-46 Block 3B UI behavior in staging via
+1. Pontus/Jessika can retest KAN-46 final UI polish in staging via
    `http://localhost:3000` with `.env.e2e.local` loaded.
 2. Keep KAN-46 in Jira `In Review` assigned to Pontus until manual acceptance.
 3. Do not push `main` without explicit approval because it deploys Production.

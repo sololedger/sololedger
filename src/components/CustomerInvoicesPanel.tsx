@@ -95,6 +95,7 @@ export default function CustomerInvoicesPanel({
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<InvoiceFormState>(() => initialForm(vatStatus))
   const [editAttachmentUrl, setEditAttachmentUrl] = useState<string | null>(null)
+  const [pendingUndoInvoice, setPendingUndoInvoice] = useState<CustomerInvoice | null>(null)
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
@@ -342,17 +343,15 @@ export default function CustomerInvoicesPanel({
     }
   }
 
-  async function handleUndoPayment(invoice: CustomerInvoice) {
-    const confirmed = window.confirm(
-      'SoloLedger skapar en korrigerande bokning för betalningen och gör fakturan obetald igen. Den ursprungliga verifikationen tas inte bort. Vill du fortsätta?'
-    )
-    if (!confirmed) return
-
+  async function confirmUndoPayment() {
+    const invoice = pendingUndoInvoice
+    if (!invoice) return
     setNotice(null)
     setBusyKey(`undo-payment-${invoice.id}`)
 
     try {
       await undoCustomerInvoicePayment(invoice.id, crypto.randomUUID())
+      setPendingUndoInvoice(null)
       await refreshAfterAction(`Betalningen för faktura ${invoice.invoiceNumber} är ångrad. Fakturan är obetald igen.`)
     } catch (error) {
       setNotice({
@@ -362,6 +361,11 @@ export default function CustomerInvoicesPanel({
     } finally {
       setBusyKey(null)
     }
+  }
+
+  function requestUndoPayment(invoice: CustomerInvoice) {
+    setNotice(null)
+    setPendingUndoInvoice(invoice)
   }
 
   async function openAttachment(invoice: CustomerInvoice) {
@@ -493,6 +497,7 @@ export default function CustomerInvoicesPanel({
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Fakturadatum</span>
             <SwedishDateInput
               value={form.invoiceDate}
+              ariaLabel="Fakturadatum"
               onChange={value => setForm(prev => ({ ...prev, invoiceDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
@@ -503,6 +508,7 @@ export default function CustomerInvoicesPanel({
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Tjänstedatum</span>
             <SwedishDateInput
               value={form.serviceDate}
+              ariaLabel="Tjänstedatum"
               onChange={value => setForm(prev => ({ ...prev, serviceDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
@@ -513,6 +519,7 @@ export default function CustomerInvoicesPanel({
             <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Förfallodatum</span>
             <SwedishDateInput
               value={form.dueDate}
+              ariaLabel="Förfallodatum"
               onChange={value => setForm(prev => ({ ...prev, dueDate: value }))}
               className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
               required
@@ -658,12 +665,18 @@ export default function CustomerInvoicesPanel({
                   <div
                     key={invoice.id}
                     data-testid="customer-invoice-card"
-                    className="bg-white px-4 py-3"
+                    className={`px-4 py-3 transition-colors ${
+                      expanded
+                        ? 'bg-emerald-50/60 ring-1 ring-inset ring-emerald-200'
+                        : 'bg-white'
+                    }`}
                   >
                     <button
                       type="button"
                       onClick={() => setExpandedInvoiceId(expanded ? null : invoice.id)}
-                      className="grid w-full grid-cols-1 gap-2 text-left md:grid-cols-7 md:items-center md:gap-3"
+                      className={`grid w-full grid-cols-1 gap-2 rounded-xl text-left md:grid-cols-7 md:items-center md:gap-3 ${
+                        expanded ? 'bg-white px-3 py-2 shadow-sm' : ''
+                      }`}
                     >
                       <span className="text-xs font-black text-gray-900">{invoice.invoiceNumber}</span>
                       <span className="text-xs font-bold text-gray-600">{invoice.customerName}</span>
@@ -694,7 +707,21 @@ export default function CustomerInvoicesPanel({
                     </button>
 
                     {expanded && (
-                      <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                      <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
+                        <div className="mb-3 flex flex-col gap-1 border-b border-emerald-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs font-black text-gray-900">
+                              {invoice.invoiceNumber} · {invoice.customerName}
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-bold text-gray-500">
+                              {fmtCustomerInvoiceCurrency(invoice.grossAmount)} · {paymentLabel} · {yearEndLabel}
+                            </p>
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                            Detaljer för vald faktura
+                          </p>
+                        </div>
+
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">
                           <span>Tjänst {formatCustomerInvoiceDate(invoice.serviceDate)}</span>
                           <span>{customerInvoiceVatLabel(invoice)}</span>
@@ -750,6 +777,7 @@ export default function CustomerInvoicesPanel({
                                 <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Fakturadatum</span>
                                 <SwedishDateInput
                                   value={editForm.invoiceDate}
+                                  ariaLabel="Fakturadatum"
                                   onChange={value => setEditForm(prev => ({ ...prev, invoiceDate: value }))}
                                   className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
                                   required
@@ -760,6 +788,7 @@ export default function CustomerInvoicesPanel({
                                 <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Tjänstedatum</span>
                                 <SwedishDateInput
                                   value={editForm.serviceDate}
+                                  ariaLabel="Tjänstedatum"
                                   onChange={value => setEditForm(prev => ({ ...prev, serviceDate: value }))}
                                   className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
                                   required
@@ -770,6 +799,7 @@ export default function CustomerInvoicesPanel({
                                 <span className="ml-1 text-[9px] font-black uppercase text-gray-500">Förfallodatum</span>
                                 <SwedishDateInput
                                   value={editForm.dueDate}
+                                  ariaLabel="Förfallodatum"
                                   onChange={value => setEditForm(prev => ({ ...prev, dueDate: value }))}
                                   className="rounded-xl border border-gray-200 bg-white p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
                                   required
@@ -926,7 +956,7 @@ export default function CustomerInvoicesPanel({
                           {invoice.paymentStatus === 'paid' && (
                             <button
                               type="button"
-                              onClick={() => void handleUndoPayment(invoice)}
+                              onClick={() => requestUndoPayment(invoice)}
                               disabled={busyKey === `undo-payment-${invoice.id}`}
                               className="h-9 rounded-xl border border-red-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
                             >
@@ -949,6 +979,51 @@ export default function CustomerInvoicesPanel({
           </div>
         )}
       </div>
+
+      {pendingUndoInvoice && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/35 px-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="undo-customer-invoice-payment-title"
+            className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-5 shadow-xl"
+          >
+            <p
+              id="undo-customer-invoice-payment-title"
+              className="text-base font-black tracking-tight text-gray-900"
+            >
+              Ångra registrerad betalning?
+            </p>
+            <p className="mt-2 text-xs font-bold leading-relaxed text-gray-600">
+              SoloLedger skapar en korrigerande bokning för betalningen och gör fakturan obetald igen. Den ursprungliga verifikationen tas inte bort.
+            </p>
+            <p className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-bold text-gray-500">
+              {pendingUndoInvoice.invoiceNumber} · {pendingUndoInvoice.customerName}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingUndoInvoice(null)}
+                disabled={busyKey === `undo-payment-${pendingUndoInvoice.id}`}
+                className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmUndoPayment()}
+                disabled={busyKey === `undo-payment-${pendingUndoInvoice.id}`}
+                className="h-10 rounded-xl bg-red-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {busyKey === `undo-payment-${pendingUndoInvoice.id}` ? 'Ångrar...' : 'Ångra betalning'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

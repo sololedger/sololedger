@@ -27,9 +27,10 @@ test.describe('KAN-46 staging write acceptance', () => {
 
     await panel.getByLabel('Fakturanr').fill(originalInvoiceNumber)
     await panel.getByLabel('Kund').fill('E2E svensk decemberkund')
-    await panel.getByLabel('Fakturadatum').fill(`20/12/${year}`)
-    await panel.getByLabel('Tjänstedatum').fill(`19/12/${year}`)
-    await panel.getByLabel('Förfallodatum').fill(`20/01/${year + 1}`)
+    await panel.getByLabel('Fakturadatum', { exact: true }).fill(`20/12/${year}`)
+    await panel.getByLabel('Tjänstedatum', { exact: true }).fill(`19/12/${year}`)
+    await panel.locator('input[type="date"][aria-label="Välj förfallodatum i kalender"]').fill(`${year + 1}-01-20`)
+    await expect(panel.getByLabel('Förfallodatum', { exact: true })).toHaveValue(`20/01/${year + 1}`)
     await panel.getByLabel('Belopp inkl moms').fill('2500')
     await panel.getByLabel('Momsfakta').selectOption('taxable')
     await panel.getByLabel('Moms %').selectOption('25')
@@ -48,14 +49,19 @@ test.describe('KAN-46 staging write acceptance', () => {
     await invoiceCard.getByRole('button', { name: 'Redigera faktura' }).click()
     await invoiceCard.getByLabel('Fakturanr').fill(invoiceNumber)
     await invoiceCard.getByLabel('Kund').fill('E2E svensk decemberkund korrigerad')
-    await invoiceCard.getByLabel('Fakturadatum').fill(`20/12/${year}`)
-    await invoiceCard.getByLabel('Tjänstedatum').fill(`20/12/${year}`)
+    await invoiceCard.getByLabel('Fakturadatum', { exact: true }).fill(`20/12/${year}`)
+    await invoiceCard.getByLabel('Tjänstedatum', { exact: true }).fill(`20/12/${year}`)
+    await invoiceCard.getByLabel('Förfallodatum', { exact: true }).fill(`31/02/${year + 1}`)
     await invoiceCard.getByLabel('Belopp inkl moms').fill('3750')
     await invoiceCard.locator('input[type="file"]').setInputFiles({
       name: `${invoiceNumber}.pdf`,
       mimeType: 'application/pdf',
       buffer: Buffer.from('%PDF-1.4\n% SoloLedger KAN-46 edited E2E invoice\n%%EOF\n'),
     })
+    await invoiceCard.getByRole('button', { name: 'Spara ändringar' }).click()
+    await expect(invoiceCard.getByRole('button', { name: 'Spara ändringar' })).toBeVisible()
+    await invoiceCard.locator('input[type="date"][aria-label="Välj förfallodatum i kalender"]').fill(`${year + 1}-01-20`)
+    await expect(invoiceCard.getByLabel('Förfallodatum', { exact: true })).toHaveValue(`20/01/${year + 1}`)
     await invoiceCard.getByRole('button', { name: 'Spara ändringar' }).click()
 
     invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
@@ -83,7 +89,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expectJournalBalance(supabase, receivableTxId, '3010', -3000)
     await expectJournalBalance(supabase, receivableTxId, '2611', -750)
 
-    await invoiceCard.getByLabel('Betalningsdatum').fill(`15/01/${year + 1}`)
+    await invoiceCard.getByLabel('Betalningsdatum', { exact: true }).fill(`15/01/${year + 1}`)
     await invoiceCard.getByRole('button', { name: 'Registrera betalning' }).click()
     await expect(invoiceCard).toContainText('Betald', { timeout: 20_000 })
 
@@ -98,11 +104,18 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expectJournalBalance(supabase, settlementTxId, '2611', 0)
     await expectInvoicePaymentStatus(supabase, invoice.id, 'paid')
 
-    page.once('dialog', async dialog => {
-      expect(dialog.message()).toMatch(/korrigerande bokning/i)
-      await dialog.accept()
-    })
     await invoiceCard.getByRole('button', { name: 'Ångra registrerad betalning' }).click()
+    const undoDialog = page.getByRole('dialog', { name: 'Ångra registrerad betalning?' })
+    await expect(undoDialog).toContainText(/korrigerande bokning/i)
+    await expect(undoDialog.getByRole('button', { name: 'Ångra betalning' })).toBeVisible()
+    await undoDialog.getByRole('button', { name: 'Avbryt' }).click()
+    await expect(undoDialog).toHaveCount(0)
+    await expect(invoiceCard).toContainText('Betald')
+
+    await invoiceCard.getByRole('button', { name: 'Ångra registrerad betalning' }).click()
+    await page.getByRole('dialog', { name: 'Ångra registrerad betalning?' })
+      .getByRole('button', { name: 'Ångra betalning' })
+      .click()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
     await expect(invoiceCard).toContainText('betalning efter bokslut ångrad')
 
