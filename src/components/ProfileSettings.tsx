@@ -452,11 +452,12 @@ export default function ProfileSettings({
     admin: 'text-purple-700 bg-purple-50 border-purple-200'
   }[subscriptionKey] ?? 'text-gray-500 bg-gray-50 border-gray-200'
 
-  const profileLabelClass = 'block text-[11px] font-black uppercase tracking-wider text-gray-600'
-  const profileHelpClass = 'mt-1 text-[11px] font-semibold leading-relaxed text-gray-500'
+  const profileLabelClass = 'block text-xs font-extrabold text-gray-700'
+  const profileHelpClass = 'mt-1 text-[12px] font-semibold leading-relaxed text-gray-600'
   const profileFieldClass = 'space-y-2'
   const profileControlClass = 'w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-gray-200 focus:border-emerald-300 focus:bg-white transition-colors'
-  const profileSectionHeadingClass = 'text-[11px] font-black uppercase tracking-widest text-gray-500'
+  const profileSectionHeadingClass = 'text-sm font-black text-gray-700'
+  const profileGroupCardClass = 'rounded-2xl border border-gray-200 bg-gray-50/80 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5'
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -636,184 +637,188 @@ export default function ProfileSettings({
       {/* Företagsinformation */}
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
         <div className="mb-8">
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Företagsinformation</h2>
-          <p className="mt-2 text-[11px] font-semibold leading-relaxed text-gray-500">
+          <h2 className="text-sm font-black uppercase tracking-widest text-gray-600">Företagsinformation</h2>
+          <p className="mt-2 text-[12px] font-semibold leading-relaxed text-gray-500">
             Används i SIE-exporten, rapporter och företagets momsprofil.
           </p>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-8">
-          <section className="space-y-5">
+        <form onSubmit={handleSave} className="space-y-5">
+          <section className={`${profileGroupCardClass} space-y-4`}>
             <h3 className={profileSectionHeadingClass}>Företagsuppgifter</h3>
 
-            <div className={profileFieldClass}>
-              <label htmlFor="company-name" className={profileLabelClass}>Företagsnamn</label>
-              <input
-                id="company-name"
-                type="text"
-                value={companyName}
-                onChange={e => setCompanyName(e.target.value)}
-                placeholder="Din Firma AB"
-                className={profileControlClass}
-              />
-            </div>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="org-nr" className={profileLabelClass}>Organisationsnummer</label>
-              <input
-                id="org-nr"
-                type="text"
-                value={orgNr}
-                onChange={e => setOrgNr(e.target.value)}
-                placeholder="556000-0000"
-                className={profileControlClass}
-              />
-            </div>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="vat-number" className={profileLabelClass}>VAT-nummer</label>
-              <p id="vat-number-help" className={profileHelpClass}>
-                Företagets internationella VAT-identifikationsnummer. Svenskt format: SE + 12 siffror.
-              </p>
-              <input
-                id="vat-number"
-                type="text"
-                value={vatNumber}
-                onChange={e => setVatNumber(e.target.value)}
-                placeholder="SE + 12 siffror"
-                aria-describedby="vat-number-help"
-                className={profileControlClass}
-              />
-            </div>
-          </section>
-
-          <section className="space-y-5 border-t border-gray-100 pt-7">
-            <h3 className={profileSectionHeadingClass}>Momsregistrering</h3>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="vat-status" className={profileLabelClass}>Momsregistrering</label>
-              <p className={profileHelpClass}>Välj det som gäller för företaget hos Skatteverket.</p>
-              <select
-                id="vat-status"
-                value={vatStatus}
-                onChange={e => {
-                  const value = e.target.value as 'registered' | 'not_registered' | 'unknown'
-                  setVatStatus(value)
-                  if (value !== 'registered') {
-                    setVatPeriodType('')
-                    setVatManagementFrom('')
-                    if (foreignPurchaseReporting === 'required') {
-                      setForeignPurchaseReporting('unknown')
-                    }
-                  }
-                }}
-                className={profileControlClass}
-              >
-                <option value="unknown">Inte angivet ännu</option>
-                <option value="registered">Ja, företaget är momsregistrerat</option>
-                <option value="not_registered">Nej, företaget är inte momsregistrerat</option>
-              </select>
-            </div>
-
-            {vatStatus === 'registered' && (
-              <>
-                <div className={profileFieldClass}>
-                  <label htmlFor="vat-period-type" className={profileLabelClass}>Hur ofta redovisar företaget moms?</label>
-                  <p className={profileHelpClass}>Välj den redovisningsperiod som företaget är registrerat för hos Skatteverket.</p>
-                  <select
-                    id="vat-period-type"
-                    value={vatPeriodType}
-                    onChange={e => setVatPeriodType(e.target.value as 'month' | 'quarter' | 'year' | '')}
-                    className={profileControlClass}
-                  >
-                    <option value="">Välj redovisningsperiod</option>
-                    <option value="month">Varje månad</option>
-                    <option value="quarter">Varje kvartal</option>
-                    <option value="year">En gång per år</option>
-                  </select>
-                </div>
-
-                <div className={profileFieldClass}>
-                  <label htmlFor="vat-management-from" className={profileLabelClass}>SoloLedger hanterar momsperioder från</label>
-                  <p className={profileHelpClass}>Från detta datum får SoloLedger skapa och guida nya momsperioder. Importerad historik ändras inte.</p>
-                  <SwedishDateInput
-                    id="vat-management-from"
-                    value={vatManagementFrom}
-                    onChange={setVatManagementFrom}
-                    className={profileControlClass}
-                  />
-                </div>
-              </>
-            )}
-
-            {vatStatus === 'not_registered' && (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-[11px] font-bold leading-relaxed text-blue-700">Företaget är markerat som inte momsregistrerat. I nästa steg kopplar vi denna inställning till bokföringen så att nya vanliga bokningar inte skapar moms.</p>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div className={profileFieldClass}>
+                <label htmlFor="company-name" className={profileLabelClass}>Företagsnamn</label>
+                <input
+                  id="company-name"
+                  type="text"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  placeholder="Din Firma AB"
+                  className={profileControlClass}
+                />
               </div>
-            )}
 
-            {vatStatus === 'unknown' && (
-              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                <p className="text-[11px] font-bold leading-relaxed text-amber-700">SoloLedger vet ännu inte företagets momsstatus. Bokföringen ändras inte av denna inställning förrän momsflödet kopplas in i nästa steg.</p>
+              <div className={profileFieldClass}>
+                <label htmlFor="org-nr" className={profileLabelClass}>Organisationsnummer</label>
+                <input
+                  id="org-nr"
+                  type="text"
+                  value={orgNr}
+                  onChange={e => setOrgNr(e.target.value)}
+                  placeholder="556000-0000"
+                  className={profileControlClass}
+                />
               </div>
-            )}
-          </section>
 
-          <section className="space-y-5 border-t border-gray-100 pt-7">
-            <h3 className={profileSectionHeadingClass}>Momsbehandling</h3>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="domestic-sales-vat-treatment" className={profileLabelClass}>Inhemsk försäljning och moms</label>
-              <p className={profileHelpClass}>Välj hur företagets svenska försäljning normalt ska bedömas. Detta är en företagsfaktauppgift och bokar inga transaktioner.</p>
-              <select
-                id="domestic-sales-vat-treatment"
-                value={domesticSalesVatTreatment}
-                onChange={e => setDomesticSalesVatTreatment(e.target.value as DomesticSalesVatTreatment)}
-                className={profileControlClass}
-              >
-                <option value="unknown">Inte angivet ännu</option>
-                <option value="taxable">Vanlig momspliktig försäljning</option>
-                <option value="small_business_exempt">Momsbefriad enligt småföretagarregeln</option>
-                <option value="exempt_other">Annan momsbefriad försäljning</option>
-                <option value="mixed">Blandad försäljning</option>
-              </select>
-            </div>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="foreign-purchase-reporting" className={profileLabelClass}>Utländska inköp i momsdeklarationen</label>
-              <p className={profileHelpClass}>Ange bara om företaget enligt Skatteverket ska redovisa stödda utländska inköp, till exempel EU-tjänster med omvänd beskattning.</p>
-              <select
-                id="foreign-purchase-reporting"
-                value={foreignPurchaseReporting}
-                onChange={e => setForeignPurchaseReporting(e.target.value as ForeignPurchaseReporting)}
-                className={profileControlClass}
-              >
-                <option value="unknown">Inte angivet ännu</option>
-                <option value="required" disabled={vatStatus !== 'registered'}>Ja, ska redovisas</option>
-                <option value="not_required">Nej, ska inte redovisas</option>
-              </select>
-              {vatStatus !== 'registered' && (
-                <p className="text-[10px] font-bold leading-relaxed text-gray-500">
-                  Deklarationspliktiga utländska inköp kräver att momsregistrering är angiven.
+              <div className={profileFieldClass}>
+                <label htmlFor="vat-number" className={profileLabelClass}>VAT-nummer</label>
+                <input
+                  id="vat-number"
+                  type="text"
+                  value={vatNumber}
+                  onChange={e => setVatNumber(e.target.value)}
+                  placeholder="SE + 12 siffror"
+                  aria-describedby="vat-number-help"
+                  className={profileControlClass}
+                />
+                <p id="vat-number-help" className="text-[11px] font-semibold leading-relaxed text-gray-500">
+                  Svenskt format: SE + 12 siffror.
                 </p>
-              )}
-            </div>
-
-            <div className={profileFieldClass}>
-              <label htmlFor="default-deduction-entitlement" className={profileLabelClass}>Normal avdragsrätt för ingående moms</label>
-              <p className={profileHelpClass}>Detta är bara en standardfaktauppgift för kommande momsflöden. Välj inte full avdragsrätt om inköpen normalt saknar avdragsrätt.</p>
-              <select
-                id="default-deduction-entitlement"
-                value={defaultDeductionEntitlement}
-                onChange={e => setDefaultDeductionEntitlement(e.target.value as PersistedDefaultDeductionEntitlement)}
-                className={profileControlClass}
-              >
-                <option value="unknown">Inte angivet ännu</option>
-                <option value="full">Full avdragsrätt</option>
-                <option value="none">Ingen avdragsrätt</option>
-              </select>
+              </div>
             </div>
           </section>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <section className={`${profileGroupCardClass} space-y-4`}>
+              <h3 className={profileSectionHeadingClass}>Momsregistrering</h3>
+
+              <div className={profileFieldClass}>
+                <label htmlFor="vat-status" className={profileLabelClass}>Momsregistrering</label>
+                <p className={profileHelpClass}>Välj det som gäller för företaget hos Skatteverket.</p>
+                <select
+                  id="vat-status"
+                  value={vatStatus}
+                  onChange={e => {
+                    const value = e.target.value as 'registered' | 'not_registered' | 'unknown'
+                    setVatStatus(value)
+                    if (value !== 'registered') {
+                      setVatPeriodType('')
+                      setVatManagementFrom('')
+                      if (foreignPurchaseReporting === 'required') {
+                        setForeignPurchaseReporting('unknown')
+                      }
+                    }
+                  }}
+                  className={profileControlClass}
+                >
+                  <option value="unknown">Inte angivet ännu</option>
+                  <option value="registered">Ja, företaget är momsregistrerat</option>
+                  <option value="not_registered">Nej, företaget är inte momsregistrerat</option>
+                </select>
+              </div>
+
+              {vatStatus === 'registered' && (
+                <>
+                  <div className={profileFieldClass}>
+                    <label htmlFor="vat-period-type" className={profileLabelClass}>Hur ofta redovisar företaget moms?</label>
+                    <p className={profileHelpClass}>Välj den redovisningsperiod som företaget är registrerat för hos Skatteverket.</p>
+                    <select
+                      id="vat-period-type"
+                      value={vatPeriodType}
+                      onChange={e => setVatPeriodType(e.target.value as 'month' | 'quarter' | 'year' | '')}
+                      className={profileControlClass}
+                    >
+                      <option value="">Välj redovisningsperiod</option>
+                      <option value="month">Varje månad</option>
+                      <option value="quarter">Varje kvartal</option>
+                      <option value="year">En gång per år</option>
+                    </select>
+                  </div>
+
+                  <div className={profileFieldClass}>
+                    <label htmlFor="vat-management-from" className={profileLabelClass}>SoloLedger hanterar momsperioder från</label>
+                    <p className={profileHelpClass}>Från detta datum får SoloLedger skapa och guida nya momsperioder. Importerad historik ändras inte.</p>
+                    <SwedishDateInput
+                      id="vat-management-from"
+                      value={vatManagementFrom}
+                      onChange={setVatManagementFrom}
+                      className={profileControlClass}
+                    />
+                  </div>
+                </>
+              )}
+
+              {vatStatus === 'not_registered' && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                  <p className="text-[11px] font-bold leading-relaxed text-blue-700">Företaget är markerat som inte momsregistrerat. I nästa steg kopplar vi denna inställning till bokföringen så att nya vanliga bokningar inte skapar moms.</p>
+                </div>
+              )}
+
+              {vatStatus === 'unknown' && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                  <p className="text-[11px] font-bold leading-relaxed text-amber-700">SoloLedger vet ännu inte företagets momsstatus. Bokföringen ändras inte av denna inställning förrän momsflödet kopplas in i nästa steg.</p>
+                </div>
+              )}
+            </section>
+
+            <section className={`${profileGroupCardClass} space-y-4`}>
+              <h3 className={profileSectionHeadingClass}>Momsbehandling</h3>
+
+              <div className={profileFieldClass}>
+                <label htmlFor="domestic-sales-vat-treatment" className={profileLabelClass}>Inhemsk försäljning och moms</label>
+                <p className={profileHelpClass}>Välj hur företagets svenska försäljning normalt ska bedömas. Detta är en företagsfaktauppgift och bokar inga transaktioner.</p>
+                <select
+                  id="domestic-sales-vat-treatment"
+                  value={domesticSalesVatTreatment}
+                  onChange={e => setDomesticSalesVatTreatment(e.target.value as DomesticSalesVatTreatment)}
+                  className={profileControlClass}
+                >
+                  <option value="unknown">Inte angivet ännu</option>
+                  <option value="taxable">Vanlig momspliktig försäljning</option>
+                  <option value="small_business_exempt">Momsbefriad enligt småföretagarregeln</option>
+                  <option value="exempt_other">Annan momsbefriad försäljning</option>
+                  <option value="mixed">Blandad försäljning</option>
+                </select>
+              </div>
+
+              <div className={profileFieldClass}>
+                <label htmlFor="foreign-purchase-reporting" className={profileLabelClass}>Utländska inköp i momsdeklarationen</label>
+                <p className={profileHelpClass}>Ange bara om företaget enligt Skatteverket ska redovisa stödda utländska inköp, till exempel EU-tjänster med omvänd beskattning.</p>
+                <select
+                  id="foreign-purchase-reporting"
+                  value={foreignPurchaseReporting}
+                  onChange={e => setForeignPurchaseReporting(e.target.value as ForeignPurchaseReporting)}
+                  className={profileControlClass}
+                >
+                  <option value="unknown">Inte angivet ännu</option>
+                  <option value="required" disabled={vatStatus !== 'registered'}>Ja, ska redovisas</option>
+                  <option value="not_required">Nej, ska inte redovisas</option>
+                </select>
+                {vatStatus !== 'registered' && (
+                  <p className="text-[11px] font-bold leading-relaxed text-gray-600">
+                    Deklarationspliktiga utländska inköp kräver att momsregistrering är angiven.
+                  </p>
+                )}
+              </div>
+
+              <div className={profileFieldClass}>
+                <label htmlFor="default-deduction-entitlement" className={profileLabelClass}>Normal avdragsrätt för ingående moms</label>
+                <p className={profileHelpClass}>Detta är bara en standardfaktauppgift för kommande momsflöden. Välj inte full avdragsrätt om inköpen normalt saknar avdragsrätt.</p>
+                <select
+                  id="default-deduction-entitlement"
+                  value={defaultDeductionEntitlement}
+                  onChange={e => setDefaultDeductionEntitlement(e.target.value as PersistedDefaultDeductionEntitlement)}
+                  className={profileControlClass}
+                >
+                  <option value="unknown">Inte angivet ännu</option>
+                  <option value="full">Full avdragsrätt</option>
+                  <option value="none">Ingen avdragsrätt</option>
+                </select>
+              </div>
+            </section>
+          </div>
 
           <button
             type="submit"
