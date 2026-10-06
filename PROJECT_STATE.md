@@ -7,10 +7,13 @@ Last updated: 2026-10-06
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `b9d6853`
-  (`KAN-45 tune section card elevation`).
-- Production is verified on `b9d6853` after the KAN-40/KAN-42/KAN-43/KAN-45
-  rollout.
+- Origin/Production `main`: `28868fa`
+  (`docs: record KAN-14 production DB gate`).
+- Production is verified on `28868fa` after the accumulated KAN-46 + KAN-14
+  rollout. Vercel deployment
+  `dpl_EK2hQxEMwMXNsAirgGnHtgNbXVQA`
+  (`sololedger-hxq6vopry-sololedger1.vercel.app`) is `Ready` and aliased to
+  `https://sololedger.vercel.app`.
 - Production path: GitHub `sololedger/sololedger` `main` -> Vercel team
   `sololedger1`, project `sololedger`, domain `https://sololedger.vercel.app`.
 - Push to `main` auto-deploys Vercel Production. Treat any future push to
@@ -49,8 +52,8 @@ Last updated: 2026-10-06
   Supabase/Vercel listing or Playwright-auth rediscovery unless something
   indicates the stored information is stale.
 - Live Supabase Production migration head documented/verified after the KAN-14
-  Production DB-only step: `20261006120000`. The Production frontend still runs
-  the previously deployed code until a separate approved `main` push/deploy.
+  Production DB-only step: `20261006120000`. The Production frontend is now
+  deployed from Git commit `28868fa`.
 - Supabase staging/E2E migration head verified after KAN-46 Block 3B:
   `20261005213000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
@@ -128,9 +131,9 @@ Verified from Jira on 2026-10-05:
 - KAN-46 Production DB-only release step is complete: the four approved,
   staging-verified migrations `20261005193000`, `20261005203000`,
   `20261005210000`, and `20261005213000` were applied to Supabase Production
-  `wbaxmuvudpnkvuliicuy` and verified read-only. GitHub `main` was not pushed
-  and Vercel was not deployed from this release. Frontend release remains
-  pending separate approval.
+  `wbaxmuvudpnkvuliicuy` and verified read-only. The accumulated KAN-46 +
+  KAN-14 frontend was later pushed to GitHub `main` and deployed to Vercel
+  Production on commit `28868fa`; Pontus final acceptance remains pending.
 - KAN-14 minimal Jessika VAT profile support is implemented locally,
   migrated to Supabase staging, and DB-migrated to Supabase Production only.
   UI direct-sale VAT now uses
@@ -150,8 +153,8 @@ Verified from Jira on 2026-10-05:
   `20261006120000_kan14_vat_v2_no_deduction.sql` was applied to staging
   `fzxqiqenqjzhlyxxpvhg` and Production `wbaxmuvudpnkvuliicuy` after separate
   explicit approvals on 2026-10-06. Production head is verified as
-  `20261006120000`. GitHub `main` has not been pushed and Vercel has not been
-  deployed for the accumulated KAN-46/KAN-14 frontend release.
+  `20261006120000`. GitHub `main` was pushed to `28868fa` and Vercel deployed
+  the accumulated KAN-46/KAN-14 frontend release.
 - For KAN-46 customer invoices, full PDF generation, partial payments, credit
   invoices, foreign customers, EU/omvänd moms, and Adobe/VAT V2 remain out of
   scope.
@@ -197,42 +200,11 @@ Verified from Jira on 2026-10-05:
 
 ## Git / Local Files
 
-- Working tree was clean immediately after the Production rollout push.
-- KAN-38 code checkpoint `8740c4d` is pushed to `main` and deployed to
+- Checkpoints through `28868fa` are pushed to GitHub `main` and deployed to
   Production.
-- KAN-38 docs-only closeout checkpoint `64d1132` was formerly local above
-  Production; it is now part of pushed `main`.
-- KAN-39 checkpoints through `bb73964` are pushed to `main` and deployed to
-  Production.
-- KAN-39 closeout, KAN-40, KAN-43, KAN-42, and KAN-45 checkpoints through
-  `b9d6853` are pushed to `main` and deployed to Production.
-- Local docs-only checkpoint `20f0cff` documents the accepted Production
-  `b9d6853` state and remains unpushed.
-- KAN-46 Block 1 checkpoint
-  `02539911f43eb0111cc07e8b8b6f9a7e29f7e5f8` is local only on top of that
-  docs checkpoint; do not push `main` without explicit Production-deploy
-  approval.
-- Local docs-only handoff checkpoint `68433d9` documents the post-Block 1
-  handoff state and remains unpushed.
-- KAN-46 Block 2 minimal UI checkpoint `64b281f` is local-only on top of
-  `68433d9`. It is not pushed; pushing `main` would deploy Production and
-  requires explicit approval.
-- KAN-46 Block 3 checkpoint `a3a0ec4` is local-only on top of `64b281f`.
-  It is not pushed; pushing `main` would deploy Production and requires
-  explicit approval.
-- KAN-46 Block 3B checkpoint `91d8296` is local-only on top of `a3a0ec4`.
-  It is not pushed; pushing `main` would deploy Production and requires
-  explicit approval.
-- KAN-46 Block 3B changed files in checkpoint `91d8296`:
-  `src/components/CustomerInvoicesPanel.tsx`, `src/lib/accountingService.ts`,
-  `supabase/migrations/20261005210000_fix_customer_invoice_year_end_scope.sql`,
-  `supabase/migrations/20261005213000_allow_customer_invoice_controlled_reversal.sql`,
-  `tests/e2e/kan42-staging-write.spec.ts`,
-  `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
-- KAN-46 final UI polish changed files for the next local checkpoint:
-  `src/components/CustomerInvoicesPanel.tsx`,
-  `src/components/SwedishDateInput.tsx`,
-  `tests/e2e/kan46-staging-write.spec.ts`, and `PROJECT_STATE.md`.
+- Local final release-state docs checkpoint may exist above `origin/main` after
+  this handoff update. Do not push it unless Pontus explicitly wants another
+  Production deploy from a docs-only commit.
 - Supabase CLI local link was switched from Production ref
   `wbaxmuvudpnkvuliicuy` to staging ref `fzxqiqenqjzhlyxxpvhg` before applying
   the Block 3 staging-only bucket migration. `supabase/.temp/` remains
@@ -327,14 +299,21 @@ Verified from Jira on 2026-10-05:
   test with `-g "handles customer invoice lifecycle through the UI"` passed
   1/1. `npm run typecheck` and `git diff --check` passed afterward. Production
   was not changed, GitHub was not pushed, and Vercel was not deployed.
+- KAN-46 + KAN-14 Production frontend release on 2026-10-06:
+  GitHub `main` was pushed to `28868fa`. Vercel Production deployment
+  `dpl_EK2hQxEMwMXNsAirgGnHtgNbXVQA`
+  (`sololedger-hxq6vopry-sololedger1.vercel.app`) built Git commit `28868fa`,
+  reached `Ready`, and is aliased to `https://sololedger.vercel.app`.
+  Non-destructive Production smoke passed:
+  `npx playwright test tests/e2e/public-auth.spec.ts --project=chromium
+  --reporter=list` against `https://sololedger.vercel.app` passed 2/2.
+  Production backend objects for KAN-46/KAN-14 were verified read-only during
+  the DB gates; no Production bookkeeping data was created.
 
 ## Next Safe Step
 
-1. KAN-14 Production DB migration is complete and verified. Do not push GitHub
-   or deploy Vercel without separate explicit approval.
-2. Next gate is accumulated KAN-46 + KAN-14 frontend release approval. KAN-46
-   frontend release remains on hold until Pontus explicitly approves a push to
-   `main`/Vercel Production.
-3. Keep KAN-46 in Jira `In Review` assigned to Pontus until frontend release
-   and final acceptance.
-4. Do not push `main` without explicit approval because it deploys Production.
+1. Pontus should perform final Production acceptance for KAN-46 and KAN-14.
+2. Keep KAN-14 and KAN-46 in Jira `In Review` assigned to Pontus until final
+   acceptance; Pontus decides when they move to Done.
+3. Do not push `main` again without explicit approval because it deploys
+   Production.
