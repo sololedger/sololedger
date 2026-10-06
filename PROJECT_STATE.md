@@ -48,8 +48,8 @@ Last updated: 2026-10-06
 - Future work packages should reuse these verified refs/configs and avoid
   Supabase/Vercel listing or Playwright-auth rediscovery unless something
   indicates the stored information is stale.
-- Live Supabase Production migration head documented/verified after the KAN-46
-  Production DB-only step: `20261005213000`. The Production frontend still runs
+- Live Supabase Production migration head documented/verified after the KAN-14
+  Production DB-only step: `20261006120000`. The Production frontend still runs
   the previously deployed code until a separate approved `main` push/deploy.
 - Supabase staging/E2E migration head verified after KAN-46 Block 3B:
   `20261005213000`.
@@ -131,8 +131,9 @@ Verified from Jira on 2026-10-05:
   `wbaxmuvudpnkvuliicuy` and verified read-only. GitHub `main` was not pushed
   and Vercel was not deployed from this release. Frontend release remains
   pending separate approval.
-- KAN-14 minimal Jessika VAT profile support is implemented locally and
-  migrated to Supabase staging only. UI direct-sale VAT now uses
+- KAN-14 minimal Jessika VAT profile support is implemented locally,
+  migrated to Supabase staging, and DB-migrated to Supabase Production only.
+  UI direct-sale VAT now uses
   `domestic_sales_vat_treatment` instead of assuming that VAT registration means
   taxable Swedish sales. The direct-sale guard now covers ordinary manual
   domestic income categories by existing 3xxx credit-account taxonomy rather
@@ -147,8 +148,10 @@ Verified from Jira on 2026-10-05:
   is unknown/mixed and cannot bypass exempt-sales 0% VAT in client code. Local
   migration
   `20261006120000_kan14_vat_v2_no_deduction.sql` was applied to staging
-  `fzxqiqenqjzhlyxxpvhg` after explicit approval on 2026-10-06. It must not be
-  applied to Production without separate explicit approval.
+  `fzxqiqenqjzhlyxxpvhg` and Production `wbaxmuvudpnkvuliicuy` after separate
+  explicit approvals on 2026-10-06. Production head is verified as
+  `20261006120000`. GitHub `main` has not been pushed and Vercel has not been
+  deployed for the accumulated KAN-46/KAN-14 frontend release.
 - For KAN-46 customer invoices, full PDF generation, partial payments, credit
   invoices, foreign customers, EU/omvänd moms, and Adobe/VAT V2 remain out of
   scope.
@@ -327,11 +330,11 @@ Verified from Jira on 2026-10-05:
 
 ## Next Safe Step
 
-1. KAN-14 is staging-accepted and ready for Production release review. Do not
-   apply to Production, push GitHub, or deploy Vercel without separate explicit
-   approval.
-2. KAN-46 frontend release remains on hold until Pontus explicitly approves a
-   push to `main`/Vercel Production.
+1. KAN-14 Production DB migration is complete and verified. Do not push GitHub
+   or deploy Vercel without separate explicit approval.
+2. Next gate is accumulated KAN-46 + KAN-14 frontend release approval. KAN-46
+   frontend release remains on hold until Pontus explicitly approves a push to
+   `main`/Vercel Production.
 3. Keep KAN-46 in Jira `In Review` assigned to Pontus until frontend release
    and final acceptance.
 4. Do not push `main` without explicit approval because it deploys Production.
