@@ -320,10 +320,13 @@ function validateRuntimeTreatment(
     ))
   }
 
-  if (treatment.deductibleInputVat.entitlement !== 'full') {
+  if (
+    treatment.deductibleInputVat.entitlement !== 'full' &&
+    treatment.deductibleInputVat.entitlement !== 'none'
+  ) {
     errors.push(error(
       'unsupported_runtime_treatment',
-      'VAT V2 runtime booking only supports full deduction.'
+      'VAT V2 runtime booking only supports full or no deduction.'
     ))
   }
 
@@ -334,24 +337,60 @@ function validateRuntimeTreatment(
     ))
   }
 
+  if (treatment.outputVat.amount !== expectedVat) {
+    errors.push(error(
+      'unsupported_runtime_treatment',
+      'VAT V2 runtime output VAT must match the 25 percent acquisition base.'
+    ))
+  }
+
   if (
-    treatment.outputVat.amount !== expectedVat ||
+    treatment.deductibleInputVat.entitlement === 'full' &&
     treatment.deductibleInputVat.amount !== expectedVat
   ) {
     errors.push(error(
       'unsupported_runtime_treatment',
-      'VAT V2 runtime VAT amounts must match the 25 percent acquisition base.'
+      'VAT V2 runtime full deduction requires deductible input VAT to match calculated output VAT.'
+    ))
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'none' &&
+    treatment.deductibleInputVat.amount !== 0
+  ) {
+    errors.push(error(
+      'unsupported_runtime_treatment',
+      'VAT V2 runtime no-deduction booking requires deductible input VAT to be zero.'
     ))
   }
 
   if (
     treatment.acquisitionBaseField !== '21' ||
-    treatment.outputVat.reportField !== '30' ||
+    treatment.outputVat.reportField !== '30'
+  ) {
+    errors.push(error(
+      'unsupported_runtime_treatment',
+      'VAT V2 runtime booking only supports VAT report fields 21 and 30.'
+    ))
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'full' &&
     treatment.deductibleInputVat.reportField !== '48'
   ) {
     errors.push(error(
       'unsupported_runtime_treatment',
-      'VAT V2 runtime booking only supports VAT report fields 21, 30, and 48.'
+      'VAT V2 runtime full deduction requires deductible input VAT report field 48.'
+    ))
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'none' &&
+    treatment.deductibleInputVat.reportField !== null
+  ) {
+    errors.push(error(
+      'unsupported_runtime_treatment',
+      'VAT V2 runtime no-deduction booking must not use deductible input VAT report field 48.'
     ))
   }
 

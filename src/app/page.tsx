@@ -55,6 +55,7 @@ import {
   transactionSourceUiLabel,
 } from '@/lib/transactionSourceUi'
 import { customerInvoiceYearCloseBlockerFor } from '@/lib/customerInvoiceUi'
+import { categoryUsesDomesticSalesVatPolicy } from '@/lib/accountCategoryUi'
 
 export default function Home() {
   const {
@@ -284,13 +285,30 @@ export default function Home() {
     }
   }
 
-  // UI-skyddet speglar serverregeln: när profilen uttryckligen är markerad
-  // som inte momsregistrerad ska formuläret aldrig bära med sig en momssats.
+  // UI-skyddet speglar momsprofilens separata försäljningsfakta: en
+  // momsregistrerad firma kan fortfarande ha svensk försäljning utan moms.
   // Databasen är fortfarande den riktiga säkerhetsgränsen.
   useEffect(() => {
-    if (profile?.vat_status !== 'not_registered') return
+    const selectedCategory = kontoplan.find(k => k.id === formData.type)
+    if (
+      !selectedCategory ||
+      !categoryUsesDomesticSalesVatPolicy(selectedCategory)
+    ) {
+      return
+    }
+    if (
+      profile?.vat_status === 'registered' &&
+      profile.domestic_sales_vat_treatment === 'taxable'
+    ) {
+      return
+    }
     setFormData(prev => prev.vatRate === 0 ? prev : { ...prev, vatRate: 0 })
-  }, [profile?.vat_status])
+  }, [
+    formData.type,
+    kontoplan,
+    profile?.vat_status,
+    profile?.domestic_sales_vat_treatment,
+  ])
 
   async function handleFileUpload(file: File): Promise<string> {
     const ALLOWED_TYPES: Record<string, string> = {
@@ -1103,6 +1121,9 @@ export default function Home() {
             <TransactionForm
               userId={user.id}
               vatStatus={profile?.vat_status ?? 'unknown'}
+              domesticSalesVatTreatment={
+                profile?.domestic_sales_vat_treatment ?? 'unknown'
+              }
               companyVatProfileResult={companyVatProfileResult}
               formData={formData}
               setFormData={setFormData}
@@ -1156,6 +1177,9 @@ export default function Home() {
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}
           vatStatus={profile?.vat_status ?? 'unknown'}
+          domesticSalesVatTreatment={
+            profile?.domestic_sales_vat_treatment ?? 'unknown'
+          }
           onUploadAttachment={handleFileUpload}
           onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
           onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}

@@ -291,7 +291,10 @@ function validateSupportedVatV2Snapshot(
     ))
   }
 
-  if (deductibleInputVatReportField !== '48') {
+  if (
+    deductionEntitlement === 'full' &&
+    deductibleInputVatReportField !== '48'
+  ) {
     errors.push(error(
       'vat_v2_snapshot_unsupported',
       transactionId,
@@ -300,11 +303,23 @@ function validateSupportedVatV2Snapshot(
     ))
   }
 
-  if (deductionEntitlement !== 'full') {
+  if (
+    deductionEntitlement === 'none' &&
+    deductibleInputVatReportField !== null
+  ) {
     errors.push(error(
       'vat_v2_snapshot_unsupported',
       transactionId,
-      'Current VAT V2 report aggregation only supports full deduction.',
+      'No-deduction VAT V2 snapshots must not use deductible input VAT field 48.',
+      'vat.deductibleInputVat.reportField'
+    ))
+  }
+
+  if (deductionEntitlement !== 'full' && deductionEntitlement !== 'none') {
+    errors.push(error(
+      'vat_v2_snapshot_unsupported',
+      transactionId,
+      'Current VAT V2 report aggregation only supports full or no deduction.',
       'vat.deductibleInputVat.entitlement'
     ))
   }
@@ -323,6 +338,7 @@ function validateSupportedVatV2Snapshot(
   }
 
   if (
+    deductionEntitlement === 'full' &&
     outputVatAmount !== null &&
     deductibleInputVatAmount !== null &&
     deductibleInputVatAmount !== outputVatAmount
@@ -331,6 +347,19 @@ function validateSupportedVatV2Snapshot(
       'vat_v2_snapshot_inconsistent',
       transactionId,
       'Full deduction requires deductible input VAT to equal output VAT.',
+      'vat.deductibleInputVat.amount'
+    ))
+  }
+
+  if (
+    deductionEntitlement === 'none' &&
+    deductibleInputVatAmount !== null &&
+    deductibleInputVatAmount !== 0
+  ) {
+    errors.push(error(
+      'vat_v2_snapshot_inconsistent',
+      transactionId,
+      'No deduction requires deductible input VAT to be zero.',
       'vat.deductibleInputVat.amount'
     ))
   }
@@ -382,7 +411,14 @@ function validateSupportedVatV2Snapshot(
     if (
       stringValue(reconciliation, 'acquisitionBaseField') !== '21' ||
       stringValue(reconciliation, 'outputVatReportField') !== '30' ||
-      stringValue(reconciliation, 'deductibleInputVatReportField') !== '48'
+      (
+        deductionEntitlement === 'full' &&
+        stringValue(reconciliation, 'deductibleInputVatReportField') !== '48'
+      ) ||
+      (
+        deductionEntitlement === 'none' &&
+        stringValue(reconciliation, 'deductibleInputVatReportField') !== null
+      )
     ) {
       errors.push(error(
         'vat_v2_snapshot_inconsistent',

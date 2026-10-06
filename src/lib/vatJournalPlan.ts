@@ -11,6 +11,7 @@ export type VatJournalPlanRowRole =
   | 'acquisition_base'
   | 'calculated_output_vat'
   | 'deductible_calculated_input_vat'
+  | 'non_deductible_calculated_vat_cost'
   | 'payment_payable'
 
 export interface VatJournalPlanRow {
@@ -57,7 +58,7 @@ export interface VatJournalPlanReconciliation {
   paymentPayable: number
   acquisitionBaseField: AcquisitionBaseField
   outputVatReportField: OutputVatReportField
-  deductibleInputVatReportField: DeductibleInputVatReportField
+  deductibleInputVatReportField: DeductibleInputVatReportField | null
 }
 
 export interface VatJournalPlan {
@@ -208,12 +209,15 @@ function validateSupportedTreatment(
     )
   }
 
-  if (treatment.deductibleInputVat.entitlement !== 'full') {
+  if (
+    treatment.deductibleInputVat.entitlement !== 'full' &&
+    treatment.deductibleInputVat.entitlement !== 'none'
+  ) {
     errors.push(
       error(
         'unsupported_deduction_entitlement',
         'treatment.deductibleInputVat.entitlement',
-        'This JournalPlan slice only supports full deduction.'
+        'This JournalPlan slice only supports full or no deduction.'
       )
     )
   }
@@ -221,7 +225,7 @@ function validateSupportedTreatment(
   return errors
 }
 
-function validateEuService25FullDeduction(
+function validateEuService25SupportedDeduction(
   treatment: VatTreatment
 ): VatJournalPlanError[] {
   const errors: VatJournalPlanError[] = []
@@ -264,12 +268,28 @@ function validateEuService25FullDeduction(
     )
   }
 
-  if (treatment.deductibleInputVat.amount !== treatment.outputVat.amount) {
+  if (
+    treatment.deductibleInputVat.entitlement === 'full' &&
+    treatment.deductibleInputVat.amount !== treatment.outputVat.amount
+  ) {
     errors.push(
       error(
         'inconsistent_treatment',
         'treatment.deductibleInputVat.amount',
         'Full deduction requires deductible input VAT to equal calculated output VAT.'
+      )
+    )
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'none' &&
+    treatment.deductibleInputVat.amount !== 0
+  ) {
+    errors.push(
+      error(
+        'inconsistent_treatment',
+        'treatment.deductibleInputVat.amount',
+        'No deduction requires deductible input VAT to be zero.'
       )
     )
   }
@@ -294,12 +314,28 @@ function validateEuService25FullDeduction(
     )
   }
 
-  if (treatment.deductibleInputVat.reportField !== '48') {
+  if (
+    treatment.deductibleInputVat.entitlement === 'full' &&
+    treatment.deductibleInputVat.reportField !== '48'
+  ) {
     errors.push(
       error(
         'inconsistent_treatment',
         'treatment.deductibleInputVat.reportField',
         'Full deduction must use deductible input VAT report field 48.'
+      )
+    )
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'none' &&
+    treatment.deductibleInputVat.reportField !== null
+  ) {
+    errors.push(
+      error(
+        'inconsistent_treatment',
+        'treatment.deductibleInputVat.reportField',
+        'No deduction must not use deductible input VAT report field 48.'
       )
     )
   }
@@ -377,7 +413,8 @@ function reconcilePlan(
     paymentPayable,
     acquisitionBaseField: '21',
     outputVatReportField: '30',
-    deductibleInputVatReportField: '48',
+    deductibleInputVatReportField:
+      treatment.deductibleInputVat.reportField,
   }
 }
 
@@ -396,7 +433,7 @@ export function buildVatJournalPlan(
   }
 
   const treatmentErrors =
-    validateEuService25FullDeduction(input.treatment)
+    validateEuService25SupportedDeduction(input.treatment)
 
   if (treatmentErrors.length > 0) {
     return blocked(treatmentErrors)
@@ -405,6 +442,8 @@ export function buildVatJournalPlan(
   const acquisitionBase = input.treatment.taxableBase
   const outputVat = input.treatment.outputVat.amount
   const deductibleInputVat = input.treatment.deductibleInputVat.amount
+  const noDeduction =
+    input.treatment.deductibleInputVat.entitlement === 'none'
 
   const journalRows: VatJournalPlanRow[] = [
     {
@@ -413,12 +452,19 @@ export function buildVatJournalPlan(
       credit: 0,
       role: 'acquisition_base',
     },
-    {
-      accountNumber: EU_SERVICE_25_ACCOUNTS.deductibleInputVat,
-      debit: deductibleInputVat,
-      credit: 0,
-      role: 'deductible_calculated_input_vat',
-    },
+    ...(noDeduction
+      ? [{
+          accountNumber: EU_SERVICE_25_ACCOUNTS.acquisitionBase,
+          debit: outputVat,
+          credit: 0,
+          role: 'non_deductible_calculated_vat_cost' as const,
+        }]
+      : [{
+          accountNumber: EU_SERVICE_25_ACCOUNTS.deductibleInputVat,
+          debit: deductibleInputVat,
+          credit: 0,
+          role: 'deductible_calculated_input_vat' as const,
+        }]),
     {
       accountNumber: EU_SERVICE_25_ACCOUNTS.outputVat,
       debit: 0,

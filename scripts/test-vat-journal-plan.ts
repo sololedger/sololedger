@@ -145,21 +145,50 @@ assertEqual(
   'Builder does not hardcode 1930'
 )
 
-assertBlocked(
-  buildVatJournalPlan({
-    treatment: {
-      ...euServiceFullDeduction25,
-      deductibleInputVat: {
-        amount: 0,
-        reportField: null,
-        entitlement: 'none',
-      },
+const noDeductionPath = buildVatJournalPlan({
+  treatment: {
+    ...euServiceFullDeduction25,
+    deductibleInputVat: {
+      amount: 0,
+      reportField: null,
+      entitlement: 'none',
     },
-    paymentAccountNumber: '1930',
-  }),
-  'unsupported_deduction_entitlement',
-  'EU service no deduction blocks'
+  },
+  paymentAccountNumber: '1930',
+})
+const noDeductionPlan = assertReady(
+  noDeductionPath,
+  'EU service no deduction'
 )
+assertEqual(
+  rowAmount(noDeductionPath, 'acquisition_base', '4535', 'debit'),
+  228,
+  'No deduction -> 4535 debit acquisition base'
+)
+assertEqual(
+  rowAmount(noDeductionPath, 'non_deductible_calculated_vat_cost', '4535', 'debit'),
+  57,
+  'No deduction -> 4535 debit non-deductible calculated VAT cost'
+)
+assertEqual(
+  rowAmount(noDeductionPath, 'deductible_calculated_input_vat', '2645', 'debit'),
+  null,
+  'No deduction -> no 2645 debit'
+)
+assertEqual(
+  rowAmount(noDeductionPath, 'calculated_output_vat', '2614', 'credit'),
+  57,
+  'No deduction -> 2614 credit calculated output VAT'
+)
+assertEqual(
+  rowAmount(noDeductionPath, 'payment_payable', '1930', 'credit'),
+  228,
+  'No deduction -> supplied payment account credit'
+)
+assertEqual(noDeductionPlan.reconciliation.totalDebit, 285, 'No deduction -> total debit')
+assertEqual(noDeductionPlan.reconciliation.totalCredit, 285, 'No deduction -> total credit')
+assertEqual(noDeductionPlan.reconciliation.deductibleInputVat, 0, 'No deduction -> no deductible input VAT')
+assertEqual(noDeductionPlan.reconciliation.deductibleInputVatReportField, null, 'No deduction -> no field 48')
 
 assertBlocked(
   buildVatJournalPlan({

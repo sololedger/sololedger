@@ -21,15 +21,18 @@ import {
   customerInvoiceVatLabel,
   customerInvoiceYearCloseBlockerFor,
   customerInvoiceYearEndLabel,
+  defaultCustomerInvoiceVatTreatment,
   formatCustomerInvoiceDate,
   fmtCustomerInvoiceCurrency,
   hasAnyCustomerInvoiceYearEndBooking,
 } from '@/lib/customerInvoiceUi'
+import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
 
 interface CustomerInvoicesPanelProps {
   selectedYear: number
   isYearLocked: boolean
   vatStatus: 'registered' | 'not_registered' | 'unknown'
+  domesticSalesVatTreatment: DomesticSalesVatTreatment
   onUploadAttachment: (file: File) => Promise<string>
   onBookkeepingChanged: () => Promise<void>
   onYearCloseBlockerChange: (reason: string | null) => void
@@ -47,7 +50,10 @@ interface InvoiceFormState {
   attachment: File | null
 }
 
-function initialForm(vatStatus: CustomerInvoicesPanelProps['vatStatus']): InvoiceFormState {
+function initialForm(input: {
+  vatStatus: CustomerInvoicesPanelProps['vatStatus']
+  domesticSalesVatTreatment: DomesticSalesVatTreatment
+}): InvoiceFormState {
   return {
     invoiceNumber: '',
     customerName: '',
@@ -55,7 +61,7 @@ function initialForm(vatStatus: CustomerInvoicesPanelProps['vatStatus']): Invoic
     serviceDate: '',
     dueDate: '',
     grossAmount: '',
-    vatTreatment: vatStatus === 'not_registered' ? 'exempt' : 'unknown',
+    vatTreatment: defaultCustomerInvoiceVatTreatment(input),
     vatRate: '25',
     attachment: null,
   }
@@ -81,11 +87,14 @@ export default function CustomerInvoicesPanel({
   selectedYear,
   isYearLocked,
   vatStatus,
+  domesticSalesVatTreatment,
   onUploadAttachment,
   onBookkeepingChanged,
   onYearCloseBlockerChange,
 }: CustomerInvoicesPanelProps) {
-  const [form, setForm] = useState<InvoiceFormState>(() => initialForm(vatStatus))
+  const [form, setForm] = useState<InvoiceFormState>(() =>
+    initialForm({ vatStatus, domesticSalesVatTreatment })
+  )
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([])
   const [loading, setLoading] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
@@ -93,7 +102,9 @@ export default function CustomerInvoicesPanel({
   const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null)
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<InvoiceFormState>(() => initialForm(vatStatus))
+  const [editForm, setEditForm] = useState<InvoiceFormState>(() =>
+    initialForm({ vatStatus, domesticSalesVatTreatment })
+  )
   const [editAttachmentUrl, setEditAttachmentUrl] = useState<string | null>(null)
   const [pendingUndoInvoice, setPendingUndoInvoice] = useState<CustomerInvoice | null>(null)
 
@@ -114,13 +125,15 @@ export default function CustomerInvoicesPanel({
   }, [selectedYear])
 
   useEffect(() => {
+    const safeDefault = defaultCustomerInvoiceVatTreatment({
+      vatStatus,
+      domesticSalesVatTreatment,
+    })
     setForm(prev => ({
       ...prev,
-      vatTreatment: prev.vatTreatment === 'unknown' && vatStatus === 'not_registered'
-        ? 'exempt'
-        : prev.vatTreatment,
+      vatTreatment: prev.vatTreatment === 'unknown' ? safeDefault : prev.vatTreatment,
     }))
-  }, [vatStatus])
+  }, [domesticSalesVatTreatment, vatStatus])
 
   useEffect(() => {
     void loadInvoices()
@@ -182,7 +195,7 @@ export default function CustomerInvoicesPanel({
         attachmentUrl,
       })
 
-      setForm(initialForm(vatStatus))
+      setForm(initialForm({ vatStatus, domesticSalesVatTreatment }))
       await refreshAfterAction('Fakturan är registrerad. Ingen bokföring skapades ännu.')
     } catch (error) {
       setNotice({
@@ -296,7 +309,7 @@ export default function CustomerInvoicesPanel({
   function cancelEdit() {
     setEditingInvoiceId(null)
     setEditAttachmentUrl(null)
-    setEditForm(initialForm(vatStatus))
+    setEditForm(initialForm({ vatStatus, domesticSalesVatTreatment }))
   }
 
   async function handleEditInvoice(invoice: CustomerInvoice, event: FormEvent<HTMLFormElement>) {

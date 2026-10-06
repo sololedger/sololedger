@@ -68,7 +68,7 @@ export interface VatAuditSnapshotVatSemantics {
   }
   readonly deductibleInputVat: {
     readonly amount: number
-    readonly reportField: DeductibleInputVatReportField
+    readonly reportField: DeductibleInputVatReportField | null
     readonly entitlement: DeductionEntitlement
   }
 }
@@ -83,7 +83,7 @@ export interface VatAuditSnapshotReconciliation {
   readonly paymentPayable: number
   readonly acquisitionBaseField: AcquisitionBaseField
   readonly outputVatReportField: OutputVatReportField
-  readonly deductibleInputVatReportField: DeductibleInputVatReportField
+  readonly deductibleInputVatReportField: DeductibleInputVatReportField | null
 }
 
 export interface VatAuditSnapshot {
@@ -122,9 +122,16 @@ export type VatAuditSnapshotBuildResult =
       }
     }
 
-const REQUIRED_ROLES: readonly VatJournalPlanRowRole[] = [
+const FULL_DEDUCTION_REQUIRED_ROLES: readonly VatJournalPlanRowRole[] = [
   'acquisition_base',
   'deductible_calculated_input_vat',
+  'calculated_output_vat',
+  'payment_payable',
+]
+
+const NO_DEDUCTION_REQUIRED_ROLES: readonly VatJournalPlanRowRole[] = [
+  'acquisition_base',
+  'non_deductible_calculated_vat_cost',
   'calculated_output_vat',
   'payment_payable',
 ]
@@ -132,10 +139,14 @@ const REQUIRED_ROLES: readonly VatJournalPlanRowRole[] = [
 const REQUIRED_ROLE_ACCOUNTS = {
   acquisition_base: '4535',
   deductible_calculated_input_vat: '2645',
+  non_deductible_calculated_vat_cost: '4535',
   calculated_output_vat: '2614',
 } as const
 
-const ROLE_SET = new Set<string>(REQUIRED_ROLES)
+const ROLE_SET = new Set<string>([
+  ...FULL_DEDUCTION_REQUIRED_ROLES,
+  ...NO_DEDUCTION_REQUIRED_ROLES,
+])
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100
@@ -206,12 +217,15 @@ function validateSupportedTreatment(
     )
   }
 
-  if (treatment.deductibleInputVat.entitlement !== 'full') {
+  if (
+    treatment.deductibleInputVat.entitlement !== 'full' &&
+    treatment.deductibleInputVat.entitlement !== 'none'
+  ) {
     errors.push(
       error(
         'unsupported_deduction_entitlement',
         'treatment.deductibleInputVat.entitlement',
-        'This audit snapshot slice only supports full deduction.'
+        'This audit snapshot slice only supports full or no deduction.'
       )
     )
   }
@@ -236,12 +250,28 @@ function validateSupportedTreatment(
     )
   }
 
-  if (treatment.deductibleInputVat.reportField !== '48') {
+  if (
+    treatment.deductibleInputVat.entitlement === 'full' &&
+    treatment.deductibleInputVat.reportField !== '48'
+  ) {
     errors.push(
       error(
         'unsupported_report_field',
         'treatment.deductibleInputVat.reportField',
         'Full deduction must use deductible input VAT report field 48.'
+      )
+    )
+  }
+
+  if (
+    treatment.deductibleInputVat.entitlement === 'none' &&
+    treatment.deductibleInputVat.reportField !== null
+  ) {
+    errors.push(
+      error(
+        'unsupported_report_field',
+        'treatment.deductibleInputVat.reportField',
+        'No deduction must not use deductible input VAT report field 48.'
       )
     )
   }
@@ -288,11 +318,12 @@ function sumRows(
 }
 
 function validateJournalRows(
-  journalRows: readonly VatJournalPlanRow[]
+  journalRows: readonly VatJournalPlanRow[],
+  requiredRoles: readonly VatJournalPlanRowRole[]
 ): VatAuditSnapshotError[] {
   const errors: VatAuditSnapshotError[] = []
 
-  if (journalRows.length !== REQUIRED_ROLES.length) {
+  if (journalRows.length !== requiredRoles.length) {
     errors.push(
       error(
         'invalid_journal_row',
@@ -302,7 +333,7 @@ function validateJournalRows(
     )
   }
 
-  for (const role of REQUIRED_ROLES) {
+  for (const role of requiredRoles) {
     const count = journalRows.filter(row => row.role === role).length
     if (count !== 1) {
       errors.push(
@@ -435,8 +466,7 @@ function reconcileJournalPlan(
 
   if (
     reconciliation.acquisitionBaseField !== '21' ||
-    reconciliation.outputVatReportField !== '30' ||
-    reconciliation.deductibleInputVatReportField !== '48'
+    reconciliation.outputVatReportField !== '30'
   ) {
     return error(
       'unsupported_report_field',
@@ -580,7 +610,14 @@ export function buildVatAuditSnapshot(
   input: BuildVatAuditSnapshotInput
 ): VatAuditSnapshotBuildResult {
   const treatmentErrors = validateSupportedTreatment(input.treatment)
-  const journalRowErrors = validateJournalRows(input.journalPlan.journalRows)
+  const requiredRoles =
+    input.treatment.deductibleInputVat.entitlement === 'none'
+      ? NO_DEDUCTION_REQUIRED_ROLES
+      : FULL_DEDUCTION_REQUIRED_ROLES
+  const journalRowErrors = validateJournalRows(
+    input.journalPlan.journalRows,
+    requiredRoles
+  )
 
   if (treatmentErrors.length > 0 || journalRowErrors.length > 0) {
     return blocked([...treatmentErrors, ...journalRowErrors])
@@ -617,7 +654,7 @@ export function buildVatAuditSnapshot(
       },
       deductibleInputVat: {
         amount: input.treatment.deductibleInputVat.amount,
-        reportField: '48',
+        reportField: input.treatment.deductibleInputVat.reportField,
         entitlement: input.treatment.deductibleInputVat.entitlement,
       },
     },

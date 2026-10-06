@@ -68,4 +68,82 @@ assert(
   'Blocked VAT V2 runtime submit does not add a duplicate submit error'
 )
 
+assert(
+  transactionFormSource.includes('domesticSalesVatTreatment') &&
+    transactionFormSource.includes('getOrdinarySalesVatPolicy') &&
+    transactionFormSource.includes('categoryUsesDomesticSalesVatPolicy') &&
+    transactionFormSource.includes('selectedCategoryUsesDomesticSalesVatPolicy') &&
+    transactionFormSource.includes('ordinarySalesVatBlocked'),
+  'Ordinary Swedish sale VAT UI is driven by domestic sales treatment for every applicable income category, not only VAT registration'
+)
+
+assert(
+  !transactionFormSource.includes("formData.type === 'forsaljning'") &&
+    !transactionFormSource.includes("fav.type === 'forsaljning'") &&
+    !transactionFormSource.includes("e.target.value === 'forsaljning'"),
+  'Ordinary Swedish sale VAT UI is not scoped to only the canonical forsaljning category ID'
+)
+
+const customerInvoiceUiSource = readFileSync(
+  'src/lib/customerInvoiceUi.ts',
+  'utf8'
+)
+
+assert(
+  customerInvoiceUiSource.includes('defaultCustomerInvoiceVatTreatment') &&
+    customerInvoiceUiSource.includes("domesticSalesVatTreatment === 'small_business_exempt'") &&
+    customerInvoiceUiSource.includes("return 'exempt'"),
+  'Customer invoice VAT default can safely use domestic exempt profile facts without guessing taxable VAT'
+)
+
+const kan14MigrationSource = readFileSync(
+  'supabase/migrations/20261006120000_kan14_vat_v2_no_deduction.sql',
+  'utf8'
+)
+const accountingServiceSource = readFileSync(
+  'src/lib/accountingService.ts',
+  'utf8'
+)
+const bookTransactionStart = accountingServiceSource.indexOf(
+  'export async function bookTransaction'
+)
+const nextAccountingExport = accountingServiceSource.indexOf(
+  '\nexport ',
+  bookTransactionStart + 1
+)
+const bookTransactionSource = accountingServiceSource.slice(
+  bookTransactionStart,
+  nextAccountingExport === -1
+    ? undefined
+    : nextAccountingExport
+)
+
+assert(
+  kan14MigrationSource.includes('enforce_domestic_sales_vat_treatment') &&
+    kan14MigrationSource.includes("coalesce(NEW.source, 'manual') <> 'manual'") &&
+    kan14MigrationSource.includes('coalesce(NEW.is_correction, false)') &&
+    kan14MigrationSource.includes('FROM public.accounts a') &&
+    kan14MigrationSource.includes("left(coalesce(v_credit_account, ''), 1) <> '3'") &&
+    kan14MigrationSource.includes('profiles p') &&
+    kan14MigrationSource.includes("v_vat_status = 'not_registered'") &&
+    kan14MigrationSource.includes("'small_business_exempt'") &&
+    kan14MigrationSource.includes("'exempt_other'") &&
+    kan14MigrationSource.includes("'taxable'") &&
+    kan14MigrationSource.includes("v_domestic_sales_vat_treatment IN ('unknown', 'mixed')"),
+  'KAN-14 migration server-enforces manual direct-sale income VAT treatment and fails closed for unknown/mixed'
+)
+
+assert(
+  !kan14MigrationSource.includes("NEW.type IS DISTINCT FROM 'forsaljning'") &&
+    kan14MigrationSource.includes('UPDATE OF type, vat_rate, user_id, source, is_correction'),
+  'KAN-14 database guard is scoped by provenance and income account taxonomy instead of only one category ID'
+)
+
+assert(
+  bookTransactionSource.includes('export async function bookTransaction') &&
+    bookTransactionSource.includes('book_transaction_atomic') &&
+    !bookTransactionSource.includes('source'),
+  'Ordinary manual booking path cannot choose a non-manual transaction source to bypass the database guard'
+)
+
 console.log('Transaction form UI regression tests passed.')

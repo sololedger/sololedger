@@ -96,9 +96,10 @@ function supportedVatV2Snapshot(input: {
   taxableBase?: number
   outputVat?: number
   deductibleInputVat?: number
+  deductionEntitlement?: 'full' | 'none'
   acquisitionBaseField?: string
   outputVatReportField?: string
-  deductibleInputVatReportField?: string
+  deductibleInputVatReportField?: string | null
   treatmentCode?: string
   schemaVersion?: string
   journalPlanVersion?: string
@@ -106,11 +107,18 @@ function supportedVatV2Snapshot(input: {
 }) {
   const taxableBase = input.taxableBase ?? 228
   const outputVat = input.outputVat ?? 57
-  const deductibleInputVat = input.deductibleInputVat ?? 57
+  const deductionEntitlement = input.deductionEntitlement ?? 'full'
+  const deductibleInputVat =
+    input.deductibleInputVat ??
+    (deductionEntitlement === 'full' ? outputVat : 0)
   const acquisitionBaseField = input.acquisitionBaseField ?? '21'
   const outputVatReportField = input.outputVatReportField ?? '30'
   const deductibleInputVatReportField =
-    input.deductibleInputVatReportField ?? '48'
+    'deductibleInputVatReportField' in input
+      ? input.deductibleInputVatReportField
+      : deductionEntitlement === 'full'
+      ? '48'
+      : null
 
   return {
     schemaVersion: input.schemaVersion ?? 'vat-audit-snapshot-v1',
@@ -129,7 +137,7 @@ function supportedVatV2Snapshot(input: {
       deductibleInputVat: {
         amount: deductibleInputVat,
         reportField: deductibleInputVatReportField,
-        entitlement: 'full',
+        entitlement: deductionEntitlement,
       },
     },
     reconciliation: {
@@ -151,6 +159,15 @@ function vatV2Rows(transactionId: string, base = 228, vat = 57) {
   return [
     row(transactionId, '4535', base, 0),
     row(transactionId, '2645', vat, 0),
+    row(transactionId, '2614', 0, vat),
+    row(transactionId, '1930', 0, base),
+  ]
+}
+
+function vatV2NoDeductionRows(transactionId: string, base = 228, vat = 57) {
+  return [
+    row(transactionId, '4535', base, 0),
+    row(transactionId, '4535', vat, 0),
     row(transactionId, '2614', 0, vat),
     row(transactionId, '1930', 0, base),
   ]
@@ -360,6 +377,29 @@ assertField(v2Only.fields, '10', 0, 'CASE B')
 assertField(v2Only.fields, '49', 0, 'CASE B')
 assertEqual(v2Only.legacy.outputVat25, 0, 'CASE B -> 2614 not counted as legacy output')
 assertEqual(v2Only.legacy.inputVat, 0, 'CASE B -> 2645 not counted as legacy input')
+
+const v2NoDeduction = assertReady(
+  {
+    transactions: [tx('v2-none', 'vat_v2')],
+    journalRows: vatV2NoDeductionRows('v2-none'),
+    vatV2Snapshots: [
+      {
+        transactionId: 'v2-none',
+        snapshot: supportedVatV2Snapshot({
+          deductionEntitlement: 'none',
+        }),
+      },
+    ],
+  },
+  'CASE B2 VAT V2 no deduction'
+)
+
+assertField(v2NoDeduction.fields, '21', 228, 'CASE B2')
+assertField(v2NoDeduction.fields, '30', 57, 'CASE B2')
+assertField(v2NoDeduction.fields, '48', 0, 'CASE B2')
+assertField(v2NoDeduction.fields, '49', 57, 'CASE B2')
+assertEqual(v2NoDeduction.legacy.outputVat25, 0, 'CASE B2 -> 2614 not counted as legacy output')
+assertEqual(v2NoDeduction.legacy.inputVat, 0, 'CASE B2 -> no legacy input VAT')
 
 const mixed = assertReady(
   {

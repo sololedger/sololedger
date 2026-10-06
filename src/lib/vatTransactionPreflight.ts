@@ -225,12 +225,15 @@ function assertSupportedPersistenceTreatment(
     )
   }
 
-  if (treatment.deductibleInputVat.entitlement !== 'full') {
+  if (
+    treatment.deductibleInputVat.entitlement !== 'full' &&
+    treatment.deductibleInputVat.entitlement !== 'none'
+  ) {
     errors.push(
       error(
         'unsupported_vat_v2_persistence_path',
         'treatment.deductibleInputVat.entitlement',
-        'This preflight slice only supports full deduction.'
+        'This preflight slice only supports full or no deduction.'
       )
     )
   }
@@ -328,7 +331,7 @@ export function describeVatV2PreflightError(
         return 'Den momssatsen stöds inte för bokning i detta VAT V2-steg ännu.'
       }
       if (error.path === 'treatment.deductibleInputVat.entitlement') {
-        return 'Avdragsrätten är inte full. Det stöds inte för bokning i detta VAT V2-steg ännu.'
+        return 'Avdragsrätten måste vara full eller ingen. Delvis avdragsrätt stöds inte för bokning i detta VAT V2-steg ännu.'
       }
       return 'Bedömningen är inte den stödda EU-tjänst med omvänd beskattning som detta steg hanterar.'
     case 'vat_v2_not_enabled':

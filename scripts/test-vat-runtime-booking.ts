@@ -602,7 +602,7 @@ const unsupportedDeductionPreflight = {
   treatment: unsupportedDeductionTreatment,
 } as typeof readyPreflight
 
-const unsupportedDeductionRuntime = buildVatV2RuntimeBookingRequest({
+const noDeductionRuntime = buildVatV2RuntimeBookingRequest({
   assessmentActive: true,
   transactionEvent: 'purchase',
   preflight: unsupportedDeductionPreflight,
@@ -612,11 +612,10 @@ const unsupportedDeductionRuntime = buildVatV2RuntimeBookingRequest({
 })
 
 assert(
-  unsupportedDeductionRuntime.status === 'blocked' &&
-    unsupportedDeductionRuntime.errors.some(
-      error => error.code === 'unsupported_runtime_treatment'
-    ),
-  'Runtime booking blocks non-full deduction even if a caller supplies a treatment object'
+  noDeductionRuntime.status === 'ready' &&
+    noDeductionRuntime.request.treatment.deductibleInputVat.amount === 0 &&
+    noDeductionRuntime.request.treatment.deductibleInputVat.reportField === null,
+  'Runtime booking supports no-deduction EU service without field 48'
 )
 
 const unsupportedTreatment: VatTreatment = {

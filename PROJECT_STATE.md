@@ -48,8 +48,9 @@ Last updated: 2026-10-06
 - Future work packages should reuse these verified refs/configs and avoid
   Supabase/Vercel listing or Playwright-auth rediscovery unless something
   indicates the stored information is stale.
-- Live Supabase Production migration head documented/verified after KAN-42:
-  `20261005105538`.
+- Live Supabase Production migration head documented/verified after the KAN-46
+  Production DB-only step: `20261005213000`. The Production frontend still runs
+  the previously deployed code until a separate approved `main` push/deploy.
 - Supabase staging/E2E migration head verified after KAN-46 Block 3B:
   `20261005213000`.
 - Established Supabase CLI entry point: `npx --yes supabase@latest`.
@@ -62,8 +63,8 @@ Verified from Jira on 2026-10-05:
 
 - Done: KAN-3, KAN-13, KAN-21, KAN-29, KAN-30, KAN-31, KAN-32, KAN-33,
   KAN-37, KAN-38, KAN-39, KAN-40, KAN-42, KAN-43, KAN-45.
-- In Review: KAN-46.
-- To Do: KAN-9, KAN-10, KAN-11, KAN-14, KAN-22, KAN-23, KAN-24, KAN-25,
+- In Review: KAN-14, KAN-46.
+- To Do: KAN-9, KAN-10, KAN-11, KAN-22, KAN-23, KAN-24, KAN-25,
   KAN-34, KAN-35, KAN-36, KAN-41.
 - KAN-29-KAN-33 are External Audit #1 completion work and are Done.
 - KAN-37 is completed/pushed/deployed/IRL-verified by Pontus.
@@ -124,8 +125,33 @@ Verified from Jira on 2026-10-05:
   Swedish confirmation dialog. No accounting RPC, schema, migration, or backend
   logic was changed in this polish pass. Future TransactionTable search/filter
   work was split out to Jira `KAN-47`.
-- Full PDF generation, partial payments, credit invoices, foreign customers,
-  EU/reverse VAT, and Adobe/VAT V2 remain out of scope.
+- KAN-46 Production DB-only release step is complete: the four approved,
+  staging-verified migrations `20261005193000`, `20261005203000`,
+  `20261005210000`, and `20261005213000` were applied to Supabase Production
+  `wbaxmuvudpnkvuliicuy` and verified read-only. GitHub `main` was not pushed
+  and Vercel was not deployed from this release. Frontend release remains
+  pending separate approval.
+- KAN-14 minimal Jessika VAT profile support is implemented locally and
+  migrated to Supabase staging only. UI direct-sale VAT now uses
+  `domestic_sales_vat_treatment` instead of assuming that VAT registration means
+  taxable Swedish sales. The direct-sale guard now covers ordinary manual
+  domestic income categories by existing 3xxx credit-account taxonomy rather
+  than only exact category id `forsaljning`, while excluding non-manual
+  correction/import/customer-invoice/system sources. Customer invoice VAT
+  defaults can safely preselect exempt when the profile says Swedish sales are
+  exempt. VAT V2 EU-service
+  reverse charge now supports `default_deduction_entitlement = none`: field 21
+  base and field 30 output VAT are reported, field 48 remains 0/null, and no
+  2645 input VAT is booked. The same local migration adds a DB trigger guard so
+  ordinary Swedish direct sales fail closed when the domestic sales VAT profile
+  is unknown/mixed and cannot bypass exempt-sales 0% VAT in client code. Local
+  migration
+  `20261006120000_kan14_vat_v2_no_deduction.sql` was applied to staging
+  `fzxqiqenqjzhlyxxpvhg` after explicit approval on 2026-10-06. It must not be
+  applied to Production without separate explicit approval.
+- For KAN-46 customer invoices, full PDF generation, partial payments, credit
+  invoices, foreign customers, EU/omvänd moms, and Adobe/VAT V2 remain out of
+  scope.
 - KAN-40 implementation and Codex verification are complete and deployed to
   Production. Technical acceptance is PASS, including the 2330/B13 Playwright
   acceptance in staging.
@@ -273,12 +299,39 @@ Verified from Jira on 2026-10-05:
   covers Swedish date typing, native calendar input selection, invalid date
   rejection, the Swedish undo modal cancel/confirm flow, and the existing
   verified undo RPC path. Full lint was not run.
+- KAN-14 local verification on 2026-10-06:
+  `npm run typecheck` passed. Focused scripts passed:
+  `node scripts/test-domestic-sales-vat-policy.ts`,
+  `node scripts/test-account-category-ui.ts`,
+  `node scripts/test-vat-treatment-decision.ts`,
+  `node scripts/test-vat-transaction-preflight.ts`,
+  `node scripts/test-vat-runtime-booking.ts`,
+  `node scripts/test-vat-journal-plan.ts`,
+  `node scripts/test-vat-audit-snapshot.ts`,
+  `node scripts/test-vat-report-aggregation.ts`, and
+  `node scripts/test-transaction-form-ui.ts`. The pre-staging blocker fix also
+  reran `git diff --check`. No staging/Production migration, push, deploy,
+  broad lint, or E2E was run for KAN-14.
+- KAN-14 staging verification on 2026-10-06:
+  staging ref `fzxqiqenqjzhlyxxpvhg` was verified at head `20261005213000`,
+  then migration `20261006120000_kan14_vat_v2_no_deduction.sql` was applied;
+  staging head verified afterward as `20261006120000`. Focused staging checks
+  passed: `npm run test:e2e:write --
+  tests/e2e/kan14-staging-write.spec.ts --project=chromium` passed 2/2,
+  `npm run test:e2e:write -- tests/e2e/kan46-staging-write.spec.ts
+  --project=chromium` passed the two backend/RPC tests and, after stopping a
+  stale local Next dev server that caused a loading timeout, rerunning the UI
+  test with `-g "handles customer invoice lifecycle through the UI"` passed
+  1/1. `npm run typecheck` and `git diff --check` passed afterward. Production
+  was not changed, GitHub was not pushed, and Vercel was not deployed.
 
 ## Next Safe Step
 
-1. Pontus/Jessika can retest KAN-46 final UI polish in staging via
-   `http://localhost:3000` with `.env.e2e.local` loaded.
-2. Keep KAN-46 in Jira `In Review` assigned to Pontus until manual acceptance.
-3. Do not push `main` without explicit approval because it deploys Production.
-4. Production Supabase remains untouched at migration head `20261005105538`;
-   KAN-46 staging is at `20261005213000`.
+1. KAN-14 is staging-accepted and ready for Production release review. Do not
+   apply to Production, push GitHub, or deploy Vercel without separate explicit
+   approval.
+2. KAN-46 frontend release remains on hold until Pontus explicitly approves a
+   push to `main`/Vercel Production.
+3. Keep KAN-46 in Jira `In Review` assigned to Pontus until frontend release
+   and final acceptance.
+4. Do not push `main` without explicit approval because it deploys Production.

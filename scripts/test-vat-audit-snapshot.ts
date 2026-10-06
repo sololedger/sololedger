@@ -253,6 +253,53 @@ assertEqual(
   'Alternative payment account is not rewritten to 1930'
 )
 
+const euServiceNoDeduction25: VatTreatment = {
+  ...cloneTreatment(euServiceFullDeduction25),
+  deductibleInputVat: {
+    amount: 0,
+    reportField: null,
+    entitlement: 'none',
+  },
+}
+const noDeductionPlan = createPlan(
+  euServiceNoDeduction25,
+  '1930',
+  'EU service no deduction plan'
+)
+const noDeductionSnapshotResult = buildVatAuditSnapshot({
+  treatment: euServiceNoDeduction25,
+  journalPlan: noDeductionPlan,
+})
+const noDeductionSnapshot = assertSnapshotReady(
+  noDeductionSnapshotResult,
+  'EU service reverse charge 25 percent no deduction'
+)
+assertEqual(
+  noDeductionSnapshot.vat.deductibleInputVat.amount,
+  0,
+  'No deduction -> no deductible input VAT'
+)
+assertEqual(
+  noDeductionSnapshot.vat.deductibleInputVat.reportField,
+  null,
+  'No deduction -> no deductible input VAT report field'
+)
+assertEqual(
+  rowAmount(
+    noDeductionSnapshotResult,
+    'non_deductible_calculated_vat_cost',
+    '4535',
+    'debit'
+  ),
+  57,
+  'No deduction -> calculated VAT becomes non-deductible 4535 cost'
+)
+assertEqual(
+  rowAmount(noDeductionSnapshotResult, 'deductible_calculated_input_vat', '2645', 'debit'),
+  null,
+  'No deduction -> no 2645 snapshot row'
+)
+
 const otherAmountTreatment: VatTreatment = {
   ...cloneTreatment(euServiceFullDeduction25),
   taxableBase: 100,
@@ -458,18 +505,6 @@ const unsupportedTreatments: Array<{
   code: VatAuditSnapshotBlockCode
   label: string
 }> = [
-  {
-    treatment: {
-      ...cloneTreatment(euServiceFullDeduction25),
-      deductibleInputVat: {
-        amount: 0,
-        reportField: null,
-        entitlement: 'none',
-      },
-    },
-    code: 'unsupported_deduction_entitlement',
-    label: 'EU service no deduction blocks',
-  },
   {
     treatment: {
       ...cloneTreatment(euServiceFullDeduction25),

@@ -34,3 +34,9 @@ export function getTransactionCategoryUiGroup(
   if (isOtherTransactionCategoryId(account.id)) return 'other'
   return 'cost'
 }
+
+export function categoryUsesDomesticSalesVatPolicy(
+  account: TransactionCategoryAccountLike
+) {
+  return getTransactionCategoryUiGroup(account) === 'income'
+}

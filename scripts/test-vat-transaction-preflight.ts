@@ -205,15 +205,34 @@ assertBlocked(
   'Unknown deduction entitlement blocks'
 )
 
-assertBlocked(
+const noDeduction = assertReady(
   preflight({
     profile: {
       ...fullProfile,
       defaultDeductionEntitlement: 'none',
     },
   }),
-  'unsupported_vat_v2_persistence_path',
-  'No deduction does not become full-deduction persistence path'
+  'EU service, no supplier VAT, no deduction, 25 percent'
+)
+assertEqual(
+  noDeduction.treatment.outputVat.amount,
+  57,
+  'No-deduction path -> calculated output VAT'
+)
+assertEqual(
+  noDeduction.treatment.deductibleInputVat.amount,
+  0,
+  'No-deduction path -> no deductible input VAT'
+)
+assertEqual(
+  noDeduction.treatment.deductibleInputVat.reportField,
+  null,
+  'No-deduction path -> no field 48'
+)
+assertEqual(
+  noDeduction.treatment.deductibleInputVat.entitlement,
+  'none',
+  'No-deduction path -> no deduction entitlement'
 )
 
 assertBlocked(

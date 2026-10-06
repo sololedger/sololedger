@@ -1,4 +1,8 @@
 import type { CustomerInvoice } from '@/lib/accountingService'
+import type {
+  DomesticSalesVatTreatment,
+  VatRegistrationStatus,
+} from '@/lib/vatDomain'
 import { formatIsoDateSv } from '@/lib/dateUi'
 
 export function fmtCustomerInvoiceCurrency(value: number | null | undefined) {
@@ -13,6 +17,21 @@ export function customerInvoiceVatLabel(invoice: CustomerInvoice) {
   if (invoice.vatTreatment === 'unknown') return 'Moms oklar'
   if (invoice.vatTreatment === 'exempt') return 'Momsfri / ej moms'
   return `${invoice.vatRate ?? '?'}% moms`
+}
+
+export function defaultCustomerInvoiceVatTreatment(input: {
+  vatStatus: VatRegistrationStatus
+  domesticSalesVatTreatment: DomesticSalesVatTreatment
+}): CustomerInvoice['vatTreatment'] {
+  if (
+    input.vatStatus === 'not_registered' ||
+    input.domesticSalesVatTreatment === 'small_business_exempt' ||
+    input.domesticSalesVatTreatment === 'exempt_other'
+  ) {
+    return 'exempt'
+  }
+
+  return 'unknown'
 }
 
 function isoYear(isoDate: string) {

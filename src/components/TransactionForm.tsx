@@ -4,6 +4,7 @@ import FavoriteChips, { Favorite } from './FavoriteChips'
 import SwedishDateInput from './SwedishDateInput'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
+  DomesticSalesVatTreatment,
   VatCalculationRateInput,
   VatGoodsOrService,
   VatYesNoUnknown,
@@ -18,6 +19,7 @@ import {
 import {
   type ConfiguredPaymentAccountRole,
 } from '@/lib/paymentAccountRoles'
+import { getOrdinarySalesVatPolicy } from '@/lib/domesticSalesVatPolicy'
 import {
   buildVatV2BookingReadiness,
   getVatV2PaymentSourceOption,
@@ -33,7 +35,10 @@ import {
   shouldShowOrdinaryV1FieldsForVatV2Form,
   type VatV2RuntimeBookingRequest,
 } from '@/lib/vatRuntimeBooking'
-import { getTransactionCategoryUiGroup } from '@/lib/accountCategoryUi'
+import {
+  categoryUsesDomesticSalesVatPolicy,
+  getTransactionCategoryUiGroup,
+} from '@/lib/accountCategoryUi'
 
 export interface FormData {
   date: string
@@ -72,6 +77,7 @@ interface TransactionFormProps {
   onCancelEdit: () => void
   userId: string
   vatStatus: 'registered' | 'not_registered' | 'unknown'
+  domesticSalesVatTreatment: DomesticSalesVatTreatment
   companyVatProfileResult: CompanyVatProfileAdapterResult
   lastSubmitted: { type: string; amount: string; vatRate: number } | null
   onSaveFavorite: (name: string) => Promise<void>
@@ -113,6 +119,7 @@ export default function TransactionForm({
   onCancelEdit,
   userId,
   vatStatus,
+  domesticSalesVatTreatment,
   companyVatProfileResult,
   lastSubmitted,
   onSaveFavorite,
@@ -141,6 +148,8 @@ export default function TransactionForm({
   > | null>(null)
   const vatV2StatusRef = useRef<HTMLDivElement | null>(null)
   const isNotVatRegistered = vatStatus === 'not_registered'
+  const ordinarySalesVatPolicy =
+    getOrdinarySalesVatPolicy(domesticSalesVatTreatment)
   const showVatV2Assessment = !editingId && !editingBooked
   const vatV2AssessmentEnabled =
     showVatV2Assessment && vatV2Facts.enabled
@@ -217,12 +226,31 @@ export default function TransactionForm({
     !editingBooked &&
     !vatV2AssessmentEnabled &&
     !formData.type
+  const selectedCategory = kontoplan.find(k => k.id === formData.type)
+  const selectedCategoryUsesDomesticSalesVatPolicy =
+    showOrdinaryV1Fields &&
+    Boolean(
+      selectedCategory &&
+        categoryUsesDomesticSalesVatPolicy(selectedCategory)
+    )
+  const ordinarySalesVatBlocked =
+    showOrdinaryV1Fields &&
+    !editingBooked &&
+    !vatV2AssessmentEnabled &&
+    selectedCategoryUsesDomesticSalesVatPolicy &&
+    ordinarySalesVatPolicy.status === 'blocked'
+  const ordinarySaleVatRateLocked =
+    isNotVatRegistered ||
+    (
+      selectedCategoryUsesDomesticSalesVatPolicy &&
+      ordinarySalesVatPolicy.vatRateLocked
+    )
   const showSalesFlowChoice =
     showOrdinaryV1Fields &&
     !editingId &&
     !editingBooked &&
     !vatV2AssessmentEnabled &&
-    formData.type === 'forsaljning'
+    selectedCategoryUsesDomesticSalesVatPolicy
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2SubmitError(null)
@@ -292,11 +320,23 @@ export default function TransactionForm({
   }
 
   function handleFavoriteSelect(fav: Favorite) {
+    const favoriteCategory = kontoplan.find(k => k.id === fav.type)
+    const favoriteUsesDomesticSalesVatPolicy = Boolean(
+      favoriteCategory &&
+        categoryUsesDomesticSalesVatPolicy(favoriteCategory)
+    )
     setFormData({
       ...formData,
       type: fav.type,
       amount: fav.amount.toString(),
-      vatRate: isNotVatRegistered ? 0 : fav.vat_rate,
+      vatRate:
+        isNotVatRegistered ||
+        (
+          favoriteUsesDomesticSalesVatPolicy &&
+          ordinarySalesVatPolicy.vatRateLocked
+        )
+          ? 0
+          : fav.vat_rate,
       description: '',
     })
     setDescriptionHighlight(true)
@@ -401,12 +441,20 @@ export default function TransactionForm({
                       k => k.id === e.target.value
                     )
 
+                    const nextVatRate =
+                      isNotVatRegistered ||
+                      (
+                        acc &&
+                        categoryUsesDomesticSalesVatPolicy(acc) &&
+                        ordinarySalesVatPolicy.vatRateLocked
+                      )
+                        ? 0
+                        : Number(acc?.default_vat_rate) || 0
+
                     setFormData({
                       ...formData,
                       type: e.target.value,
-                      vatRate: isNotVatRegistered
-                        ? 0
-                        : Number(acc?.default_vat_rate) || 0,
+                      vatRate: nextVatRate,
                     })
                   }}
                   disabled={editingBooked || isYearLocked}
@@ -528,13 +576,20 @@ export default function TransactionForm({
                         vatRate: Number(e.target.value),
                       })
                     }
-                    disabled={editingBooked || isYearLocked || isNotVatRegistered}
+                    disabled={editingBooked || isYearLocked || ordinarySaleVatRateLocked}
                     className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                      editingBooked || isYearLocked || isNotVatRegistered
+                      editingBooked || isYearLocked || ordinarySaleVatRateLocked
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-50 cursor-pointer'
                     } ${isYearLocked ? 'opacity-40' : ''}`}
-                    title={isNotVatRegistered ? 'Företaget är markerat som inte momsregistrerat.' : undefined}
+                    title={
+                      isNotVatRegistered
+                        ? 'Företaget är markerat som inte momsregistrerat.'
+                        : selectedCategoryUsesDomesticSalesVatPolicy &&
+                          ordinarySalesVatPolicy.vatRateLocked
+                        ? ordinarySalesVatPolicy.notice
+                        : undefined
+                    }
                   >
                     <option value={25}>25%</option>
                     <option value={12}>12%</option>
@@ -546,7 +601,11 @@ export default function TransactionForm({
                 {/* Belopp */}
                 <div className="lg:col-span-2 flex flex-col gap-1">
                   <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    {isNotVatRegistered ? 'Belopp' : 'Belopp inkl. moms'}
+                    {selectedCategoryUsesDomesticSalesVatPolicy
+                      ? ordinarySalesVatPolicy.amountLabel
+                      : isNotVatRegistered
+                      ? 'Belopp'
+                      : 'Belopp inkl. moms'}
                   </label>
 
                   <input
@@ -584,11 +643,16 @@ export default function TransactionForm({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  disabled={uploading || isYearLocked || ordinaryCategoryMissing}
+                  disabled={
+                    uploading ||
+                    isYearLocked ||
+                    ordinaryCategoryMissing ||
+                    ordinarySalesVatBlocked
+                  }
                   className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                     uploading
                       ? 'bg-gray-400'
-                      : isYearLocked || ordinaryCategoryMissing
+                      : isYearLocked || ordinaryCategoryMissing || ordinarySalesVatBlocked
                       ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                       : vatV2AssessmentEnabled
                       ? 'bg-indigo-500 hover:bg-indigo-600'
@@ -624,6 +688,20 @@ export default function TransactionForm({
                 </p>
               </div>
             )}
+            {!isNotVatRegistered &&
+              selectedCategoryUsesDomesticSalesVatPolicy &&
+              ordinarySalesVatPolicy.notice && (
+                <div className="col-span-2 lg:col-span-12 -mt-1 px-1">
+                  <p className={`text-[9px] font-bold ${
+                    ordinarySalesVatPolicy.status === 'blocked'
+                      ? 'text-amber-700'
+                      : 'sl-secondary-copy'
+                  }`}>
+                    {ordinarySalesVatPolicy.blocker ??
+                      ordinarySalesVatPolicy.notice}
+                  </p>
+                </div>
+              )}
           </div>
         )}
 
@@ -1165,11 +1243,16 @@ export default function TransactionForm({
             <div className="flex gap-2">
               <button
                 type="submit"
-                disabled={uploading || isYearLocked || ordinaryCategoryMissing}
+                disabled={
+                  uploading ||
+                  isYearLocked ||
+                  ordinaryCategoryMissing ||
+                  ordinarySalesVatBlocked
+                }
                 className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                   uploading
                     ? 'bg-gray-400'
-                    : isYearLocked || ordinaryCategoryMissing
+                    : isYearLocked || ordinaryCategoryMissing || ordinarySalesVatBlocked
                     ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                     : vatV2AssessmentEnabled
                     ? 'bg-indigo-500 hover:bg-indigo-600'
