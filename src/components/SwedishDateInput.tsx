@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { formatIsoDateSv, parseSvDateToIso } from '@/lib/dateUi'
 
 interface SwedishDateInputProps {
+  id?: string
   value: string
   onChange: (isoDate: string) => void
   className?: string
@@ -16,6 +17,7 @@ interface SwedishDateInputProps {
 }
 
 export default function SwedishDateInput({
+  id,
   value,
   onChange,
   className,
@@ -83,6 +85,7 @@ export default function SwedishDateInput({
   return (
     <span className="relative block min-w-0 flex-1">
       <input
+        id={id}
         ref={inputRef}
         type="text"
         inputMode="numeric"

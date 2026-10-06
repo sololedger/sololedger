@@ -27,15 +27,15 @@ test.describe('KAN-49 staging profile VAT number', () => {
       await page.getByRole('button', { name: 'Profil' }).click()
       await expect(page.getByText('Företagsinformation')).toBeVisible({ timeout: 20_000 })
 
-      const vatNumberInput = page.getByPlaceholder('SE860825858101')
+      const vatNumberInput = page.getByLabel('VAT-nummer')
       await expect(vatNumberInput).toBeVisible()
 
-      await vatNumberInput.fill('SE860825858101')
+      await vatNumberInput.fill('SE123456789012')
       await page.getByRole('button', { name: 'Spara ändringar' }).click()
       await expect(page.getByRole('button', { name: /Sparat/ })).toBeVisible({ timeout: 20_000 })
 
       const savedProfile = await readProfile(client)
-      expect(savedProfile.vat_number).toBe('SE860825858101')
+      expect(savedProfile.vat_number).toBe('SE123456789012')
       expectVatPolicyFieldsUnchanged(savedProfile, originalProfile)
 
       await vatNumberInput.fill('')

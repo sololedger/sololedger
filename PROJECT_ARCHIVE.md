@@ -6,6 +6,30 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-49 Company VAT Number Field
+
+- KAN-49 reached `Done` in Jira on 2026-10-06 after Pontus manual Production
+  acceptance.
+- Scope completed: a nullable company profile `VAT-nummer` field, Swedish VAT
+  number format validation, profile load/save support, and no coupling from the
+  identifier field to VAT policy semantics.
+- Production Supabase ref `wbaxmuvudpnkvuliicuy` migration
+  `20261006143000_add_profile_vat_number.sql` is live; final migration head:
+  `20261006143000`.
+- Deployed Production Git commit:
+  `0162654e08d24780ef8ab5da8118dcfd04463fec`
+  (`docs: record KAN-49 production release`).
+- Vercel Production deployment:
+  `dpl_35vXDLXKjkY7QgRv2XmCeaUmKraU`,
+  `sololedger-gfm0d7o75-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`.
+- Verification included staging write acceptance, Production read-only schema
+  verification, Vercel Ready/alias verification, and Pontus manual Production
+  acceptance that the field saves, survives reload, and leaves VAT-policy
+  settings intact.
+- Follow-up captured separately as KAN-50: Profile page information hierarchy,
+  readability, and neutral VAT help text.
+
 ### KAN-14 + KAN-46 Production Release And Acceptance
 
 - KAN-14 and KAN-46 reached `Done` in Jira on 2026-10-06 after Pontus manual

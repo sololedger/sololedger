@@ -26,8 +26,8 @@ function assertEqual(
 console.log('\n=== SoloLedger Company Profile Tests ===\n')
 
 assertEqual(
-  normalizeCompanyVatNumber(' se860825858101 '),
-  'SE860825858101',
+  normalizeCompanyVatNumber(' se123456789012 '),
+  'SE123456789012',
   'VAT number is trimmed and uppercased'
 )
 
@@ -38,9 +38,9 @@ assertEqual(
 )
 
 assertEqual(
-  validateCompanyVatNumber('SE860825858101').valid,
+  validateCompanyVatNumber('SE123456789012').valid,
   true,
-  'Jessika Foto & Media VAT number is valid'
+  'Synthetic Swedish VAT number format is valid'
 )
 
 assertEqual(
@@ -50,13 +50,13 @@ assertEqual(
 )
 
 assertEqual(
-  validateCompanyVatNumber('860825858101').valid,
+  validateCompanyVatNumber('123456789012').valid,
   false,
   'Swedish VAT number requires SE prefix'
 )
 
 assertEqual(
-  validateCompanyVatNumber('SE86082585810').valid,
+  validateCompanyVatNumber('SE12345678901').valid,
   false,
   'Swedish VAT number requires twelve digits after SE'
 )
