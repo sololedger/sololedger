@@ -6,6 +6,59 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-14 + KAN-46 Production Release And Acceptance
+
+- KAN-14 and KAN-46 reached `Done` in Jira on 2026-10-06 after Pontus manual
+  Production acceptance.
+- Production Supabase ref: `wbaxmuvudpnkvuliicuy`; final migration head:
+  `20261006120000`.
+- Deployed Production Git commit:
+  `28868fafb395d266227b47b10bbbc9f8a789495d`
+  (`docs: record KAN-14 production DB gate`).
+- Vercel Production deployment:
+  `dpl_EK2hQxEMwMXNsAirgGnHtgNbXVQA`,
+  `sololedger-hxq6vopry-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`.
+- Automated non-destructive Production smoke passed:
+  `npx playwright test tests/e2e/public-auth.spec.ts --project=chromium
+  --reporter=list` against `https://sololedger.vercel.app` passed 2/2.
+- KAN-46 completed scope: external customer invoice lifecycle for unpaid
+  customer receivables at year end; customer invoice registry/UI; mandatory
+  attachment handling; explicit paid/unpaid and year-end booked status; 31/12
+  controlled receivable booking; later settlement against 1510; safe payment
+  undo; edit-before-booking only; Swedish date entry and clearer invoice UI.
+- KAN-46 accounting remained server-side through the reviewed RPCs. Verified
+  flows include `1510 D / 3010 K / 2611 K` for year-end receivable,
+  `1930 D / 1510 K` for next-year settlement, no duplicate revenue/VAT, and
+  undo that preserves traceable journal history.
+- KAN-14 completed scope: Jessika VAT profile support where VAT registration
+  does not by itself imply taxable Swedish sales; ordinary manual domestic
+  3xxx income follows `domestic_sales_vat_treatment`; exempt/not-registered
+  sales cannot carry ordinary domestic VAT; unknown/mixed fails closed; EU
+  service reverse charge supports no normal input-VAT deduction.
+- KAN-14 228 SEK EU service / 25% / no-deduction acceptance: journal
+  `4535 D 228`, `4535 D 57`, `2614 K 57`, payment account `K 228`, no `2645`;
+  VAT return field 21 = 228, field 30 = 57, field 48 = 0, field 49 = 57
+  payable.
+- Production DB gates were completed before frontend release. KAN-46 Production
+  DB migrations live: `20261005193000`, `20261005203000`, `20261005210000`,
+  `20261005213000`. KAN-14 Production DB migration live:
+  `20261006120000_kan14_vat_v2_no_deduction.sql`.
+- Pontus Production acceptance evidence: in Jessika Foto & Media's real
+  Production company profile, Pontus configured VAT registered, annual VAT
+  reporting, SoloLedger VAT-period handling from `2026-06-02`, domestic sales
+  small-business exempt, foreign purchases in VAT return required, and normal
+  input VAT deduction entitlement none. Manual Production verification
+  confirmed `Försäljning (Intäkt)` locks VAT to 0% with clear small-business
+  exemption explanation; KAN-46 `Registrera kundfaktura` entry point is present;
+  `Utlandsinköp` entry point is present; no obvious Production UI issue was
+  found; no test bookkeeping transaction was created.
+- Separate follow-ups preserved: VAT number / VAT ID field is not implemented;
+  Jessika's two historical customer invoices predate KAN-46 and need careful
+  future backfill without duplicate revenue/VAT; historical Adobe invoices
+  remain a separate unresolved correction task; KAN-47/KAN-48 remain future
+  work.
+
 ### KAN-39 Clearer Bookkeeping Form and VAT V2 Blocked Submit UX
 
 - KAN-39 reached `Done` in Jira on 2026-10-05 after Pontus final-smoked the
