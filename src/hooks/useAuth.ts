@@ -13,6 +13,7 @@ export type AuthProfile = {
   subscription_end: string | null
   company_name: string | null
   org_nr: string | null
+  vat_number: string | null
   vat_status: 'registered' | 'not_registered' | 'unknown'
   vat_period_type: 'month' | 'quarter' | 'year' | null
   vat_management_from: string | null
@@ -51,7 +52,7 @@ async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
   const { data } = await Promise.race([
     supabase
       .from('profiles')
-      .select('subscription_type, subscription_end, company_name, org_nr, vat_status, vat_period_type, vat_management_from, domestic_sales_vat_treatment, foreign_purchase_reporting, default_deduction_entitlement, role, email')
+      .select('subscription_type, subscription_end, company_name, org_nr, vat_number, vat_status, vat_period_type, vat_management_from, domestic_sales_vat_treatment, foreign_purchase_reporting, default_deduction_entitlement, role, email')
       .eq('id', userId)
       .maybeSingle(),
     new Promise<any>((_, reject) =>

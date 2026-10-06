@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react' // 🌟 Importerat useEffect för synkning
 import { supabase } from '@/lib/supabaseClient'
+import { validateCompanyVatNumber } from '@/lib/companyProfile'
 import type {
   DeductionEntitlement,
   DomesticSalesVatTreatment,
@@ -73,6 +74,7 @@ export default function ProfileSettings({
 }: Props) {
   const [companyName, setCompanyName] = useState(profile?.company_name || '')
   const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
+  const [vatNumber, setVatNumber] = useState(profile?.vat_number || '')
   const [vatStatus, setVatStatus] = useState<'registered' | 'not_registered' | 'unknown'>(profile?.vat_status || 'unknown')
   const [vatPeriodType, setVatPeriodType] = useState<'month' | 'quarter' | 'year' | ''>(profile?.vat_period_type || '')
   const [vatManagementFrom, setVatManagementFrom] = useState(profile?.vat_management_from || '')
@@ -112,6 +114,7 @@ export default function ProfileSettings({
   const hasChanges =
     companyName !== (profile?.company_name || '') ||
     orgNr !== (profile?.org_nr || '') ||
+    vatNumber !== (profile?.vat_number || '') ||
     domesticSalesVatTreatment !== savedDomesticSalesVatTreatment ||
     foreignPurchaseReporting !== savedForeignPurchaseReporting ||
     defaultDeductionEntitlement !== savedDefaultDeductionEntitlement ||
@@ -125,6 +128,7 @@ export default function ProfileSettings({
   useEffect(() => {
     if (profile?.company_name) setCompanyName(profile.company_name)
     if (profile?.org_nr) setOrgNr(profile.org_nr)
+    setVatNumber(profile?.vat_number || '')
     setVatStatus(profile?.vat_status || 'unknown')
     setVatPeriodType(profile?.vat_period_type || '')
     setVatManagementFrom(profile?.vat_management_from || '')
@@ -253,6 +257,11 @@ export default function ProfileSettings({
       alert('Utländska inköp kan bara markeras som deklarationspliktiga när företaget är momsregistrerat.')
       return
     }
+    const vatNumberValidation = validateCompanyVatNumber(vatNumber)
+    if (!vatNumberValidation.valid) {
+      alert('VAT-numret ska anges i svenskt format: SE följt av 12 siffror.')
+      return
+    }
 
     setSaving(true)
     setSaved(false)
@@ -278,12 +287,26 @@ export default function ProfileSettings({
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ company_name: companyName, org_nr: orgNr, ...vatSettings, ...vatV2ProfileSettings })
+        .update({
+          company_name: companyName,
+          org_nr: orgNr,
+          vat_number: vatNumberValidation.value,
+          ...vatSettings,
+          ...vatV2ProfileSettings,
+        })
         .eq('id', user.id)
 
       if (error) throw error
 
-      onProfileUpdate({ ...profile, company_name: companyName, org_nr: orgNr, ...vatSettings, ...vatV2ProfileSettings })
+      onProfileUpdate({
+        ...profile,
+        company_name: companyName,
+        org_nr: orgNr,
+        vat_number: vatNumberValidation.value,
+        ...vatSettings,
+        ...vatV2ProfileSettings,
+      })
+      setVatNumber(vatNumberValidation.value || '')
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -628,6 +651,18 @@ export default function ProfileSettings({
               value={orgNr}
               onChange={e => setOrgNr(e.target.value)}
               placeholder="556000-0000"
+              className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">VAT-nummer</label>
+            <p className="text-[10px] text-gray-400 font-bold mb-3">Företagets internationella VAT-identifikationsnummer, till exempel SE860825858101.</p>
+            <input
+              type="text"
+              value={vatNumber}
+              onChange={e => setVatNumber(e.target.value)}
+              placeholder="SE860825858101"
               className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-300 transition-colors"
             />
           </div>
