@@ -80,12 +80,12 @@ export function customerInvoicePaymentLabel(invoice: CustomerInvoice) {
 export function customerInvoiceYearEndLabel(invoice: CustomerInvoice, fiscalYear: number) {
   const targetFiscalYear = customerInvoiceYearEndFiscalYear(invoice)
   if (hasCustomerInvoiceYearEndBooking(invoice, targetFiscalYear)) {
-    return `Med i bokslutet ${targetFiscalYear}`
+    return `Kundfordran vid bokslut ${targetFiscalYear}`
   }
   if (targetFiscalYear !== fiscalYear) {
     return `Avser bokslut ${targetFiscalYear}`
   }
-  return 'Inte med i bokslutet'
+  return 'Ingen kundfordran vid bokslut'
 }
 
 export function customerInvoiceYearCloseBlockerFor(
@@ -108,7 +108,7 @@ export function customerInvoiceYearCloseBlockerFor(
   }
 
   if (!hasCustomerInvoiceYearEndBooking(invoice, fiscalYear)) {
-    return `Faktura ${invoice.invoiceNumber} är obetald och behöver tas med i bokslutet för ${fiscalYear}.`
+    return `Faktura ${invoice.invoiceNumber} är obetald och behöver bokföras som kundfordran vid bokslut ${fiscalYear}.`
   }
 
   return null

@@ -51,8 +51,9 @@ Verified on 2026-10-07:
 
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, and KAN-51 after Pontus
   Production acceptance.
-- KAN-52 is a new wording/UX follow-up for the customer-invoice
-  year-end-receivable badge text. Do not implement it unless Pontus selects it.
+- KAN-52 is in review for a wording-only clarification of the customer-invoice
+  year-end-receivable badge text. No accounting/model behavior changes are in
+  scope.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -88,10 +89,10 @@ Verified on 2026-10-07:
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
   `Betalningskonton` with the newer Profile card language. This was explicitly
   out of scope for KAN-50.
-- KAN-52: clarify customer-invoice year-end badge wording. Current wording
-  `Med i bokslutet` / `Inte med i bokslutet` really means whether a
-  `year_end_receivable` booking exists, not whether the invoice belongs to the
-  fiscal year or accounting at all.
+- KAN-52: local wording-only update clarifies that the customer-invoice badge
+  describes whether a customer receivable was booked at year-end, not whether
+  the invoice belongs to the fiscal year or accounting at all. Await Pontus
+  visual acceptance after checkpoint.
 - Historical Adobe invoices remain a separate unresolved correction task. Do
   not change them without a selected/approved work item.
 - KAN-47/KAN-48 remain future work.
@@ -105,9 +106,9 @@ Verified on 2026-10-07:
 ## Git / Local Files
 
 - `origin/main` is the deployed Production code at `9640942`.
-- Local `main` may have a docs-only KAN-51 finalization checkpoint above
-  `origin/main`. Do not push without explicit approval because pushing `main`
-  deploys Production.
+- Local `main` has the docs-only KAN-51 finalization checkpoint and the KAN-52
+  wording checkpoint above `origin/main`. Do not push without explicit approval
+  because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -136,8 +137,7 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Await Pontus's next selected task.
+1. Await Pontus visual acceptance of KAN-52.
 2. Do not push `main` without explicit approval because it deploys Production.
-3. Do not start KAN-52, Adobe corrections, KAN-47, or KAN-48 unless Pontus
-   explicitly starts that work.
+3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

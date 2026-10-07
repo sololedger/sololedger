@@ -104,6 +104,14 @@ assert(
   'Customer invoice UI distinguishes historical paid links from normal KAN-46 undoable payments'
 )
 
+assert(
+  customerInvoiceUiSource.includes('Kundfordran vid bokslut') &&
+    customerInvoiceUiSource.includes('Ingen kundfordran vid bokslut') &&
+    !customerInvoiceUiSource.includes('Med i bokslutet') &&
+    !customerInvoiceUiSource.includes('Inte med i bokslutet'),
+  'Customer invoice year-end badge describes receivable-at-year-end semantics instead of general fiscal-year inclusion'
+)
+
 const customerInvoicesPanelSource = readFileSync(
   'src/components/CustomerInvoicesPanel.tsx',
   'utf8'
@@ -114,6 +122,15 @@ assert(
     customerInvoicesPanelSource.includes('{canUndoPayment && (') &&
     customerInvoicesPanelSource.includes('historisk betalning'),
   'Customer invoice panel hides the normal undo-payment action for historical paid invoice links'
+)
+
+assert(
+  customerInvoicesPanelSource.includes('Bokför kundfordran') &&
+    customerInvoicesPanelSource.includes('kundfordran vid bokslut') &&
+    !customerInvoicesPanelSource.includes('Ta med i bokslutet') &&
+    !customerInvoicesPanelSource.includes('Ta med fakturorna i bokslutet') &&
+    !customerInvoicesPanelSource.includes('togs med i bokslutet'),
+  'Customer invoice panel wording keeps year-end receivable actions explicit'
 )
 
 const kan14MigrationSource = readFileSync(

@@ -73,16 +73,16 @@ function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
     return `${formatCustomerInvoiceDate(booking.bookingDate)}: historisk betalning`
   }
   if (booking.bookingKind === 'year_end_receivable') {
-    return `${formatCustomerInvoiceDate(booking.bookingDate)}: togs med i bokslutet`
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: kundfordran vid bokslut`
   }
   if (booking.bookingKind === 'receivable_settlement') {
-    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning efter bokslut`
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning av kundfordran`
   }
   if (booking.bookingKind === 'payment_same_year_reversal') {
     return `${formatCustomerInvoiceDate(booking.bookingDate)}: direktbetalning ångrad`
   }
   if (booking.bookingKind === 'receivable_settlement_reversal') {
-    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning efter bokslut ångrad`
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning av kundfordran ångrad`
   }
   return `${formatCustomerInvoiceDate(booking.bookingDate)}: betalning bokförd`
 }
@@ -221,11 +221,15 @@ export default function CustomerInvoicesPanel({
         selectedYear,
         crypto.randomUUID()
       )
-      await refreshAfterAction(`Faktura ${invoice.invoiceNumber} är med i bokslutet.`)
+      await refreshAfterAction(
+        `Faktura ${invoice.invoiceNumber} är bokförd som kundfordran vid bokslut.`
+      )
     } catch (error) {
       setNotice({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Fakturan kunde inte tas med i bokslutet.',
+        text: error instanceof Error
+          ? error.message
+          : 'Fakturan kunde inte bokföras som kundfordran vid bokslut.',
       })
     } finally {
       setBusyKey(null)
@@ -249,7 +253,7 @@ export default function CustomerInvoicesPanel({
       }
 
       await refreshAfterAction(
-        `${completed} obetalda fakturor är med i bokslutet för ${selectedYear}.`
+        `${completed} obetalda fakturor är bokförda som kundfordran vid bokslut ${selectedYear}.`
       )
     } catch (error) {
       await loadInvoices()
@@ -425,7 +429,7 @@ export default function CustomerInvoicesPanel({
             <p className="mt-1 text-lg font-black text-gray-900">{unpaidInvoices.length}</p>
           </div>
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-            <p className="text-[9px] font-black uppercase text-blue-500">Kvar inför bokslut</p>
+            <p className="text-[9px] font-black uppercase text-blue-500">Kundfordran kvar</p>
             <p className="mt-1 text-lg font-black text-blue-700">{yearEndCandidates.length}</p>
           </div>
           <div className="col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 sm:col-span-1">
@@ -458,10 +462,10 @@ export default function CustomerInvoicesPanel({
                 Obetalda fakturor vid årets slut
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
-                En faktura som fortfarande är obetald den 31 december måste tas med i rätt års bokföring. Då hamnar intäkt, moms och kundfordran på rätt år.
+                En faktura som fortfarande är obetald den 31 december bokförs som kundfordran vid bokslut. Då hamnar intäkt, moms och fordran på rätt år.
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
-                {yearEndCandidates.length} fakturor återstår för bokslut {selectedYear}.
+                {yearEndCandidates.length} fakturor återstår att bokföra som kundfordran vid bokslut {selectedYear}.
                 {unsafeVatBlockers.length > 0
                   ? ` ${unsafeVatBlockers.length} stoppas tills momsfakta är klar.`
                   : ''}
@@ -473,7 +477,7 @@ export default function CustomerInvoicesPanel({
               disabled={isYearLocked || yearEndCandidates.length === 0 || busyKey === 'year-end-all'}
               className="h-10 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
-              {busyKey === 'year-end-all' ? 'Hanterar...' : 'Ta med fakturorna i bokslutet'}
+              {busyKey === 'year-end-all' ? 'Hanterar...' : 'Bokför kundfordran'}
             </button>
           </div>
           {yearEndBlockers.length > 0 && (
@@ -944,7 +948,7 @@ export default function CustomerInvoicesPanel({
                                 disabled={isYearLocked || busyKey === `year-end-${invoice.id}`}
                                 className="h-9 rounded-xl bg-blue-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                               >
-                                {busyKey === `year-end-${invoice.id}` ? 'Hanterar...' : 'Ta med i bokslutet'}
+                                {busyKey === `year-end-${invoice.id}` ? 'Hanterar...' : 'Bokför kundfordran'}
                               </button>
                             )}
                           </div>

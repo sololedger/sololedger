@@ -713,7 +713,7 @@ export default function TransactionForm({
                   Försäljning
                 </p>
                 <p className="mt-1 text-[10px] font-bold text-emerald-700">
-                  Direkt betald försäljning bokförs här. Kundfakturor registreras i Fakturor och bokförs när de betalas eller tas med i bokslutet.
+                  Direkt betald försäljning bokförs här. Kundfakturor registreras i Fakturor och bokförs när de betalas eller som kundfordran vid bokslut.
                 </p>
               </div>
               <button
