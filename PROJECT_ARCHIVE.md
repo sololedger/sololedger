@@ -6,6 +6,28 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-52 Customer Invoice Year-End Receivable Wording
+
+- KAN-52 reached `Done` in Jira on 2026-10-07 after Pontus local visual
+  acceptance and Production release verification.
+- Production `main`/`origin/main` release commit:
+  `2040be360ebeea9fdc70d353472535d19f7db54b`
+  (`KAN-52 clarify invoice year-end wording`).
+- Vercel Production deployment:
+  `dpl_FQH754uuhMDZJj4eo6LhF7g8fyj2`,
+  `sololedger-oh0tkmg6l-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; HTTP check returned `200 OK`.
+- Scope completed: wording/UX only for customer-invoice year-end receivable
+  semantics. The visible UI now uses `Kundfordran vid bokslut`,
+  `Ingen kundfordran vid bokslut`, and `Bokför kundfordran` so same-year paid
+  invoices are not described as excluded from the year's accounting.
+- No Supabase migration, database write, schema change, RPC change, accounting
+  behavior change, VAT behavior change, or existing invoice data change was
+  made.
+- Local verification before release: focused UI regression source check,
+  `npm run typecheck`, and `git diff --check` passed. No Playwright, staging,
+  or E2E was run, matching the approved low-risk wording-only scope.
+
 ### KAN-51 Historical Customer Invoice Linkage
 
 - KAN-51 reached `Done` in Jira on 2026-10-07 after Pontus manual Production

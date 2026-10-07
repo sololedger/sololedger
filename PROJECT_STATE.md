@@ -7,13 +7,13 @@ Last updated: 2026-10-07
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `96409421dba19ecfdab9e7208152a95fae02c319`
-  (`KAN-51 add historical invoice linkage support`).
+- Origin/Production `main`: `2040be360ebeea9fdc70d353472535d19f7db54b`
+  (`KAN-52 clarify invoice year-end wording`).
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 release.
+  + KAN-51 + KAN-52 release.
 - Vercel Production deployment:
-  `dpl_zYehYHHC2TkaEXrFmGrXxHo4E1C4`
-  (`sololedger-esinyxpxd-sololedger1.vercel.app`) is `Ready` and aliased to
+  `dpl_FQH754uuhMDZJj4eo6LhF7g8fyj2`
+  (`sololedger-oh0tkmg6l-sololedger1.vercel.app`) is `Ready` and aliased to
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007110000` after KAN-51 Production DB release.
@@ -49,11 +49,8 @@ Last updated: 2026-10-07
 
 Verified on 2026-10-07:
 
-- Done includes KAN-14, KAN-46, KAN-49, KAN-50, and KAN-51 after Pontus
-  Production acceptance.
-- KAN-52 is in review for a wording-only clarification of the customer-invoice
-  year-end-receivable badge text. No accounting/model behavior changes are in
-  scope.
+- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, and KAN-52 after
+  Pontus Production acceptance.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -82,6 +79,11 @@ Verified on 2026-10-07:
   the small-business exemption. KAN-46 `Registrera kundfaktura` and
   `Utlandsinköp` entry points are present. No Production test bookkeeping
   transaction was created.
+- KAN-52 is closed: customer-invoice year-end wording is deployed to
+  Production at `2040be3`; the UI now says `Kundfordran vid bokslut`,
+  `Ingen kundfordran vid bokslut`, and `Bokför kundfordran` for the
+  receivable-at-year-end workflow. It was wording/UX only; no accounting,
+  schema, RPC, Supabase, VAT, or existing data changed.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
@@ -89,10 +91,6 @@ Verified on 2026-10-07:
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
   `Betalningskonton` with the newer Profile card language. This was explicitly
   out of scope for KAN-50.
-- KAN-52: local wording-only update clarifies that the customer-invoice badge
-  describes whether a customer receivable was booked at year-end, not whether
-  the invoice belongs to the fiscal year or accounting at all. Await Pontus
-  visual acceptance after checkpoint.
 - Historical Adobe invoices remain a separate unresolved correction task. Do
   not change them without a selected/approved work item.
 - KAN-47/KAN-48 remain future work.
@@ -105,10 +103,10 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `9640942`.
-- Local `main` has the docs-only KAN-51 finalization checkpoint and the KAN-52
-  wording checkpoint above `origin/main`. Do not push without explicit approval
-  because pushing `main` deploys Production.
+- `origin/main` is the deployed Production code at `2040be3`.
+- Local `main` may have a docs-only KAN-52 finalization checkpoint above
+  `origin/main`. Do not push without explicit approval because pushing `main`
+  deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -137,7 +135,7 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Await Pontus visual acceptance of KAN-52.
+1. Await Pontus's next selected task.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.
