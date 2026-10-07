@@ -920,6 +920,18 @@ export default function TransactionForm({
                         SoloLedger kan inte avgöra svensk momssats automatiskt för den här tjänsten.
                       </p>
                     </div>
+                  ) : vatV2Facts.purchaseClassification ===
+                    'software_subscription_service' ? (
+                    <div className="min-w-0 md:col-span-1 xl:order-5 xl:col-span-3 flex flex-col gap-1">
+                      <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                        Svensk moms
+                      </label>
+                      <div className="rounded-xl border border-indigo-100 bg-white px-3 py-2">
+                        <p className="text-[10px] font-bold text-indigo-700">
+                          25 % för stödd programvara/prenumeration.
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <div
                       className={`min-w-0 md:col-span-1 xl:order-5 xl:col-span-3 rounded-xl border px-3 py-2 ${
@@ -940,10 +952,7 @@ export default function TransactionForm({
                           ? 'text-amber-700'
                           : 'text-indigo-700'
                       }`}>
-                        {vatV2Facts.purchaseClassification ===
-                        'software_subscription_service'
-                          ? '25 % för stödd programvara/prenumeration.'
-                          : vatV2GoodsUnsupported
+                        {vatV2GoodsUnsupported
                           ? 'Varuinköp från utlandet stöds inte ännu.'
                           : 'Välj inköpstyp först.'}
                       </p>

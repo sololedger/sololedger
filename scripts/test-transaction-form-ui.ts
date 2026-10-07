@@ -70,6 +70,15 @@ assert(
 
 assert(
   transactionFormSource.includes(
+    "vatV2Facts.purchaseClassification ===\n                    'software_subscription_service'"
+  ) &&
+    transactionFormSource.includes('25 % för stödd programvara/prenumeration.') &&
+    transactionFormSource.includes('rounded-xl border border-indigo-100 bg-white px-3 py-2'),
+  'KAN-22 derived software VAT field uses an external label plus info-control anatomy'
+)
+
+assert(
+  transactionFormSource.includes(
     'SoloLedger kan inte avgöra svensk momssats automatiskt för den här tjänsten.'
   ),
   'KAN-22 explains why Annan tjänst asks for Swedish VAT rate'
