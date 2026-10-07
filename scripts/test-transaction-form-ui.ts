@@ -56,6 +56,13 @@ assert(
 )
 
 assert(
+  transactionFormSource.includes('showVatV2ManualRate ? \'xl:order-4\' : \'xl:order-5\'') &&
+    transactionFormSource.includes('xl:order-5 xl:col-span-3 flex flex-col gap-1') &&
+    transactionFormSource.includes('xl:order-4 xl:col-span-3 rounded-xl'),
+  'KAN-22 aligns Annan tjänst VAT-rate control on the second fact-capture row while preserving the derived-rate card position'
+)
+
+assert(
   transactionFormSource.includes(
     'SoloLedger kan inte avgöra svensk momssats automatiskt för den här tjänsten.'
   ),

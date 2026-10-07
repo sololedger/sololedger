@@ -823,7 +823,7 @@ export default function TransactionForm({
             {vatV2Facts.enabled && !isYearLocked && (
               <div className="px-5 pb-4 border-t border-indigo-100">
                 <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-2 xl:grid-cols-12 items-end">
-                  <div className="min-w-0 md:col-span-1 xl:col-span-3 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:order-1 xl:col-span-3 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Leverantörsland
                     </label>
@@ -845,7 +845,7 @@ export default function TransactionForm({
                     </select>
                   </div>
 
-                  <div className="min-w-0 md:col-span-1 xl:col-span-4 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:order-2 xl:col-span-4 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Typ av inköp
                     </label>
@@ -874,7 +874,7 @@ export default function TransactionForm({
                     </select>
                   </div>
 
-                  <div className="min-w-0 md:col-span-1 xl:col-span-2 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:order-3 xl:col-span-2 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Moms på fakturan
                     </label>
@@ -894,7 +894,7 @@ export default function TransactionForm({
                   </div>
 
                   {showVatV2ManualRate ? (
-                    <div className="min-w-0 md:col-span-1 xl:col-span-3 flex flex-col gap-1">
+                    <div className="min-w-0 md:col-span-1 xl:order-5 xl:col-span-3 flex flex-col gap-1">
                       <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                         Svensk momssats
                       </label>
@@ -921,7 +921,7 @@ export default function TransactionForm({
                       </p>
                     </div>
                   ) : (
-                    <div className="min-w-0 md:col-span-1 xl:col-span-3 rounded-xl border border-indigo-100 bg-white px-3 py-2">
+                    <div className="min-w-0 md:col-span-1 xl:order-4 xl:col-span-3 rounded-xl border border-indigo-100 bg-white px-3 py-2">
                       <p className="text-[9px] font-black uppercase text-indigo-500">
                         Svensk moms
                       </p>
@@ -936,7 +936,11 @@ export default function TransactionForm({
                     </div>
                   )}
 
-                  <div className="min-w-0 md:col-span-1 xl:col-span-4 flex flex-col gap-1">
+                  <div
+                    className={`min-w-0 md:col-span-1 ${
+                      showVatV2ManualRate ? 'xl:order-4' : 'xl:order-5'
+                    } xl:col-span-4 flex flex-col gap-1`}
+                  >
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Inköpsbelopp
                     </label>
@@ -955,7 +959,7 @@ export default function TransactionForm({
                     />
                   </div>
 
-                  <div className="min-w-0 md:col-span-1 xl:col-span-5 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:order-6 xl:col-span-5 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Avdragsrätt för detta köp
                     </label>
