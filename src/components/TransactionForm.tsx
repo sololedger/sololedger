@@ -203,6 +203,8 @@ export default function TransactionForm({
   )
   const showVatV2ManualRate =
     vatV2Facts.purchaseClassification === 'other_service'
+  const vatV2GoodsUnsupported =
+    vatV2Facts.purchaseClassification === 'goods'
   const vatV2TreatmentSummary =
     vatV2Preflight.status === 'ready'
       ? [
@@ -246,7 +248,19 @@ export default function TransactionForm({
   const vatV2PreflightBlockerMessages =
     vatV2Preflight.status === 'ready'
       ? []
-      : vatV2Preflight.validation.errors.map(describeVatV2PreflightError)
+      : vatV2Preflight.validation.errors.map(error => {
+          if (
+            vatV2GoodsUnsupported &&
+            (
+              error.code === 'unsupported_vat_treatment' ||
+              error.code === 'unsupported_vat_v2_persistence_path'
+            )
+          ) {
+            return 'Varuinköp från utlandet stöds inte ännu. SoloLedger kan därför inte göra en säker momsbedömning för detta köp.'
+          }
+
+          return describeVatV2PreflightError(error)
+        })
   const vatV2RuntimeBlockerMessages =
     vatV2RuntimeBooking.status === 'blocked'
       ? vatV2RuntimeBooking.errors
@@ -808,8 +822,8 @@ export default function TransactionForm({
 
             {vatV2Facts.enabled && !isYearLocked && (
               <div className="px-5 pb-4 border-t border-indigo-100">
-                <div className="grid grid-cols-2 lg:grid-cols-12 gap-3 pt-4 items-end">
-                  <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
+                <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-2 xl:grid-cols-12 items-end">
+                  <div className="min-w-0 md:col-span-1 xl:col-span-3 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Leverantörsland
                     </label>
@@ -820,7 +834,7 @@ export default function TransactionForm({
                           supplierCountry: e.target.value as VatV2SupplierCountryInput,
                         })
                       }
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                      className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                     >
                       <option value="unknown">Välj land</option>
                       {VAT_V2_SUPPLIER_COUNTRIES.map(country => (
@@ -831,7 +845,7 @@ export default function TransactionForm({
                     </select>
                   </div>
 
-                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:col-span-4 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Typ av inköp
                     </label>
@@ -849,7 +863,7 @@ export default function TransactionForm({
                               : 'unknown',
                         })
                       }}
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                      className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                     >
                       <option value="unknown">Välj</option>
                       <option value="software_subscription_service">
@@ -860,7 +874,7 @@ export default function TransactionForm({
                     </select>
                   </div>
 
-                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:col-span-2 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Moms på fakturan
                     </label>
@@ -871,7 +885,7 @@ export default function TransactionForm({
                           supplierVatCharged: e.target.value as VatYesNoUnknown,
                         })
                       }
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                      className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                     >
                       <option value="unknown">Okänt</option>
                       <option value="no">Nej</option>
@@ -880,7 +894,7 @@ export default function TransactionForm({
                   </div>
 
                   {showVatV2ManualRate ? (
-                    <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                    <div className="min-w-0 md:col-span-1 xl:col-span-3 flex flex-col gap-1">
                       <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                         Svensk momssats
                       </label>
@@ -894,7 +908,7 @@ export default function TransactionForm({
                                 : Number(e.target.value) as 25 | 12 | 6 | 0,
                           })
                         }
-                        className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                        className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                       >
                         <option value="unknown">Välj</option>
                         <option value={25}>25%</option>
@@ -902,9 +916,12 @@ export default function TransactionForm({
                         <option value={6}>6%</option>
                         <option value={0}>0%</option>
                       </select>
+                      <p className="text-[9px] font-bold text-indigo-500 ml-1">
+                        SoloLedger kan inte avgöra svensk momssats automatiskt för den här tjänsten.
+                      </p>
                     </div>
                   ) : (
-                    <div className="col-span-2 lg:col-span-2 rounded-xl border border-indigo-100 bg-white px-3 py-2">
+                    <div className="min-w-0 md:col-span-1 xl:col-span-3 rounded-xl border border-indigo-100 bg-white px-3 py-2">
                       <p className="text-[9px] font-black uppercase text-indigo-500">
                         Svensk moms
                       </p>
@@ -912,12 +929,14 @@ export default function TransactionForm({
                         {vatV2Facts.purchaseClassification ===
                         'software_subscription_service'
                           ? '25 % för stödd programvara/prenumeration.'
-                          : 'Bestäms när inköpstypen stöds.'}
+                          : vatV2GoodsUnsupported
+                          ? 'Varuinköp från utlandet stöds inte ännu.'
+                          : 'Välj inköpstyp först.'}
                       </p>
                     </div>
                   )}
 
-                  <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:col-span-4 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Inköpsbelopp
                     </label>
@@ -931,12 +950,12 @@ export default function TransactionForm({
                           acquisitionBaseAmount: e.target.value,
                         })
                       }
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-black text-sm text-indigo-700 focus:border-indigo-300 transition-colors"
+                      className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-black text-sm text-indigo-700 focus:border-indigo-300 transition-colors"
                       placeholder="Belopp som momsen ska beräknas på"
                     />
                   </div>
 
-                  <div className="col-span-2 lg:col-span-4 flex flex-col gap-1">
+                  <div className="min-w-0 md:col-span-1 xl:col-span-5 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Avdragsrätt för detta köp
                     </label>
@@ -948,7 +967,7 @@ export default function TransactionForm({
                             e.target.value as VatV2DeductionEntitlementSelection,
                         })
                       }
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                      className="w-full min-w-0 p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                     >
                       <option value="profile_default">
                         Följ företagets inställning - {vatV2ProfileDeductionLabel}
@@ -958,6 +977,17 @@ export default function TransactionForm({
                     </select>
                   </div>
                 </div>
+
+                {vatV2GoodsUnsupported && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-[10px] font-black uppercase text-amber-800">
+                      Varuinköp från utlandet stöds inte ännu
+                    </p>
+                    <p className="mt-1 text-[10px] font-bold text-amber-700">
+                      SoloLedger kan därför inte göra en säker momsbedömning för detta köp.
+                    </p>
+                  </div>
+                )}
 
                 <div className="mt-4 rounded-xl border border-indigo-100 bg-white px-4 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">

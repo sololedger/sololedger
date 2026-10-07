@@ -54,7 +54,9 @@ Verified on 2026-10-07:
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, and KAN-41
   after Pontus Production acceptance.
 - KAN-22 is implemented locally and ready for leader review after focused
-  staging RPC validation.
+  staging RPC validation and manual-review UI follow-up.
+- KAN-53 was created as the future VAT V2 EU-goods support issue. Do not
+  implement EU-goods accounting inside KAN-22.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -101,6 +103,7 @@ Verified on 2026-10-07:
 - KAN-22 remains pending for Production release. Pending migration:
   `supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql`.
   Production Supabase has not been modified for KAN-22.
+- KAN-53 covers future EU-goods VAT V2 accounting support.
 
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
   `Betalningskonton` with the newer Profile card language. This was explicitly

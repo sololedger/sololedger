@@ -48,6 +48,33 @@ assert(
 )
 
 assert(
+  transactionFormSource.includes('xl:grid-cols-12') &&
+    transactionFormSource.includes('xl:col-span-4 flex flex-col gap-1') &&
+    transactionFormSource.includes('placeholder="Belopp som momsen ska beräknas på"') &&
+    transactionFormSource.includes('w-full min-w-0 p-3 bg-white'),
+  'KAN-22 foreign-purchase fact row gives important fields enough responsive width'
+)
+
+assert(
+  transactionFormSource.includes(
+    'SoloLedger kan inte avgöra svensk momssats automatiskt för den här tjänsten.'
+  ),
+  'KAN-22 explains why Annan tjänst asks for Swedish VAT rate'
+)
+
+assert(
+  transactionFormSource.includes('Varuinköp från utlandet stöds inte ännu') &&
+    transactionFormSource.includes(
+      'SoloLedger kan därför inte göra en säker momsbedömning för detta köp.'
+    ) &&
+    transactionFormSource.includes('vatV2GoodsUnsupported') &&
+    transactionFormSource.includes(
+      'Varuinköp från utlandet stöds inte ännu. SoloLedger kan därför inte göra en säker momsbedömning för detta köp.'
+    ),
+  'KAN-22 keeps Vara visible but clearly fails closed as unsupported goods flow'
+)
+
+assert(
   transactionFormSource.includes('vatV2BlockedSubmitMessages') &&
     transactionFormSource.includes('new Set([') &&
     transactionFormSource.includes('...vatV2PreflightBlockerMessages') &&
