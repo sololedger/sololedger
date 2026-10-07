@@ -6,6 +6,57 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-22 VAT V2 UX Fact Capture
+
+- KAN-22 reached `Done` in Jira on 2026-10-07 after leader review, manual UI
+  acceptance, Production Supabase migration, and Vercel Production deployment
+  verification.
+- Production `main`/`origin/main` release commit:
+  `020fb099c1cb946b84a1cb624e5b12881e81f5b0`
+  (`KAN-22 structure derived VAT field`).
+- Vercel Production deployment:
+  `dpl_8fkQGirnxE733DMmZ38qwdPBFsAN`,
+  `sololedger-p5yq9vx5b-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build commit verified as `020fb09`, status
+  `Ready`, and HTTP check returned `200 OK`.
+- Supabase Production ref `wbaxmuvudpnkvuliicuy` migration
+  `20261007130000_kan22_vat_v2_business_facts.sql` is live as version
+  `20261007130000`.
+- Pre-migration Production checks verified KAN-22 was not already applied,
+  KAN-14 no-deduction and KAN-51 prerequisites were present, the VAT V2
+  idempotency table and booking RPC existed, and the pre-KAN-22 RPC did not yet
+  require `business_facts`.
+- Post-migration Production read-only verification showed the migration version
+  exists, the RPC requires `p_payload->'business_facts'`, persists
+  `businessFacts` in the VAT audit snapshot, includes tamper validation for
+  mismatched taxable base, keeps `authenticated` execute access, and has the
+  audit/idempotency tables present.
+- Product scope completed: the `Utlandsinköp` form now asks for observable
+  business facts rather than BAS accounts, VAT report boxes, or VAT V2
+  implementation categories. Supported choices remain
+  `Programvara/prenumeration`, `Annan tjänst`, and `Vara`; EU-goods accounting
+  remains intentionally unsupported in KAN-22.
+- Jessika/Adobe acceptance path: EU software/subscription service with no
+  supplier VAT and no deduction entitlement produces output VAT `57`,
+  deductible input VAT `0`, and net payable `57` for a `228 SEK` base.
+- Full-deduction reverse-charge path produces output VAT `57`, deductible input
+  VAT `57`, and net `0` for the same base.
+- Staging RPC validation on `fzxqiqenqjzhlyxxpvhg` verified valid no-deduction
+  and full-deduction scenarios, persisted `businessFacts` evidence in audit
+  snapshots, rejected contradictory/tampered facts, rejected missing
+  `business_facts`, and cleaned synthetic staging test data to zero residual
+  rows. The staging migration ledger was intentionally not advanced because
+  staging had unrelated migration-history differences.
+- Local verification before release included focused VAT audit snapshot tests,
+  VAT transaction preflight tests, VAT runtime booking tests, transaction-form
+  UI tests, `npm run test:domain`, `npm run typecheck`, and `git diff --check`.
+- KAN-53 `VAT V2 – Stöd EU-varuinköp` was created as a separate `To Do`
+  follow-up for real EU-goods VAT/accounting support. KAN-22 did not implement
+  EU-goods accounting.
+- No artificial bookkeeping transaction was created in Production, no staging
+  write matrix was rerun against Production, and no broad Playwright/E2E suite
+  was run during release.
+
 ### KAN-41 Dashboard VAT Correctness
 
 - KAN-41 reached `Done` in Jira on 2026-10-07 after leader review, local visual

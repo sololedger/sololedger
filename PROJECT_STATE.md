@@ -7,16 +7,16 @@ Last updated: 2026-10-07
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `c2f4a0edd1e5fbbc6c22113a02b8038798bb2772`
-  (`KAN-41 use VAT report semantics in dashboard`).
+- Origin/Production `main`: `020fb099c1cb946b84a1cb624e5b12881e81f5b0`
+  (`KAN-22 structure derived VAT field`).
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 + KAN-52 + KAN-41 release.
+  + KAN-51 + KAN-52 + KAN-41 + KAN-22 release.
 - Vercel Production deployment:
-  `dpl_Gb2XLb4zKoNfcT6wKZVkSqYWP5vZ`
-  (`sololedger-dwilkk3ta-sololedger1.vercel.app`) is `Ready` and aliased to
+  `dpl_8fkQGirnxE733DMmZ38qwdPBFsAN`
+  (`sololedger-p5yq9vx5b-sololedger1.vercel.app`) is `Ready` and aliased to
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261007110000` after KAN-51 Production DB release.
+  `20261007130000` after KAN-22 Production DB release.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger head:
   `20261006143000`. KAN-22 RPC SQL was applied directly to staging for
   focused validation without advancing the ledger, to avoid applying unrelated
@@ -51,10 +51,8 @@ Last updated: 2026-10-07
 
 Verified on 2026-10-07:
 
-- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, and KAN-41
-  after Pontus Production acceptance.
-- KAN-22 is implemented locally and ready for leader review after focused
-  staging RPC validation and manual-review UI follow-up.
+- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, KAN-41,
+  and KAN-22 after Pontus Production acceptance.
 - KAN-53 was created as the future VAT V2 EU-goods support issue. Do not
   implement EU-goods accounting inside KAN-22.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
@@ -96,13 +94,15 @@ Verified on 2026-10-07:
   snapshots. `Säkert uttag` now uses that corrected VAT balance and falls back
   to a controlled review-required state instead of an old legacy-only VAT amount
   when VAT cannot be trusted.
+- KAN-22 is closed: VAT V2 foreign-purchase fact capture is deployed to
+  Production at `020fb09`; Production migration `20261007130000` is live.
+  The UI asks for business facts instead of BAS/VAT implementation choices,
+  durable `business_facts` are preserved in VAT V2 audit snapshots, and the
+  RPC fails closed for missing or contradictory business facts.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
 
-- KAN-22 remains pending for Production release. Pending migration:
-  `supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql`.
-  Production Supabase has not been modified for KAN-22.
 - KAN-53 covers future EU-goods VAT V2 accounting support.
 
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
@@ -119,10 +119,10 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `c2f4a0e`.
-- Local `main` has the docs-only KAN-41 finalization checkpoint and the KAN-22
-  local implementation checkpoint above `origin/main`. Do not push without
-  explicit approval because pushing `main` deploys Production.
+- `origin/main` is the deployed Production code at `020fb09`.
+- Local `main` may have a docs-only KAN-22 finalization checkpoint above
+  `origin/main`. Do not push without explicit approval because pushing `main`
+  deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -151,9 +151,7 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Pontus/leader reviews KAN-22 locally.
+1. Await Pontus's next selected task.
 2. Do not push `main` without explicit approval because it deploys Production.
-3. Do not apply the KAN-22 migration to Production until the release step is
-   explicitly approved.
-4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
+3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.
