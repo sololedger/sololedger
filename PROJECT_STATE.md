@@ -7,13 +7,13 @@ Last updated: 2026-10-07
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `2040be360ebeea9fdc70d353472535d19f7db54b`
-  (`KAN-52 clarify invoice year-end wording`).
+- Origin/Production `main`: `c2f4a0edd1e5fbbc6c22113a02b8038798bb2772`
+  (`KAN-41 use VAT report semantics in dashboard`).
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 + KAN-52 release.
+  + KAN-51 + KAN-52 + KAN-41 release.
 - Vercel Production deployment:
-  `dpl_FQH754uuhMDZJj4eo6LhF7g8fyj2`
-  (`sololedger-oh0tkmg6l-sololedger1.vercel.app`) is `Ready` and aliased to
+  `dpl_Gb2XLb4zKoNfcT6wKZVkSqYWP5vZ`
+  (`sololedger-dwilkk3ta-sololedger1.vercel.app`) is `Ready` and aliased to
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007110000` after KAN-51 Production DB release.
@@ -49,10 +49,8 @@ Last updated: 2026-10-07
 
 Verified on 2026-10-07:
 
-- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, and KAN-52 after
-  Pontus Production acceptance.
-- KAN-41 is implemented locally and ready for leader review. It has not been
-  pushed or deployed.
+- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, and KAN-41
+  after Pontus Production acceptance.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -86,11 +84,12 @@ Verified on 2026-10-07:
   `Ingen kundfordran vid bokslut`, and `Bokför kundfordran` for the
   receivable-at-year-end workflow. It was wording/UX only; no accounting,
   schema, RPC, Supabase, VAT, or existing data changed.
-- KAN-41 is implemented locally: the dashboard VAT overview now uses the
-  authoritative VAT-report aggregation for the selected calendar year, including
-  legacy VAT, native VAT V2, and VAT V2 audit snapshots. `Säkert uttag` now uses
-  that corrected VAT balance and falls back to a controlled review-required
-  state instead of an old legacy-only VAT amount when VAT cannot be trusted.
+- KAN-41 is closed: dashboard VAT overview is deployed to Production at
+  `c2f4a0e`; it now uses the authoritative VAT-report aggregation for the
+  selected calendar year, including legacy VAT, native VAT V2, and VAT V2 audit
+  snapshots. `Säkert uttag` now uses that corrected VAT balance and falls back
+  to a controlled review-required state instead of an old legacy-only VAT amount
+  when VAT cannot be trusted.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
@@ -109,10 +108,10 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `2040be3`.
-- Local `main` has a docs-only KAN-52 finalization checkpoint plus the local
-  KAN-41 implementation checkpoint above `origin/main`. Do not push without
-  explicit approval because pushing `main` deploys Production.
+- `origin/main` is the deployed Production code at `c2f4a0e`.
+- Local `main` may have a docs-only KAN-41 finalization checkpoint above
+  `origin/main`. Do not push without explicit approval because pushing `main`
+  deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -141,7 +140,7 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Pontus reviews KAN-41 locally before any push/deploy.
+1. Await Pontus's next selected task.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

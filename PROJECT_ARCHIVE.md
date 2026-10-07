@@ -6,6 +6,35 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-41 Dashboard VAT Correctness
+
+- KAN-41 reached `Done` in Jira on 2026-10-07 after leader review, local visual
+  acceptance, manual E2E/SIE cross-check, and Production release verification.
+- Production `main`/`origin/main` release commit:
+  `c2f4a0edd1e5fbbc6c22113a02b8038798bb2772`
+  (`KAN-41 use VAT report semantics in dashboard`).
+- Vercel Production deployment:
+  `dpl_Gb2XLb4zKoNfcT6wKZVkSqYWP5vZ`,
+  `sololedger-dwilkk3ta-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build log verified branch `main`, commit
+  `c2f4a0e`, and HTTP check returned `200 OK`.
+- Scope completed: dashboard VAT overview now uses the same authoritative
+  VAT-report aggregation semantics as the VAT report for the selected calendar
+  year, including legacy VAT, native VAT V2, and VAT V2 audit snapshots.
+- `Säkert uttag` now consumes the corrected VAT balance and enters a controlled
+  review-required state instead of presenting a falsely safe amount when VAT
+  cannot be calculated safely.
+- No Supabase migration, Supabase write, accounting write-path change, VAT V2
+  write-path change, audit snapshot change, journal-generation change, or
+  existing accounting data change was made.
+- Local verification before release: focused dashboard/VAT tests,
+  VAT-report aggregation/service/presentation tests, `npm run test:domain`,
+  `npm run typecheck`, and `git diff --check` passed.
+- Pontus manual cross-check verified VAT V2 no-deduction contributes output VAT
+  `57` and payable `57`, full-deduction reverse charge contributes output VAT
+  `57` and deductible input VAT `57` with net `0`, and the dashboard/VAT/SIE/NE
+  totals reconcile.
+
 ### KAN-52 Customer Invoice Year-End Receivable Wording
 
 - KAN-52 reached `Done` in Jira on 2026-10-07 after Pontus local visual
