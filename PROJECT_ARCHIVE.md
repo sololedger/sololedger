@@ -6,6 +6,36 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-51 Historical Customer Invoice Linkage
+
+- KAN-51 reached `Done` in Jira on 2026-10-07 after Pontus manual Production
+  acceptance of the two historical customer invoices in `Fakturor`.
+- Production `main`/`origin/main` release commit:
+  `96409421dba19ecfdab9e7208152a95fae02c319`
+  (`KAN-51 add historical invoice linkage support`).
+- Vercel Production deployment:
+  `dpl_zYehYHHC2TkaEXrFmGrXxHo4E1C4`,
+  `sololedger-esinyxpxd-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`.
+- Supabase Production migration:
+  `20261007110000_kan51_historical_customer_invoice_linkage.sql`, live as
+  version `20261007110000`.
+- Scope completed: added a tightly scoped historical customer-invoice booking
+  kind, `historical_payment_same_year`, so two pre-KAN-46 invoices could be
+  represented in `Fakturor` while preserving the existing manual
+  verifications, journal rows, attachments, and verification-number sequence.
+- Approved Production repair created only two `customer_invoices` rows and two
+  `historical_payment_same_year` linkage rows. It did not create transactions,
+  journal entries, VAT/tax rows, corrections, or verification-number changes.
+- Production acceptance verified both invoices are paid, historical payment
+  labels display correctly after refresh, normal undo is hidden, and no further
+  KAN-51 data repair is required.
+- Model clarification from acceptance: current `Med i bokslutet` /
+  `Inte med i bokslutet` labels refer specifically to whether a
+  `year_end_receivable` booking exists. Same-year paid invoices correctly have
+  no `year_end_receivable`. The wording can still be misunderstood; KAN-52
+  was created as a separate wording/UX follow-up.
+
 ### KAN-50 Profile UX Polish
 
 - KAN-50 reached `Done` in Jira on 2026-10-06 after Pontus manual Production
