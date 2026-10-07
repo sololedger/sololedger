@@ -52,9 +52,9 @@ export function getKostnader(balances: DashboardBalances): number {
  * kommer från resultEngine.ts. Dashboard och NE-bilagan kan därför
  * inte längre ha varsin separat definition av bokfört resultat.
  *
- * Moms beräknas fortsatt i accountingService.ts via getMomsBreakdown(),
- * eftersom korrekt momsberäkning kräver verifikationsnivå och inte kan
- * återskapas från hopslagna kontosaldon.
+ * Moms beräknas via momsrapportens auktoritativa sammanställning,
+ * eftersom korrekt momsberäkning kräver verifikationsnivå/VAT V2-snapshots
+ * och inte kan återskapas från hopslagna kontosaldon.
  */
 export function calculateDashboard(
   balances: DashboardBalances,
@@ -89,10 +89,11 @@ export function calculateDashboard(
       ? Math.round(skattemassigVinst * (taxRate / 100) * 100) / 100
       : 0
 
-  const sakertUttag =
-    Math.round(
-      (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
-    ) / 100
+  const sakertUttag = manualReviewRequired
+    ? 0
+    : Math.round(
+        (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
+      ) / 100
 
   return {
     bankSaldo,

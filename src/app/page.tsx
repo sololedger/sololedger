@@ -687,9 +687,11 @@ export default function Home() {
   // redan använder (calculations.ts), men med det nu kumulativa
   // data.bankSaldo istället för årets egna bankrörelse. skattReserv och
   // momsNetto kommer fortfarande oförändrade från calculateDashboard().
-  data.sakertUttag = Math.round(
-    (data.bankSaldo - data.skattReserv - (data.momsNetto > 0 ? data.momsNetto : 0)) * 100
-  ) / 100
+  data.sakertUttag = data.momsManualReviewRequired
+    ? 0
+    : Math.round(
+        (data.bankSaldo - data.skattReserv - (data.momsNetto > 0 ? data.momsNetto : 0)) * 100
+      ) / 100
 
 
   const hasActiveSubscription =

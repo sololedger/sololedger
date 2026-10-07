@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed, getMomsBreakdown } from '@/lib/accountingService'
+import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
+import { getDashboardVatBreakdown } from '@/lib/dashboardVat'
 
 // Sorterar transaktioner: nyaste datum överst, och vid samma datum
 // nyaste ver_nr överst (annars saknas sekundärsortering helt och
@@ -121,7 +122,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         getAccountBalances(selectedYear),
         getBalanceSheetBalances(selectedYear),
         getNEData(selectedYear),
-        getMomsBreakdown(startDate, endDate)
+        getDashboardVatBreakdown(startDate, endDate)
       ])
       if (txData.error) throw txData.error
       const txIds = txData.data?.map((t: any) => t.id) || []
@@ -215,7 +216,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
           getAccountBalances(selectedYear),
           getBalanceSheetBalances(selectedYear),
           getNEData(selectedYear),
-          getMomsBreakdown(startDate, endDate)
+          getDashboardVatBreakdown(startDate, endDate)
         ])
 
         if (cancelled) return

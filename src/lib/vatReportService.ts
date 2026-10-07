@@ -98,7 +98,7 @@ type VatReportSupabaseQuery = {
   ): VatReportSupabaseFilterQuery
 }
 
-type VatReportSupabaseClient = {
+export type VatReportSupabaseClient = {
   from(table: string): VatReportSupabaseQuery
 }
 

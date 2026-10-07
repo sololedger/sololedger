@@ -134,9 +134,20 @@ export default function OverviewCards({
               Säkert uttag
             </p>
 
-            <p className="text-3xl font-black tabular-nums leading-none">
-              {data.sakertUttag.toLocaleString('sv-SE')} kr
-            </p>
+            {data.momsManualReviewRequired ? (
+              <div>
+                <p className="text-2xl font-black leading-none">
+                  Kontroll krävs
+                </p>
+                <p className="text-[10px] font-bold opacity-75 mt-2">
+                  Moms behöver kontrolleras
+                </p>
+              </div>
+            ) : (
+              <p className="text-3xl font-black tabular-nums leading-none">
+                {data.sakertUttag.toLocaleString('sv-SE')} kr
+              </p>
+            )}
           </div>
 
         </div>
@@ -337,10 +348,10 @@ export default function OverviewCards({
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-red-50 rounded-2xl px-5 py-3">
                     <div>
                       <p className="text-xs font-black text-red-600 uppercase">
-                        Utgående moms (261x/262x/263x)
+                        Utgående moms
                       </p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                        Moms på din försäljning — ska betalas in
+                        Moms som ska redovisas
                       </p>
                     </div>
 
@@ -352,10 +363,10 @@ export default function OverviewCards({
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-emerald-50 rounded-2xl px-5 py-3">
                     <div>
                       <p className="text-xs font-black text-emerald-600 uppercase">
-                        Ingående moms (264x)
+                        Avdragsgill ingående moms
                       </p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                        Moms du betalat på kostnader — dras av
+                        Moms som dras av
                       </p>
                     </div>
 
@@ -367,7 +378,7 @@ export default function OverviewCards({
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
-                    Momsbalans (Utgående − Ingående)
+                    Moms att betala eller få tillbaka
                   </span>
 
                   {data.momsManualReviewRequired ? (

@@ -51,6 +51,8 @@ Verified on 2026-10-07:
 
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, and KAN-52 after
   Pontus Production acceptance.
+- KAN-41 is implemented locally and ready for leader review. It has not been
+  pushed or deployed.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -84,6 +86,11 @@ Verified on 2026-10-07:
   `Ingen kundfordran vid bokslut`, and `Bokför kundfordran` for the
   receivable-at-year-end workflow. It was wording/UX only; no accounting,
   schema, RPC, Supabase, VAT, or existing data changed.
+- KAN-41 is implemented locally: the dashboard VAT overview now uses the
+  authoritative VAT-report aggregation for the selected calendar year, including
+  legacy VAT, native VAT V2, and VAT V2 audit snapshots. `Säkert uttag` now uses
+  that corrected VAT balance and falls back to a controlled review-required
+  state instead of an old legacy-only VAT amount when VAT cannot be trusted.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
@@ -98,15 +105,14 @@ Verified on 2026-10-07:
   rows.
 - KAN-35 remains low-priority UI transaction-history completeness follow-up.
 - KAN-36 remains future inventory/depreciation product work.
-- KAN-41 remains the VAT dashboard/momskort label/scope follow-up.
 - Full repo lint still has older unrelated debt.
 
 ## Git / Local Files
 
 - `origin/main` is the deployed Production code at `2040be3`.
-- Local `main` may have a docs-only KAN-52 finalization checkpoint above
-  `origin/main`. Do not push without explicit approval because pushing `main`
-  deploys Production.
+- Local `main` has a docs-only KAN-52 finalization checkpoint plus the local
+  KAN-41 implementation checkpoint above `origin/main`. Do not push without
+  explicit approval because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -135,7 +141,7 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Await Pontus's next selected task.
+1. Pontus reviews KAN-41 locally before any push/deploy.
 2. Do not push `main` without explicit approval because it deploys Production.
 3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

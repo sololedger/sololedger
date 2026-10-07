@@ -64,6 +64,7 @@ assertEqual(
   'ambiguous dashboard VAT breakdown carries manual review message'
 )
 assertEqual(flaggedDashboard.momsNetto, 0, 'ambiguous dashboard VAT net does not invent a payable amount')
+assertEqual(flaggedDashboard.sakertUttag, 0, 'ambiguous dashboard VAT blocks safe withdrawal amount')
 
 assertEqual(
   isLegacyVatInferenceTransaction({
