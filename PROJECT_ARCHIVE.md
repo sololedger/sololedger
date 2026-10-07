@@ -6,6 +6,43 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-23 VAT V1 + VAT V2 Regression Acceptance
+
+- KAN-23 reached `Done` in Jira on 2026-10-07 after leader acceptance and
+  Production release verification.
+- Production `main`/`origin/main` release commit:
+  `a491afbc56a499b39a89df9908abc3e341a96955`
+  (`test: add KAN-23 VAT V1/V2 acceptance coverage`).
+- Vercel Production deployment:
+  `dpl_5Rj6ha7MmrLsD8QhQPgt2m22YkxS`,
+  `sololedger-pwytdpkdc-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build commit verified as `a491afb`, status
+  `Ready`, and HTTP check returned `200`.
+- Scope completed: bounded acceptance proved VAT V1 and native VAT V2 coexist
+  correctly through booking, reporting, dashboard semantics, and VAT
+  close/declare boundaries.
+- Focused DB/RPC rollback acceptance file added:
+  `supabase/tests/kan23_vat_v1_v2_acceptance_candidate.sql`. It books
+  ordinary V1 sale/purchase, books VAT V2 EU service with no deduction through
+  the current RPC, verifies KAN-22 `businessFacts` persistence, rejects missing
+  and tampered business facts without side effects, closes the mixed period to
+  expected net VAT `282` and 2650 payable balance, and declares the same
+  period.
+- Local verification: `npm run test:domain`, `npm run typecheck`,
+  `git diff --check`, and the focused local DB/RPC rollback acceptance passed.
+  Known Node module-type warnings were non-blocking.
+- Existing domain/report/dashboard coverage supported V1 domestic reporting,
+  VAT V2 full deduction, mixed aggregation, missing/broken VAT V2 snapshot
+  fail-closed behavior, unsupported EU goods fail-closed behavior, and relevant
+  SIE/correction/undo boundaries.
+- No staging write testing, browser E2E, concurrency harness, Supabase
+  migration, Production database write, or broad unrelated test rerun was
+  performed for KAN-23.
+- Real two-session concurrency remains not empirically tested. Pontus accepted
+  this as a documented verification limitation, not a KAN-23 blocker.
+- KAN-53 remains separate `To Do` future work for real EU-goods VAT V2
+  accounting support.
+
 ### KAN-22 VAT V2 UX Fact Capture
 
 - KAN-22 reached `Done` in Jira on 2026-10-07 after leader review, manual UI

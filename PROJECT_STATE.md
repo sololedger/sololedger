@@ -7,14 +7,15 @@ Last updated: 2026-10-07
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `020fb099c1cb946b84a1cb624e5b12881e81f5b0`
-  (`KAN-22 structure derived VAT field`).
+- Origin/Production `main`: `a491afbc56a499b39a89df9908abc3e341a96955`
+  (`test: add KAN-23 VAT V1/V2 acceptance coverage`).
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 + KAN-52 + KAN-41 + KAN-22 release.
+  + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 release.
 - Vercel Production deployment:
-  `dpl_8fkQGirnxE733DMmZ38qwdPBFsAN`
-  (`sololedger-p5yq9vx5b-sololedger1.vercel.app`) is `Ready` and aliased to
-  `https://sololedger.vercel.app`.
+  `dpl_5Rj6ha7MmrLsD8QhQPgt2m22YkxS`
+  (`sololedger-pwytdpkdc-sololedger1.vercel.app`) is `Ready`, built from
+  `a491afb`, and aliased to `https://sololedger.vercel.app`; HTTP check
+  returned `200`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007130000` after KAN-22 Production DB release.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger head:
@@ -52,9 +53,9 @@ Last updated: 2026-10-07
 Verified on 2026-10-07:
 
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, KAN-41,
-  and KAN-22 after Pontus Production acceptance.
+  KAN-22, and KAN-23 after Pontus acceptance and Production release.
 - KAN-53 was created as the future VAT V2 EU-goods support issue. Do not
-  implement EU-goods accounting inside KAN-22.
+  implement EU-goods accounting inside KAN-23.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -99,6 +100,15 @@ Verified on 2026-10-07:
   The UI asks for business facts instead of BAS/VAT implementation choices,
   durable `business_facts` are preserved in VAT V2 audit snapshots, and the
   RPC fails closed for missing or contradictory business facts.
+- KAN-23 is closed: VAT V1 and native VAT V2 coexistence was accepted and
+  released to Production at `a491afb`. Verification covered V1 domestic VAT,
+  VAT V2 EU service with no deduction and full deduction, mixed V1+V2 report
+  aggregation, no omission/double-counting, KAN-22 business-facts
+  persistence/fail-closed validation, dashboard semantics, mixed close/2650,
+  declare boundary, missing/broken VAT V2 snapshots fail-closed, unsupported
+  EU goods fail-closed, and relevant SIE/correction/undo boundaries. Real
+  two-session concurrency remains a documented accepted limitation, not a
+  KAN-23 blocker.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
@@ -119,8 +129,8 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `020fb09`.
-- Local `main` may have a docs-only KAN-22 finalization checkpoint above
+- `origin/main` is the deployed Production code at `a491afb`.
+- Local `main` may have a docs-only KAN-23 finalization checkpoint above
   `origin/main`. Do not push without explicit approval because pushing `main`
   deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
