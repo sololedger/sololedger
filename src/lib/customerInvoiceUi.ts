@@ -56,6 +56,21 @@ export function hasAnyCustomerInvoiceYearEndBooking(invoice: CustomerInvoice) {
   return invoice.bookings.some(booking => booking.bookingKind === 'year_end_receivable')
 }
 
+export function hasHistoricalCustomerInvoicePayment(invoice: CustomerInvoice) {
+  return invoice.bookings.some(booking => booking.bookingKind === 'historical_payment_same_year')
+}
+
+export function customerInvoiceCanUndoPayment(invoice: CustomerInvoice) {
+  return (
+    invoice.paymentStatus === 'paid' &&
+    !hasHistoricalCustomerInvoicePayment(invoice) &&
+    invoice.bookings.some(booking =>
+      booking.bookingKind === 'payment_same_year' ||
+      booking.bookingKind === 'receivable_settlement'
+    )
+  )
+}
+
 export function customerInvoicePaymentLabel(invoice: CustomerInvoice) {
   if (invoice.paymentStatus === 'paid') return 'Betald'
   if (invoice.paymentStatus === 'cancelled') return 'Makulerad'

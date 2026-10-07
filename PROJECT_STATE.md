@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## Current Baseline
 
@@ -51,6 +51,10 @@ Verified on 2026-10-06:
 
 - Done includes KAN-14, KAN-46, KAN-49, and KAN-50 after Pontus Production
   acceptance.
+- KAN-51 has been created for the historical customer-invoice linkage work.
+  Local implementation is prepared for release review; invoice 1001 service
+  date is now confirmed as 2026-02-11. No Production/staging write, deploy, or
+  push has been performed.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -81,8 +85,9 @@ Verified on 2026-10-06:
   `Betalningskonton` with the newer Profile card language. This was explicitly
   out of scope for KAN-50.
 - Jessika's two historical customer invoices predate KAN-46 and are not yet
-  represented in the Fakturor registry. Any future backfill must link/preserve
-  existing bookkeeping and must not create duplicate revenue/VAT.
+  represented in the Fakturor registry. KAN-51 now has a local candidate for
+  linking those invoices to existing verifications without duplicate
+  revenue/VAT. Production release and repair still require explicit approval.
 - Historical Adobe invoices remain a separate unresolved correction task. Do
   not change them without a selected/approved work item.
 - KAN-47/KAN-48 remain future work.
@@ -99,6 +104,9 @@ Verified on 2026-10-06:
 - Local `main` may have a docs-only KAN-50 handoff checkpoint above
   `origin/main`. Do not push without explicit approval because pushing `main`
   deploys Production.
+- KAN-51 local checkpoint touches customer-invoice UI helpers, the
+  customer-invoice panel, one Supabase migration, one rollback-by-default
+  review repair script, and one focused SQL candidate test.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -127,7 +135,10 @@ Verified on 2026-10-06:
 
 ## Next Safe Step
 
-1. Await Pontus's next selected task.
-2. Do not push `main` without explicit approval because it deploys Production.
-3. Do not start invoice backfill, Adobe corrections, KAN-47, or KAN-48 unless
-   Pontus explicitly starts that work.
+1. Pontus/leader release-review KAN-51.
+2. If approved, apply the KAN-51 schema migration through the official
+   Supabase migration flow, deploy the frontend, then run a fresh read-only
+   Production preflight before executing any one-off repair.
+3. Do not push `main` without explicit approval because it deploys Production.
+4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
+   starts that work.

@@ -16,6 +16,7 @@ import {
 } from '@/lib/accountingService'
 import {
   customerInvoiceHasUnsafeVatBlocker,
+  customerInvoiceCanUndoPayment,
   customerInvoiceNeedsYearEndBooking,
   customerInvoicePaymentLabel,
   customerInvoiceVatLabel,
@@ -68,6 +69,9 @@ function initialForm(input: {
 }
 
 function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
+  if (booking.bookingKind === 'historical_payment_same_year') {
+    return `${formatCustomerInvoiceDate(booking.bookingDate)}: historisk betalning`
+  }
   if (booking.bookingKind === 'year_end_receivable') {
     return `${formatCustomerInvoiceDate(booking.bookingDate)}: togs med i bokslutet`
   }
@@ -672,6 +676,7 @@ export default function CustomerInvoicesPanel({
                 const yearEndLabel = customerInvoiceYearEndLabel(invoice, selectedYear)
                 const blocker = customerInvoiceYearCloseBlockerFor(invoice, selectedYear)
                 const canEditInvoice = invoice.paymentStatus === 'unpaid' && invoice.bookings.length === 0
+                const canUndoPayment = customerInvoiceCanUndoPayment(invoice)
                 const isEditing = editingInvoiceId === invoice.id
 
                 return (
@@ -966,7 +971,7 @@ export default function CustomerInvoicesPanel({
                             </div>
                           )}
 
-                          {invoice.paymentStatus === 'paid' && (
+                          {canUndoPayment && (
                             <button
                               type="button"
                               onClick={() => requestUndoPayment(invoice)}

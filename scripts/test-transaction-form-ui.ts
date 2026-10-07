@@ -96,6 +96,26 @@ assert(
   'Customer invoice VAT default can safely use domestic exempt profile facts without guessing taxable VAT'
 )
 
+assert(
+  customerInvoiceUiSource.includes('customerInvoiceCanUndoPayment') &&
+    customerInvoiceUiSource.includes("booking.bookingKind === 'historical_payment_same_year'") &&
+    customerInvoiceUiSource.includes("booking.bookingKind === 'payment_same_year'") &&
+    customerInvoiceUiSource.includes("booking.bookingKind === 'receivable_settlement'"),
+  'Customer invoice UI distinguishes historical paid links from normal KAN-46 undoable payments'
+)
+
+const customerInvoicesPanelSource = readFileSync(
+  'src/components/CustomerInvoicesPanel.tsx',
+  'utf8'
+)
+
+assert(
+  customerInvoicesPanelSource.includes('customerInvoiceCanUndoPayment(invoice)') &&
+    customerInvoicesPanelSource.includes('{canUndoPayment && (') &&
+    customerInvoicesPanelSource.includes('historisk betalning'),
+  'Customer invoice panel hides the normal undo-payment action for historical paid invoice links'
+)
+
 const kan14MigrationSource = readFileSync(
   'supabase/migrations/20261006120000_kan14_vat_v2_no_deduction.sql',
   'utf8'

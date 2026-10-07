@@ -213,6 +213,7 @@ export type CustomerInvoiceBookingKind =
   | 'receivable_settlement'
   | 'payment_same_year_reversal'
   | 'receivable_settlement_reversal'
+  | 'historical_payment_same_year'
 
 export interface CustomerInvoiceBooking {
   id: string
