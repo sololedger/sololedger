@@ -822,7 +822,7 @@ export default function TransactionForm({
 
             {vatV2Facts.enabled && !isYearLocked && (
               <div className="px-5 pb-4 border-t border-indigo-100">
-                <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-2 xl:grid-cols-12 items-end">
+                <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-2 xl:grid-cols-12 items-start">
                   <div className="min-w-0 md:col-span-1 xl:order-1 xl:col-span-3 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Leverantörsland

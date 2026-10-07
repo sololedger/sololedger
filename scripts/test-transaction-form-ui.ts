@@ -49,10 +49,12 @@ assert(
 
 assert(
   transactionFormSource.includes('xl:grid-cols-12') &&
+    transactionFormSource.includes('xl:grid-cols-12 items-start') &&
+    !transactionFormSource.includes('xl:grid-cols-12 items-end') &&
     transactionFormSource.includes('xl:col-span-4 flex flex-col gap-1') &&
     transactionFormSource.includes('placeholder="Belopp som momsen ska beräknas på"') &&
     transactionFormSource.includes('w-full min-w-0 p-3 bg-white'),
-  'KAN-22 foreign-purchase fact row gives important fields enough responsive width'
+  'KAN-22 foreign-purchase fact grid top-aligns rows and gives important fields enough responsive width'
 )
 
 assert(
