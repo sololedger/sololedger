@@ -1,5 +1,6 @@
 import type {
   CompanyVatProfile,
+  DeductionEntitlement,
   ValidationError,
   ValidationResult,
   VatCalculationRateInput,
@@ -14,6 +15,13 @@ import {
   type VatTreatmentDecisionBlockCode,
   type VatTreatmentDecisionError,
 } from './vatTreatmentDecision.ts'
+import {
+  VAT_V2_BUSINESS_FACTS_SCHEMA_VERSION,
+  type VatV2BusinessFacts,
+  type VatV2DeductionEntitlementSelection,
+  type VatV2DeductionEntitlementSource,
+  type VatV2PurchaseClassification,
+} from './vatBusinessFacts.ts'
 
 export const VAT_V2_SUPPLIER_COUNTRIES = [
   { code: 'SE', label: 'Sverige' },
@@ -37,10 +45,12 @@ export type VatV2SupplierCountryInput = VatV2SupplierCountryCode | 'unknown'
 export interface VatV2TransactionFacts {
   enabled: boolean
   supplierCountry: VatV2SupplierCountryInput
-  goodsOrService: VatGoodsOrService
+  purchaseClassification?: VatV2PurchaseClassification
+  goodsOrService?: VatGoodsOrService
   supplierVatCharged: VatYesNoUnknown
   calculationRate: VatCalculationRateInput
   acquisitionBaseAmount: string
+  deductionEntitlement?: VatV2DeductionEntitlementSelection
 }
 
 export interface BuildVatV2TransactionPreflightInput {
@@ -74,6 +84,7 @@ export type VatV2TransactionPreflightResult =
   | {
       status: 'disabled'
       facts: null
+      businessFacts: null
       treatment: null
       validation: ValidationResult<VatV2TransactionPreflightError> & {
         valid: false
@@ -83,6 +94,7 @@ export type VatV2TransactionPreflightResult =
   | {
       status: 'ready'
       facts: VatFactsInput
+      businessFacts: VatV2BusinessFacts
       treatment: VatTreatment
       validation: ValidationResult<VatV2TransactionPreflightError> & {
         valid: true
@@ -92,6 +104,7 @@ export type VatV2TransactionPreflightResult =
   | {
       status: 'blocked'
       facts: VatFactsInput | null
+      businessFacts: VatV2BusinessFacts | null
       treatment: VatTreatment | null
       validation: ValidationResult<VatV2TransactionPreflightError> & {
         valid: false
@@ -110,11 +123,13 @@ function error(
 function blocked(
   errors: VatV2TransactionPreflightError[],
   facts: VatFactsInput | null = null,
+  businessFacts: VatV2BusinessFacts | null = null,
   treatment: VatTreatment | null = null
 ): VatV2TransactionPreflightResult {
   return {
     status: 'blocked',
     facts,
+    businessFacts,
     treatment,
     validation: {
       valid: false,
@@ -127,6 +142,7 @@ function disabled(): VatV2TransactionPreflightResult {
   return {
     status: 'disabled',
     facts: null,
+    businessFacts: null,
     treatment: null,
     validation: {
       valid: false,
@@ -134,7 +150,7 @@ function disabled(): VatV2TransactionPreflightResult {
         error(
           'vat_v2_not_enabled',
           'enabled',
-          'VAT V2 assessment is not enabled for this transaction.'
+          'Foreign purchase assessment is not enabled for this transaction.'
         ),
       ],
     },
@@ -143,11 +159,13 @@ function disabled(): VatV2TransactionPreflightResult {
 
 function ready(
   facts: VatFactsInput,
+  businessFacts: VatV2BusinessFacts,
   treatment: VatTreatment
 ): VatV2TransactionPreflightResult {
   return {
     status: 'ready',
     facts,
+    businessFacts,
     treatment,
     validation: {
       valid: true,
@@ -170,7 +188,7 @@ function parseAcquisitionBaseAmount(
       error: error(
         'invalid_amount',
         'acquisitionBaseAmount',
-        'VAT V2 preflight requires an explicit acquisition base amount.'
+        'Foreign purchase assessment requires an explicit amount.'
       ),
     }
   }
@@ -184,7 +202,7 @@ function parseAcquisitionBaseAmount(
       error: error(
         'invalid_amount',
         'acquisitionBaseAmount',
-        'Acquisition base amount must be a finite positive amount rounded to two decimals.'
+        'Foreign purchase amount must be a finite positive amount rounded to two decimals.'
       ),
     }
   }
@@ -198,6 +216,68 @@ function supplierCountryToDomain(
   return country === 'unknown'
     ? { kind: 'unknown' }
     : { kind: 'country', code: country }
+}
+
+function purchaseClassificationFromTransaction(
+  transaction: VatV2TransactionFacts
+): VatV2PurchaseClassification {
+  if (transaction.purchaseClassification) {
+    return transaction.purchaseClassification
+  }
+
+  if (transaction.goodsOrService === 'service') return 'other_service'
+  if (transaction.goodsOrService === 'goods') return 'goods'
+  return 'unknown'
+}
+
+function deriveGoodsOrService(
+  purchaseClassification: VatV2PurchaseClassification,
+  fallback: VatGoodsOrService | undefined
+): VatGoodsOrService {
+  if (
+    purchaseClassification === 'software_subscription_service' ||
+    purchaseClassification === 'other_service'
+  ) {
+    return 'service'
+  }
+
+  if (purchaseClassification === 'goods') return 'goods'
+  return fallback ?? 'unknown'
+}
+
+function deriveCalculationRate(
+  purchaseClassification: VatV2PurchaseClassification,
+  fallback: VatCalculationRateInput
+): VatCalculationRateInput {
+  if (purchaseClassification === 'software_subscription_service') {
+    return 25
+  }
+
+  if (purchaseClassification === 'goods') {
+    return 'unknown'
+  }
+
+  return fallback
+}
+
+function resolveDeductionEntitlement(input: {
+  selection: VatV2DeductionEntitlementSelection | undefined
+  companyProfile: CompanyVatProfile
+}): {
+  entitlement: DeductionEntitlement
+  source: VatV2DeductionEntitlementSource
+} {
+  if (input.selection === 'full' || input.selection === 'none') {
+    return {
+      entitlement: input.selection,
+      source: 'transaction_override',
+    }
+  }
+
+  return {
+    entitlement: input.companyProfile.defaultDeductionEntitlement,
+    source: 'company_profile_default',
+  }
 }
 
 function assertSupportedPersistenceTreatment(
@@ -256,16 +336,32 @@ export function buildVatV2TransactionPreflight(
     return blocked([amountResult.error])
   }
 
+  const purchaseClassification = purchaseClassificationFromTransaction(
+    input.transaction
+  )
+  const goodsOrService = deriveGoodsOrService(
+    purchaseClassification,
+    input.transaction.goodsOrService
+  )
+  const calculationRate = deriveCalculationRate(
+    purchaseClassification,
+    input.transaction.calculationRate
+  )
+  const deduction = resolveDeductionEntitlement({
+    selection: input.transaction.deductionEntitlement,
+    companyProfile: input.companyProfile,
+  })
+
   const facts: VatFactsInput = {
     companyProfile: input.companyProfile,
     eventKind: 'purchase',
-    goodsOrService: input.transaction.goodsOrService,
+    goodsOrService,
     supplierCountry: supplierCountryToDomain(input.transaction.supplierCountry),
     customerCountry: { kind: 'country', code: 'SE' },
     supplierVatCharged: input.transaction.supplierVatCharged,
     usedForBusiness: 'unknown',
-    calculationRate: input.transaction.calculationRate,
-    deductionEntitlement: input.companyProfile.defaultDeductionEntitlement,
+    calculationRate,
+    deductionEntitlement: deduction.entitlement,
     accountingCategoryId: input.accountingCategoryId,
     invoiceDate: input.date,
     amount: amountResult.amount,
@@ -281,10 +377,51 @@ export function buildVatV2TransactionPreflight(
   const supportErrors = assertSupportedPersistenceTreatment(decision.treatment)
 
   if (supportErrors.length > 0) {
-    return blocked(supportErrors, facts, decision.treatment)
+    return blocked(supportErrors, facts, null, decision.treatment)
   }
 
-  return ready(facts, decision.treatment)
+  if (
+    input.transaction.supplierCountry === 'unknown' ||
+    purchaseClassification === 'unknown' ||
+    goodsOrService === 'unknown' ||
+    input.transaction.supplierVatCharged === 'unknown' ||
+    calculationRate === 'unknown' ||
+    (
+      deduction.entitlement !== 'full' &&
+      deduction.entitlement !== 'none'
+    )
+  ) {
+    return blocked(
+      [
+        error(
+          'unsupported_vat_v2_persistence_path',
+          'treatment.code',
+          'Foreign purchase assessment is missing a supported authoritative fact.'
+        ),
+      ],
+      facts,
+      null,
+      decision.treatment
+    )
+  }
+
+  return ready(
+    facts,
+    {
+      schemaVersion: VAT_V2_BUSINESS_FACTS_SCHEMA_VERSION,
+      supplierCountry: input.transaction.supplierCountry,
+      customerCountry: 'SE',
+      purchaseClassification,
+      goodsOrService,
+      supplierVatCharged: input.transaction.supplierVatCharged,
+      calculationRate,
+      taxableBase: amountResult.amount,
+      currency: 'SEK',
+      deductionEntitlement: deduction.entitlement,
+      deductionEntitlementSource: deduction.source,
+    },
+    decision.treatment
+  )
 }
 
 export function describeVatV2PreflightError(
@@ -292,17 +429,17 @@ export function describeVatV2PreflightError(
 ) {
   switch (error.code) {
     case 'invalid_amount':
-      return 'Ange ett separat inköpsbelopp för momsberäkningen.'
+      return 'Ange inköpsbeloppet som momsen ska beräknas på.'
     case 'unknown_supplier_country':
       return 'Leverantörsland saknas.'
     case 'unknown_customer_country':
       return 'Företagsland saknas för bedömningen.'
     case 'unknown_goods_or_service':
-      return 'Ange om inköpet gäller vara eller tjänst.'
+      return 'Välj vilken typ av utlandsinköp fakturan gäller.'
     case 'unknown_supplier_vat_charged':
       return 'Ange om leverantören har debiterat moms.'
     case 'unknown_calculation_rate':
-      return 'Ange vilken momssats som ska användas för beräkningen.'
+      return 'Ange vilken svensk momssats som gäller för den här typen av inköp.'
     case 'unknown_deduction_entitlement':
       return 'Företagsprofilen saknar uppgift om avdragsrätt.'
     case 'unknown_vat_registration_status':
@@ -320,7 +457,7 @@ export function describeVatV2PreflightError(
     case 'partial_deduction_requires_percent':
     case 'deduction_percent_requires_partial_entitlement':
     case 'deduction_percent_out_of_range':
-      return 'Delvis avdragsrätt är inte färdig i detta momsflöde.'
+      return 'Delvis avdragsrätt stöds inte säkert i det här utlandsinköpsflödet ännu.'
     case 'unsupported_vat_treatment':
       if (error.path === 'supplierVatCharged') {
         return 'Leverantören har debiterat moms. Det stöds inte säkert här ännu.'
@@ -328,14 +465,14 @@ export function describeVatV2PreflightError(
       return 'Den här typen av utlandsinköp stöds inte säkert här ännu.'
     case 'unsupported_vat_v2_persistence_path':
       if (error.path === 'treatment.calculationRate') {
-        return 'Den momssatsen stöds inte för bokning i detta VAT V2-steg ännu.'
+        return 'Den momssatsen stöds inte för automatisk bokning av utlandsinköp ännu.'
       }
       if (error.path === 'treatment.deductibleInputVat.entitlement') {
-        return 'Avdragsrätten måste vara full eller ingen. Delvis avdragsrätt stöds inte för bokning i detta VAT V2-steg ännu.'
+        return 'Avdragsrätten måste vara full eller ingen. Delvis avdragsrätt stöds inte för automatisk bokning ännu.'
       }
-      return 'Bedömningen är inte den stödda EU-tjänst med omvänd beskattning som detta steg hanterar.'
+      return 'Det här utlandsinköpet behöver manuell kontroll eftersom SoloLedger inte kan bokföra det säkert automatiskt ännu.'
     case 'vat_v2_not_enabled':
-      return 'VAT V2-förhandskontroll är inte aktiverad för transaktionen.'
+      return 'Utlandsinköpskontrollen är inte aktiverad för transaktionen.'
     case 'unknown_domestic_sales_vat_treatment':
       return 'Företagsprofilen saknar uppgift om inhemsk försäljning.'
     default:

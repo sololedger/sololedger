@@ -17,8 +17,10 @@ Last updated: 2026-10-07
   `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007110000` after KAN-51 Production DB release.
-- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration head:
-  `20261006143000` after KAN-49 staging migration.
+- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger head:
+  `20261006143000`. KAN-22 RPC SQL was applied directly to staging for
+  focused validation without advancing the ledger, to avoid applying unrelated
+  pending KAN-51 migration.
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
 
@@ -51,6 +53,8 @@ Verified on 2026-10-07:
 
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, and KAN-41
   after Pontus Production acceptance.
+- KAN-22 is implemented locally and ready for leader review after focused
+  staging RPC validation.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 
@@ -94,6 +98,10 @@ Verified on 2026-10-07:
 
 ## Open Follow-Ups
 
+- KAN-22 remains pending for Production release. Pending migration:
+  `supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql`.
+  Production Supabase has not been modified for KAN-22.
+
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
   `Betalningskonton` with the newer Profile card language. This was explicitly
   out of scope for KAN-50.
@@ -109,9 +117,9 @@ Verified on 2026-10-07:
 ## Git / Local Files
 
 - `origin/main` is the deployed Production code at `c2f4a0e`.
-- Local `main` may have a docs-only KAN-41 finalization checkpoint above
-  `origin/main`. Do not push without explicit approval because pushing `main`
-  deploys Production.
+- Local `main` has the docs-only KAN-41 finalization checkpoint and the KAN-22
+  local implementation checkpoint above `origin/main`. Do not push without
+  explicit approval because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -140,7 +148,9 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Await Pontus's next selected task.
+1. Pontus/leader reviews KAN-22 locally.
 2. Do not push `main` without explicit approval because it deploys Production.
-3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
+3. Do not apply the KAN-22 migration to Production until the release step is
+   explicitly approved.
+4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

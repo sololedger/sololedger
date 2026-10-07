@@ -37,6 +37,17 @@ assert(
 )
 
 assert(
+  transactionFormSource.includes('Bokför utlandsinköp') &&
+    transactionFormSource.includes('Programvara/prenumeration') &&
+    transactionFormSource.includes('Avdragsrätt för detta köp') &&
+    transactionFormSource.includes('Moms hanteras automatiskt') &&
+    !transactionFormSource.includes('Bokför VAT V2') &&
+    !transactionFormSource.includes('stödda EU-tjänstvägen') &&
+    !transactionFormSource.includes('Beskattningsunderlag'),
+  'KAN-22 foreign-purchase UI uses business-language fact capture instead of VAT V2 implementation wording'
+)
+
+assert(
   transactionFormSource.includes('vatV2BlockedSubmitMessages') &&
     transactionFormSource.includes('new Set([') &&
     transactionFormSource.includes('...vatV2PreflightBlockerMessages') &&
@@ -137,6 +148,10 @@ const kan14MigrationSource = readFileSync(
   'supabase/migrations/20261006120000_kan14_vat_v2_no_deduction.sql',
   'utf8'
 )
+const kan22MigrationSource = readFileSync(
+  'supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql',
+  'utf8'
+)
 const accountingServiceSource = readFileSync(
   'src/lib/accountingService.ts',
   'utf8'
@@ -181,6 +196,14 @@ assert(
     bookTransactionSource.includes('book_transaction_atomic') &&
     !bookTransactionSource.includes('source'),
   'Ordinary manual booking path cannot choose a non-manual transaction source to bypass the database guard'
+)
+
+assert(
+  kan22MigrationSource.includes("p_payload->'business_facts'") &&
+    kan22MigrationSource.includes("'businessFacts', v_business_facts") &&
+    kan22MigrationSource.includes('Affärsfakta matchar inte stödd EU-tjänst') &&
+    !kan22MigrationSource.includes('CREATE TRIGGER'),
+  'KAN-22 migration persists validated VAT decision business facts without replaying unrelated triggers'
 )
 
 console.log('Transaction form UI regression tests passed.')

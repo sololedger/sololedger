@@ -175,6 +175,17 @@ assert(
   'Runtime booking carries the explicit VAT V2 acquisition base'
 )
 
+assertEqual(
+  readyRuntimeRequest.businessFacts.supplierCountry,
+  'IE',
+  'Runtime booking carries supplier country business fact'
+)
+assertEqual(
+  readyRuntimeRequest.businessFacts.deductionEntitlementSource,
+  'company_profile_default',
+  'Runtime booking carries deduction source business fact'
+)
+
 assert(
   readyRuntime.status === 'ready' &&
     !('user_id' in readyRuntime.request) &&
@@ -195,8 +206,9 @@ const firstIntent = buildVatV2RuntimeBookingIntent(
 
 assert(
   !('paymentAccountNumber' in firstIntent) &&
-    firstIntent.paymentRole === 'owner_private_payment',
-  'VAT V2 runtime intent stores payment role, not authoritative account number'
+    firstIntent.paymentRole === 'owner_private_payment' &&
+    firstIntent.businessFacts.supplierCountry === 'IE',
+  'VAT V2 runtime intent stores payment role and business facts, not authoritative account number'
 )
 
 const firstFileSignature = buildVatV2RuntimeBookingFileSignature({
@@ -343,6 +355,27 @@ const changedPaymentRolePrepared = prepareVatV2RuntimeBookingIdempotencyKey(
 assert(
   changedPaymentRolePrepared.key !== firstPreparedIdempotency.key,
   'Changed VAT V2 payment role must mint a new key'
+)
+
+const changedBusinessFactsIntent = buildVatV2RuntimeBookingIntent(
+  {
+    ...readyRuntimeRequest,
+    businessFacts: {
+      ...readyRuntimeRequest.businessFacts,
+      supplierCountry: 'DE',
+    },
+  },
+  firstIntent.fileUrl
+)
+const changedBusinessFactsPrepared = prepareVatV2RuntimeBookingIdempotencyKey(
+  firstPreparedIdempotency.state,
+  changedBusinessFactsIntent,
+  nextIdempotencyKey
+)
+
+assert(
+  changedBusinessFactsPrepared.key !== firstPreparedIdempotency.key,
+  'Changed VAT business facts must mint a new key'
 )
 
 const changedFileIntent = buildVatV2RuntimeBookingIntent(

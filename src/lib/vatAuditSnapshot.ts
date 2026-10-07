@@ -13,6 +13,7 @@ import type {
   VatJournalPlanRow,
   VatJournalPlanRowRole,
 } from './vatJournalPlan'
+import type { VatV2BusinessFacts } from './vatBusinessFacts'
 
 export const VAT_AUDIT_SNAPSHOT_SCHEMA_VERSION = 'vat-audit-snapshot-v1'
 export const VAT_AUDIT_JOURNAL_PLAN_VERSION = 'vat-journal-plan-v1'
@@ -40,6 +41,7 @@ export type VatAuditSnapshotPath =
   | 'treatment.deductibleInputVat.amount'
   | 'treatment.deductibleInputVat.reportField'
   | 'treatment.deductibleInputVat.entitlement'
+  | 'businessFacts'
   | 'journalPlan.treatmentCode'
   | 'journalPlan.ruleVersion'
   | 'journalPlan.factsVersion'
@@ -92,6 +94,7 @@ export interface VatAuditSnapshot {
   readonly treatmentCode: VatTreatment['code']
   readonly ruleVersion: string
   readonly factsVersion: string
+  readonly businessFacts?: VatV2BusinessFacts
   readonly vat: VatAuditSnapshotVatSemantics
   readonly journal: {
     readonly rows: readonly VatAuditSnapshotJournalRow[]
@@ -102,6 +105,7 @@ export interface VatAuditSnapshot {
 export interface BuildVatAuditSnapshotInput {
   readonly treatment: VatTreatment
   readonly journalPlan: VatJournalPlan
+  readonly businessFacts?: VatV2BusinessFacts
 }
 
 export type VatAuditSnapshotBuildResult =
@@ -606,6 +610,34 @@ function validateTreatmentAndPlanMatch(
   return errors
 }
 
+function validateBusinessFactsMatchTreatment(
+  treatment: VatTreatment,
+  businessFacts: VatV2BusinessFacts | undefined
+): VatAuditSnapshotError[] {
+  if (!businessFacts) return []
+
+  const errors: VatAuditSnapshotError[] = []
+
+  if (
+    businessFacts.calculationRate !== treatment.calculationRate ||
+    businessFacts.taxableBase !== treatment.taxableBase ||
+    businessFacts.deductionEntitlement !==
+      treatment.deductibleInputVat.entitlement ||
+    businessFacts.goodsOrService !== 'service' ||
+    businessFacts.supplierVatCharged !== 'no'
+  ) {
+    errors.push(
+      error(
+        'inconsistent_evidence',
+        'businessFacts',
+        'VAT business facts must match the resulting VatTreatment.'
+      )
+    )
+  }
+
+  return errors
+}
+
 export function buildVatAuditSnapshot(
   input: BuildVatAuditSnapshotInput
 ): VatAuditSnapshotBuildResult {
@@ -633,9 +665,13 @@ export function buildVatAuditSnapshot(
     input.journalPlan,
     reconciliation
   )
+  const businessFactErrors = validateBusinessFactsMatchTreatment(
+    input.treatment,
+    input.businessFacts
+  )
 
-  if (evidenceErrors.length > 0) {
-    return blocked(evidenceErrors)
+  if (evidenceErrors.length > 0 || businessFactErrors.length > 0) {
+    return blocked([...evidenceErrors, ...businessFactErrors])
   }
 
   return ready({
@@ -644,6 +680,7 @@ export function buildVatAuditSnapshot(
     treatmentCode: input.treatment.code,
     ruleVersion: input.treatment.ruleVersion,
     factsVersion: input.treatment.evidence.factsVersion,
+    ...(input.businessFacts ? { businessFacts: input.businessFacts } : {}),
     vat: {
       taxableBase: input.treatment.taxableBase,
       calculationRate: input.treatment.calculationRate,

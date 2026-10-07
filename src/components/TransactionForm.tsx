@@ -5,10 +5,12 @@ import SwedishDateInput from './SwedishDateInput'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
   DomesticSalesVatTreatment,
-  VatCalculationRateInput,
-  VatGoodsOrService,
   VatYesNoUnknown,
 } from '@/lib/vatDomain'
+import type {
+  VatV2DeductionEntitlementSelection,
+  VatV2PurchaseClassification,
+} from '@/lib/vatBusinessFacts'
 import {
   buildVatV2TransactionPreflight,
   describeVatV2PreflightError,
@@ -94,13 +96,37 @@ interface TransactionFormProps {
 const initialVatV2Facts: VatV2TransactionFacts = {
   enabled: false,
   supplierCountry: 'unknown',
-  goodsOrService: 'unknown',
+  purchaseClassification: 'unknown',
   supplierVatCharged: 'unknown',
   calculationRate: 'unknown',
   acquisitionBaseAmount: '',
+  deductionEntitlement: 'profile_default',
 }
 
 const VAT_V2_ACCOUNTING_CATEGORY_ID = 'vat_v2_eu_service_purchase'
+
+function profileDeductionLabel(
+  entitlement: CompanyVatProfileAdapterResult['profile']['defaultDeductionEntitlement']
+) {
+  if (entitlement === 'full') return 'Full avdragsrätt'
+  if (entitlement === 'none') return 'Ingen avdragsrätt'
+  return 'Saknas i Profil'
+}
+
+function deductionLabel(entitlement: 'full' | 'none') {
+  return entitlement === 'full' ? 'full avdragsrätt' : 'ingen avdragsrätt'
+}
+
+function purchaseClassificationLabel(
+  classification: Exclude<VatV2PurchaseClassification, 'unknown'>
+) {
+  if (classification === 'software_subscription_service') {
+    return 'programvara/prenumeration'
+  }
+
+  if (classification === 'other_service') return 'annan tjänst'
+  return 'vara'
+}
 
 export default function TransactionForm({
   formData,
@@ -172,6 +198,26 @@ export default function TransactionForm({
       : formData.type,
     ordinaryAmount: formData.amount,
   })
+  const vatV2ProfileDeductionLabel = profileDeductionLabel(
+    companyVatProfileResult.profile.defaultDeductionEntitlement
+  )
+  const showVatV2ManualRate =
+    vatV2Facts.purchaseClassification === 'other_service'
+  const vatV2TreatmentSummary =
+    vatV2Preflight.status === 'ready'
+      ? [
+          purchaseClassificationLabel(
+            vatV2Preflight.businessFacts.purchaseClassification
+          ),
+          `${vatV2Preflight.businessFacts.calculationRate} % svensk moms`,
+          `${deductionLabel(vatV2Preflight.businessFacts.deductionEntitlement)} ${
+            vatV2Preflight.businessFacts.deductionEntitlementSource ===
+            'company_profile_default'
+              ? 'enligt företagets inställningar'
+              : 'valt för detta köp'
+          }`,
+        ].join(' · ')
+      : null
   const vatV2PaymentSource = resolveVatV2PaymentSourceConfiguration(
     vatV2PaymentSourceChoice,
     paymentAccountRoles
@@ -314,7 +360,7 @@ export default function TransactionForm({
       setVatV2SubmitError(
         error instanceof Error
           ? error.message
-          : 'VAT V2-bokningen misslyckades.'
+          : 'Utlandsinköpet kunde inte bokföras.'
       )
     }
   }
@@ -664,7 +710,7 @@ export default function TransactionForm({
                   {uploading
                     ? '...'
                     : vatV2AssessmentEnabled
-                    ? 'Bokför VAT V2'
+                    ? 'Bokför utlandsinköp'
                     : editingId
                     ? 'Spara'
                     : 'Bokför'}
@@ -755,7 +801,7 @@ export default function TransactionForm({
                   Utlandsinköp
                 </span>
                 <p className="sl-secondary-copy text-[9px] font-medium mt-0.5">
-                  Bedöm utlandsinköpet och bokför den stödda EU-tjänstvägen.
+                  Svara på fakturafakta så hanterar SoloLedger momsen säkert.
                 </p>
               </div>
             </label>
@@ -787,19 +833,29 @@ export default function TransactionForm({
 
                   <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
-                      Vara/tjänst
+                      Typ av inköp
                     </label>
                     <select
-                      value={vatV2Facts.goodsOrService}
-                      onChange={e =>
+                      value={vatV2Facts.purchaseClassification ?? 'unknown'}
+                      onChange={e => {
+                        const purchaseClassification =
+                          e.target.value as VatV2PurchaseClassification
                         updateVatV2Facts({
-                          goodsOrService: e.target.value as VatGoodsOrService,
+                          purchaseClassification,
+                          calculationRate:
+                            purchaseClassification ===
+                            'software_subscription_service'
+                              ? 25
+                              : 'unknown',
                         })
-                      }
+                      }}
                       className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
                     >
                       <option value="unknown">Välj</option>
-                      <option value="service">Tjänst</option>
+                      <option value="software_subscription_service">
+                        Programvara/prenumeration
+                      </option>
+                      <option value="other_service">Annan tjänst</option>
                       <option value="goods">Vara</option>
                     </select>
                   </div>
@@ -823,33 +879,47 @@ export default function TransactionForm({
                     </select>
                   </div>
 
-                  <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
-                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
-                      Beräknad moms
-                    </label>
-                    <select
-                      value={vatV2Facts.calculationRate}
-                      onChange={e =>
-                        updateVatV2Facts({
-                          calculationRate:
-                            e.target.value === 'unknown'
-                              ? 'unknown'
-                              : Number(e.target.value) as VatCalculationRateInput,
-                        })
-                      }
-                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
-                    >
-                      <option value="unknown">Välj</option>
-                      <option value={25}>25%</option>
-                      <option value={12}>12%</option>
-                      <option value={6}>6%</option>
-                      <option value={0}>0%</option>
-                    </select>
-                  </div>
+                  {showVatV2ManualRate ? (
+                    <div className="col-span-2 lg:col-span-2 flex flex-col gap-1">
+                      <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                        Svensk momssats
+                      </label>
+                      <select
+                        value={vatV2Facts.calculationRate}
+                        onChange={e =>
+                          updateVatV2Facts({
+                            calculationRate:
+                              e.target.value === 'unknown'
+                                ? 'unknown'
+                                : Number(e.target.value) as 25 | 12 | 6 | 0,
+                          })
+                        }
+                        className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                      >
+                        <option value="unknown">Välj</option>
+                        <option value={25}>25%</option>
+                        <option value={12}>12%</option>
+                        <option value={6}>6%</option>
+                        <option value={0}>0%</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="col-span-2 lg:col-span-2 rounded-xl border border-indigo-100 bg-white px-3 py-2">
+                      <p className="text-[9px] font-black uppercase text-indigo-500">
+                        Svensk moms
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-indigo-700">
+                        {vatV2Facts.purchaseClassification ===
+                        'software_subscription_service'
+                          ? '25 % för stödd programvara/prenumeration.'
+                          : 'Bestäms när inköpstypen stöds.'}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="col-span-2 lg:col-span-3 flex flex-col gap-1">
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
-                      Inköpsbelopp för moms
+                      Inköpsbelopp
                     </label>
                     <input
                       type="number"
@@ -862,8 +932,30 @@ export default function TransactionForm({
                         })
                       }
                       className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-black text-sm text-indigo-700 focus:border-indigo-300 transition-colors"
-                      placeholder="Beskattningsunderlag"
+                      placeholder="Belopp som momsen ska beräknas på"
                     />
+                  </div>
+
+                  <div className="col-span-2 lg:col-span-4 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
+                      Avdragsrätt för detta köp
+                    </label>
+                    <select
+                      value={vatV2Facts.deductionEntitlement ?? 'profile_default'}
+                      onChange={e =>
+                        updateVatV2Facts({
+                          deductionEntitlement:
+                            e.target.value as VatV2DeductionEntitlementSelection,
+                        })
+                      }
+                      className="p-3 bg-white border border-indigo-100 rounded-xl outline-none font-bold text-xs text-indigo-700 focus:border-indigo-300 transition-colors"
+                    >
+                      <option value="profile_default">
+                        Följ företagets inställning - {vatV2ProfileDeductionLabel}
+                      </option>
+                      <option value="none">Ingen avdragsrätt</option>
+                      <option value="full">Full avdragsrätt</option>
+                    </select>
                   </div>
                 </div>
 
@@ -995,9 +1087,18 @@ export default function TransactionForm({
                           ? 'text-emerald-700'
                           : 'text-amber-800'
                       }`}>
-                        Underlag {vatV2Preflight.treatment.taxableBase} kr,
-                        utgående moms {vatV2Preflight.treatment.outputVat.amount} kr,
-                        beräknad ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
+                        Moms hanteras automatiskt
+                        {vatV2TreatmentSummary
+                          ? `: ${vatV2TreatmentSummary}.`
+                          : '.'}
+                      </p>
+                      <p className={`mt-1 text-[10px] font-bold ${
+                        vatV2RuntimeBooking.status === 'ready'
+                          ? 'text-emerald-700'
+                          : 'text-amber-800'
+                      }`}>
+                        Utgående moms {vatV2Preflight.treatment.outputVat.amount} kr,
+                        avdragsgill ingående moms {vatV2Preflight.treatment.deductibleInputVat.amount} kr.
                       </p>
                       <p className={`mt-1 text-[10px] font-bold ${
                         vatV2RuntimeBooking.status === 'ready'
@@ -1005,7 +1106,7 @@ export default function TransactionForm({
                           : 'text-amber-800'
                       }`}>
                         {vatV2RuntimeBooking.status === 'ready'
-                          ? `Redo att bokföra via konto ${vatV2RuntimeBooking.request.paymentAccountNumber}.`
+                          ? 'Redo att bokföra med vald betalningskälla.'
                           : vatV2BlockedSubmitActive
                           ? 'Bokföringen stoppades. Åtgärda punkterna nedan och försök igen.'
                           : 'Bokning hålls stängd tills alla uppgifter och betalningskällan är säkra.'}
@@ -1264,7 +1365,7 @@ export default function TransactionForm({
                 {uploading
                   ? '...'
                   : vatV2AssessmentEnabled
-                  ? 'Bokför VAT V2'
+                    ? 'Bokför utlandsinköp'
                   : editingId
                   ? 'Spara'
                   : 'Bokför'}

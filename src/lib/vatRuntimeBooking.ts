@@ -2,6 +2,7 @@ import type { PaymentAccountRole } from './paymentAccountRoles'
 import { paymentAccountSemanticValidationMessage } from './accountingKnowledge.ts'
 import type { VatV2BookingReadiness } from './vatPaymentSource'
 import type { VatTreatment } from './vatDomain'
+import type { VatV2BusinessFacts } from './vatBusinessFacts'
 import type {
   VatV2TransactionPreflightResult,
 } from './vatTransactionPreflight'
@@ -25,6 +26,7 @@ export interface VatV2RuntimeBookingRequest {
   date: string
   description: string
   treatment: VatTreatment
+  businessFacts: VatV2BusinessFacts
   paymentAccountNumber: string
   paymentRole: PaymentAccountRole
 }
@@ -44,6 +46,7 @@ export interface VatV2RuntimeBookingIntent {
   paymentRole: PaymentAccountRole
   ruleVersion: string
   factsVersion: string
+  businessFacts: VatV2BusinessFacts
   fileUrl: string | null
 }
 
@@ -209,6 +212,7 @@ function sameIntent(
     left.paymentRole === right.paymentRole &&
     left.ruleVersion === right.ruleVersion &&
     left.factsVersion === right.factsVersion &&
+    JSON.stringify(left.businessFacts) === JSON.stringify(right.businessFacts) &&
     left.fileUrl === right.fileUrl
   )
 }
@@ -253,6 +257,8 @@ function parseStoredIntent(value: unknown): VatV2RuntimeBookingIntent | null {
       candidate.deductibleInputVatReportField === null) &&
     typeof candidate.ruleVersion === 'string' &&
     typeof candidate.factsVersion === 'string' &&
+    Boolean(candidate.businessFacts) &&
+    typeof candidate.businessFacts === 'object' &&
     (typeof candidate.fileUrl === 'string' || candidate.fileUrl === null)
   if (!hasStoredIntentShape) return null
 
@@ -271,6 +277,7 @@ function parseStoredIntent(value: unknown): VatV2RuntimeBookingIntent | null {
     paymentRole,
     ruleVersion: candidate.ruleVersion,
     factsVersion: candidate.factsVersion,
+    businessFacts: candidate.businessFacts,
     fileUrl: candidate.fileUrl,
   }
 }
@@ -476,6 +483,7 @@ export function buildVatV2RuntimeBookingRequest(
       date: input.date,
       description: input.description.trim(),
       treatment: input.preflight.treatment,
+      businessFacts: input.preflight.businessFacts,
       paymentAccountNumber:
         input.bookingReadiness.paymentAccountNumber.trim(),
       paymentRole: input.bookingReadiness.paymentRole,
@@ -503,6 +511,7 @@ export function buildVatV2RuntimeBookingIntentDraft(
     paymentRole: request.paymentRole,
     ruleVersion: treatment.ruleVersion,
     factsVersion: treatment.evidence.factsVersion,
+    businessFacts: request.businessFacts,
   }
 }
 
@@ -549,7 +558,9 @@ export function isVatV2RuntimeBookingIntentDraftMatch(
     intent.deductibleInputVatReportField === draft.deductibleInputVatReportField &&
     intent.paymentRole === draft.paymentRole &&
     intent.ruleVersion === draft.ruleVersion &&
-    intent.factsVersion === draft.factsVersion
+    intent.factsVersion === draft.factsVersion &&
+    JSON.stringify(intent.businessFacts) ===
+      JSON.stringify(draft.businessFacts)
   )
 }
 
@@ -671,10 +682,10 @@ export function vatV2RuntimeBookingSubmissionErrorMessage(
   const kind = vatV2RuntimeBookingSubmissionFailureKind(kindOrError)
 
   if (kind === 'authoritative_rejection') {
-    return 'VAT V2-bokningen kunde inte registreras. Kontrollera uppgifterna och försök igen.'
+    return 'Utlandsinköpet kunde inte registreras. Kontrollera uppgifterna och försök igen.'
   }
 
-  return 'SoloLedger kunde inte bekräfta om VAT V2-bokningen registrerades. Försök igen med samma uppgifter; då används samma försök så dubbelregistrering undviks.'
+  return 'SoloLedger kunde inte bekräfta om utlandsinköpet registrerades. Försök igen med samma uppgifter; då används samma försök så dubbelregistrering undviks.'
 }
 
 export function createVatV2RuntimeSubmitGuard() {
@@ -708,7 +719,7 @@ export function describeVatV2RuntimeBookingError(
 ) {
   switch (error.code) {
     case 'unsupported_transaction_event':
-      return 'VAT V2-bokning är bara öppen för inköp i detta steg.'
+      return 'Utlandsinköp är bara öppet för inköp i detta steg.'
     case 'vat_treatment_not_ready':
       return 'Momsbedömningen måste vara helt klar innan bokning.'
     case 'payment_source_not_ready':
@@ -716,9 +727,9 @@ export function describeVatV2RuntimeBookingError(
     case 'invalid_booking_fields':
       return 'Datum och beskrivning måste vara ifyllda korrekt.'
     case 'unsupported_runtime_treatment':
-      return 'Endast EU-tjänst med 25 % omvänd moms och full avdragsrätt kan bokföras här.'
+      return 'Endast stödd EU-tjänst med 25 % svensk moms och full eller ingen avdragsrätt kan bokföras automatiskt här.'
     case 'vat_v2_assessment_inactive':
     default:
-      return 'VAT V2-bokning är inte aktiv för den här transaktionen.'
+      return 'Utlandsinköpskontrollen är inte aktiv för den här transaktionen.'
   }
 }

@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
 import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
+import type { VatV2BusinessFacts } from './vatBusinessFacts'
 import { buildVatAuditSnapshot } from './vatAuditSnapshot'
 import { buildVatJournalPlan } from './vatJournalPlan'
 import { buildDeclareVatPeriodRpcArgs } from './vatDeclarationRpc'
@@ -163,6 +164,7 @@ export interface BookVatV2EuServiceReverseChargeInput {
   date: string
   description: string
   treatment: VatTreatment
+  businessFacts: VatV2BusinessFacts
   paymentAccountNumber: string
   paymentRole: PaymentAccountRole
   idempotencyKey: string
@@ -547,7 +549,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
     throw createVatV2RuntimeBookingSubmissionError({
       code: 'VAT_V2_RUNTIME_BOOKING_INVALID_JOURNAL_PLAN',
       message:
-        'VAT V2-bokningen stoppades före persistens: ' +
+        'Utlandsinköpet stoppades före bokföring: ' +
         journalPlanResult.validation.errors.map(error => error.message).join(' '),
     })
   }
@@ -555,6 +557,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
   const auditSnapshotResult = buildVatAuditSnapshot({
     treatment: input.treatment,
     journalPlan: journalPlanResult.plan,
+    businessFacts: input.businessFacts,
   })
 
   if (auditSnapshotResult.status !== 'ready') {
@@ -582,6 +585,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
     payment_account_role: input.paymentRole,
     rule_version: input.treatment.ruleVersion,
     facts_version: input.treatment.evidence.factsVersion,
+    business_facts: input.businessFacts,
     idempotency_key: input.idempotencyKey,
     file_url: input.fileUrl ?? null,
   }

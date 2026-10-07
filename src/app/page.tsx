@@ -424,6 +424,7 @@ export default function Home() {
         date: request.date,
         description: request.description,
         treatment: request.treatment,
+        businessFacts: request.businessFacts,
         paymentAccountNumber: request.paymentAccountNumber,
         paymentRole: request.paymentRole,
         idempotencyKey: preparedIdempotency.key,
@@ -446,23 +447,23 @@ export default function Home() {
         await refreshData()
         await refreshFreeUsageCount()
       } catch (refreshError) {
-        console.error('VAT V2-bokning skapad men uppdatering misslyckades:', refreshError)
+        console.error('Utlandsinköp skapat men uppdatering misslyckades:', refreshError)
         resetVatV2RuntimeBookingIdempotency()
-        alert(`${result.idempotentReplay ? 'VAT V2-bokningen var redan skapad' : '✅ VAT V2-bokning skapad'} som VER-${result.verNr}. Uppdatera sidan om den inte syns direkt.`)
+        alert(`${result.idempotentReplay ? 'Utlandsinköpet var redan skapat' : '✅ Utlandsinköp skapat'} som VER-${result.verNr}. Uppdatera sidan om den inte syns direkt.`)
         return
       }
 
       resetVatV2RuntimeBookingIdempotency()
       alert(result.idempotentReplay
-        ? `VAT V2-bokningen var redan skapad som VER-${result.verNr}.`
-        : `✅ VAT V2-bokning skapad som VER-${result.verNr}.`)
+        ? `Utlandsinköpet var redan skapat som VER-${result.verNr}.`
+        : `✅ Utlandsinköp skapat som VER-${result.verNr}.`)
     } catch (err: unknown) {
-      console.error('Fel vid VAT V2-bokning:', err)
+      console.error('Fel vid utlandsinköp:', err)
       if (!(err instanceof VatV2RuntimeBookingSubmissionError)) {
         throw new Error(
           err instanceof Error
             ? err.message
-            : 'VAT V2-bokningen misslyckades.'
+            : 'Utlandsinköpet kunde inte bokföras.'
         )
       }
       if (

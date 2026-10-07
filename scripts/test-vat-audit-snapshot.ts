@@ -12,6 +12,7 @@ import {
   type VatJournalPlanBuildResult,
   type VatJournalPlanRowRole,
 } from '../src/lib/vatJournalPlan.ts'
+import type { VatV2BusinessFacts } from '../src/lib/vatBusinessFacts.ts'
 
 let passed = 0
 let failed = 0
@@ -121,6 +122,20 @@ const euServiceFullDeduction25: VatTreatment = {
   evidence: { source: 'rule', factsVersion: 'vat-facts-v1' },
 }
 
+const adobeBusinessFacts: VatV2BusinessFacts = {
+  schemaVersion: 'vat-v2-business-facts-v1',
+  supplierCountry: 'IE',
+  customerCountry: 'SE',
+  purchaseClassification: 'software_subscription_service',
+  goodsOrService: 'service',
+  supplierVatCharged: 'no',
+  calculationRate: 25,
+  taxableBase: 228,
+  currency: 'SEK',
+  deductionEntitlement: 'full',
+  deductionEntitlementSource: 'company_profile_default',
+}
+
 function createPlan(
   treatment: VatTreatment,
   paymentAccountNumber = '1930',
@@ -138,6 +153,7 @@ const happyPlan = createPlan(euServiceFullDeduction25)
 const happyPath = buildVatAuditSnapshot({
   treatment: euServiceFullDeduction25,
   journalPlan: happyPlan,
+  businessFacts: adobeBusinessFacts,
 })
 const happySnapshot = assertSnapshotReady(
   happyPath,
@@ -168,6 +184,21 @@ assertEqual(
   happySnapshot.factsVersion,
   'vat-facts-v1',
   'Happy path -> facts version'
+)
+assertEqual(
+  happySnapshot.businessFacts?.supplierCountry,
+  'IE',
+  'Happy path -> supplier country business fact is preserved'
+)
+assertEqual(
+  happySnapshot.businessFacts?.purchaseClassification,
+  'software_subscription_service',
+  'Happy path -> purchase classification business fact is preserved'
+)
+assertEqual(
+  happySnapshot.businessFacts?.deductionEntitlementSource,
+  'company_profile_default',
+  'Happy path -> deduction source business fact is preserved'
 )
 assertEqual(happySnapshot.vat.taxableBase, 228, 'Happy path -> field 21 base')
 assertEqual(happySnapshot.vat.calculationRate, 25, 'Happy path -> rate')
@@ -322,6 +353,19 @@ assertSnapshotBlocked(
   }),
   'inconsistent_evidence',
   'Treatment and valid JournalPlan from different amounts do not snapshot'
+)
+
+assertSnapshotBlocked(
+  buildVatAuditSnapshot({
+    treatment: euServiceFullDeduction25,
+    journalPlan: happyPlan,
+    businessFacts: {
+      ...adobeBusinessFacts,
+      deductionEntitlement: 'none',
+    },
+  }),
+  'inconsistent_evidence',
+  'Business facts that disagree with treatment do not snapshot'
 )
 
 const amountTamperedPlan = clonePlan(happyPlan)

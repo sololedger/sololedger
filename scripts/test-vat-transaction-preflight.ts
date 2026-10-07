@@ -4,6 +4,10 @@ import type {
   VatGoodsOrService,
   VatYesNoUnknown,
 } from '../src/lib/vatDomain.ts'
+import type {
+  VatV2DeductionEntitlementSelection,
+  VatV2PurchaseClassification,
+} from '../src/lib/vatBusinessFacts.ts'
 import {
   buildVatV2TransactionPreflight,
   type VatV2SupplierCountryInput,
@@ -70,10 +74,12 @@ const fullProfile: CompanyVatProfile = {
 function preflight(overrides: {
   profile?: CompanyVatProfile
   supplierCountry?: VatV2SupplierCountryInput
+  purchaseClassification?: VatV2PurchaseClassification
   goodsOrService?: VatGoodsOrService
   supplierVatCharged?: VatYesNoUnknown
   calculationRate?: VatCalculationRateInput
   acquisitionBaseAmount?: string
+  deductionEntitlement?: VatV2DeductionEntitlementSelection
   ordinaryAmount?: string
 } = {}) {
   return buildVatV2TransactionPreflight({
@@ -85,10 +91,12 @@ function preflight(overrides: {
     transaction: {
       enabled: true,
       supplierCountry: overrides.supplierCountry ?? 'IE',
+      purchaseClassification: overrides.purchaseClassification,
       goodsOrService: overrides.goodsOrService ?? 'service',
       supplierVatCharged: overrides.supplierVatCharged ?? 'no',
       calculationRate: overrides.calculationRate ?? 25,
       acquisitionBaseAmount: overrides.acquisitionBaseAmount ?? '228',
+      deductionEntitlement: overrides.deductionEntitlement,
     },
   })
 }
@@ -116,6 +124,39 @@ assertEqual(
   supported.treatment.deductibleInputVat.entitlement,
   'full',
   'Supported path -> full deduction'
+)
+assertEqual(
+  supported.businessFacts.supplierCountry,
+  'IE',
+  'Supported path -> supplier country fact is preserved'
+)
+assertEqual(
+  supported.businessFacts.deductionEntitlementSource,
+  'company_profile_default',
+  'Supported path -> profile default deduction source is preserved'
+)
+
+const softwareDerivedRate = assertReady(
+  preflight({
+    purchaseClassification: 'software_subscription_service',
+    calculationRate: 'unknown',
+  }),
+  'Supported software/subscription derives 25 percent'
+)
+assertEqual(
+  softwareDerivedRate.facts.goodsOrService,
+  'service',
+  'Software/subscription -> service fact'
+)
+assertEqual(
+  softwareDerivedRate.treatment.calculationRate,
+  25,
+  'Software/subscription -> 25 percent derived rate'
+)
+assertEqual(
+  softwareDerivedRate.businessFacts.purchaseClassification,
+  'software_subscription_service',
+  'Software/subscription -> business classification preserved'
 )
 
 assertBlocked(
@@ -218,6 +259,23 @@ assertEqual(
   noDeduction.treatment.outputVat.amount,
   57,
   'No-deduction path -> calculated output VAT'
+)
+
+const transactionOverrideNoDeduction = assertReady(
+  preflight({
+    deductionEntitlement: 'none',
+  }),
+  'EU service transaction override to no deduction'
+)
+assertEqual(
+  transactionOverrideNoDeduction.treatment.deductibleInputVat.amount,
+  0,
+  'Transaction override no deduction -> no deductible input VAT'
+)
+assertEqual(
+  transactionOverrideNoDeduction.businessFacts.deductionEntitlementSource,
+  'transaction_override',
+  'Transaction override no deduction -> override source preserved'
 )
 assertEqual(
   noDeduction.treatment.deductibleInputVat.amount,
