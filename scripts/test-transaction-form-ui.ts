@@ -56,10 +56,14 @@ assert(
 )
 
 assert(
-  transactionFormSource.includes('showVatV2ManualRate ? \'xl:order-4\' : \'xl:order-5\'') &&
+  transactionFormSource.includes(
+    'className="min-w-0 md:col-span-1 xl:order-4 xl:col-span-4 flex flex-col gap-1"'
+  ) &&
     transactionFormSource.includes('xl:order-5 xl:col-span-3 flex flex-col gap-1') &&
-    transactionFormSource.includes('xl:order-4 xl:col-span-3 rounded-xl'),
-  'KAN-22 aligns Annan tjänst VAT-rate control on the second fact-capture row while preserving the derived-rate card position'
+    transactionFormSource.includes('xl:order-5 xl:col-span-3 rounded-xl') &&
+    transactionFormSource.includes('xl:order-6 xl:col-span-5 flex flex-col gap-1') &&
+    !transactionFormSource.includes('showVatV2ManualRate ? \'xl:order-4\' : \'xl:order-5\''),
+  'KAN-22 keeps row-two amount, Swedish VAT/rate, and deduction controls in stable positions across purchase types'
 )
 
 assert(

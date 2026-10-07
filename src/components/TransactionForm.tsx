@@ -921,11 +921,25 @@ export default function TransactionForm({
                       </p>
                     </div>
                   ) : (
-                    <div className="min-w-0 md:col-span-1 xl:order-4 xl:col-span-3 rounded-xl border border-indigo-100 bg-white px-3 py-2">
-                      <p className="text-[9px] font-black uppercase text-indigo-500">
+                    <div
+                      className={`min-w-0 md:col-span-1 xl:order-5 xl:col-span-3 rounded-xl border px-3 py-2 ${
+                        vatV2GoodsUnsupported
+                          ? 'border-amber-200 bg-amber-50'
+                          : 'border-indigo-100 bg-white'
+                      }`}
+                    >
+                      <p className={`text-[9px] font-black uppercase ${
+                        vatV2GoodsUnsupported
+                          ? 'text-amber-800'
+                          : 'text-indigo-500'
+                      }`}>
                         Svensk moms
                       </p>
-                      <p className="mt-1 text-[10px] font-bold text-indigo-700">
+                      <p className={`mt-1 text-[10px] font-bold ${
+                        vatV2GoodsUnsupported
+                          ? 'text-amber-700'
+                          : 'text-indigo-700'
+                      }`}>
                         {vatV2Facts.purchaseClassification ===
                         'software_subscription_service'
                           ? '25 % för stödd programvara/prenumeration.'
@@ -933,13 +947,16 @@ export default function TransactionForm({
                           ? 'Varuinköp från utlandet stöds inte ännu.'
                           : 'Välj inköpstyp först.'}
                       </p>
+                      {vatV2GoodsUnsupported && (
+                        <p className="mt-1 text-[10px] font-bold text-amber-700">
+                          SoloLedger kan därför inte göra en säker momsbedömning för detta köp.
+                        </p>
+                      )}
                     </div>
                   )}
 
                   <div
-                    className={`min-w-0 md:col-span-1 ${
-                      showVatV2ManualRate ? 'xl:order-4' : 'xl:order-5'
-                    } xl:col-span-4 flex flex-col gap-1`}
+                    className="min-w-0 md:col-span-1 xl:order-4 xl:col-span-4 flex flex-col gap-1"
                   >
                     <label className="text-[9px] font-black text-indigo-500 uppercase ml-1">
                       Inköpsbelopp
@@ -981,17 +998,6 @@ export default function TransactionForm({
                     </select>
                   </div>
                 </div>
-
-                {vatV2GoodsUnsupported && (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                    <p className="text-[10px] font-black uppercase text-amber-800">
-                      Varuinköp från utlandet stöds inte ännu
-                    </p>
-                    <p className="mt-1 text-[10px] font-bold text-amber-700">
-                      SoloLedger kan därför inte göra en säker momsbedömning för detta köp.
-                    </p>
-                  </div>
-                )}
 
                 <div className="mt-4 rounded-xl border border-indigo-100 bg-white px-4 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
