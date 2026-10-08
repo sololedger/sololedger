@@ -6,6 +6,43 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-54 Fixed-Asset VAT Deduction Guard Production Release
+
+- KAN-54 reached Production release on 2026-10-08 and remains `In Review` in
+  Jira for Pontus product-owner review; it was not marked `Done`.
+- Production `main`/`origin/main` release commit:
+  `4e90d1a487098c36f0608849fb315fde8fd61d35`
+  (`KAN-54 guard fixed asset VAT deduction`).
+- Vercel Production deployment:
+  `dpl_68zo3FwhLxdNhHqevk8qDPhU91J1`,
+  `sololedger-1msukfnht-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build commit verified as `4e90d1a`, status
+  `Ready`.
+- Supabase Production ref `wbaxmuvudpnkvuliicuy` received only the approved
+  migrations in the controlled order:
+  `20261008170000_kan54_fixed_asset_vat_deduction_guard.sql`, then
+  `20261008173000_kan54_revoke_internal_delegate_service_role.sql`. The final
+  Production migration ledger includes both versions.
+- Production DB verification confirmed the internal fixed-asset acquisition
+  delegate is executable by `postgres` only and denied for `anon`,
+  `authenticated`, and `service_role`; the public wrapper remains executable by
+  `authenticated` and `service_role`. KAN-54 functions are owned by `postgres`,
+  run as `SECURITY DEFINER`, and use `search_path=public`.
+- Production smoke was non-destructive: app loaded, an existing auth session
+  worked, Inventarier loaded, a profile without deduction entitlement showed
+  only `Inget momsavdrag` with the expected explanation, Bokföring/Moms/NE
+  remained accessible, and browser console error count was zero.
+- No artificial Production accounting transaction was created. Production UI
+  states for `full` and `unknown` profiles were not tested because no such
+  authenticated Production session was used and no Production profiles were
+  changed; those server/RPC cases were covered in staging and focused SQL
+  regressions.
+- Remaining non-blocking risk/follow-up: ordinary Bokföring/V1 may still allow
+  `2641` based on VAT rate without checking actual deduction entitlement. Jira
+  search during KAN-54 found no exact existing issue; KAN-14/KAN-22/KAN-34/KAN-53
+  are related but not the same scope. This was intentionally not implemented in
+  KAN-54.
+
 ### KAN-36 K1 Fixed Assets Production Release
 
 - KAN-36 reached Production release on 2026-10-08 and remains `In Review` in
