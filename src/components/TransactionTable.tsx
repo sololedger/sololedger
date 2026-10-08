@@ -96,6 +96,12 @@ export default function TransactionTable({
     const isVatV2 = sourceUiPolicy.kind === 'vat_v2'
     const isVatSettlement = sourceUiPolicy.kind === 'vat_settlement'
     const isTaxAccountMovement = sourceUiPolicy.kind === 'tax_account_movement'
+    const isFixedAsset = sourceUiPolicy.kind === 'fixed_asset'
+    const isFixedAssetDepreciation = sourceUiPolicy.kind === 'fixed_asset_depreciation'
+    const isFixedAssetReclassification =
+      sourceUiPolicy.kind === 'fixed_asset_reclassification'
+    const isFixedAssetSystemSource =
+      isFixedAsset || isFixedAssetDepreciation || isFixedAssetReclassification
     const isSystemManaged = sourceUiPolicy.systemManaged
     const offerGenericEdit = shouldOfferGenericTransactionEdit(tx)
     const offerGenericCorrection = shouldOfferGenericTransactionCorrection(tx)
@@ -134,6 +140,8 @@ export default function TransactionTable({
       ? 'bg-sky-50/45 hover:bg-sky-50/70'
       : isTaxAccountMovement
       ? 'bg-cyan-50/45 hover:bg-cyan-50/70'
+      : isFixedAssetSystemSource
+      ? 'bg-emerald-50/45 hover:bg-emerald-50/70'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50/40 hover:bg-sky-50/60'
       : 'hover:bg-emerald-50/30'
@@ -150,6 +158,8 @@ export default function TransactionTable({
       ? 'text-sky-900'
       : isTaxAccountMovement
       ? 'text-cyan-900'
+      : isFixedAssetSystemSource
+      ? 'text-emerald-900'
       : (isImported || isOpeningBalance)
       ? 'text-sky-900'
       : 'text-gray-700'
@@ -166,6 +176,8 @@ export default function TransactionTable({
       ? 'text-sky-500'
       : isTaxAccountMovement
       ? 'text-cyan-500'
+      : isFixedAssetSystemSource
+      ? 'text-emerald-500'
       : (isImported || isOpeningBalance)
       ? 'text-sky-500'
       : 'text-emerald-600'
@@ -182,6 +194,8 @@ export default function TransactionTable({
       ? 'text-sky-700'
       : isTaxAccountMovement
       ? 'text-cyan-700'
+      : isFixedAssetSystemSource
+      ? 'text-emerald-700'
       : (isImported || isOpeningBalance)
       ? 'text-sky-700'
       : isIncome
@@ -200,6 +214,8 @@ export default function TransactionTable({
       ? 'bg-sky-50 border-sky-100 text-sky-600'
       : isTaxAccountMovement
       ? 'bg-cyan-50 border-cyan-100 text-cyan-600'
+      : isFixedAssetSystemSource
+      ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
       : (isImported || isOpeningBalance)
       ? 'bg-sky-50 border-sky-100 text-sky-600'
       : 'bg-gray-50 border-gray-100 text-gray-500'
@@ -221,6 +237,10 @@ export default function TransactionTable({
       isVatV2,
       isVatSettlement,
       isTaxAccountMovement,
+      isFixedAsset,
+      isFixedAssetDepreciation,
+      isFixedAssetReclassification,
+      isFixedAssetSystemSource,
       isSystemManaged,
       offerGenericEdit,
       offerGenericCorrection,
@@ -412,6 +432,10 @@ export default function TransactionTable({
                 isVatV2,
                 isVatSettlement,
                 isTaxAccountMovement,
+                isFixedAsset,
+                isFixedAssetDepreciation,
+                isFixedAssetReclassification,
+                isFixedAssetSystemSource,
                 isSystemManaged,
                 offerGenericEdit,
                 offerGenericCorrection,
@@ -471,6 +495,18 @@ export default function TransactionTable({
                       ) : isTaxAccountMovement ? (
                         <p className="text-[10px] font-black text-cyan-600 uppercase">
                           Skattekontorörelse
+                        </p>
+                      ) : isFixedAsset ? (
+                        <p className="text-[10px] font-black text-emerald-600 uppercase">
+                          Inventarie
+                        </p>
+                      ) : isFixedAssetDepreciation ? (
+                        <p className="text-[10px] font-black text-emerald-600 uppercase">
+                          Inventarieavskrivning
+                        </p>
+                      ) : isFixedAssetReclassification ? (
+                        <p className="text-[10px] font-black text-emerald-600 uppercase">
+                          Inventarieomklassning
                         </p>
                       ) : isImported ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
@@ -533,6 +569,10 @@ export default function TransactionTable({
                         {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
                     ) : isTaxAccountMovement ? (
+                      <span>
+                        {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                      </span>
+                    ) : isFixedAssetSystemSource ? (
                       <span>
                         {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                       </span>
@@ -684,6 +724,10 @@ export default function TransactionTable({
             isVatV2,
             isVatSettlement,
             isTaxAccountMovement,
+            isFixedAsset,
+            isFixedAssetDepreciation,
+            isFixedAssetReclassification,
+            isFixedAssetSystemSource,
             isSystemManaged,
             offerGenericEdit,
             offerGenericCorrection,
@@ -713,6 +757,8 @@ export default function TransactionTable({
                 ? 'bg-sky-50/45 border-sky-100'
                 : isTaxAccountMovement
                 ? 'bg-cyan-50/45 border-cyan-100'
+                : isFixedAssetSystemSource
+                ? 'bg-emerald-50/45 border-emerald-100'
                 : (isImported || isOpeningBalance)
                 ? 'bg-sky-50/40 border-sky-100'
                   : 'bg-white border-gray-100'
@@ -751,6 +797,10 @@ export default function TransactionTable({
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
                   </p>
+                ) : isFixedAssetSystemSource ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
+                    {Number(tx.amount || 0).toLocaleString('sv-SE')} kr
+                  </p>
                 ) : (
                   <p className={`font-black text-lg text-right whitespace-nowrap ${amountClass}`}>
                     {!isCorrection && !isNeutralized && !isImported && !isOpeningBalance && (isIncome ? '+ ' : '- ')}
@@ -776,6 +826,12 @@ export default function TransactionTable({
                   <p className="text-[10px] font-black text-sky-600 uppercase">Momsavräkning</p>
                 ) : isTaxAccountMovement ? (
                   <p className="text-[10px] font-black text-cyan-600 uppercase">Skattekontorörelse</p>
+                ) : isFixedAsset ? (
+                  <p className="text-[10px] font-black text-emerald-600 uppercase">Inventarie</p>
+                ) : isFixedAssetDepreciation ? (
+                  <p className="text-[10px] font-black text-emerald-600 uppercase">Inventarieavskrivning</p>
+                ) : isFixedAssetReclassification ? (
+                  <p className="text-[10px] font-black text-emerald-600 uppercase">Inventarieomklassning</p>
                 ) : isImported ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Importerad verifikation</p>
                 ) : (

@@ -19,6 +19,7 @@ import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
 import OverviewCards from '@/components/OverviewCards'
 import TransactionForm from '@/components/TransactionForm'
 import CustomerInvoicesPanel from '@/components/CustomerInvoicesPanel'
+import FixedAssetsPanel from '@/components/FixedAssetsPanel'
 import SieImportModal from '@/components/SieImportModal'
 
 import SubscriptionGuard from '@/components/SubscriptionGuard'
@@ -978,6 +979,8 @@ export default function Home() {
             ? 'Kontoplan'
             : activeTab === 'fakturor'
               ? 'Fakturor'
+            : activeTab === 'inventarier'
+              ? 'Inventarier'
             : activeTab === 'faq'
               ? 'Hjälp & FAQ'
               : activeTab === 'moms'
@@ -1186,6 +1189,19 @@ export default function Home() {
           onUploadAttachment={handleFileUpload}
           onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
           onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}
+        />
+      ) : activeTab === 'inventarier' ? (
+        <FixedAssetsPanel
+          selectedYear={selectedYear}
+          isYearLocked={isYearLocked}
+          companyVatProfileResult={companyVatProfileResult}
+          paymentAccountRoles={paymentAccountRoles.configuredRoles}
+          paymentAccountRolesLoading={paymentAccountRoles.loading}
+          paymentAccountRolesLoaded={paymentAccountRoles.loaded}
+          paymentAccountRolesError={paymentAccountRoles.error}
+          onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
+          onOpenPaymentAccountSettings={() => setActiveTab('profil')}
+          onBookkeepingChanged={refreshData}
         />
       ) : activeTab === 'moms' ? (
         <SubscriptionGuard

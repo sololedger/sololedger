@@ -9,6 +9,11 @@ const corsHeaders = {
 type Action = 'dry-run' | 'delete'
 
 const TABLES = [
+  'fixed_asset_depreciation_runs',
+  'fixed_asset_events',
+  'fixed_asset_acquisition_idempotency',
+  'fixed_assets',
+  'fixed_asset_acquisition_groups',
   'customer_invoice_bookings',
   'customer_invoices',
   'tax_account_movements',

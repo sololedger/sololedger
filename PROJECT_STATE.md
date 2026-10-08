@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## Current Baseline
 
@@ -58,6 +58,32 @@ Verified on 2026-10-07:
   implement EU-goods accounting inside KAN-23.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
+- KAN-36 is implemented locally and remains `In Review`, assigned to Pontus.
+  Production deploy and Production Supabase migration have not been performed.
+
+## Current Active Work
+
+- KAN-36 local implementation adds K1 fixed-asset support for Swedish K1 sole
+  proprietors: internal year-keyed tax parameters, fixed-asset registry,
+  acquisition RPC, connected-acquisition grouping, acquisition idempotency,
+  direct-expense-to-asset reclassification, collective K1 depreciation,
+  year-close depreciation guard, transaction-history source protection, and
+  delete-user lifecycle coverage.
+- Approved blocker fixes are included locally: fixed-asset acquisition replay
+  returns the original result; connected acquisitions use explicit
+  standalone/connected/uncertain assessment; server computes group basis from
+  linked recorded purchases; uncertain fails closed; prior direct-expensed
+  connected purchases are reclassified by auditable system transaction when the
+  year is open and short-life does not apply.
+- KAN-36 verification on 2026-10-08: `npm run typecheck` PASS,
+  `npm run test:domain` PASS, `npm run test:admin-delete-dry-run` PASS,
+  `npm run build` PASS after approved network access for Next/Google Fonts,
+  focused KAN-36 local DB rollback test PASS against
+  `sololedger_kan17c_test`, `git diff --check` PASS with CRLF warnings only.
+- Full repo `npm run lint` still fails on older unrelated lint debt. Focused
+  lint for changed KAN-36 TypeScript files passed when the pre-existing
+  `no-explicit-any` debt in `TransactionTable.tsx` was disabled; one old
+  unused prop warning remains in that file.
 
 ## Completed Release
 
@@ -124,15 +150,14 @@ Verified on 2026-10-07:
 - KAN-34 remains future UX for completing VAT facts on ambiguous legacy/SIE
   rows.
 - KAN-35 remains low-priority UI transaction-history completeness follow-up.
-- KAN-36 remains future inventory/depreciation product work.
 - Full repo lint still has older unrelated debt.
 
 ## Git / Local Files
 
 - `origin/main` is the deployed Production code at `a491afb`.
-- Local `main` may have a docs-only KAN-23 finalization checkpoint above
-  `origin/main`. Do not push without explicit approval because pushing `main`
-  deploys Production.
+- Local `main` has the docs-only KAN-23 finalization checkpoint plus the local
+  KAN-36 implementation checkpoint above `origin/main`. Do not push without
+  explicit approval because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -161,7 +186,10 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Await Pontus's next selected task.
-2. Do not push `main` without explicit approval because it deploys Production.
-3. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
+1. Pontus/leader reviews the local KAN-36 implementation and decides whether to
+   approve release.
+2. Do not push `main`, deploy, or apply the KAN-36 migration to Production
+   without explicit approval.
+3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
+4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

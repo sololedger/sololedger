@@ -1,4 +1,9 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
+  'fixed_asset_depreciation_runs',
+  'fixed_asset_events',
+  'fixed_asset_acquisition_idempotency',
+  'fixed_assets',
+  'fixed_asset_acquisition_groups',
   'customer_invoice_bookings',
   'customer_invoices',
   'tax_account_movements',
@@ -26,6 +31,11 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   AdminDeleteDryRunCountKey,
   string
 > = {
+  fixed_asset_depreciation_runs: 'inventarieavskrivningar',
+  fixed_asset_events: 'inventariehändelser',
+  fixed_asset_acquisition_idempotency: 'inventarie-idempotensposter',
+  fixed_assets: 'inventarier',
+  fixed_asset_acquisition_groups: 'inventarieanskaffningsgrupper',
   customer_invoice_bookings: 'kundfakturabokningar',
   customer_invoices: 'kundfakturor',
   tax_account_movements: 'skattekontorörelser',

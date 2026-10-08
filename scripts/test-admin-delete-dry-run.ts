@@ -31,6 +31,11 @@ const legacyKeys: AdminDeleteDryRunCountKey[] = [
 ]
 
 const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
+  'fixed_asset_depreciation_runs',
+  'fixed_asset_events',
+  'fixed_asset_acquisition_idempotency',
+  'fixed_assets',
+  'fixed_asset_acquisition_groups',
   'customer_invoice_bookings',
   'customer_invoices',
   'tax_account_movements',
@@ -58,6 +63,11 @@ for (const key of ADMIN_DELETE_DRY_RUN_COUNT_KEYS) {
 }
 
 const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
+  fixed_asset_depreciation_runs: 12,
+  fixed_asset_events: 13,
+  fixed_asset_acquisition_idempotency: 14,
+  fixed_assets: 15,
+  fixed_asset_acquisition_groups: 16,
   customer_invoice_bookings: 10,
   customer_invoices: 11,
   tax_account_movements: 1,
@@ -71,6 +81,31 @@ const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
   attachments: 9,
 })
 
+assertEqual(
+  normalizedLifecycle.fixed_asset_depreciation_runs,
+  12,
+  'Fixed asset depreciation-run count is preserved'
+)
+assertEqual(
+  normalizedLifecycle.fixed_asset_events,
+  13,
+  'Fixed asset event count is preserved'
+)
+assertEqual(
+  normalizedLifecycle.fixed_assets,
+  15,
+  'Fixed asset count is preserved'
+)
+assertEqual(
+  normalizedLifecycle.fixed_asset_acquisition_idempotency,
+  14,
+  'Fixed asset acquisition idempotency count is preserved'
+)
+assertEqual(
+  normalizedLifecycle.fixed_asset_acquisition_groups,
+  16,
+  'Fixed asset acquisition group count is preserved'
+)
 assertEqual(normalizedLifecycle.customer_invoice_bookings, 10, 'Customer invoice booking count is preserved')
 assertEqual(normalizedLifecycle.customer_invoices, 11, 'Customer invoice count is preserved')
 assertEqual(normalizedLifecycle.tax_account_movements, 1, 'Movement count is preserved')

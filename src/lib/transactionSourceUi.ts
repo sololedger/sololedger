@@ -17,6 +17,9 @@ export interface TransactionSourceUiPolicy {
     | 'vat_settlement'
     | 'tax_account_movement'
     | 'customer_invoice'
+    | 'fixed_asset'
+    | 'fixed_asset_reclassification'
+    | 'fixed_asset_depreciation'
 }
 
 const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
@@ -75,6 +78,30 @@ const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
     genericCorrectionOffered: false,
     label: 'Kundfaktura',
     kind: 'customer_invoice',
+  },
+  fixed_asset: {
+    source: 'fixed_asset',
+    systemManaged: true,
+    genericEditOffered: false,
+    genericCorrectionOffered: false,
+    label: 'Inventarie',
+    kind: 'fixed_asset',
+  },
+  fixed_asset_depreciation: {
+    source: 'fixed_asset_depreciation',
+    systemManaged: true,
+    genericEditOffered: false,
+    genericCorrectionOffered: false,
+    label: 'Inventarieavskrivning',
+    kind: 'fixed_asset_depreciation',
+  },
+  fixed_asset_reclassification: {
+    source: 'fixed_asset_reclassification',
+    systemManaged: true,
+    genericEditOffered: false,
+    genericCorrectionOffered: false,
+    label: 'Inventarieomklassning',
+    kind: 'fixed_asset_reclassification',
   },
 }
 

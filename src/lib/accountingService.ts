@@ -37,6 +37,14 @@ import {
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
 import { calculateNeBalanceRows } from './neBalance'
+import type {
+  FixedAsset,
+  FixedAssetAcquisitionInput,
+  FixedAssetAcquisitionResult,
+  FixedAssetDepreciationResult,
+  FixedAssetDepreciationRun,
+  FixedAssetTaxRuleParameters,
+} from './fixedAssets'
 
 // Hjälpfunktion för att hämta användarens ID på ett 100% skottsäkert och server-verifierat sätt
 // Exporterad så sieImport.ts kan återanvända den istället för att duplicera logiken.
@@ -248,6 +256,56 @@ export interface CustomerInvoice {
   bookings: CustomerInvoiceBooking[]
 }
 
+interface FixedAssetRow {
+  id: string
+  acquisition_transaction_id: string
+  acquisition_date: string
+  fiscal_year: number
+  name: string
+  supplier_country: string
+  connection_assessment: 'standalone' | 'connected'
+  acquisition_group_id: string | null
+  payment_account_role: PaymentAccountRole
+  payment_account_number: string
+  vat_deduction_entitlement: 'full' | 'none'
+  taxable_base_amount: number | string
+  supplier_vat_amount: number | string
+  deductible_vat_amount: number | string
+  non_deductible_vat_amount: number | string
+  threshold_basis_amount: number | string
+  naturally_connected: boolean
+  connected_acquisition_key: string | null
+  useful_life_answer: 'max_three_years' | 'more_than_three_years_or_unknown' | null
+  decision_type:
+    | 'immediate_expense_small_value'
+    | 'immediate_expense_short_life'
+    | 'capitalized'
+  status: 'expensed' | 'active' | 'retired'
+  expensed_amount: number | string
+  capitalized_amount: number | string
+  rule_year: number
+  rule_version: string
+  price_base_amount: number | string
+  half_price_base_amount: number | string
+  retired_at: string | null
+  created_at: string
+}
+
+interface FixedAssetDepreciationRunRow {
+  id: string
+  fiscal_year: number
+  transaction_id: string
+  basis_amount: number | string
+  depreciation_amount: number | string
+  method: 'k1_main_rule_30_percent' | 'k1_half_pbb_full_writeoff'
+  full_writeoff_applied: boolean
+  rule_year: number
+  rule_version: string
+  price_base_amount: number | string
+  half_price_base_amount: number | string
+  created_at: string
+}
+
 type CustomerInvoiceRpcResponse = {
   success?: unknown
   idempotent_replay?: unknown
@@ -443,6 +501,295 @@ export async function getCustomerInvoices(throughYear: number): Promise<Customer
   }
 
   return invoiceRows.map(row => mapCustomerInvoice(row, bookingsByInvoiceId))
+}
+
+function numberFromDb(value: number | string | null | undefined) {
+  return Number(value ?? 0)
+}
+
+interface FixedAssetTaxRuleRpcResponse {
+  taxYear?: unknown
+  priceBaseAmount?: unknown
+  halfPriceBaseAmount?: unknown
+  ruleVersion?: unknown
+  rules?: {
+    fixedAssetsK1?: FixedAssetTaxRuleRpcRule
+    k1_fixed_assets?: FixedAssetTaxRuleRpcRule
+  }
+}
+
+interface FixedAssetTaxRuleRpcRule {
+  smallValueComparison?: unknown
+  small_value_comparison?: unknown
+  collectiveFullWriteoffComparison?: unknown
+  collective_full_writeoff_comparison?: unknown
+  ordinaryDecliningBalancePercent?: unknown
+  ordinary_declining_balance_percent?: unknown
+}
+
+function mapFixedAssetTaxRuleParameters(
+  data: FixedAssetTaxRuleRpcResponse
+): FixedAssetTaxRuleParameters {
+  const fixedAssetsRule = data?.rules?.fixedAssetsK1 ?? data?.rules?.k1_fixed_assets
+  const smallValueComparison =
+    fixedAssetsRule?.smallValueComparison ??
+    fixedAssetsRule?.small_value_comparison
+  const collectiveFullWriteoffComparison =
+    fixedAssetsRule?.collectiveFullWriteoffComparison ??
+    fixedAssetsRule?.collective_full_writeoff_comparison
+
+  return {
+    taxYear: Number(data?.taxYear),
+    priceBaseAmount: Number(data?.priceBaseAmount),
+    halfPriceBaseAmount: Number(data?.halfPriceBaseAmount),
+    ruleVersion: String(data?.ruleVersion ?? ''),
+    rules: {
+      fixedAssetsK1: fixedAssetsRule
+        ? {
+            smallValueComparison:
+              smallValueComparison === 'lt' ? 'lt' : undefined,
+            collectiveFullWriteoffComparison:
+              collectiveFullWriteoffComparison === 'lte' ? 'lte' : undefined,
+            ordinaryDecliningBalancePercent: Number(
+              fixedAssetsRule.ordinaryDecliningBalancePercent ??
+                fixedAssetsRule.ordinary_declining_balance_percent
+            ),
+          }
+        : undefined,
+    },
+  }
+}
+
+function mapFixedAsset(row: FixedAssetRow): FixedAsset {
+  return {
+    id: row.id,
+    transactionId: row.acquisition_transaction_id,
+    acquisitionDate: row.acquisition_date,
+    fiscalYear: row.fiscal_year,
+    description: row.name,
+    supplierCountry: row.supplier_country,
+    connectionAssessment: row.connection_assessment,
+    acquisitionGroupId: row.acquisition_group_id,
+    paymentAccountRole: row.payment_account_role,
+    paymentAccountNumber: row.payment_account_number,
+    vatDeductionEntitlement: row.vat_deduction_entitlement,
+    taxableBaseAmount: numberFromDb(row.taxable_base_amount),
+    supplierVatAmount: numberFromDb(row.supplier_vat_amount),
+    deductibleVatAmount: numberFromDb(row.deductible_vat_amount),
+    nonDeductibleVatAmount: numberFromDb(row.non_deductible_vat_amount),
+    thresholdBasisAmount: numberFromDb(row.threshold_basis_amount),
+    naturallyConnected: row.naturally_connected,
+    connectedAcquisitionKey: row.connected_acquisition_key,
+    usefulLifeAnswer: row.useful_life_answer,
+    decisionType: row.decision_type,
+    assetStatus: row.status,
+    expensedAmount: numberFromDb(row.expensed_amount),
+    capitalizedAmount: numberFromDb(row.capitalized_amount),
+    ruleYear: row.rule_year,
+    ruleVersion: row.rule_version,
+    priceBaseAmount: numberFromDb(row.price_base_amount),
+    halfPriceBaseAmount: numberFromDb(row.half_price_base_amount),
+    retiredAt: row.retired_at,
+    createdAt: row.created_at,
+  }
+}
+
+function mapFixedAssetDepreciationRun(
+  row: FixedAssetDepreciationRunRow
+): FixedAssetDepreciationRun {
+  return {
+    id: row.id,
+    fiscalYear: row.fiscal_year,
+    transactionId: row.transaction_id,
+    depreciationDate: `${row.fiscal_year}-12-31`,
+    openingCollectiveBasis: 0,
+    acquisitionBasis: 0,
+    disposalReductionBasis: 0,
+    depreciationBasis: numberFromDb(row.basis_amount),
+    depreciationAmount: numberFromDb(row.depreciation_amount),
+    method: row.method,
+    fullWriteoffApplied: row.full_writeoff_applied,
+    ruleYear: row.rule_year,
+    ruleVersion: row.rule_version,
+    priceBaseAmount: numberFromDb(row.price_base_amount),
+    halfPriceBaseAmount: numberFromDb(row.half_price_base_amount),
+    createdAt: row.created_at,
+  }
+}
+
+export async function getTaxRuleParametersForYear(
+  taxYear: number
+): Promise<FixedAssetTaxRuleParameters> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('get_tax_rule_parameters_for_year', {
+    p_tax_year: taxYear,
+  })
+
+  if (error) {
+    throw new Error('Skatteregeln för året saknas eller kunde inte hämtas: ' + error.message)
+  }
+
+  return mapFixedAssetTaxRuleParameters(data)
+}
+
+export async function getFixedAssets(throughYear: number): Promise<FixedAsset[]> {
+  const userId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('fixed_assets')
+    .select('id, acquisition_transaction_id, acquisition_date, fiscal_year, name, supplier_country, connection_assessment, acquisition_group_id, payment_account_role, payment_account_number, vat_deduction_entitlement, taxable_base_amount, supplier_vat_amount, deductible_vat_amount, non_deductible_vat_amount, threshold_basis_amount, naturally_connected, connected_acquisition_key, useful_life_answer, decision_type, status, expensed_amount, capitalized_amount, rule_year, rule_version, price_base_amount, half_price_base_amount, retired_at, created_at')
+    .eq('user_id', userId)
+    .lte('fiscal_year', throughYear)
+    .order('acquisition_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) {
+    throw new Error('Kunde inte hämta inventarier: ' + error.message)
+  }
+
+  return ((data ?? []) as FixedAssetRow[]).map(mapFixedAsset)
+}
+
+export async function getFixedAssetDepreciationRuns(
+  throughYear: number
+): Promise<FixedAssetDepreciationRun[]> {
+  const userId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('fixed_asset_depreciation_runs')
+    .select('id, fiscal_year, transaction_id, basis_amount, depreciation_amount, method, full_writeoff_applied, rule_year, rule_version, price_base_amount, half_price_base_amount, created_at')
+    .eq('user_id', userId)
+    .lte('fiscal_year', throughYear)
+    .order('fiscal_year', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    throw new Error('Kunde inte hämta avskrivningar: ' + error.message)
+  }
+
+  return ((data ?? []) as FixedAssetDepreciationRunRow[]).map(
+    mapFixedAssetDepreciationRun
+  )
+}
+
+export async function bookFixedAssetAcquisition(
+  input: FixedAssetAcquisitionInput
+): Promise<FixedAssetAcquisitionResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('book_fixed_asset_acquisition_atomic', {
+    p_payload: {
+      date: input.date,
+      description: input.description,
+      supplier_country: input.supplierCountry,
+      idempotency_key: input.idempotencyKey,
+      payment_account_role: input.paymentAccountRole,
+      vat_deduction_entitlement: input.vatDeductionEntitlement,
+      taxable_base_amount: input.taxableBaseAmount,
+      supplier_vat_amount: input.supplierVatAmount,
+      connection_assessment: input.connectionAssessment,
+      acquisition_group_id: input.acquisitionGroupId ?? null,
+      acquisition_group_name: input.acquisitionGroupName ?? null,
+      connected_asset_ids: input.connectedAssetIds ?? [],
+      planned_group_basis_amount: input.plannedGroupBasisAmount ?? null,
+      useful_life_answer: input.usefulLifeAnswer ?? null,
+    },
+  })
+
+  if (error) {
+    throw new Error('Inventariet kunde inte bokföras: ' + error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Inventariet kunde inte bokföras av okänd anledning.')
+  }
+
+  return {
+    success: true,
+    assetId: data.asset_id as string,
+    transactionId: data.transaction_id as string,
+    verNr: Number(data.ver_nr),
+    idempotentReplay: Boolean(data.idempotent_replay),
+    acquisitionGroupId: (data.acquisition_group_id as string | null) ?? null,
+    reclassificationTransactionId:
+      (data.reclassification_transaction_id as string | null) ?? null,
+    reclassificationAmount: Number(data.reclassification_amount ?? 0),
+    decisionType: data.decision_type as FixedAssetAcquisitionResult['decisionType'],
+    assetStatus: data.status as FixedAssetAcquisitionResult['assetStatus'],
+    ruleYear: Number(data.rule_year),
+    ruleVersion: data.rule_version as string,
+    halfPriceBaseAmount: Number(data.half_price_base_amount),
+    expensedAmount: Number(data.expensed_amount),
+    capitalizedAmount: Number(data.capitalized_amount),
+    deductibleVatAmount: Number(data.deductible_vat_amount),
+    nonDeductibleVatAmount: Number(data.non_deductible_vat_amount),
+    thresholdBasisAmount: Number(data.threshold_basis_amount),
+  }
+}
+
+export async function bookFixedAssetDepreciation(
+  fiscalYear: number
+): Promise<FixedAssetDepreciationResult> {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc(
+    'book_fixed_asset_depreciation_atomic',
+    { p_fiscal_year: fiscalYear }
+  )
+
+  if (error) {
+    throw new Error('Årets avskrivning kunde inte bokföras: ' + error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Årets avskrivning kunde inte bokföras av okänd anledning.')
+  }
+
+  return {
+    success: true,
+    idempotentReplay: Boolean(data.idempotent_replay),
+    runId: data.depreciation_run_id as string,
+    transactionId: data.transaction_id as string,
+    verNr: Number(data.ver_nr),
+    fiscalYear: Number(data.fiscal_year),
+    depreciationBasis: Number(data.basis_amount),
+    depreciationAmount: Number(data.depreciation_amount),
+    method: data.method as FixedAssetDepreciationResult['method'],
+    fullWriteoffApplied: Boolean(data.full_writeoff_applied),
+    ruleYear: Number(data.rule_year),
+    ruleVersion: data.rule_version as string,
+    halfPriceBaseAmount: Number(data.half_price_base_amount),
+  }
+}
+
+export async function retireFixedAsset(
+  assetId: string,
+  retirementDate: string,
+  reason?: string | null
+) {
+  await getUserId()
+
+  const { data, error } = await supabase.rpc('retire_fixed_asset_atomic', {
+    p_asset_id: assetId,
+    p_retirement_date: retirementDate,
+    p_reason: reason ?? null,
+  })
+
+  if (error) {
+    throw new Error('Inventariet kunde inte avslutas: ' + error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error('Inventariet kunde inte avslutas av okänd anledning.')
+  }
+
+  return {
+    success: true as const,
+    assetId: data.asset_id as string,
+    retiredAt: data.retired_at as string,
+  }
 }
 
 export async function undoCustomerInvoicePayment(
