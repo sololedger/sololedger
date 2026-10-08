@@ -10,6 +10,7 @@ const transactionFormSource = readFileSync(
   'src/components/TransactionForm.tsx',
   'utf8'
 )
+const appPageSource = readFileSync('src/app/page.tsx', 'utf8')
 
 assert(
   transactionFormSource.includes(
@@ -138,6 +139,26 @@ assert(
 )
 
 assert(
+  transactionFormSource.includes('categoryRedirectsToFixedAssets') &&
+    transactionFormSource.includes('selectedCategoryRedirectsToFixedAssets') &&
+    transactionFormSource.includes('Utrustning bokförs under Inventarier') &&
+    transactionFormSource.includes('Gå till Inventarier') &&
+    transactionFormSource.includes('onOpenFixedAssets') &&
+    transactionFormSource.includes('ordinarySalesVatBlocked ||') &&
+    transactionFormSource.includes('selectedCategoryRedirectsToFixedAssets'),
+  'KAN-36 redirects ordinary 5410 equipment purchases to Inventarier and disables ordinary submit'
+)
+
+assert(
+  appPageSource.includes('categoryRedirectsToFixedAssets') &&
+    appPageSource.includes("setActiveTab('inventarier')") &&
+    appPageSource.includes('Utrustning bokförs under Inventarier. Gå till Inventarier') &&
+    appPageSource.indexOf('categoryRedirectsToFixedAssets') <
+      appPageSource.indexOf('submitInFlightRef.current = true'),
+  'KAN-36 submit handler blocks ordinary 5410 before upload/RPC even if the form is submitted by keyboard'
+)
+
+assert(
   !transactionFormSource.includes("formData.type === 'forsaljning'") &&
     !transactionFormSource.includes("fav.type === 'forsaljning'") &&
     !transactionFormSource.includes("e.target.value === 'forsaljning'"),
@@ -201,6 +222,10 @@ const kan22MigrationSource = readFileSync(
   'supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql',
   'utf8'
 )
+const kan36RedirectMigrationSource = readFileSync(
+  'supabase/migrations/20261008110000_kan36_redirect_manual_equipment_purchases.sql',
+  'utf8'
+)
 const accountingServiceSource = readFileSync(
   'src/lib/accountingService.ts',
   'utf8'
@@ -253,6 +278,17 @@ assert(
     kan22MigrationSource.includes('Affärsfakta matchar inte stödd EU-tjänst') &&
     !kan22MigrationSource.includes('CREATE TRIGGER'),
   'KAN-22 migration persists validated VAT decision business facts without replaying unrelated triggers'
+)
+
+assert(
+  kan36RedirectMigrationSource.includes('enforce_manual_equipment_purchase_redirect') &&
+    kan36RedirectMigrationSource.includes("coalesce(NEW.source, 'manual') <> 'manual'") &&
+    kan36RedirectMigrationSource.includes('coalesce(NEW.is_correction, false)') &&
+    kan36RedirectMigrationSource.includes("v_debit_account = '5410'") &&
+    kan36RedirectMigrationSource.includes('BEFORE INSERT OR UPDATE OF type, user_id, source, is_correction') &&
+    !kan36RedirectMigrationSource.includes('DELETE FROM public.accounts') &&
+    !kan36RedirectMigrationSource.includes('DROP TABLE'),
+  'KAN-36 database guard redirects only ordinary manual 5410 transactions without banning the account globally'
 )
 
 console.log('Transaction form UI regression tests passed.')

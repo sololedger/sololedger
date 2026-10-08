@@ -180,8 +180,13 @@ export default function FixedAssetsPanel({
     () => priorConnectableAssets.filter(asset => connectedAssetIds.includes(asset.id)),
     [connectedAssetIds, priorConnectableAssets]
   )
+  const parsedTaxableBaseAmount = parseAmount(taxableBaseAmount)
+  const hasValidPurchaseAmount =
+    taxableBaseAmount.trim() !== '' &&
+    Number.isFinite(parsedTaxableBaseAmount) &&
+    parsedTaxableBaseAmount > 0
   const previewThresholdBasisAmount = useMemo(() => {
-    const currentAmount = parseAmount(taxableBaseAmount)
+    const currentAmount = parsedTaxableBaseAmount
     if (connectionAssessment !== 'connected') return currentAmount
 
     const priorBasis = selectedConnectedAssets.reduce(
@@ -197,13 +202,14 @@ export default function FixedAssetsPanel({
   }, [
     connectionAssessment,
     plannedGroupBasisAmount,
+    parsedTaxableBaseAmount,
     selectedConnectedAssets,
-    taxableBaseAmount,
   ])
 
   const decision = useMemo(() => {
     if (!taxRules) return null
     if (connectionAssessment === '' || connectionAssessment === 'uncertain') return null
+    if (!hasValidPurchaseAmount) return null
 
     try {
       return calculateFixedAssetDecision(
@@ -221,6 +227,7 @@ export default function FixedAssetsPanel({
     }
   }, [
     connectionAssessment,
+    hasValidPurchaseAmount,
     previewThresholdBasisAmount,
     supplierVatAmount,
     taxRules,
@@ -246,6 +253,18 @@ export default function FixedAssetsPanel({
       ...calculateK1CollectiveDepreciation({ depreciationBasis: basis, taxRules }),
     }
   }, [capitalizedAssets, taxRules])
+  const totalCapitalizedAcquisitionValue = capitalizedAssets.reduce(
+    (sum, asset) => sum + asset.capitalizedAmount,
+    0
+  )
+  const totalBookedDepreciation = depreciationRuns.reduce(
+    (sum, run) => sum + run.depreciationAmount,
+    0
+  )
+  const collectiveBookValue = Math.max(
+    0,
+    totalCapitalizedAcquisitionValue - totalBookedDepreciation
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -651,6 +670,19 @@ export default function FixedAssetsPanel({
             </div>
           )}
 
+          {connectionAssessment &&
+            connectionAssessment !== 'uncertain' &&
+            !hasValidPurchaseAmount && (
+              <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                  Förhandsbedömning
+                </p>
+                <p className="mt-1 text-sm font-bold text-gray-600">
+                  Ange inköpsbelopp exklusive moms så visar SoloLedger om köpet kan kostnadsföras direkt eller ska bli inventarie.
+                </p>
+              </div>
+            )}
+
           {supplierCountry !== 'SE' && (
             <div className="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
               Utländska varuköp stoppas i KAN-36 och hanteras först när EU-varuflödet finns.
@@ -765,15 +797,45 @@ export default function FixedAssetsPanel({
             Inga inventarier registrerade än.
           </p>
         ) : (
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+          <>
+            {totalCapitalizedAcquisitionValue > 0 && (
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Anskaffningsvärde
+                  </p>
+                  <p className="mt-1 text-lg font-black text-gray-900">
+                    {formatMoney(totalCapitalizedAcquisitionValue)} kr
+                  </p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Bokförda avskrivningar
+                  </p>
+                  <p className="mt-1 text-lg font-black text-gray-900">
+                    {formatMoney(totalBookedDepreciation)} kr
+                  </p>
+                </div>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                    Bokfört värde kollektivt
+                  </p>
+                  <p className="mt-1 text-lg font-black text-emerald-900">
+                    {formatMoney(collectiveBookValue)} kr
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400">
                   <th className="py-3 pr-4">Datum</th>
                   <th className="py-3 pr-4">Inventarie</th>
                   <th className="py-3 pr-4">Beslut</th>
                   <th className="py-3 pr-4 text-right">Kostnad</th>
-                  <th className="py-3 pr-4 text-right">Inventarievärde</th>
+                  <th className="py-3 pr-4 text-right">Anskaffningsvärde</th>
                   <th className="py-3 pr-4">Status</th>
                   <th className="py-3 text-right">Åtgärd</th>
                 </tr>
@@ -825,8 +887,9 @@ export default function FixedAssetsPanel({
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

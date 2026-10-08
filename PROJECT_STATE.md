@@ -88,9 +88,23 @@ Verified on 2026-10-07:
   plus only `20261007160000_kan36_fixed_assets.sql`. Staging SQL/RPC rollback
   acceptance passed for small-value purchase, capitalization, VAT full/none,
   connected acquisitions, idempotency/tampering, depreciation/year-end guards,
-  unsupported cases, and cleanup. UI smoke remains NOT TESTED: local staging
-  frontend reached only `Laddar...`/login did not become visible within the
-  bounded diagnostic attempts; no persistent KAN-36 staging test data remained.
+  unsupported cases, and cleanup. Pontus reported bounded KAN-36 staging
+  acceptance and manual UI tests passed before the final UX completion below;
+  no persistent KAN-36 staging test data remained.
+- KAN-36 final UX completion on 2026-10-08: ordinary manual purchases using
+  `Förbrukningsinventarier (5410)` stay visible but are redirected to
+  `Inventarier`; the submit path blocks the ordinary manual purchase before
+  upload/RPC; a focused DB trigger blocks only ordinary manual 5410 transaction
+  rows while leaving non-manual KAN-36 postings, corrections, and imports
+  available; the inventory register labels acquisition value separately from
+  loaded collective book value; the initial purchase assessment is neutral until
+  a valid amount exists.
+- KAN-36 final UX verification on 2026-10-08: `npm run typecheck` PASS,
+  `npm run test:domain` PASS, focused KAN-36 UI/domain script checks PASS,
+  focused ESLint for changed KAN-36 files PASS, `npm run build` PASS after
+  approved network access for Next/Google Fonts, local SQL rollback guard test
+  PASS against `sololedger_kan17c_test`, and `git diff --check` PASS with CRLF
+  warnings only. Full repo lint still fails on older unrelated debt.
 - Full repo `npm run lint` still fails on older unrelated lint debt. Focused
   lint for changed KAN-36 TypeScript files passed when the pre-existing
   `no-explicit-any` debt in `TransactionTable.tsx` was disabled; one old
@@ -167,8 +181,9 @@ Verified on 2026-10-07:
 
 - `origin/main` is the deployed Production code at `a491afb`.
 - Local `main` has the docs-only KAN-23 finalization checkpoint plus the local
-  KAN-36 implementation checkpoint above `origin/main`. Do not push without
-  explicit approval because pushing `main` deploys Production.
+  KAN-36 implementation, staging-acceptance, and final UX completion
+  checkpoints above `origin/main`. Do not push without explicit approval
+  because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -197,9 +212,8 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Complete or manually replace the blocked KAN-36 UI smoke against a staging
-   frontend before Production release approval.
-2. Do not push `main`, deploy, or apply the KAN-36 migration to Production
+1. KAN-36 final UX completion is ready for leader release review.
+2. Do not push `main`, deploy, or apply the KAN-36 migrations to Production
    without explicit approval.
 3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
 4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly

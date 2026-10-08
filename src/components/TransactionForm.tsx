@@ -38,6 +38,7 @@ import {
   type VatV2RuntimeBookingRequest,
 } from '@/lib/vatRuntimeBooking'
 import {
+  categoryRedirectsToFixedAssets,
   categoryUsesDomesticSalesVatPolicy,
   getTransactionCategoryUiGroup,
 } from '@/lib/accountCategoryUi'
@@ -91,6 +92,7 @@ interface TransactionFormProps {
   onRefreshPaymentAccountRoles: () => Promise<void>
   onOpenPaymentAccountSettings: () => void
   onOpenCustomerInvoices: () => void
+  onOpenFixedAssets: () => void
 }
 
 const initialVatV2Facts: VatV2TransactionFacts = {
@@ -157,6 +159,7 @@ export default function TransactionForm({
   onRefreshPaymentAccountRoles,
   onOpenPaymentAccountSettings,
   onOpenCustomerInvoices,
+  onOpenFixedAssets,
 }: TransactionFormProps) {
   const [favName, setFavName] = useState('')
   const [showFavInput, setShowFavInput] = useState(false)
@@ -311,6 +314,15 @@ export default function TransactionForm({
     !editingBooked &&
     !vatV2AssessmentEnabled &&
     selectedCategoryUsesDomesticSalesVatPolicy
+  const selectedCategoryRedirectsToFixedAssets =
+    showOrdinaryV1Fields &&
+    !editingId &&
+    !editingBooked &&
+    !vatV2AssessmentEnabled &&
+    Boolean(
+      selectedCategory &&
+        categoryRedirectsToFixedAssets(selectedCategory)
+    )
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2SubmitError(null)
@@ -707,12 +719,16 @@ export default function TransactionForm({
                     uploading ||
                     isYearLocked ||
                     ordinaryCategoryMissing ||
-                    ordinarySalesVatBlocked
+                    ordinarySalesVatBlocked ||
+                    selectedCategoryRedirectsToFixedAssets
                   }
                   className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                     uploading
                       ? 'bg-gray-400'
-                      : isYearLocked || ordinaryCategoryMissing || ordinarySalesVatBlocked
+                      : isYearLocked ||
+                        ordinaryCategoryMissing ||
+                        ordinarySalesVatBlocked ||
+                        selectedCategoryRedirectsToFixedAssets
                       ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                       : vatV2AssessmentEnabled
                       ? 'bg-indigo-500 hover:bg-indigo-600'
@@ -762,6 +778,28 @@ export default function TransactionForm({
                   </p>
                 </div>
               )}
+          </div>
+        )}
+
+        {selectedCategoryRedirectsToFixedAssets && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wide text-amber-800">
+                  Utrustning bokförs under Inventarier
+                </p>
+                <p className="mt-1 text-[10px] font-bold text-amber-800">
+                  Har du köpt exempelvis en datormus, kamera, objektiv eller ett stativ? Gå till Inventarier så hjälper SoloLedger dig att bokföra köpet rätt, oavsett belopp.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenFixedAssets}
+                className="h-10 rounded-xl bg-white px-4 text-[10px] font-black uppercase tracking-wider text-amber-800 shadow-sm ring-1 ring-amber-200 transition-colors hover:bg-amber-100"
+              >
+                Gå till Inventarier
+              </button>
+            </div>
           </div>
         )}
 
@@ -1397,12 +1435,16 @@ export default function TransactionForm({
                   uploading ||
                   isYearLocked ||
                   ordinaryCategoryMissing ||
-                  ordinarySalesVatBlocked
+                  ordinarySalesVatBlocked ||
+                  selectedCategoryRedirectsToFixedAssets
                 }
                 className={`flex-1 h-[42px] rounded-xl font-black uppercase text-[9px] shadow-md transition-all text-white ${
                   uploading
                     ? 'bg-gray-400'
-                    : isYearLocked || ordinaryCategoryMissing || ordinarySalesVatBlocked
+                    : isYearLocked ||
+                      ordinaryCategoryMissing ||
+                      ordinarySalesVatBlocked ||
+                      selectedCategoryRedirectsToFixedAssets
                     ? 'bg-gray-300 opacity-40 cursor-not-allowed'
                     : vatV2AssessmentEnabled
                     ? 'bg-indigo-500 hover:bg-indigo-600'

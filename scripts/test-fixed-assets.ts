@@ -3,6 +3,7 @@ import {
   calculateK1CollectiveDepreciation,
   type FixedAssetTaxRuleParameters,
 } from '../src/lib/fixedAssets.ts'
+import { readFileSync } from 'node:fs'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -155,6 +156,26 @@ assert(
   mainRule.method === 'k1_main_rule_30_percent' &&
     mainRule.depreciationAmount === 30000,
   'K1 ordinary collective depreciation uses 30 percent of the basis.'
+)
+
+const fixedAssetsPanelSource = readFileSync(
+  'src/components/FixedAssetsPanel.tsx',
+  'utf8'
+)
+
+assert(
+  fixedAssetsPanelSource.includes('hasValidPurchaseAmount') &&
+    fixedAssetsPanelSource.includes('Ange inköpsbelopp exklusive moms så visar SoloLedger') &&
+    !fixedAssetsPanelSource.includes('Direkt kostnad: mindre värde – 0 kr'),
+  'Fixed asset panel shows neutral guidance before a valid purchase amount instead of a zero-kronor assessment.'
+)
+
+assert(
+  fixedAssetsPanelSource.includes('Anskaffningsvärde') &&
+    fixedAssetsPanelSource.includes('Bokförda avskrivningar') &&
+    fixedAssetsPanelSource.includes('Bokfört värde kollektivt') &&
+    fixedAssetsPanelSource.includes('totalBookedDepreciation'),
+  'Fixed asset register distinguishes acquisition value from collective current book value after depreciation.'
 )
 
 console.log('fixed asset domain tests passed')

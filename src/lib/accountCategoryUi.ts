@@ -2,6 +2,7 @@ export type TransactionCategoryUiGroup = 'income' | 'cost' | 'other'
 
 export interface TransactionCategoryAccountLike {
   id: string
+  debit_account?: string | null
   credit_account?: string | null
 }
 
@@ -39,4 +40,10 @@ export function categoryUsesDomesticSalesVatPolicy(
   account: TransactionCategoryAccountLike
 ) {
   return getTransactionCategoryUiGroup(account) === 'income'
+}
+
+export function categoryRedirectsToFixedAssets(
+  account: TransactionCategoryAccountLike
+) {
+  return account.debit_account === '5410'
 }

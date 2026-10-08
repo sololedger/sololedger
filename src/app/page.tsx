@@ -56,7 +56,10 @@ import {
   transactionSourceUiLabel,
 } from '@/lib/transactionSourceUi'
 import { customerInvoiceYearCloseBlockerFor } from '@/lib/customerInvoiceUi'
-import { categoryUsesDomesticSalesVatPolicy } from '@/lib/accountCategoryUi'
+import {
+  categoryRedirectsToFixedAssets,
+  categoryUsesDomesticSalesVatPolicy,
+} from '@/lib/accountCategoryUi'
 
 export default function Home() {
   const {
@@ -494,6 +497,15 @@ export default function Home() {
     } else if (!formData.type) {
       alert('Välj kategori innan du bokför.')
       return
+    }
+
+    if (!editingId) {
+      const selectedCategory = kontoplan.find(k => k.id === formData.type)
+      if (selectedCategory && categoryRedirectsToFixedAssets(selectedCategory)) {
+        alert('Utrustning bokförs under Inventarier. Gå till Inventarier så hjälper SoloLedger dig att bokföra köpet rätt, oavsett belopp.')
+        setActiveTab('inventarier')
+        return
+      }
     }
 
     submitInFlightRef.current = true
@@ -1155,6 +1167,7 @@ export default function Home() {
               onRefreshPaymentAccountRoles={paymentAccountRoles.reload}
               onOpenPaymentAccountSettings={() => setActiveTab('profil')}
               onOpenCustomerInvoices={() => setActiveTab('fakturor')}
+              onOpenFixedAssets={() => setActiveTab('inventarier')}
             />
           </div>
 

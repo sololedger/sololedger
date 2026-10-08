@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  categoryRedirectsToFixedAssets,
   categoryUsesDomesticSalesVatPolicy,
   getTransactionCategoryUiGroup,
   isOwnerDepositCategoryId,
@@ -92,7 +93,26 @@ assert.equal(
   false,
   'övriga ägar-/balansflöden följer inte svensk försäljningsmomsprofil'
 )
+assert.equal(
+  categoryRedirectsToFixedAssets({
+    id: 'forbrukningsinventarier',
+    debit_account: '5410',
+    credit_account: '1930',
+  }),
+  true,
+  'vanlig 5410-kategori styrs till Inventarier i stället för manuell bokföring'
+)
+assert.equal(
+  categoryRedirectsToFixedAssets({
+    id: 'programvara',
+    debit_account: '5420',
+    credit_account: '1930',
+  }),
+  false,
+  'andra kostnadskategorier styrs inte till Inventarier'
+)
 
 console.log('✓ Canonical och legacy category IDs grupperas rätt i UI.')
 console.log('✓ Egen insättning känns igen med både nytt och gammalt ID.')
 console.log('✓ Svensk försäljningsmomsprofil kopplas till manuella 3xxx-intäktskategorier.')
+console.log('✓ Vanlig 5410-kategori styrs till Inventarier utan att andra kostnader påverkas.')
