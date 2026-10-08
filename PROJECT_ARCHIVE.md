@@ -6,10 +6,34 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-55 Ordinary Purchase Input VAT Deduction Release
+
+- KAN-55 addresses ordinary Bokföring/V1 input VAT deduction entitlement for
+  domestic purchases and periodizations, plus a VAT V2 guard for new
+  full-deduction EU-service reverse-charge bookings.
+- Product behavior: `none` and `unknown` profiles do not create automatic
+  `2641`; `full` profiles default to full deduction but can choose no deduction
+  for an individual purchase. Invoice VAT rate and deductible VAT remain
+  separate concepts. No partial deduction rule was implemented.
+- Production DB migration `20261008175927_kan55_purchase_input_vat_deduction`
+  was applied to Supabase Production ref `wbaxmuvudpnkvuliicuy` on
+  2026-10-08 before code release. Post-checks confirmed the migration ledger,
+  `book_transaction_atomic(jsonb)`, `book_periodized_transaction_atomic(jsonb)`,
+  internal helper/resolver functions, VAT V2 public wrapper, protected VAT V2
+  delegate, grants, KAN-22 business facts, and KAN-54 fixed-asset guard.
+- Staging verification covered rollback-safe SQL regressions for `none`,
+  `unknown`, missing profile setting, `full`, per-purchase override to no
+  deduction, ordinary purchases, periodizations, manipulated RPC attempts, VAT
+  V2 full-deduction guard, VAT V2 no-deduction EU-service flow, and no
+  persistent test data.
+- Local release checks before commit: `npm run typecheck`, `npm run
+  test:domain`, and `git diff --check` passed. Production code deployment and
+  Jira transition evidence are reported in the release chat after push.
+
 ### KAN-54 Fixed-Asset VAT Deduction Guard Production Release
 
-- KAN-54 reached Production release on 2026-10-08 and remains `In Review` in
-  Jira for Pontus product-owner review; it was not marked `Done`.
+- KAN-54 reached Production release on 2026-10-08 and is `Done` in Jira after
+  Pontus product-owner acceptance.
 - Production `main`/`origin/main` release commit:
   `4e90d1a487098c36f0608849fb315fde8fd61d35`
   (`KAN-54 guard fixed asset VAT deduction`).

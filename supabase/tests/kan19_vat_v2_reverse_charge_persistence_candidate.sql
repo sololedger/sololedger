@@ -246,6 +246,29 @@ BEGIN
   INSERT INTO auth.users (id)
   VALUES (v_other_user_id);
 
+  INSERT INTO public.profiles (
+    id,
+    email,
+    vat_status,
+    vat_period_type,
+    vat_management_from,
+    domestic_sales_vat_treatment,
+    foreign_purchase_reporting,
+    default_deduction_entitlement
+  )
+  VALUES (
+    v_user_id,
+    v_tag || '@example.invalid',
+    'registered',
+    'month',
+    make_date(v_base_year, 1, 1),
+    'taxable',
+    'required',
+    'full'
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET default_deduction_entitlement = 'full';
+
   INSERT INTO public.accounts (
     id,
     user_id,

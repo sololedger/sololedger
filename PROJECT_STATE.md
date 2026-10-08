@@ -7,22 +7,23 @@ Last updated: 2026-10-08
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `4e90d1a487098c36f0608849fb315fde8fd61d35`
-  (`KAN-54 guard fixed asset VAT deduction`).
+- Origin/Production `main`: KAN-55 release commit pending push in this
+  checkpoint. Previous verified `origin/main` before this release:
+  `7b118e40288413c0ae79fdc05cbee9b3263584cb`.
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
   + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 + KAN-36 + KAN-54 release.
+  KAN-55 Production DB migration is live; code release verification follows
+  this checkpoint push.
 - Vercel Production deployment:
   `dpl_68zo3FwhLxdNhHqevk8qDPhU91J1`
   (`sololedger-1msukfnht-sololedger1.vercel.app`) is `Ready`, built from
   `4e90d1a`, and aliased to `https://sololedger.vercel.app`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261008173000` after the completed KAN-54 Production DB release.
+  `20261008175927` after the completed KAN-55 Production DB migration.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
-  KAN-36 `20261007160000` and `20261008110000`, plus KAN-54 `20261008170000`
-  and `20261008173000`. KAN-51 `20261007110000` and KAN-22 `20261007130000`
-  are still not in the staging migration ledger; KAN-36/KAN-54 staging
-  migrations were applied through isolated CLI migration chains to avoid
-  unrelated pending migrations.
+  KAN-51 `20261007110000`, KAN-22 `20261007130000`, KAN-36
+  `20261007160000` and `20261008110000`, KAN-54 `20261008170000` and
+  `20261008173000`, and KAN-55 `20261008175927`.
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
 
@@ -54,32 +55,23 @@ Last updated: 2026-10-08
 Verified on 2026-10-08:
 
 - Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, KAN-41,
-  KAN-22, and KAN-23 after Pontus acceptance and Production release.
+  KAN-22, KAN-23, and KAN-54 after Pontus acceptance and Production release.
 - KAN-53 was created as the future VAT V2 EU-goods support issue. Do not
   implement EU-goods accounting inside KAN-23.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
 - KAN-36 is released to Production and remains `In Review`, assigned to Pontus.
   Pontus final product-owner review remains before `Done`.
-- KAN-54 is released to Production and remains `In Review`, assigned to Pontus.
-  Production release evidence was added as Jira comment `11411`; Pontus final
-  product-owner review remains before `Done`.
+- KAN-54 is `Done` in Jira.
+- KAN-55 is being released to Production and remains `To Do` in Jira until the
+  code release and post-release verification are complete.
 
 ## Current Active Work
 
-- KAN-54 Production release is live, technically approved, and waiting for
-  Pontus product-owner review in Jira `In Review`. Release evidence is archived
-  in `PROJECT_ARCHIVE.md`.
-- KAN-54 scope now live: Inventarier restricts momsavdrag choices from
-  `profiles.default_deduction_entitlement`, and
-  `book_fixed_asset_acquisition_atomic(jsonb)` has a server-side guard so
-  `full` VAT deduction is allowed only when the profile explicitly says
-  `full`. Profiles `none`, `unknown`, missing profile, and unsupported values
-  cannot create a new fixed-asset `2641` deduction through the public RPC;
-  choosing `none` remains allowed.
-- KAN-36 Production release is also live and waiting for Pontus product-owner
-  review in Jira `In Review`. Detailed KAN-36 release evidence is archived in
-  `PROJECT_ARCHIVE.md`.
+- KAN-55 Production DB migration is live and verified. Code release is the
+  current active step: commit the reviewed KAN-55 UI/service/test/docs changes,
+  push to `origin/main`, verify Vercel Production, then move Jira KAN-55 to
+  `In Review` for Pontus owner acceptance.
 
 ## Completed Release
 
@@ -131,20 +123,15 @@ Verified on 2026-10-08:
   EU goods fail-closed, and relevant SIE/correction/undo boundaries. Real
   two-session concurrency remains a documented accepted limitation, not a
   KAN-23 blocker.
-- KAN-54 is released to Production and in Jira `In Review`: fixed-asset VAT
-  deduction is now constrained by the company deduction profile in both UI and
-  server-side RPC guard. Pontus final product-owner review remains before
-  `Done`.
+- KAN-54 is closed: fixed-asset VAT deduction is constrained by the company
+  deduction profile in both UI and server-side RPC guard.
 - Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
 
 ## Open Follow-Ups
 
 - KAN-53 covers future EU-goods VAT V2 accounting support.
-- KAN-54 follow-up candidate: ordinary Bokföring/V1 may still allow `2641`
-  based on VAT rate without checking actual deduction entitlement. Jira search
-  found no exact existing issue during KAN-54; KAN-14/KAN-22/KAN-34/KAN-53 are
-  related but not the same scope. Do not implement this without a selected
-  follow-up issue.
+- KAN-55 covers the former KAN-54 follow-up candidate for ordinary Bokföring/V1
+  input-VAT deduction entitlement. Owner acceptance remains after release.
 - Future UI/UX consistency pass: consider aligning other Profile areas such as
   `Betalningskonton` with the newer Profile card language. This was explicitly
   out of scope for KAN-50.
@@ -158,9 +145,8 @@ Verified on 2026-10-08:
 
 ## Git / Local Files
 
-- KAN-54 release code was committed and pushed in
-  `4e90d1a487098c36f0608849fb315fde8fd61d35`.
-- This documentation checkpoint is local-only until Pontus approves a push.
+- KAN-55 local release changes are ready to commit and push with Pontus'
+  explicit approval in the current release instruction.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -189,11 +175,9 @@ Verified on 2026-10-08:
 
 ## Next Safe Step
 
-1. Pontus product-owner reviews KAN-54 in Production. Keep Jira KAN-54
-   `In Review`; Pontus sets `Done` only after final acceptance.
-2. Push this documentation checkpoint only after explicit approval. Do not push
-   automatically.
-3. KAN-36 is also released to Production and remains ready for Pontus
-   product-owner review before `Done`.
+1. Commit and push the reviewed KAN-55 release changes to `origin/main`.
+2. Verify the resulting Vercel Production deployment and non-destructive smoke.
+3. Move Jira KAN-55 to `In Review`, assign it to Pontus, and add release
+   verification evidence. Do not set it to `Done`.
 4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

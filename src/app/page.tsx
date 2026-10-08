@@ -17,7 +17,9 @@ import ProfileSettings from '@/components/ProfileSettings'
 import TransactionTable from '@/components/TransactionTable'
 import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
 import OverviewCards from '@/components/OverviewCards'
-import TransactionForm from '@/components/TransactionForm'
+import TransactionForm, {
+  type OrdinaryInputVatDeductionSelection,
+} from '@/components/TransactionForm'
 import CustomerInvoicesPanel from '@/components/CustomerInvoicesPanel'
 import FixedAssetsPanel from '@/components/FixedAssetsPanel'
 import SieImportModal from '@/components/SieImportModal'
@@ -158,6 +160,7 @@ export default function Home() {
     amount: '',
     type: '',
     vatRate: 0,
+    inputVatDeduction: 'profile_default' as OrdinaryInputVatDeductionSelection,
     file: null as File | null
   })
 
@@ -565,6 +568,7 @@ export default function Home() {
             amount: Number(formData.amount),
             type: formData.type,
             vat_rate: formData.vatRate,
+            input_vat_deduction_entitlement: formData.inputVatDeduction,
             file_url: fileUrl || null,
           })
         } else {
@@ -576,6 +580,7 @@ export default function Home() {
             amount: Number(formData.amount),
             type: formData.type,
             vat_rate: formData.vatRate,
+            input_vat_deduction_entitlement: formData.inputVatDeduction,
             file_url: fileUrl || null,
           })
         }
@@ -589,6 +594,7 @@ export default function Home() {
         amount: '',
         type: '',
         vatRate: 0,
+        inputVatDeduction: 'profile_default',
         file: null
       }))
       setPeriodisera(false)
@@ -643,6 +649,7 @@ export default function Home() {
       amount: tx.amount.toString(),
       type: tx.type,
       vatRate: tx.vat_rate,
+      inputVatDeduction: 'profile_default',
       file: null
     })
     // Scrolla till formuläret (inte sidans topp) — viktigt på mobil där

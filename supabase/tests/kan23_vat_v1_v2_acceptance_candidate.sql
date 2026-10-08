@@ -339,8 +339,8 @@ BEGIN
   );
   PERFORM pg_temp.assert_true((v_result->>'success')::boolean, 'V1 domestic purchase succeeds');
   v_purchase_tx_id := (v_result->>'transaction_id')::uuid;
-  PERFORM pg_temp.assert_journal_amount(v_purchase_tx_id, '4000', 100, 0, 'V1 purchase cost');
-  PERFORM pg_temp.assert_journal_amount(v_purchase_tx_id, '2641', 25, 0, 'V1 purchase input VAT');
+  PERFORM pg_temp.assert_journal_amount(v_purchase_tx_id, '4000', 125, 0, 'V1 purchase gross cost without deduction');
+  PERFORM pg_temp.assert_journal_amount(v_purchase_tx_id, '2641', 0, 0, 'V1 purchase no input VAT for none profile');
   PERFORM pg_temp.assert_journal_amount(v_purchase_tx_id, '1930', 0, 125, 'V1 purchase payment');
 
   PERFORM pg_temp.assert_eq(
@@ -470,7 +470,7 @@ BEGIN
 
   PERFORM pg_temp.assert_eq((v_result->>'success')::boolean, true, 'mixed close succeeds');
   PERFORM pg_temp.assert_eq((v_result->>'transaction_created')::boolean, true, 'mixed close creates settlement transaction');
-  PERFORM pg_temp.assert_eq((v_result->>'closing_amount')::numeric, 282::numeric, 'mixed close net VAT position');
+  PERFORM pg_temp.assert_eq((v_result->>'closing_amount')::numeric, 307::numeric, 'mixed close net VAT position');
   PERFORM pg_temp.assert_true(v_closing_tx_id IS NOT NULL, 'mixed close transaction id returned');
 
   PERFORM pg_temp.assert_eq(
@@ -495,8 +495,8 @@ BEGIN
   );
   PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2611', 250, 0, 'mixed close zeros V1 output VAT');
   PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2614', 57, 0, 'mixed close zeros VAT V2 output VAT');
-  PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2641', 0, 25, 'mixed close zeros V1 input VAT');
-  PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2650', 0, 282, 'mixed close posts payable to 2650');
+  PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2641', 0, 0, 'mixed close has no V1 input VAT for none profile');
+  PERFORM pg_temp.assert_journal_amount(v_closing_tx_id, '2650', 0, 307, 'mixed close posts payable to 2650');
 
   PERFORM pg_temp.assert_eq(
     (
@@ -515,7 +515,7 @@ BEGIN
       WHERE id = v_period_id
         AND user_id = v_user_id
     ),
-    282::numeric,
+    307::numeric,
     'mixed period stores net closing amount'
   );
   PERFORM pg_temp.assert_eq(
@@ -533,7 +533,7 @@ BEGIN
   PERFORM pg_temp.assert_account_balance(v_user_id, v_period_start, v_period_end, '2614', 0, 'post-close 2614 zero');
   PERFORM pg_temp.assert_account_balance(v_user_id, v_period_start, v_period_end, '2641', 0, 'post-close 2641 zero');
   PERFORM pg_temp.assert_account_balance(v_user_id, v_period_start, v_period_end, '2645', 0, 'post-close 2645 remains zero');
-  PERFORM pg_temp.assert_account_balance(v_user_id, v_period_start, v_period_end, '2650', -282, 'post-close 2650 payable balance');
+  PERFORM pg_temp.assert_account_balance(v_user_id, v_period_start, v_period_end, '2650', -307, 'post-close 2650 payable balance');
 
   v_result := public.declare_vat_period_atomic(v_period_id);
   v_declared_at := (v_result->>'declared_at')::timestamptz;
@@ -541,7 +541,7 @@ BEGIN
   PERFORM pg_temp.assert_eq((v_result->>'success')::boolean, true, 'mixed declare succeeds');
   PERFORM pg_temp.assert_eq((v_result->>'already_declared')::boolean, false, 'mixed declare first call');
   PERFORM pg_temp.assert_eq(v_result->>'status', 'declared', 'mixed declare status result');
-  PERFORM pg_temp.assert_eq((v_result->>'closing_amount')::numeric, 282::numeric, 'mixed declare preserves closing amount');
+  PERFORM pg_temp.assert_eq((v_result->>'closing_amount')::numeric, 307::numeric, 'mixed declare preserves closing amount');
   PERFORM pg_temp.assert_eq((v_result->>'closing_transaction_id')::uuid, v_closing_tx_id, 'mixed declare preserves closing transaction');
   PERFORM pg_temp.assert_true(v_declared_at IS NOT NULL, 'mixed declare returns timestamp');
   PERFORM pg_temp.assert_true(
@@ -551,7 +551,7 @@ BEGIN
       WHERE id = v_period_id
         AND user_id = v_user_id
         AND status = 'declared'
-        AND closing_amount = 282
+        AND closing_amount = 307
         AND closing_transaction_id = v_closing_tx_id
         AND declared_at = v_declared_at
     ),

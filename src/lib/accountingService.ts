@@ -60,6 +60,7 @@ interface BookTransactionInput {
   amount: number
   type: string
   vat_rate?: number | null
+  input_vat_deduction_entitlement?: 'profile_default' | 'full' | 'none' | null
   file_url?: string | null
 }
 
@@ -146,6 +147,8 @@ export async function bookTransaction(tx: BookTransactionInput) {
     amount: tx.amount,
     type: tx.type,
     vat_rate: tx.vat_rate ?? 0,
+    input_vat_deduction_entitlement:
+      tx.input_vat_deduction_entitlement ?? 'profile_default',
     file_url: tx.file_url ?? null,
   }
 
@@ -1733,6 +1736,8 @@ export async function bookPeriodizedTransaction(
     amount: tx.amount,
     type: tx.type,
     vat_rate: tx.vat_rate ?? 0,
+    input_vat_deduction_entitlement:
+      tx.input_vat_deduction_entitlement ?? 'profile_default',
     file_url: tx.file_url ?? null,
   }
 

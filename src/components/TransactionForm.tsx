@@ -49,8 +49,14 @@ export interface FormData {
   amount: string
   type: string
   vatRate: number
+  inputVatDeduction: OrdinaryInputVatDeductionSelection
   file: File | null
 }
+
+export type OrdinaryInputVatDeductionSelection =
+  | 'profile_default'
+  | 'none'
+  | 'full'
 
 interface KontoplanOption {
   id: string
@@ -117,6 +123,19 @@ function profileDeductionLabel(
 
 function deductionLabel(entitlement: 'full' | 'none') {
   return entitlement === 'full' ? 'full avdragsrätt' : 'ingen avdragsrätt'
+}
+
+function calculateInvoiceVatAmount(grossAmount: string, vatRate: number) {
+  const amount = Number(grossAmount)
+  if (!Number.isFinite(amount) || amount <= 0 || vatRate <= 0) return 0
+  return Math.round((amount - amount / (1 + vatRate / 100)) * 100) / 100
+}
+
+function formatAmount(amount: number) {
+  return new Intl.NumberFormat('sv-SE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
 }
 
 function purchaseClassificationLabel(
@@ -323,6 +342,56 @@ export default function TransactionForm({
       selectedCategory &&
         categoryRedirectsToFixedAssets(selectedCategory)
     )
+  const selectedCategoryIsCost =
+    showOrdinaryV1Fields &&
+    Boolean(
+      selectedCategory &&
+        getTransactionCategoryUiGroup(selectedCategory) === 'cost'
+    )
+  const showOrdinaryInputVatDeduction =
+    showOrdinaryV1Fields &&
+    selectedCategoryIsCost &&
+    !editingBooked &&
+    !vatV2AssessmentEnabled &&
+    !selectedCategoryRedirectsToFixedAssets &&
+    !isNotVatRegistered &&
+    formData.vatRate > 0
+  const companyDefaultDeduction =
+    companyVatProfileResult.profile.defaultDeductionEntitlement
+  const effectiveOrdinaryInputVatDeduction =
+    formData.inputVatDeduction === 'none'
+      ? 'none'
+      : formData.inputVatDeduction === 'full'
+      ? 'full'
+      : companyDefaultDeduction === 'full'
+      ? 'full'
+      : 'none'
+  const ordinaryInvoiceVatAmount = calculateInvoiceVatAmount(
+    formData.amount,
+    formData.vatRate
+  )
+  const ordinaryDeductibleVatAmount =
+    showOrdinaryInputVatDeduction &&
+    effectiveOrdinaryInputVatDeduction === 'full'
+      ? ordinaryInvoiceVatAmount
+      : 0
+  const ordinaryExpenseAmount =
+    showOrdinaryInputVatDeduction && Number(formData.amount) > 0
+      ? Number(formData.amount) - ordinaryDeductibleVatAmount
+      : 0
+  const ordinaryInputVatDeductionMessage =
+    companyDefaultDeduction === 'full'
+      ? 'Fullt momsavdrag används enligt Profil om du inte väljer bort det för just detta köp.'
+      : companyDefaultDeduction === 'none'
+      ? 'Ingen avdragsgill moms enligt Profil. Hela fakturans belopp bokförs som kostnad.'
+      : 'Avdragsrätten är inte fastställd i Profil. SoloLedger gör därför inget automatiskt momsavdrag.'
+  const periodizedYearOneVatText =
+    showOrdinaryInputVatDeduction &&
+    effectiveOrdinaryInputVatDeduction !== 'full'
+      ? 'Ingen moms bokas på 2641. Hela beloppet → konto 1790.'
+      : isNotVatRegistered
+      ? 'Hela beloppet → konto 1790.'
+      : 'Moms bokas direkt. Netto → konto 1790.'
 
   function updateVatV2Facts(update: Partial<VatV2TransactionFacts>) {
     setVatV2SubmitError(null)
@@ -409,6 +478,7 @@ export default function TransactionForm({
         )
           ? 0
           : fav.vat_rate,
+      inputVatDeduction: 'profile_default',
       description: '',
     })
     setDescriptionHighlight(true)
@@ -505,6 +575,7 @@ export default function TransactionForm({
                         ...formData,
                         type: '',
                         vatRate: 0,
+                        inputVatDeduction: 'profile_default',
                       })
                       return
                     }
@@ -527,6 +598,7 @@ export default function TransactionForm({
                       ...formData,
                       type: e.target.value,
                       vatRate: nextVatRate,
+                      inputVatDeduction: 'profile_default',
                     })
                   }}
                   disabled={editingBooked || isYearLocked}
@@ -634,10 +706,10 @@ export default function TransactionForm({
 
             {showOrdinaryV1Fields && (
               <>
-                {/* Moms % */}
+                {/* Fakturans moms */}
                 <div className="lg:col-span-1 flex flex-col gap-1">
                   <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    Moms %
+                    Moms på fakturan
                   </label>
 
                   <select
@@ -699,6 +771,56 @@ export default function TransactionForm({
                     required={ordinaryV1AmountRequired}
                   />
                 </div>
+
+                {showOrdinaryInputVatDeduction && (
+                  <div className="col-span-2 lg:col-span-6 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] font-black uppercase text-emerald-700">
+                          Avdragsgill ingående moms
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold leading-relaxed text-emerald-700">
+                          {ordinaryInputVatDeductionMessage}
+                        </p>
+                      </div>
+
+                      {companyDefaultDeduction === 'full' && (
+                        <label className="min-w-[220px] flex flex-col gap-1">
+                          <span className="text-[9px] font-black uppercase text-emerald-700">
+                            Detta köp
+                          </span>
+                          <select
+                            value={formData.inputVatDeduction}
+                            onChange={e =>
+                              setFormData({
+                                ...formData,
+                                inputVatDeduction:
+                                  e.target.value as OrdinaryInputVatDeductionSelection,
+                              })
+                            }
+                            disabled={editingBooked || isYearLocked}
+                            className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-[11px] font-bold text-emerald-800 outline-none transition-colors focus:border-emerald-400 disabled:bg-gray-100 disabled:text-gray-400"
+                          >
+                            <option value="profile_default">
+                              Fullt momsavdrag enligt Profil
+                            </option>
+                            <option value="none">
+                              Inget momsavdrag för detta köp
+                            </option>
+                          </select>
+                        </label>
+                      )}
+                    </div>
+
+                    {ordinaryInvoiceVatAmount > 0 && (
+                      <p className="mt-3 text-[10px] font-bold text-emerald-800">
+                        Fakturans moms: {formatAmount(ordinaryInvoiceVatAmount)} kr.
+                        Avdrag: {formatAmount(ordinaryDeductibleVatAmount)} kr.
+                        Kostnad: {formatAmount(ordinaryExpenseAmount)} kr.
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -1400,9 +1522,7 @@ export default function TransactionForm({
                   <p>
                     📅 <strong>År 1 (idag):</strong>{' '}
                     Bank krediteras.{' '}
-                    {isNotVatRegistered
-                      ? 'Hela beloppet → konto 1790.'
-                      : 'Moms bokas direkt. Netto → konto 1790.'}
+                    {periodizedYearOneVatText}
                   </p>
 
                   <p>
