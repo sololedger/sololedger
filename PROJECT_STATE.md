@@ -19,10 +19,11 @@ Last updated: 2026-10-08
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007130000` after KAN-22 Production DB release.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
-  `20261007160000` (`kan36_fixed_assets`) after bounded KAN-36 staging
+  `20261007160000` (`kan36_fixed_assets`) and `20261008110000`
+  (`kan36_redirect_manual_equipment_purchases`) after bounded KAN-36 staging
   acceptance. KAN-51 `20261007110000` and KAN-22 `20261007130000` are still not
-  in the staging migration ledger; KAN-36 was applied through an isolated CLI
-  migration chain to avoid unrelated pending migrations.
+  in the staging migration ledger; KAN-36 staging migrations were applied
+  through isolated CLI migration chains to avoid unrelated pending migrations.
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
 
@@ -105,6 +106,16 @@ Verified on 2026-10-07:
   approved network access for Next/Google Fonts, local SQL rollback guard test
   PASS against `sololedger_kan17c_test`, and `git diff --check` PASS with CRLF
   warnings only. Full repo lint still fails on older unrelated debt.
+- KAN-36 final staging guard verification on 2026-10-08: staging identity
+  verified as `sololedger-staging` / `fzxqiqenqjzhlyxxpvhg`; normal repo
+  `db push --dry-run` would still include unrelated KAN-51/KAN-22 migrations,
+  so only `20261008110000_kan36_redirect_manual_equipment_purchases.sql` was
+  applied through an isolated CLI migration chain. Staging ledger now includes
+  `20261008110000`; KAN-51/KAN-22 remain absent from staging. Rollback-safe
+  staging SQL/RPC guard acceptance PASS, cleanup verification found zero KAN-36
+  final-guard test transactions, journal rows, or fixed assets left behind, and
+  focused UI script checks PASS. No Production migration, Production data
+  change, push, or deploy was performed.
 - Full repo `npm run lint` still fails on older unrelated lint debt. Focused
   lint for changed KAN-36 TypeScript files passed when the pre-existing
   `no-explicit-any` debt in `TransactionTable.tsx` was disabled; one old
@@ -181,7 +192,8 @@ Verified on 2026-10-07:
 
 - `origin/main` is the deployed Production code at `a491afb`.
 - Local `main` has the docs-only KAN-23 finalization checkpoint plus the local
-  KAN-36 implementation, staging-acceptance, and final UX completion
+  KAN-36 implementation, staging-acceptance, final UX completion, and final
+  staging-guard documentation
   checkpoints above `origin/main`. Do not push without explicit approval
   because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
@@ -212,7 +224,8 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. KAN-36 final UX completion is ready for leader release review.
+1. KAN-36 final staging guard verification is complete and KAN-36 is ready for
+   Production release review.
 2. Do not push `main`, deploy, or apply the KAN-36 migrations to Production
    without explicit approval.
 3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
