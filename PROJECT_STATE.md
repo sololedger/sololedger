@@ -7,17 +7,17 @@ Last updated: 2026-10-08
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `a491afbc56a499b39a89df9908abc3e341a96955`
-  (`test: add KAN-23 VAT V1/V2 acceptance coverage`).
+- Origin/Production `main`: `3868ef19cbb927ed15a4d9ad15c8223d4082d50a`
+  (`docs: record KAN-36 final staging guard verification`).
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 release.
+  + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 + KAN-36 release.
 - Vercel Production deployment:
-  `dpl_5Rj6ha7MmrLsD8QhQPgt2m22YkxS`
-  (`sololedger-pwytdpkdc-sololedger1.vercel.app`) is `Ready`, built from
-  `a491afb`, and aliased to `https://sololedger.vercel.app`; HTTP check
+  `dpl_EEy4gDWNq9Ag99LeDtSrY1CdDdg1`
+  (`sololedger-g9b8euw3k-sololedger1.vercel.app`) is `Ready`, built from
+  `3868ef1`, and aliased to `https://sololedger.vercel.app`; HTTP check
   returned `200`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261007130000` after KAN-22 Production DB release.
+  `20261008110000` after KAN-36 Production DB release.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
   `20261007160000` (`kan36_fixed_assets`) and `20261008110000`
   (`kan36_redirect_manual_equipment_purchases`) after bounded KAN-36 staging
@@ -60,8 +60,8 @@ Verified on 2026-10-07:
   implement EU-goods accounting inside KAN-23.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
-- KAN-36 is implemented locally and remains `In Review`, assigned to Pontus.
-  Production deploy and Production Supabase migration have not been performed.
+- KAN-36 is released to Production and remains `In Review`, assigned to Pontus.
+  Pontus final product-owner review remains before `Done`.
 
 ## Current Active Work
 
@@ -116,6 +116,20 @@ Verified on 2026-10-07:
   final-guard test transactions, journal rows, or fixed assets left behind, and
   focused UI script checks PASS. No Production migration, Production data
   change, push, or deploy was performed.
+- KAN-36 Production release on 2026-10-08: Production Supabase ref
+  `wbaxmuvudpnkvuliicuy` received only `20261007160000_kan36_fixed_assets.sql`
+  before frontend deploy and only
+  `20261008110000_kan36_redirect_manual_equipment_purchases.sql` after
+  frontend deploy. GitHub `origin/main` was pushed from `a491afb` to
+  `3868ef19cbb927ed15a4d9ad15c8223d4082d50a`; Vercel Production deployment
+  `dpl_EEy4gDWNq9Ag99LeDtSrY1CdDdg1` is `Ready` and aliased to
+  `https://sololedger.vercel.app`. Production smoke passed for app load,
+  existing auth session, Inventarier access, 5410 redirect guidance, disabled
+  ordinary submit, neutral initial equipment assessment, transaction history,
+  NE/report and Moms views, and zero browser console errors. No fictional
+  Production accounting transaction was created. Inventory value labels after
+  depreciation were not visually testable in Production because no fixed assets
+  exist there yet.
 - Full repo `npm run lint` still fails on older unrelated lint debt. Focused
   lint for changed KAN-36 TypeScript files passed when the pre-existing
   `no-explicit-any` debt in `TransactionTable.tsx` was disabled; one old
@@ -190,12 +204,10 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `a491afb`.
-- Local `main` has the docs-only KAN-23 finalization checkpoint plus the local
-  KAN-36 implementation, staging-acceptance, final UX completion, and final
-  staging-guard documentation
-  checkpoints above `origin/main`. Do not push without explicit approval
-  because pushing `main` deploys Production.
+- `origin/main` is the deployed Production code at `3868ef1`.
+- Local `main` may have a docs-only post-release checkpoint above
+  `origin/main` after this handoff update. Do not push another commit without
+  explicit approval because pushing `main` deploys Production.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -224,10 +236,9 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. KAN-36 final staging guard verification is complete and KAN-36 is ready for
-   Production release review.
-2. Do not push `main`, deploy, or apply the KAN-36 migrations to Production
-   without explicit approval.
+1. KAN-36 is released to Production and ready for Pontus product-owner review.
+2. Do not push the post-release documentation checkpoint without explicit
+   approval.
 3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
 4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.

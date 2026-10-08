@@ -6,6 +6,40 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-36 K1 Fixed Assets Production Release
+
+- KAN-36 reached Production release on 2026-10-08 and remains `In Review` in
+  Jira for Pontus product-owner review; it was not marked `Done`.
+- Production `main`/`origin/main` release commit:
+  `3868ef19cbb927ed15a4d9ad15c8223d4082d50a`
+  (`docs: record KAN-36 final staging guard verification`).
+- Vercel Production deployment:
+  `dpl_EEy4gDWNq9Ag99LeDtSrY1CdDdg1`,
+  `sololedger-g9b8euw3k-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build commit verified as `3868ef1`, status
+  `Ready`, and HTTP check returned `200`.
+- Supabase Production ref `wbaxmuvudpnkvuliicuy` received the approved
+  migrations in the controlled order:
+  `20261007160000_kan36_fixed_assets.sql` before frontend deploy, then
+  `20261008110000_kan36_redirect_manual_equipment_purchases.sql` after the
+  frontend was confirmed live. Final Production migration ledger includes both
+  versions, plus prior KAN-51 `20261007110000` and KAN-22 `20261007130000`.
+- Production DB verification confirmed KAN-36 fixed-asset tables, RPCs,
+  `get_tax_rule_parameters_for_year(2026)` returning half PBB `29600.00`, the
+  `transactions_source_check` fixed-asset sources, and the final manual 5410
+  guard trigger/function. The guard function was verified to skip non-manual
+  sources and corrections and target only debit account `5410`.
+- Production smoke was non-destructive: app loaded, existing auth session
+  worked, Inventarier view loaded, ordinary Bokföring showed the 5410 redirect
+  explanation, `Gå till Inventarier` navigated correctly, ordinary submit was
+  disabled for 5410, initial fixed-asset assessment was neutral before amount,
+  transaction history loaded, NE/report and Moms views loaded, and browser
+  console error count was zero.
+- No fictional Production accounting transaction was created. Inventory
+  register value labels after depreciation were not visually testable in
+  Production because no fixed assets existed there yet; this was the only
+  smoke limitation.
+
 ### KAN-23 VAT V1 + VAT V2 Regression Acceptance
 
 - KAN-23 reached `Done` in Jira on 2026-10-07 after leader acceptance and
