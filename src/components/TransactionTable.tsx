@@ -8,6 +8,7 @@ import {
   shouldOfferGenericTransactionEdit,
 } from '@/lib/transactionSourceUi'
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
+import { transactionVatBadges } from '@/lib/transactionVatPresentation'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -122,6 +123,13 @@ export default function TransactionTable({
         ) ||
         isOwnerDepositCategoryId(tx.type)
       )
+
+    const vatBadges = transactionVatBadges({
+      transaction: tx,
+      journalRows: journal,
+      isSystemManaged,
+      isIncome,
+    })
 
     // En KORRVER är i sig en giltig ny bokföringspost. Därför stryks inte
     // korrigeringsraden längre över. Det är ORIGINALVERIFIKATIONEN som
@@ -246,6 +254,7 @@ export default function TransactionTable({
       offerGenericCorrection,
       accountDef,
       isIncome,
+      vatBadges,
       rowClass,
       textClass,
       verClass,
@@ -441,6 +450,7 @@ export default function TransactionTable({
                 offerGenericCorrection,
                 accountDef,
                 isIncome,
+                vatBadges,
                 rowClass,
                 textClass,
                 verClass,
@@ -518,7 +528,18 @@ export default function TransactionTable({
                         </p>
                       )}
 
-                      {!isCorrection && !isNeutralized && !isSystemManaged && (
+                      {!isCorrection && !isNeutralized && vatBadges.length > 0 && (
+                        vatBadges.map((badge) => (
+                          <span
+                            key={`${badge.label}-${badge.value}`}
+                            className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200"
+                          >
+                            {badge.label}: {badge.value}
+                          </span>
+                        ))
+                      )}
+
+                      {!isCorrection && !isNeutralized && !isSystemManaged && vatBadges.length === 0 && (
                         <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                           Moms: {tx.vat_rate}%
                         </span>
@@ -733,6 +754,7 @@ export default function TransactionTable({
             offerGenericCorrection,
             accountDef,
             isIncome,
+            vatBadges,
             textClass,
             verClass,
             amountClass,
@@ -840,7 +862,18 @@ export default function TransactionTable({
                   </p>
                 )}
 
-                {!isCorrection && !isNeutralized && !isSystemManaged && (
+                {!isCorrection && !isNeutralized && vatBadges.length > 0 && (
+                  vatBadges.map((badge) => (
+                    <span
+                      key={`${badge.label}-${badge.value}`}
+                      className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200"
+                    >
+                      {badge.label}: {badge.value}
+                    </span>
+                  ))
+                )}
+
+                {!isCorrection && !isNeutralized && !isSystemManaged && vatBadges.length === 0 && (
                   <span className="text-[8px] font-black uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md border border-gray-200">
                     Moms: {tx.vat_rate}%
                   </span>
