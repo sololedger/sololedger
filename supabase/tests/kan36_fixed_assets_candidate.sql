@@ -83,6 +83,9 @@ AS $$
 BEGIN
   INSERT INTO auth.users (id) VALUES (p_user_id);
 
+  INSERT INTO public.profiles (id, email, default_deduction_entitlement)
+  VALUES (p_user_id, p_run_tag || '@example.test', 'full');
+
   INSERT INTO public.accounts (id, user_id, name, debit_account, credit_account)
   VALUES
     (p_run_tag || '-bank', p_user_id, 'KAN-36 bank', '1930', '3001'),

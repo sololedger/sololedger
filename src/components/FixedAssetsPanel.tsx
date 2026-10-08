@@ -81,6 +81,26 @@ function depreciationMethodLabel(method: FixedAssetDepreciationRun['method']) {
   return '30 procent enligt K1 huvudregel'
 }
 
+function defaultFixedAssetVatDeduction(
+  profile: CompanyVatProfileAdapterResult['profile']
+): FixedAssetVatDeductionEntitlement {
+  return profile.defaultDeductionEntitlement === 'full' ? 'full' : 'none'
+}
+
+function fixedAssetVatDeductionNotice(
+  profile: CompanyVatProfileAdapterResult['profile']
+) {
+  if (profile.defaultDeductionEntitlement === 'none') {
+    return 'Företagsprofilen anger ingen normal avdragsrätt för ingående moms. Inventarier bokförs därför utan momsavdrag.'
+  }
+
+  if (profile.defaultDeductionEntitlement === 'unknown') {
+    return 'Företagsprofilen saknar säker uppgift om avdragsrätt. Fullt momsavdrag är låst tills Profil uppdateras; köpet kan bokföras utan momsavdrag.'
+  }
+
+  return null
+}
+
 export default function FixedAssetsPanel({
   selectedYear,
   isYearLocked,
@@ -109,9 +129,7 @@ export default function FixedAssetsPanel({
   const [supplierVatAmount, setSupplierVatAmount] = useState('')
   const [vatDeductionEntitlement, setVatDeductionEntitlement] =
     useState<FixedAssetVatDeductionEntitlement>(
-      companyVatProfileResult.profile.defaultDeductionEntitlement === 'none'
-        ? 'none'
-        : 'full'
+      defaultFixedAssetVatDeduction(companyVatProfileResult.profile)
     )
   const [paymentSource, setPaymentSource] = useState<PaymentSourceChoice>('business_account')
   const [connectionAssessment, setConnectionAssessment] =
@@ -164,6 +182,27 @@ export default function FixedAssetsPanel({
   }, [loadPanel])
 
   const paymentRole = paymentSourceRole[paymentSource]
+  const fullVatDeductionAllowed =
+    companyVatProfileResult.profile.defaultDeductionEntitlement === 'full'
+  const vatDeductionNotice = fixedAssetVatDeductionNotice(
+    companyVatProfileResult.profile
+  )
+  const allowedVatDeductionOptions = useMemo(
+    () =>
+      fullVatDeductionAllowed
+        ? [
+            ['full', 'Fullt momsavdrag'],
+            ['none', 'Inget momsavdrag'],
+          ] as const
+        : [['none', 'Inget momsavdrag']] as const,
+    [fullVatDeductionAllowed]
+  )
+  const vatDeductionEntitlementAllowed = allowedVatDeductionOptions.some(
+    ([value]) => value === vatDeductionEntitlement
+  )
+  const effectiveVatDeductionEntitlement = vatDeductionEntitlementAllowed
+    ? vatDeductionEntitlement
+    : allowedVatDeductionOptions[0][0]
   const configuredPaymentRole = paymentAccountRoles.find(
     candidate => candidate.role === paymentRole
   )
@@ -216,7 +255,7 @@ export default function FixedAssetsPanel({
         {
           taxableBaseAmount: parseAmount(taxableBaseAmount),
           supplierVatAmount: parseAmount(supplierVatAmount),
-          vatDeductionEntitlement,
+          vatDeductionEntitlement: effectiveVatDeductionEntitlement,
           thresholdBasisAmount: previewThresholdBasisAmount,
           usefulLifeAnswer: usefulLifeAnswer || null,
         },
@@ -233,7 +272,7 @@ export default function FixedAssetsPanel({
     taxRules,
     taxableBaseAmount,
     usefulLifeAnswer,
-    vatDeductionEntitlement,
+    effectiveVatDeductionEntitlement,
   ])
 
   const capitalizedAssets = assets.filter(
@@ -316,6 +355,12 @@ export default function FixedAssetsPanel({
       return
     }
 
+    if (!vatDeductionEntitlementAllowed) {
+      setError('Valt momsavdrag stöds inte av företagets profil.')
+      setVatDeductionEntitlement(effectiveVatDeductionEntitlement)
+      return
+    }
+
     setSaving(true)
     try {
       const acquisitionInput = {
@@ -323,7 +368,7 @@ export default function FixedAssetsPanel({
         description,
         supplierCountry: 'SE' as const,
         paymentAccountRole: paymentRole,
-        vatDeductionEntitlement,
+        vatDeductionEntitlement: effectiveVatDeductionEntitlement,
         taxableBaseAmount: parseAmount(taxableBaseAmount),
         supplierVatAmount: parseAmount(supplierVatAmount),
         thresholdBasisAmount: previewThresholdBasisAmount,
@@ -520,7 +565,7 @@ export default function FixedAssetsPanel({
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Momsavdrag
               <select
-                value={vatDeductionEntitlement}
+                value={effectiveVatDeductionEntitlement}
                 onChange={(event) =>
                   setVatDeductionEntitlement(
                     event.target.value as FixedAssetVatDeductionEntitlement
@@ -528,9 +573,17 @@ export default function FixedAssetsPanel({
                 }
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
               >
-                <option value="full">Fullt momsavdrag</option>
-                <option value="none">Inget momsavdrag</option>
+                {allowedVatDeductionOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
+              {vatDeductionNotice && (
+                <span className="block text-[11px] leading-relaxed text-amber-700">
+                  {vatDeductionNotice}
+                </span>
+              )}
             </label>
 
             <label className="space-y-1 text-xs font-bold text-gray-600">

@@ -7,8 +7,9 @@ Last updated: 2026-10-08
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: `3868ef19cbb927ed15a4d9ad15c8223d4082d50a`
-  (`docs: record KAN-36 final staging guard verification`).
+- Origin/Production `main`: `5716576ffa35cb4f03643d1a7f3927f67797cb61`
+  (`docs: record KAN-36 production release`) before the pending KAN-54
+  frontend release commit.
 - Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
   + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 + KAN-36 release.
 - Vercel Production deployment:
@@ -17,7 +18,8 @@ Last updated: 2026-10-08
   `3868ef1`, and aliased to `https://sololedger.vercel.app`; HTTP check
   returned `200`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261008110000` after KAN-36 Production DB release.
+  `20261008173000` after KAN-54 Production DB release. The KAN-54 frontend
+  commit/deploy is still pending in this checkpoint.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
   `20261007160000` (`kan36_fixed_assets`) and `20261008110000`
   (`kan36_redirect_manual_equipment_purchases`) after bounded KAN-36 staging
@@ -65,6 +67,42 @@ Verified on 2026-10-07:
 
 ## Current Active Work
 
+- KAN-54 Production DB release is live and verified; frontend commit/deploy is
+  pending. Scope:
+  Inventarier now restricts UI momsavdrag choices from the company profile's
+  `default_deduction_entitlement`, and new migration
+  `20261008170000_kan54_fixed_asset_vat_deduction_guard.sql` wraps
+  `book_fixed_asset_acquisition_atomic` with a server-side guard so `full`
+  VAT deduction is allowed only when the profile explicitly says `full`.
+  Profile `none`, `unknown`, missing profile, and unsupported values cannot
+  create a new fixed-asset `2641` deduction through the public RPC; `none`
+  remains allowed. The original KAN-36 implementation is retained as an
+  internal unchecked delegate with authenticated and service-role execution
+  revoked.
+- KAN-54 Production DB release on 2026-10-08: Production Supabase ref
+  `wbaxmuvudpnkvuliicuy` received only
+  `20261008170000_kan54_fixed_asset_vat_deduction_guard.sql` and
+  `20261008173000_kan54_revoke_internal_delegate_service_role.sql` through an
+  isolated CLI migration chain after dry-run confirmed exactly those two
+  migrations. Ledger and effective privileges were verified: internal delegate
+  is executable by `postgres` only, wrapper remains executable by
+  `authenticated` and `service_role`, all KAN-54 functions are owned by
+  `postgres`, `SECURITY DEFINER`, with `search_path=public`, and no KAN-54/KAN-36
+  test transactions, journal rows, or fixed assets exist in Production.
+- KAN-54 verification on 2026-10-08: live Production RPC definition and
+  relevant Production constraints/grants were inspected read-only before DB
+  release. Staging acceptance passed after the forward privilege correction.
+  Local checks passed:
+  `npm run typecheck`, focused `npx eslint src/components/FixedAssetsPanel.tsx`,
+  `node scripts/test-fixed-assets.ts`, `git diff --check`, local
+  `supabase/tests/kan54_fixed_asset_vat_deduction_guard_candidate.sql`, and
+  local `supabase/tests/kan36_fixed_assets_candidate.sql`. The isolated local
+  DB `sololedger_kan17c_test` needed the already-existing profile runtime
+  fields migration applied locally as a test prerequisite before KAN-54 tests.
+- KAN-54 separate follow-up finding: ordinary Bokföring/V1 may still allow
+  `2641` based on VAT rate without checking actual deduction entitlement.
+  Jira search found no exact existing issue; KAN-14/KAN-22/KAN-34/KAN-53 are
+  related but not the same scope. Do not implement this inside KAN-54.
 - KAN-36 local implementation adds K1 fixed-asset support for Swedish K1 sole
   proprietors: internal year-keyed tax parameters, fixed-asset registry,
   acquisition RPC, connected-acquisition grouping, acquisition idempotency,
@@ -204,10 +242,16 @@ Verified on 2026-10-07:
 
 ## Git / Local Files
 
-- `origin/main` is the deployed Production code at `3868ef1`.
-- Local `main` may have a docs-only post-release checkpoint above
-  `origin/main` after this handoff update. Do not push another commit without
-  explicit approval because pushing `main` deploys Production.
+- KAN-54 local dirty files for the pending frontend release commit:
+  `src/components/FixedAssetsPanel.tsx`,
+  `supabase/migrations/20261008170000_kan54_fixed_asset_vat_deduction_guard.sql`,
+  `supabase/migrations/20261008173000_kan54_revoke_internal_delegate_service_role.sql`,
+  `supabase/tests/kan36_fixed_assets_candidate.sql`,
+  `supabase/tests/kan54_fixed_asset_vat_deduction_guard_candidate.sql`, and
+  this `PROJECT_STATE.md` update.
+- `origin/main` is currently `5716576`; the next approved push should contain
+  the scoped KAN-54 frontend/migration/test commit and will trigger Vercel
+  Production deployment.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -236,9 +280,14 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. KAN-36 is released to Production and ready for Pontus product-owner review.
-2. Do not push the post-release documentation checkpoint without explicit
-   approval.
-3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
-4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
+1. Run final focused KAN-54 checks, commit the scoped KAN-54 release files, and
+   push `main` to trigger the authorized Vercel Production deployment.
+2. Verify Vercel Production READY and run non-destructive Production smoke.
+3. Update Jira KAN-54 with release evidence, keep it `In Review`, and assign
+   Pontus for final product-owner review. Do not set `Done`.
+4. Prepare a separate post-release documentation checkpoint if needed; do not
+   push it without explicit approval.
+5. KAN-36 is released to Production and ready for Pontus product-owner review.
+6. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
+7. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
    starts that work.
