@@ -18,10 +18,11 @@ Last updated: 2026-10-08
   returned `200`.
 - Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
   `20261007130000` after KAN-22 Production DB release.
-- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger head:
-  `20261006143000`. KAN-22 RPC SQL was applied directly to staging for
-  focused validation without advancing the ledger, to avoid applying unrelated
-  pending KAN-51 migration.
+- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
+  `20261007160000` (`kan36_fixed_assets`) after bounded KAN-36 staging
+  acceptance. KAN-51 `20261007110000` and KAN-22 `20261007130000` are still not
+  in the staging migration ledger; KAN-36 was applied through an isolated CLI
+  migration chain to avoid unrelated pending migrations.
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
 
@@ -80,6 +81,16 @@ Verified on 2026-10-07:
   `npm run build` PASS after approved network access for Next/Google Fonts,
   focused KAN-36 local DB rollback test PASS against
   `sololedger_kan17c_test`, `git diff --check` PASS with CRLF warnings only.
+- KAN-36 bounded staging acceptance on 2026-10-08: staging project verified as
+  `sololedger-staging` / `fzxqiqenqjzhlyxxpvhg`; normal `db push --dry-run`
+  would have applied unrelated KAN-51/KAN-22/KAN-36 migrations, so KAN-36 was
+  applied by an isolated official CLI chain containing existing staging history
+  plus only `20261007160000_kan36_fixed_assets.sql`. Staging SQL/RPC rollback
+  acceptance passed for small-value purchase, capitalization, VAT full/none,
+  connected acquisitions, idempotency/tampering, depreciation/year-end guards,
+  unsupported cases, and cleanup. UI smoke remains NOT TESTED: local staging
+  frontend reached only `Laddar...`/login did not become visible within the
+  bounded diagnostic attempts; no persistent KAN-36 staging test data remained.
 - Full repo `npm run lint` still fails on older unrelated lint debt. Focused
   lint for changed KAN-36 TypeScript files passed when the pre-existing
   `no-explicit-any` debt in `TransactionTable.tsx` was disabled; one old
@@ -186,8 +197,8 @@ Verified on 2026-10-07:
 
 ## Next Safe Step
 
-1. Pontus/leader reviews the local KAN-36 implementation and decides whether to
-   approve release.
+1. Complete or manually replace the blocked KAN-36 UI smoke against a staging
+   frontend before Production release approval.
 2. Do not push `main`, deploy, or apply the KAN-36 migration to Production
    without explicit approval.
 3. Keep KAN-36 `In Review`; Pontus final testing remains before `Done`.
