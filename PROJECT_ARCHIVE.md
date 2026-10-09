@@ -8,6 +8,20 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ### KAN-55 Ordinary Purchase Input VAT Deduction Release
 
+- KAN-55 reached Production release, Pontus owner acceptance, and Jira `Done`
+  on 2026-10-09.
+- Final Production `main`/`origin/main` release commits:
+  `4dba2b47b7511332c95b268360c43782c3450da7`
+  (`KAN-55 guard ordinary input VAT deduction`),
+  `83da6f286461de972fdf8ba62f050b48bd66279e`
+  (`KAN-55 clarify purchase VAT in transaction table`), and
+  `f6696fa88f9ff730732ddc67e362fecf7ae68d68`
+  (`KAN-55 keep purchase VAT profile guidance visible`).
+- Final Vercel Production deployment:
+  `dpl_8LXPsmEk6gB9o37iS6JiNpFZUWSn`,
+  `sololedger-p9ntxvjzl-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build log verified branch `main`, commit
+  `f6696fa`, status `Ready`.
 - KAN-55 addresses ordinary Bokföring/V1 input VAT deduction entitlement for
   domestic purchases and periodizations, plus a VAT V2 guard for new
   full-deduction EU-service reverse-charge bookings.
@@ -15,6 +29,12 @@ Do not archive active work here prematurely. Current active work remains in `PRO
   `2641`; `full` profiles default to full deduction but can choose no deduction
   for an individual purchase. Invoice VAT rate and deductible VAT remain
   separate concepts. No partial deduction rule was implemented.
+- Final UI behavior: the transaction table separates invoice VAT
+  (`Fakturamoms`) from actually booked deductible input VAT (`Momsavdrag`) by
+  reading the transaction's journal rows. The bookkeeping form keeps profile
+  guidance visible for ordinary Swedish cost purchases: `none` and `unknown`
+  show guidance at both `0%` and positive invoice VAT; `full` keeps the
+  existing deduction choice only when invoice VAT is positive.
 - Production DB migration `20261008175927_kan55_purchase_input_vat_deduction`
   was applied to Supabase Production ref `wbaxmuvudpnkvuliicuy` on
   2026-10-08 before code release. Post-checks confirmed the migration ledger,
@@ -27,8 +47,11 @@ Do not archive active work here prematurely. Current active work remains in `PRO
   V2 full-deduction guard, VAT V2 no-deduction EU-service flow, and no
   persistent test data.
 - Local release checks before commit: `npm run typecheck`, `npm run
-  test:domain`, and `git diff --check` passed. Production code deployment and
-  Jira transition evidence are reported in the release chat after push.
+  test:domain`, focused UI/domain scripts, and `git diff --check` passed.
+  Read-only Production smoke passed 2/2 after deployment. Pontus manually
+  verified Production behavior for the final UI adjustment.
+- No existing verifications or bookkeeping data were changed. No Production
+  accounting test transaction was created during final UI release.
 
 ### KAN-54 Fixed-Asset VAT Deduction Guard Production Release
 

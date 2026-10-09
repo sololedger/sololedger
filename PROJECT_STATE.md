@@ -1,29 +1,23 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 ## Current Baseline
 
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Origin/Production `main`: KAN-55 release commit pending push in this
-  checkpoint. Previous verified `origin/main` before this release:
-  `7b118e40288413c0ae79fdc05cbee9b3263584cb`.
-- Production is verified on the accumulated KAN-46 + KAN-14 + KAN-49 + KAN-50
-  + KAN-51 + KAN-52 + KAN-41 + KAN-22 + KAN-23 + KAN-36 + KAN-54 release.
-  KAN-55 Production DB migration is live; code release verification follows
-  this checkpoint push.
-- Vercel Production deployment:
-  `dpl_68zo3FwhLxdNhHqevk8qDPhU91J1`
-  (`sololedger-1msukfnht-sololedger1.vercel.app`) is `Ready`, built from
-  `4e90d1a`, and aliased to `https://sololedger.vercel.app`.
-- Supabase Production ref: `wbaxmuvudpnkvuliicuy`; migration head:
-  `20261008175927` after the completed KAN-55 Production DB migration.
-- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg`; migration ledger includes
-  KAN-51 `20261007110000`, KAN-22 `20261007130000`, KAN-36
-  `20261007160000` and `20261008110000`, KAN-54 `20261008170000` and
-  `20261008173000`, and KAN-55 `20261008175927`.
+- Git status at KAN-55 closeout start: `main` and `origin/main` both point to
+  `f6696fa88f9ff730732ddc67e362fecf7ae68d68`; working tree was clean before
+  this documentation update.
+- Production is verified through the completed KAN-55 release.
+- Current Production Vercel deployment for `https://sololedger.vercel.app`:
+  `dpl_8LXPsmEk6gB9o37iS6JiNpFZUWSn`,
+  `sololedger-p9ntxvjzl-sololedger1.vercel.app`, status `Ready`, built from
+  `f6696fa`.
+- Supabase Production ref: `wbaxmuvudpnkvuliicuy`; KAN-55 migration head
+  `20261008175927` is live.
+- Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg` (`sololedger-staging`).
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
 
@@ -52,101 +46,57 @@ Last updated: 2026-10-08
 
 ## Jira Status Snapshot
 
-Verified on 2026-10-08:
+Verified on 2026-10-09 for KAN-55:
 
-- Done includes KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, KAN-41,
-  KAN-22, KAN-23, and KAN-54 after Pontus acceptance and Production release.
-- KAN-53 was created as the future VAT V2 EU-goods support issue. Do not
-  implement EU-goods accounting inside KAN-23.
+- KAN-55 is `Done`; Pontus performed the final Jira closure after manual
+  Production acceptance.
+
+Current open Jira work from read-only JQL on 2026-10-09:
+
+- KAN-44 is `To Do` and assigned to Codex, but it is not active in this session.
+- Other open `To Do` items include KAN-9, KAN-10, KAN-11, KAN-24, KAN-25,
+  KAN-34, KAN-35, KAN-47, KAN-48, and KAN-53. Do not start them unless Pontus
+  selects the work.
+- KAN-53 covers future VAT V2 EU-goods support.
 - KAN-47/KAN-48 remain future work and must not be started unless Pontus
   selects them.
-- KAN-36 is released to Production and remains `In Review`, assigned to Pontus.
-  Pontus final product-owner review remains before `Done`.
-- KAN-54 is `Done` in Jira.
-- KAN-55 is being released to Production and remains `To Do` in Jira until the
-  code release and post-release verification are complete.
-
-## Current Active Work
-
-- KAN-55 Production DB migration is live and verified. Code release is the
-  current active step: commit the reviewed KAN-55 UI/service/test/docs changes,
-  push to `origin/main`, verify Vercel Production, then move Jira KAN-55 to
-  `In Review` for Pontus owner acceptance.
-
-## Completed Release
-
-- KAN-14 and KAN-46 are closed: Production DB migrations are live, frontend is
-  deployed, automated non-destructive Production smoke passed, and Pontus manual
-  Production acceptance passed.
-- KAN-49 is closed: Production migration `20261006143000` is live, the
-  Production frontend is deployed, and Pontus manually verified the VAT-number
-  field saves, persists after reload, and leaves VAT-policy settings intact.
-- KAN-50 is closed: Profile UX polish is deployed to Production at `64367a6`
-  and Pontus manually accepted the Production visual result.
-- KAN-51 is closed: historical customer-invoice linkage support is deployed to
-  Production at `9640942`; Production migration `20261007110000` is live; the
-  approved one-off repair linked the two historical invoices to existing
-  VER-5/VER-7 bookkeeping without creating transactions, journal rows, VAT/tax
-  rows, corrections, or verification-number changes; Pontus accepted the
-  Production result.
-- Jessika Foto & Media's real Production profile now represents:
-  VAT registered, annual VAT reporting, SoloLedger VAT-period handling from
-  `2026-06-02`, domestic sales small-business exempt, foreign-purchase VAT
-  reporting required, and no normal input-VAT deduction.
-- Manual Production verification confirmed ordinary Swedish
-  `Försäljning (Intäkt)` is locked to `0%` VAT for that profile and explains
-  the small-business exemption. KAN-46 `Registrera kundfaktura` and
-  `Utlandsinköp` entry points are present. No Production test bookkeeping
-  transaction was created.
-- KAN-52 is closed: customer-invoice year-end wording is deployed to
-  Production at `2040be3`; the UI now says `Kundfordran vid bokslut`,
-  `Ingen kundfordran vid bokslut`, and `Bokför kundfordran` for the
-  receivable-at-year-end workflow. It was wording/UX only; no accounting,
-  schema, RPC, Supabase, VAT, or existing data changed.
-- KAN-41 is closed: dashboard VAT overview is deployed to Production at
-  `c2f4a0e`; it now uses the authoritative VAT-report aggregation for the
-  selected calendar year, including legacy VAT, native VAT V2, and VAT V2 audit
-  snapshots. `Säkert uttag` now uses that corrected VAT balance and falls back
-  to a controlled review-required state instead of an old legacy-only VAT amount
-  when VAT cannot be trusted.
-- KAN-22 is closed: VAT V2 foreign-purchase fact capture is deployed to
-  Production at `020fb09`; Production migration `20261007130000` is live.
-  The UI asks for business facts instead of BAS/VAT implementation choices,
-  durable `business_facts` are preserved in VAT V2 audit snapshots, and the
-  RPC fails closed for missing or contradictory business facts.
-- KAN-23 is closed: VAT V1 and native VAT V2 coexistence was accepted and
-  released to Production at `a491afb`. Verification covered V1 domestic VAT,
-  VAT V2 EU service with no deduction and full deduction, mixed V1+V2 report
-  aggregation, no omission/double-counting, KAN-22 business-facts
-  persistence/fail-closed validation, dashboard semantics, mixed close/2650,
-  declare boundary, missing/broken VAT V2 snapshots fail-closed, unsupported
-  EU goods fail-closed, and relevant SIE/correction/undo boundaries. Real
-  two-session concurrency remains a documented accepted limitation, not a
-  KAN-23 blocker.
-- KAN-54 is closed: fixed-asset VAT deduction is constrained by the company
-  deduction profile in both UI and server-side RPC guard.
-- Detailed release evidence has been moved to `PROJECT_ARCHIVE.md`.
-
-## Open Follow-Ups
-
-- KAN-53 covers future EU-goods VAT V2 accounting support.
-- KAN-55 covers the former KAN-54 follow-up candidate for ordinary Bokföring/V1
-  input-VAT deduction entitlement. Owner acceptance remains after release.
-- Future UI/UX consistency pass: consider aligning other Profile areas such as
-  `Betalningskonton` with the newer Profile card language. This was explicitly
-  out of scope for KAN-50.
-- Historical Adobe invoices remain a separate unresolved correction task. Do
-  not change them without a selected/approved work item.
-- KAN-47/KAN-48 remain future work.
 - KAN-34 remains future UX for completing VAT facts on ambiguous legacy/SIE
   rows.
 - KAN-35 remains low-priority UI transaction-history completeness follow-up.
+- Historical Adobe invoices remain a separate unresolved correction task. Do
+  not change them without a selected/approved work item.
+- Future UI/UX consistency pass: consider aligning other Profile areas such as
+  `Betalningskonton` with the newer Profile card language. This was explicitly
+  out of scope for KAN-50.
 - Full repo lint still has older unrelated debt.
+
+## Current Active Work
+
+- No Codex implementation task is currently active after KAN-55 closeout.
+- KAN-55 is code-, DB-, release-, smoke-, owner-accepted, and closed in Jira.
+- Do not start Adobe corrections, KAN-44, KAN-47, KAN-48, KAN-53, or any new
+  Jira work unless Pontus explicitly starts that work.
+
+## Completed Release
+
+- KAN-55 is closed from the Codex/release side. Production release commit:
+  `f6696fa88f9ff730732ddc67e362fecf7ae68d68`
+  (`KAN-55 keep purchase VAT profile guidance visible`). Production Vercel is
+  `Ready`; automated tests, read-only Production smoke, and Pontus manual
+  Production acceptance passed.
+- KAN-54 is closed: fixed-asset VAT deduction is constrained by the company
+  deduction profile in both UI and server-side RPC guard.
+- KAN-14, KAN-46, KAN-49, KAN-50, KAN-51, KAN-52, KAN-41, KAN-22, and KAN-23
+  are closed with release evidence archived in `PROJECT_ARCHIVE.md`.
+- Jessika Foto & Media's real Production profile represents: VAT registered,
+  annual VAT reporting, SoloLedger VAT-period handling from `2026-06-02`,
+  domestic sales small-business exempt, foreign-purchase VAT reporting
+  required, and no normal input-VAT deduction.
 
 ## Git / Local Files
 
-- KAN-55 local release changes are ready to commit and push with Pontus'
-  explicit approval in the current release instruction.
+- Current documentation-only closeout changes should include only
+  `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md`.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -175,9 +125,7 @@ Verified on 2026-10-08:
 
 ## Next Safe Step
 
-1. Commit and push the reviewed KAN-55 release changes to `origin/main`.
-2. Verify the resulting Vercel Production deployment and non-destructive smoke.
-3. Move Jira KAN-55 to `In Review`, assign it to Pontus, and add release
-   verification evidence. Do not set it to `Done`.
-4. Do not start Adobe corrections, KAN-47, or KAN-48 unless Pontus explicitly
-   starts that work.
+1. If a handoff/checkpoint commit is desired, commit only the documentation
+   closeout files after explicit approval.
+2. Do not start new bookkeeping/VAT/customer-invoice work without a selected
+   Jira issue and explicit instruction.
