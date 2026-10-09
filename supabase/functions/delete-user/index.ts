@@ -121,14 +121,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Admin-konton kan inte raderas här' }, 400)
     }
 
-    const counts = await getUserCounts(supabaseAdmin, userId)
+    const tableCounts = await getUserCounts(supabaseAdmin, userId)
     const attachmentPaths = await listAllAttachmentPaths(supabaseAdmin, userId)
 
     const summary = {
       userId,
       email: targetProfile.email,
       counts: {
-        ...counts,
+        profiles: 1,
+        ...tableCounts,
         attachments: attachmentPaths.length,
       },
       hasStripeSubscription: Boolean(targetProfile.stripe_subscription_id),

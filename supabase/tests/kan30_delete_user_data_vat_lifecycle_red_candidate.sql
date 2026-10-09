@@ -14,6 +14,8 @@
 
 BEGIN;
 
+\if :{?skip_migration}
+\else
 \ir ../migrations/20260925050113_20260925_add_vat_account_classification.sql
 \ir ../migrations/20260925070346_20260925_delegate_vat_concurrency_account.sql
 \ir ../migrations/20260925124023_delegate_vat_close_account_classification.sql
@@ -27,6 +29,7 @@ BEGIN;
 \ir ../migrations/20260930120000_audit1_p0_vat_lifecycle_semantics.sql
 \ir ../migrations/20260930163000_kan30_delete_user_data_vat_lifecycle.sql
 \ir ../migrations/20260930190000_kan31_idempotency_replay.sql
+\endif
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(p_condition boolean, p_message text)
 RETURNS void
