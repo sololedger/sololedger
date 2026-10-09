@@ -42,6 +42,7 @@ import {
   categoryUsesDomesticSalesVatPolicy,
   getTransactionCategoryUiGroup,
 } from '@/lib/accountCategoryUi'
+import { shouldShowOrdinaryPurchaseInputVatPanel } from '@/lib/ordinaryPurchaseVatUi'
 
 export interface FormData {
   date: string
@@ -348,16 +349,21 @@ export default function TransactionForm({
       selectedCategory &&
         getTransactionCategoryUiGroup(selectedCategory) === 'cost'
     )
-  const showOrdinaryInputVatDeduction =
+  const ordinaryInputVatDeductionBaseEligible =
     showOrdinaryV1Fields &&
     selectedCategoryIsCost &&
     !editingBooked &&
     !vatV2AssessmentEnabled &&
     !selectedCategoryRedirectsToFixedAssets &&
-    !isNotVatRegistered &&
-    formData.vatRate > 0
+    !isNotVatRegistered
   const companyDefaultDeduction =
     companyVatProfileResult.profile.defaultDeductionEntitlement
+  const showOrdinaryInputVatDeduction =
+    shouldShowOrdinaryPurchaseInputVatPanel({
+      baseEligible: ordinaryInputVatDeductionBaseEligible,
+      defaultDeductionEntitlement: companyDefaultDeduction,
+      vatRate: formData.vatRate,
+    })
   const effectiveOrdinaryInputVatDeduction =
     formData.inputVatDeduction === 'none'
       ? 'none'
