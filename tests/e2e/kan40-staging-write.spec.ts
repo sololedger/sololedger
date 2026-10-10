@@ -70,7 +70,7 @@ async function bookCheckCredit(page: Page) {
     has: page.getByRole('button', { name: 'Bokför' }),
   }).first()
 
-  await form.getByLabel('Datum').fill('31/12/2026')
+  await form.getByRole('textbox', { name: 'Datum', exact: true }).fill('31/12/2026')
   await form.locator('select').filter({
     has: page.locator(`option[value="${categoryId}"]`),
   }).selectOption(categoryId)

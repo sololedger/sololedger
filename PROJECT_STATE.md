@@ -195,6 +195,12 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - Staging-write-E2E status: GO for a later separately approved Staging-only E2E
   pass, using the existing safety guard and dedicated Staging configuration.
   No E2E-write was run during the repair.
+- KAN-40 Staging-write-E2E retry is pending. The first KAN-40 run failed before
+  booking because `getByLabel('Datum')` matched the visible Swedish date input,
+  the calendar button, and the hidden native date input. The KAN-40 test now
+  targets the visible date textbox by role/name. The accounting flow is still
+  not verified after this locator-only fix and requires a separately approved
+  Staging-write retry.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
