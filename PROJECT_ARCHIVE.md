@@ -6,6 +6,42 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-59 Responsive Header / Adaptive Navigation Release
+
+- KAN-59 reached Production release, Pontus manual Production acceptance, and
+  Jira `Done` on 2026-10-10.
+- Production `main`/`origin/main` release commits:
+  `147fdb5` (`docs: close KAN-56 KAN-57 KAN-58 release`),
+  `65d369c` (`KAN-59 fix responsive header navigation`),
+  `4ca6bba` (`KAN-59 refine header more menu`), and
+  `dc9efae` (`KAN-59 make header navigation adaptive`).
+- Final Vercel Production deployment:
+  `dpl_7QN9QZbudAtKVvJUUPUC6TEroDt7`,
+  `sololedger-1z3ya3l3q-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build log verified branch `main`, commit
+  `dc9efae`, status `Ready`.
+- Scope completed: `src/components/Layout.tsx` now keeps the SOLOLEDGER brand
+  and subtitle visible, preserves mobile hamburger navigation, keeps `Logga ut`
+  separate on desktop, and uses adaptive one-line desktop navigation from
+  `lg`/1024 px. Desktop navigation measures available width and actual button
+  widths, shows as many items as fit in order, and moves only overflow items to
+  `Mer`; if everything fits, `Mer` is hidden.
+- Admin is included in the width calculation and is visible only for admins.
+  Active-page indication works both for visible tabs and pages inside `Mer`.
+  The dropdown preserves mouse/touch behavior, keyboard focus, Escape, outside
+  click handling, close-on-navigation behavior, and relevant ARIA attributes.
+- Local verification included `npm run typecheck`, `npm run test:e2e:smoke`,
+  `git diff --check`, and isolated component fixtures for normal/admin users
+  at 390, 768, 1024, 1280, 1440, and 1920 px, including resize both narrower
+  and wider. Full write-E2E was not run for this UI-only release because it
+  requires staging write credentials/configuration.
+- Production verification was non-destructive: Vercel build was `Ready`,
+  public auth/login smoke against `https://sololedger.vercel.app` passed 2/2,
+  and Pontus manually accepted the Production navigation.
+- No database migration, Supabase write, Edge Function change, authentication
+  change, routing change, bookkeeping logic change, or data mutation was part
+  of KAN-59.
+
 ### KAN-56 / KAN-57 / KAN-58 DB Regression Repair Release
 
 - KAN-56, KAN-57, and KAN-58 reached Production release, Pontus manual
