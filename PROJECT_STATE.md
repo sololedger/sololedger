@@ -84,9 +84,10 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   `wbaxmuvudpnkvuliicuy`.
 - A git-ignored `.env.local` supplies local dev Staging Supabase values from
   the approved local E2E configuration. Do not commit env files or credentials.
-- Staging/Production live schema, RPC, RLS, and grant parity is not approved:
-  drift has been observed and must be resolved or explicitly accepted before
-  Production-representative Staging-write-E2E.
+- Staging/Production live schema, RPC, RLS, and grant parity repair was
+  completed on Staging on 2026-10-10 through the verified Session Pooler path.
+  The read-only postcheck returned 109 PASS rows and 0 FAIL rows. Staging-write
+  E2E has not been run yet and still requires a separate explicit approval.
 - Staging schema drift root cause is verified: Staging was built from the
   active CLI baseline, while Production already had earlier manually applied
   live schema effects before the migration ledger was aligned. Normalized
@@ -109,9 +110,9 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   derived from this draft aborted before commit and rolled back cleanly.
 - Draft-only read-only postcheck:
   `supabase/repair_scripts/20261010_staging_schema_parity_postcheck_READ_ONLY.sql`.
-  It has not been run. It is intended to verify numeric columns, unique/FK
-  definitions, RLS, `ensure_rls`, table grants, RPC grants, and data-safety
-  counts after a future explicitly approved Staging repair commit.
+  It verified numeric columns, unique/FK definitions, RLS, `ensure_rls`, table
+  grants, RPC grants, VAT trigger restoration, and data-safety counts after the
+  approved Staging repair commit. Result: 109 PASS rows, 0 FAIL rows.
 - Draft-only baseline notes:
   `supabase/repair_scripts/20261010_staging_schema_parity_baseline_notes.md`.
   The active CLI baseline has not been changed.
@@ -173,12 +174,27 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - The read-only postcheck now verifies the VAT trigger definition, enabled
   status, function hash/properties, and expected numeric-column dependency in
   addition to the existing parity checks.
+- Retry of the corrected full Staging repair on 2026-10-10 succeeded and
+  committed. Execution used PostgreSQL 17 `psql`, TLS, the verified Staging
+  Shared Session Pooler, `PGPASSFILE`
+  `C:\SoloLedger\LocalTest\pgpass_staging_supabase.conf`, a single psql
+  session, out-of-band Staging target verification, the required session marker,
+  fresh preflight, deterministic table locks, and no automatic retry. The
+  temporary execution input changed only the draft's final `ROLLBACK` to
+  `COMMIT`.
+- The repair restored the intended Staging schema parity changes: numeric
+  precision/scale on the targeted accounting columns, missing unique
+  constraints, FK `ON DELETE CASCADE` definitions, RLS-enable state on the two
+  drifted tables, `ensure_rls`, table/function grants, and exact VAT trigger
+  restoration after the numeric type change. The active migration ledger and
+  baseline files were not changed.
 - Remaining risk: ordinary SQL cannot independently prove the Supabase project
   ref, so any future execution still requires separate explicit target
   verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
   marker is set.
-- Staging-write-E2E remains paused / NO-GO until Staging schema parity is
-  repaired, postchecked, and separately approved.
+- Staging-write-E2E status: GO for a later separately approved Staging-only E2E
+  pass, using the existing safety guard and dedicated Staging configuration.
+  No E2E-write was run during the repair.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
@@ -222,13 +238,10 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
-- Next safe Staging-repair step, if Pontus approves it later: run the corrected
-  full draft only in a separate explicitly approved Staging-only execution pass,
-  with verified Session Pooler session continuity, out-of-band target
-  verification, session marker, fresh preflight, `ROLLBACK` replaced by
-  `COMMIT` only in the approved execution input, and no automatic retry. Then
-  run the full read-only postcheck; every row must be `PASS` before
-  Staging-write-E2E is reconsidered.
+- Next safe Staging step, if Pontus approves it later: run Staging-write-E2E
+  against verified Staging `fzxqiqenqjzhlyxxpvhg` with the existing fail-closed
+  safety guard and dedicated test user/configuration. Do not use Production and
+  do not run write-E2E without that separate approval.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.
