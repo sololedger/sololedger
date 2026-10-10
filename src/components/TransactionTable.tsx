@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
   getTransactionSourceUiPolicy,
@@ -9,6 +9,16 @@ import {
 } from '@/lib/transactionSourceUi'
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
+import {
+  DEFAULT_TRANSACTION_HISTORY_FILTERS,
+  TRANSACTION_HISTORY_CATEGORY_OPTIONS,
+  TRANSACTION_HISTORY_SORT_OPTIONS,
+  filterAndSortTransactionHistoryItems,
+  hasActiveTransactionHistoryFilters,
+  type TransactionHistoryCategoryFilter,
+  type TransactionHistoryFilterState,
+  type TransactionHistorySortMode,
+} from '@/lib/transactionHistoryFilters'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -37,6 +47,13 @@ export default function TransactionTable({
   // 50 tekniska KORRVER räknas alltså som en rad tills den fälls ut.
   const [visibleCount, setVisibleCount] = useState(50)
   const [expandedUndoBatches, setExpandedUndoBatches] = useState<Set<string>>(new Set())
+  const [filters, setFilters] = useState<TransactionHistoryFilterState>({
+    ...DEFAULT_TRANSACTION_HISTORY_FILTERS,
+  })
+
+  useEffect(() => {
+    setVisibleCount(50)
+  }, [filters.search, filters.category, filters.sort, transactions.length])
 
   const neutralizedVerNrs = new Set(
     transactions
@@ -83,7 +100,7 @@ export default function TransactionTable({
     return match?.[1]?.trim() || 'SIE-import'
   }
 
-  const enriched = transactions.map((tx) => {
+  const enriched = transactions.map((tx, originalIndex) => {
     const journal = journalMap[tx.id] || []
     const isCorrection = tx.is_correction === true
     const verNr = journal[0]?.ver_nr
@@ -260,14 +277,23 @@ export default function TransactionTable({
       verClass,
       amountClass,
       badgeClass,
+      originalIndex,
     }
   })
+
+  const filteredEnriched = filterAndSortTransactionHistoryItems({
+    items: enriched,
+    filters,
+    accounts: kontoplan,
+  })
+
+  const filtersActive = hasActiveTransactionHistoryFilters(filters)
 
   // Gruppindelning för AUTOMATISKA rättelser efter "Ångra SIE-import".
   // Vanliga KORRVER flyttas inte: de ligger kvar i datum-/VER-ordning så
   // bokföringens tidslinje och verifikationsföljd fortfarande är tydlig.
-  const undoGroups = new Map<string, typeof enriched>()
-  for (const item of enriched) {
+  const undoGroups = new Map<string, typeof filteredEnriched>()
+  for (const item of filteredEnriched) {
     if (!item.isSieUndo || !item.tx.import_batch_id) continue
     const id = String(item.tx.import_batch_id)
     const existing = undoGroups.get(id) || []
@@ -277,12 +303,12 @@ export default function TransactionTable({
 
   type DisplayItem =
     | { kind: 'transaction'; item: (typeof enriched)[number] }
-    | { kind: 'sieUndoGroup'; batchId: string; items: typeof enriched }
+    | { kind: 'sieUndoGroup'; batchId: string; items: typeof filteredEnriched }
 
   const displayItems: DisplayItem[] = []
   const emittedUndoBatches = new Set<string>()
 
-  for (const item of enriched) {
+  for (const item of filteredEnriched) {
     if (item.isSieUndo && item.tx.import_batch_id) {
       const batchId = String(item.tx.import_batch_id)
       if (emittedUndoBatches.has(batchId)) continue
@@ -308,9 +334,105 @@ export default function TransactionTable({
   }
 
   const visibleItems = displayItems.slice(0, visibleCount)
+  const noFilteredResults = filtersActive && displayItems.length === 0
+  const clearFilters = () => {
+    setFilters({ ...DEFAULT_TRANSACTION_HISTORY_FILTERS })
+  }
 
   return (
     <>
+      <div className="mb-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <label className="relative w-full md:max-w-md">
+            <span className="sr-only">Sök transaktionshistorik</span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-300"
+            >
+              ⌕
+            </span>
+            <input
+              type="search"
+              value={filters.search}
+              onChange={(event) => setFilters(prev => ({ ...prev, search: event.target.value }))}
+              placeholder="VER, beskrivning eller konto"
+              className="h-10 w-full rounded-2xl border border-gray-200 bg-white pl-9 pr-4 text-sm font-bold text-gray-700 shadow-sm outline-none transition-colors placeholder:text-gray-300 focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 md:w-auto">
+            <span className="sr-only">Sortering</span>
+            <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+              Sortering
+            </span>
+            <select
+              value={filters.sort}
+              onChange={(event) => setFilters(prev => ({
+                ...prev,
+                sort: event.target.value as TransactionHistorySortMode,
+              }))}
+              className="h-9 max-w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-500 shadow-sm outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+            >
+              {TRANSACTION_HISTORY_SORT_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="sr-only">Kategori</span>
+          {TRANSACTION_HISTORY_CATEGORY_OPTIONS.map(option => {
+            const active = filters.category === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setFilters(prev => ({
+                  ...prev,
+                  category: option.value as TransactionHistoryCategoryFilter,
+                }))}
+                className={`h-8 rounded-full border px-3 text-[10px] font-black uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-100 ${
+                  active
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm'
+                    : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+
+          {filtersActive && (
+            <>
+              <span className="mx-1 hidden h-4 w-px bg-gray-200 sm:block" aria-hidden="true" />
+              <span className="text-[11px] font-bold text-gray-400">
+                Visar {filteredEnriched.length} inkluderade av {transactions.length} transaktioner
+              </span>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-8 rounded-full border border-gray-200 bg-white px-3 text-[10px] font-black uppercase tracking-wide text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-100"
+              >
+                Rensa
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {noFilteredResults ? (
+        <div className="bg-white rounded-[2rem] border sl-section-shell overflow-hidden shadow-sm">
+          <p className="sl-secondary-copy p-10 text-center italic font-medium">
+            Inga transaktioner matchar sökning eller filter.
+          </p>
+        </div>
+      ) : (
+        <>
       {/* ══════════════════════ DESKTOP ══════════════════════ */}
       <div className="hidden md:block bg-white rounded-[2.5rem] border sl-section-shell overflow-hidden shadow-sm">
         <table className="w-full text-left">
@@ -960,6 +1082,8 @@ export default function TransactionTable({
             Visa fler ({displayItems.length - visibleCount} kvar)
           </button>
         </div>
+      )}
+        </>
       )}
     </>
   )
