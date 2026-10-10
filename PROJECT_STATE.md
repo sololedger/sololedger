@@ -62,24 +62,32 @@ Verified on 2026-10-10:
 
 ## Current Active Work
 
-- No implementation is active after KAN-59 closeout.
-- Next safe implementation focus after account handoff:
-  1. KAN-35: complete-safe transaction-history loading.
-  2. KAN-47: search, filtering, and sorting in `TransactionTable`.
-  3. Keep KAN-10 separate unless explicitly approved.
+- KAN-35 is locally implemented and ready for Pontus local acceptance after the
+  checkpoint commit. Production does not contain KAN-35 yet.
+- KAN-35 implementation summary: transaction history now loads through
+  complete-safe `fetchAllRows`/chunked journal-row loading, verifies exact
+  counts, preserves user/year scope, fails closed on incomplete history, and
+  only shows history after a verified complete status for the currently selected
+  year. Older overlapping loads and refreshes cannot overwrite newer history.
+- KAN-35 local verification on 2026-10-10:
+  `node scripts/test-transaction-history-state.ts`, `node scripts/test-transaction-history-loader.ts`,
+  `node scripts/test-supabase-fetch-all.ts`, `npm run typecheck`,
+  `npm run test`, `npm run test:e2e:smoke`, and `git diff --check` passed.
+  `npm run test:e2e` was attempted; public auth tests passed, but staging/write
+  tests stopped fail-closed because local staging E2E credentials/env were not
+  loaded.
+- Next safe step: Pontus manual local acceptance for KAN-35, then a separate
+  decision about release/push/deploy. No Production release has been made.
+- KAN-47 still waits after KAN-35. KAN-10 remains separate unless explicitly
+  approved.
 
 ## KAN-35 / KAN-47 Handoff
 
-- Start read-only: read `AGENTS.md`, `PROJECT_STATE.md`,
-  `PROJECT_ARCHIVE.md`, `Architecture.md`, current Jira issues KAN-35,
-  KAN-47, and KAN-10, then verify Git status and relevant code.
-- Relevant files likely include:
-  `src/components/TransactionTable.tsx`, `src/app/page.tsx`,
-  `src/hooks/useAccountingData.ts`, `src/lib/accountingService.ts`,
-  `src/lib/supabaseClient.ts`, and `src/lib/supabaseFetchAll.ts`.
-- KAN-35 risk: transaction history must not silently truncate at PostgREST or
-  Supabase row limits. Preserve tenant isolation and do not rely on UI-only
-  assumptions for completeness. Compare with KAN-33 fetch-all patterns.
+- KAN-35 local checkpoint includes:
+  `src/lib/transactionHistoryLoader.ts`, `src/lib/transactionHistoryState.ts`,
+  `src/hooks/useAccountingData.ts`, `src/app/page.tsx`,
+  `scripts/test-transaction-history-loader.ts`,
+  `scripts/test-transaction-history-state.ts`, and `package.json`.
 - KAN-47 risk: search/filter/sort must be presentation/read behavior only.
   Do not mutate bookkeeping data. Preserve correction/original relations,
   invoice/payment chains, system transaction protections, and user isolation.

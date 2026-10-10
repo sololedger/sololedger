@@ -32,6 +32,7 @@ import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage 
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
+import { getTransactionHistoryViewState } from '@/lib/transactionHistoryState'
 import { usePaymentAccountRoleConfiguration } from '@/hooks/usePaymentAccountRoleConfiguration'
 import {
   buildPaymentAccountRoleSetups,
@@ -90,11 +91,13 @@ export default function Home() {
     balanceSheetBalances,
     neData,
     journalMap,
+    transactionHistoryError,
+    transactionHistoryLoading,
+    transactionHistoryComplete,
     kontoplan,
     kontoplanLoading,
     kontoplanLoaded,
     kontoplanError,
-    dataLoading,
     isYearLocked, setIsYearLocked,
     refreshData,
     refreshDataWithStatus,
@@ -102,6 +105,12 @@ export default function Home() {
     momsBreakdown,
   } = useAccountingData(user, selectedYear, profile?.subscription_type)
   const paymentAccountRoles = usePaymentAccountRoleConfiguration(user?.id)
+  const transactionHistoryViewState = getTransactionHistoryViewState({
+    isLoading: transactionHistoryLoading,
+    error: transactionHistoryError,
+    isComplete: transactionHistoryComplete,
+    transactionCount: transactions.length,
+  })
 
   const isAdmin = profile?.role === 'admin'
   const companyVatProfileResult = profileToCompanyVatProfile(profile)
@@ -1178,12 +1187,35 @@ export default function Home() {
             />
           </div>
 
-          {!dataLoading && transactions.length === 0 ? (
+          {transactionHistoryError && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-[2rem] px-6 py-5 mb-4 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-widest text-red-700">
+                Historiken kunde inte laddas komplett
+              </p>
+              <p className="text-sm font-bold text-red-700 mt-2">
+                SoloLedger visar inte en ofullständig transaktionshistorik som komplett. Försök byta år eller ladda om sidan.
+              </p>
+              <p className="text-xs font-medium text-red-600 mt-2">
+                {transactionHistoryError}
+              </p>
+            </div>
+          )}
+
+          {transactionHistoryViewState === 'loading' ? (
+            <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-10 text-center shadow-sm" role="status" aria-live="polite">
+              <p className="text-lg font-black text-emerald-700">
+                Laddar transaktionshistorik för {selectedYear}
+              </p>
+              <p className="sl-secondary-copy mt-2">
+                SoloLedger visar historiken först när hela året är verifierat.
+              </p>
+            </div>
+          ) : transactionHistoryViewState === 'empty' ? (
   <EmptyBookkeepingState
     selectedYear={selectedYear}
     onImportSIE={() => setShowSieImport(true)}
   />
-) : (
+) : transactionHistoryViewState === 'table' ? (
   <TransactionTable
     transactions={transactions}
     journalMap={journalMap}
@@ -1195,7 +1227,7 @@ export default function Home() {
     onDelete={handleDelete}
     onFavorite={handleFavorite}
   />
-)}        </>
+) : null}        </>
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />
       ) : activeTab === 'fakturor' ? (

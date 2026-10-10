@@ -3,6 +3,22 @@ import { supabase } from '@/lib/supabaseClient'
 import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 import { getDashboardVatBreakdown } from '@/lib/dashboardVat'
+import {
+  loadCompleteTransactionHistory,
+  transactionHistoryErrorMessage,
+  type TransactionHistorySupabaseClient,
+} from '@/lib/transactionHistoryLoader'
+import {
+  beginTransactionHistoryLoad,
+  completeTransactionHistoryLoad,
+  createInitialTransactionHistoryState,
+  failTransactionHistoryLoad,
+  getVisibleTransactionHistory,
+  isCurrentTransactionHistoryLoad,
+  isTransactionHistoryCompleteForYear,
+  isTransactionHistoryLoadingForYear,
+  transactionHistoryErrorForYear,
+} from '@/lib/transactionHistoryState'
 
 // Sorterar transaktioner: nyaste datum överst, och vid samma datum
 // nyaste ver_nr överst (annars saknas sekundärsortering helt och
@@ -26,11 +42,12 @@ export type AccountingRefreshResult =
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
   const [dataLoading, setDataLoading] = useState(false)
   const [isYearLocked, setIsYearLocked] = useState(false)
-  const [transactions, setTransactions] = useState<any[]>([])
+  const [storedTransactions, setStoredTransactions] = useState<any[]>([])
   const [balances, setBalances] = useState<any>({})
   const [balanceSheetBalances, setBalanceSheetBalances] = useState<any>({})
   const [neData, setNeData] = useState<any>(null)
-  const [journalMap, setJournalMap] = useState<any>({})
+  const [storedJournalMap, setStoredJournalMap] = useState<any>({})
+  const [transactionHistoryState, setTransactionHistoryState] = useState(createInitialTransactionHistoryState)
   const [kontoplan, setKontoplan] = useState<any[]>([])
   const [kontoplanLoading, setKontoplanLoading] = useState(false)
   const [kontoplanLoaded, setKontoplanLoaded] = useState(false)
@@ -45,6 +62,81 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   const latestYearRef = useRef(selectedYear)
   latestYearRef.current = selectedYear
   const kontoplanLoadSeqRef = useRef(0)
+  const transactionHistoryLoadSeqRef = useRef(0)
+
+  const transactionHistoryComplete = isTransactionHistoryCompleteForYear(transactionHistoryState, selectedYear)
+  const transactionHistoryLoading = isTransactionHistoryLoadingForYear(transactionHistoryState, selectedYear)
+  const transactionHistoryError = transactionHistoryErrorForYear(transactionHistoryState, selectedYear)
+  const {
+    transactions,
+    journalMap,
+  } = getVisibleTransactionHistory({
+    state: transactionHistoryState,
+    selectedYear,
+    transactions: storedTransactions,
+    journalMap: storedJournalMap,
+    emptyJournalMap: {},
+  })
+
+  function transactionHistoryLoadIsCurrent(marker: { year: number; sequence: number }) {
+    return isCurrentTransactionHistoryLoad({
+      marker,
+      latestYear: latestYearRef.current,
+      latestSequence: transactionHistoryLoadSeqRef.current,
+    })
+  }
+
+  function startTransactionHistoryLoad(year: number) {
+    const { marker, state } = beginTransactionHistoryLoad(transactionHistoryLoadSeqRef.current, year)
+    transactionHistoryLoadSeqRef.current = marker.sequence
+    setTransactionHistoryState(state)
+    return marker
+  }
+
+  async function loadTransactionHistoryForYear(
+    year: number,
+    startDate: string,
+    endDate: string,
+    marker = startTransactionHistoryLoad(year)
+  ): Promise<AccountingRefreshResult> {
+    try {
+      const historyData = await loadCompleteTransactionHistory({
+        client: supabase as unknown as TransactionHistorySupabaseClient,
+        userId: user.id,
+        startDate,
+        endDate,
+      })
+
+      if (!transactionHistoryLoadIsCurrent(marker)) {
+        return { ok: false, reason: 'stale_year' }
+      }
+
+      setStoredTransactions(sortTransactionsByDateAndVer(historyData.transactions, historyData.journalMap))
+      setStoredJournalMap(historyData.journalMap)
+      setTransactionHistoryState(completeTransactionHistoryLoad(marker))
+      return { ok: true }
+    } catch (err) {
+      if (!transactionHistoryLoadIsCurrent(marker)) {
+        return { ok: false, reason: 'stale_year' }
+      }
+
+      setStoredTransactions([])
+      setStoredJournalMap({})
+      setTransactionHistoryState(failTransactionHistoryLoad(marker, transactionHistoryErrorMessage(err)))
+      return { ok: false, reason: 'error', error: err }
+    }
+  }
+
+  async function loadSupportingAccountingData(year: number, startDate: string, endDate: string) {
+    const [balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
+      getAccountBalances(year),
+      getBalanceSheetBalances(year),
+      getNEData(year),
+      getDashboardVatBreakdown(startDate, endDate)
+    ])
+
+    return { balanceData, balanceSheetData, neRes, momsRes }
+  }
 
   async function loadKontoplanOptionsInternal(): Promise<AccountingRefreshResult> {
     const userId = user?.id
@@ -114,28 +206,12 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     try {
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
-      const [txData, balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
-        supabase.from('transactions').select('*')
-          .eq('user_id', user.id)
-          .gte('date', startDate).lte('date', endDate)
-          .order('date', { ascending: false }),
-        getAccountBalances(selectedYear),
-        getBalanceSheetBalances(selectedYear),
-        getNEData(selectedYear),
-        getDashboardVatBreakdown(startDate, endDate)
-      ])
-      if (txData.error) throw txData.error
-      const txIds = txData.data?.map((t: any) => t.id) || []
-      let jMap: any = {}
-      if (txIds.length > 0) {
-        const { data: yearJournal, error: jError } = await supabase
-          .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
-        if (jError) throw jError
-        yearJournal?.forEach((row: any) => {
-          if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
-          jMap[row.transaction_id].push(row)
-        })
-      }
+      const supportingDataPromise = loadSupportingAccountingData(selectedYear, startDate, endDate)
+        .then(data => ({ ok: true as const, data }))
+        .catch(error => ({ ok: false as const, error }))
+
+      const historyResult = await loadTransactionHistoryForYear(startedYear, startDate, endDate)
+      if (!historyResult.ok) return historyResult
 
       // Skriv bara till state om det året vi hämtade för fortfarande är
       // det aktuella valda året.
@@ -143,10 +219,18 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         return { ok: false, reason: 'stale_year' }
       }
 
-      setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
+      const supportingDataResult = await supportingDataPromise
+      if (startedYear !== latestYearRef.current) {
+        return { ok: false, reason: 'stale_year' }
+      }
+      if (!supportingDataResult.ok) {
+        console.error('Fel vid laddning av övrig bokföringsdata:', supportingDataResult.error)
+        return { ok: false, reason: 'error', error: supportingDataResult.error }
+      }
+
+      const { balanceData, balanceSheetData, neRes, momsRes } = supportingDataResult.data
       setBalances(balanceData || {})
       setBalanceSheetBalances(balanceSheetData || {})
-      setJournalMap(jMap)
       setNeData(neRes)
       setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
 
@@ -157,6 +241,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       return { ok: true }
     } catch (err) {
       console.error('Fel vid laddning av data:', err)
+      if (startedYear !== latestYearRef.current) {
+        return { ok: false, reason: 'stale_year' }
+      }
       return { ok: false, reason: 'error', error: err }
     }
   }
@@ -173,6 +260,10 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
   useEffect(() => {
     if (!user) {
       kontoplanLoadSeqRef.current += 1
+      transactionHistoryLoadSeqRef.current += 1
+      setStoredTransactions([])
+      setStoredJournalMap({})
+      setTransactionHistoryState(createInitialTransactionHistoryState())
       setKontoplan([])
       setKontoplanLoaded(false)
       setKontoplanLoading(false)
@@ -190,6 +281,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       // startades för. Läggs till utöver det befintliga cancelled-skyddet
       // nedan, inte istället för det.
       const startedYear = selectedYear
+      const historyMarker = startTransactionHistoryLoad(startedYear)
       try {
         const { data, error } = await supabase
           .from('accounts')
@@ -207,34 +299,12 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
 
         const startDate = `${selectedYear}-01-01`
         const endDate   = `${selectedYear}-12-31`
+        const supportingDataPromise = loadSupportingAccountingData(selectedYear, startDate, endDate)
+          .then(data => ({ ok: true as const, data }))
+          .catch(error => ({ ok: false as const, error }))
 
-        const [txData, balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
-          supabase.from('transactions').select('*')
-            .eq('user_id', user.id)
-            .gte('date', startDate).lte('date', endDate)
-            .order('date', { ascending: false }),
-          getAccountBalances(selectedYear),
-          getBalanceSheetBalances(selectedYear),
-          getNEData(selectedYear),
-          getDashboardVatBreakdown(startDate, endDate)
-        ])
-
-        if (cancelled) return
-
-        if (txData.error) throw txData.error
-
-        const txIds = txData.data?.map((t: any) => t.id) || []
-        let jMap: any = {}
-
-        if (txIds.length > 0) {
-          const { data: yearJournal, error: jError } = await supabase
-            .from('journal_entries').select('*').in('transaction_id', txIds).eq('user_id', user.id)
-          if (jError) throw jError
-          yearJournal?.forEach((row: any) => {
-            if (!jMap[row.transaction_id]) jMap[row.transaction_id] = []
-            jMap[row.transaction_id].push(row)
-          })
-        }
+        const historyResult = await loadTransactionHistoryForYear(startedYear, startDate, endDate, historyMarker)
+        if (!historyResult.ok) return
 
         if (cancelled) return
 
@@ -242,19 +312,33 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         // är det senast valda året.
         if (startedYear !== latestYearRef.current) return
 
-        setTransactions(sortTransactionsByDateAndVer(txData.data || [], jMap))
-        setBalances(balanceData || {})
-        setBalanceSheetBalances(balanceSheetData || {})
-        setJournalMap(jMap)
-        setNeData(neRes)
-        setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
+        const supportingDataResult = await supportingDataPromise
+        if (cancelled || startedYear !== latestYearRef.current) return
+        if (!supportingDataResult.ok) {
+          console.error('Fel vid laddning av övrig bokföringsdata:', supportingDataResult.error)
+        } else {
+          const { balanceData, balanceSheetData, neRes, momsRes } = supportingDataResult.data
+          setBalances(balanceData || {})
+          setBalanceSheetBalances(balanceSheetData || {})
+          setNeData(neRes)
+          setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
+        }
         const kontoplanResult = await loadKontoplanOptionsInternal()
         if (!kontoplanResult.ok) return
       } catch (err) {
-        if (!cancelled) console.error('Fel vid laddning av data:', err)
+        if (!cancelled) {
+          console.error('Fel vid laddning av data:', err)
+          if (transactionHistoryLoadIsCurrent(historyMarker)) {
+            setStoredTransactions([])
+            setStoredJournalMap({})
+            setTransactionHistoryState(failTransactionHistoryLoad(historyMarker, transactionHistoryErrorMessage(err)))
+          }
+        }
       } finally {
-        // Alltid av loading – annars fryser sidan
-        setDataLoading(false)
+        // Endast den aktuella laddningen får släcka loading-state.
+        if (!cancelled && startedYear === latestYearRef.current) {
+          setDataLoading(false)
+        }
       }
     }
 
@@ -262,6 +346,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     return () => {
       cancelled = true
       kontoplanLoadSeqRef.current += 1
+      transactionHistoryLoadSeqRef.current += 1
     }
   }, [user, selectedYear, subscriptionType])
 
@@ -286,6 +371,9 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     balanceSheetBalances,
     neData,
     journalMap,
+    transactionHistoryError,
+    transactionHistoryLoading,
+    transactionHistoryComplete,
     kontoplan,
     kontoplanLoading,
     kontoplanLoaded,
