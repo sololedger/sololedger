@@ -114,10 +114,28 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - Draft-only baseline notes:
   `supabase/repair_scripts/20261010_staging_schema_parity_baseline_notes.md`.
   The active CLI baseline has not been changed.
+- Direct Staging DB host `db.fzxqiqenqjzhlyxxpvhg.supabase.co:5432` was blocked
+  from this local environment by DNS/direct-host resolution or IPv6/network
+  access before authentication. Production was not used as fallback.
+- Staging Shared Session Pooler was configured in the local git-ignored
+  `PGPASSFILE` `C:\SoloLedger\LocalTest\pgpass_staging_supabase.conf` with
+  host `aws-1-eu-central-1.pooler.supabase.com`, port `5432`, database
+  `postgres`, and user `postgres.fzxqiqenqjzhlyxxpvhg`. No secret value is in
+  Git or this document.
+- Read-only `psql` verification through the Session Pooler succeeded with TLS,
+  database `postgres`, server port `5432`, and explicit transaction-local
+  session state preserved on the same psql connection. The live database role
+  resolved to `postgres`; schema/database `CREATE` privileges appeared present,
+  but `rolsuper` was `false`.
+- Remaining blocker: the current Staging repair draft includes `ensure_rls`
+  event trigger DDL. PostgreSQL event trigger creation normally requires
+  superuser capability, so the Session Pooler path is not yet proven sufficient
+  for the full repair. No repair SQL, migration, DDL, data write, postcheck, or
+  write-E2E has been run.
 - Remaining risk: ordinary SQL cannot independently prove the Supabase project
   ref, so any future execution still requires separate explicit target
   verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
-  marker is set. No database repair, migration, or write-E2E is approved yet.
+  marker is set.
 - Staging-write-E2E remains paused / NO-GO until Staging schema parity is
   repaired, postchecked, and separately approved.
 - KAN-60 is known future work only; do not begin it without explicit approval.
@@ -163,12 +181,14 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
-- Next safe Staging-repair step, if Pontus approves it later: verify the
-  connected target out-of-band as Staging `fzxqiqenqjzhlyxxpvhg`, set the
-  required session marker, rerun the read-only preflight immediately before
-  execution, review the exact SQL, replace final `ROLLBACK` with `COMMIT` only
-  for that approved execution, then run the read-only postcheck and verify all
-  rows are `PASS` before any Staging-write-E2E is reconsidered.
+- Next safe Staging-repair step, if Pontus approves it later: first resolve the
+  event trigger privilege gap for the chosen Staging-only execution path. Then
+  verify the connected target out-of-band as Staging `fzxqiqenqjzhlyxxpvhg`,
+  verify required session continuity, set the required session marker, rerun
+  the read-only preflight immediately before execution, review the exact SQL,
+  replace final `ROLLBACK` with `COMMIT` only for that approved execution, then
+  run the read-only postcheck and verify all rows are `PASS` before any
+  Staging-write-E2E is reconsidered.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.

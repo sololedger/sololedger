@@ -125,6 +125,17 @@ Established SoloLedger Supabase context:
 
 - Production Supabase project ref: `wbaxmuvudpnkvuliicuy`.
 - Hosted staging/E2E Supabase project: `sololedger-staging`, ref `fzxqiqenqjzhlyxxpvhg`.
+- Verified Staging Shared Session Pooler connection details:
+  host `aws-1-eu-central-1.pooler.supabase.com`, port `5432`,
+  database `postgres`, user `postgres.fzxqiqenqjzhlyxxpvhg`.
+- Staging PostgreSQL `PGPASSFILE` is
+  `C:\SoloLedger\LocalTest\pgpass_staging_supabase.conf`; never commit,
+  display, copy, hash, or paste its contents.
+- Use the local PostgreSQL 17 `psql` client with TLS (`PGSSLMODE=require`) for
+  approved manual Staging database checks. The Session Pooler may be used only
+  when the task has verified session continuity for the exact operation.
+- Do not use the Supabase Transaction Pooler for the Staging schema repair.
+- Production must never be used as a fallback for Staging connection problems.
 - Staging schema is built from the repository migration chain. Do not copy Production data into staging.
 - Use the established CLI entry point `npx --yes supabase@latest` for Supabase CLI work unless a task verifies a better project-specific path first.
 - Start from the durable docs, current Git state, `supabase/migrations/`, and the verified live project context before inspecting or changing Supabase.
@@ -132,6 +143,8 @@ Established SoloLedger Supabase context:
 - Do not spend time trying many alternative connection methods when the established CLI/workflow is available. If tooling/auth fails, report it as a tooling/auth problem until evidence shows a product or database defect.
 - Never ask Pontus to paste secrets into chat. Never read, display, copy, or hash pgpass or credential contents.
 - `supabase/.temp/` is generated CLI state and must not be committed merely to make Git clean.
+- Any live database write, DDL, migration, repair, or data change still requires
+  separate explicit approval for that exact step.
 
 Important RPCs include:
 
