@@ -197,10 +197,15 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   No E2E-write was run during the repair.
 - KAN-40 Staging-write-E2E retry is pending. The first KAN-40 run failed before
   booking because `getByLabel('Datum')` matched the visible Swedish date input,
-  the calendar button, and the hidden native date input. The KAN-40 test now
-  targets the visible date textbox by role/name. The accounting flow is still
-  not verified after this locator-only fix and requires a separately approved
-  Staging-write retry.
+  the calendar button, and the hidden native date input. The second run reached
+  the NE check but created no new KAN-40 rows; the likely test cause was that
+  the generic first visible text-input locator wrote the description into the
+  date field, while old rows with the same description gave a false positive.
+  The KAN-40 test now uses label-scoped locators, a unique run description, and
+  verifies filled date/description/amount plus a newly visible correction row
+  before the NE assertion. The accounting flow is still not verified after this
+  test-only stabilization and requires a separately approved Staging-write
+  retry.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
