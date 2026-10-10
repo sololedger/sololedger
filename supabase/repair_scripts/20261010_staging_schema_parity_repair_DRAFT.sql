@@ -17,14 +17,65 @@
 --   Run only through an explicitly verified Staging connection. Replace the
 --   final ROLLBACK with COMMIT only after a fresh read-only preflight and
 --   leader approval for the exact SQL state.
+--
+-- Target guard:
+--   The Supabase project ref cannot be proven from ordinary in-database SQL
+--   without relying on external platform context. A future approved execution
+--   must therefore verify the connected project out-of-band as
+--   fzxqiqenqjzhlyxxpvhg and set this session marker before running this file:
+--
+--     SET sololedger.verified_project_ref = 'fzxqiqenqjzhlyxxpvhg';
+--
+--   The marker is an operator attestation, not a database identity proof. This
+--   script fails closed if the marker is missing or different. There is no
+--   Production override.
 
 BEGIN;
 
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '5min';
 
--- Single-run guard for concurrent repair attempts.
-SELECT pg_advisory_xact_lock(hashtext('sololedger_staging_schema_parity_repair_20261010'));
+DO $target_guard$
+DECLARE
+  v_verified_project_ref text := current_setting('sololedger.verified_project_ref', true);
+BEGIN
+  IF v_verified_project_ref IS DISTINCT FROM 'fzxqiqenqjzhlyxxpvhg' THEN
+    RAISE EXCEPTION
+      'Staging target not explicitly verified. Expected session marker sololedger.verified_project_ref=fzxqiqenqjzhlyxxpvhg, got %.',
+      coalesce(v_verified_project_ref, '<unset>');
+  END IF;
+END;
+$target_guard$;
+
+-- Single-run guard for concurrent repair attempts. Do not wait or retry.
+DO $single_run_guard$
+BEGIN
+  IF NOT pg_try_advisory_xact_lock(hashtext('sololedger_staging_schema_parity_repair_20261010')) THEN
+    RAISE EXCEPTION 'Another SoloLedger Staging schema parity repair attempt is already running.';
+  END IF;
+END;
+$single_run_guard$;
+
+-- Race-safety lock plan:
+--   These are all public tables whose data, constraints, RLS state, or grants
+--   are changed by this draft. ACCESS EXCLUSIVE is the minimum lock mode that
+--   matches the later ALTER TABLE operations for type changes, constraints,
+--   and ENABLE ROW LEVEL SECURITY. Taking the locks up front in deterministic
+--   alphabetical order makes every data preflight run while relevant writes are
+--   blocked and fails quickly under the 5s lock_timeout if Staging is active.
+--   No automatic retry is used; a timeout means stop and re-evaluate.
+LOCK TABLE
+  public.accounts,
+  public.closed_years,
+  public.delete_user_data_atomic_lifecycle_context,
+  public.favorites,
+  public.import_batches,
+  public.journal_entries,
+  public.profiles,
+  public.tax_rule_parameters,
+  public.transactions,
+  public.ver_nr_sequences
+IN ACCESS EXCLUSIVE MODE;
 
 -- ---------------------------------------------------------------------------
 -- 1. Fail-closed preflight: expected Staging drift and compatible data only.
@@ -54,11 +105,15 @@ BEGIN
 
   IF EXISTS (
     SELECT 1
-    FROM pg_constraint
-    WHERE conname IN (
-      'closed_years_user_id_year_key',
-      'import_batches_user_id_file_hash_key'
-    )
+    FROM pg_constraint c
+    JOIN pg_class r ON r.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = r.relnamespace
+    WHERE n.nspname = 'public'
+      AND (
+        (r.relname = 'closed_years' AND c.conname = 'closed_years_user_id_year_key')
+        OR
+        (r.relname = 'import_batches' AND c.conname = 'import_batches_user_id_file_hash_key')
+      )
   ) THEN
     RAISE EXCEPTION 'Expected Staging drift not found: unique constraints already exist.';
   END IF;
@@ -262,70 +317,120 @@ DECLARE
 BEGIN
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'accounts_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'accounts'
+    AND c.conname = 'accounts_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected accounts_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'closed_years_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'closed_years'
+    AND c.conname = 'closed_years_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected closed_years_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'favorites_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'favorites'
+    AND c.conname = 'favorites_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected favorites_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'import_batches_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'import_batches'
+    AND c.conname = 'import_batches_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected import_batches_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'journal_entries_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'journal_entries'
+    AND c.conname = 'journal_entries_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected journal_entries_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'journal_entries_transaction_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'journal_entries'
+    AND c.conname = 'journal_entries_transaction_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (transaction_id) REFERENCES transactions(id)' THEN
     RAISE EXCEPTION 'Unexpected journal_entries_transaction_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'profiles_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'profiles'
+    AND c.conname = 'profiles_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected profiles_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'transactions_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'transactions'
+    AND c.conname = 'transactions_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected transactions_user_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'transactions_import_batch_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'transactions'
+    AND c.conname = 'transactions_import_batch_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (import_batch_id) REFERENCES import_batches(id)' THEN
     RAISE EXCEPTION 'Unexpected transactions_import_batch_id_fkey definition: %', v_definition;
   END IF;
 
   SELECT pg_get_constraintdef(c.oid) INTO v_definition
   FROM pg_constraint c
-  WHERE c.conname = 'ver_nr_sequences_user_id_fkey';
+  JOIN pg_class r ON r.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = r.relnamespace
+  WHERE n.nspname = 'public'
+    AND r.relname = 'ver_nr_sequences'
+    AND c.conname = 'ver_nr_sequences_user_id_fkey'
+    AND c.contype = 'f';
   IF v_definition <> 'FOREIGN KEY (user_id) REFERENCES auth.users(id)' THEN
     RAISE EXCEPTION 'Unexpected ver_nr_sequences_user_id_fkey definition: %', v_definition;
   END IF;
@@ -507,50 +612,10 @@ GRANT EXECUTE ON FUNCTION public.undo_sie_import_atomic(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.undo_sie_import_atomic(uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
--- 7. Verification queries to run after an approved COMMIT.
+-- 7. Post-repair verification.
 -- ---------------------------------------------------------------------------
-
--- Data safety counts should all remain zero:
---   duplicate closed_years(user_id, year)
---   duplicate import_batches(user_id, file_hash)
---   orphan FK counts for rebuilt constraints
---   non-lossless numeric conversion counts
---
--- Metadata parity checks should match Production for:
---   column, constraint, function_norm, index, policy, rls, routine_grant,
---   table, table_grant.
---
--- Spot checks:
---   SELECT conname, pg_get_constraintdef(oid)
---   FROM pg_constraint
---   WHERE conname IN (
---     'closed_years_user_id_year_key',
---     'import_batches_user_id_file_hash_key',
---     'accounts_user_id_fkey',
---     'closed_years_user_id_fkey',
---     'favorites_user_id_fkey',
---     'import_batches_user_id_fkey',
---     'journal_entries_user_id_fkey',
---     'journal_entries_transaction_id_fkey',
---     'profiles_id_fkey',
---     'transactions_user_id_fkey',
---     'transactions_import_batch_id_fkey',
---     'ver_nr_sequences_user_id_fkey'
---   )
---   ORDER BY conname;
---
---   SELECT relname, relrowsecurity
---   FROM pg_class c
---   JOIN pg_namespace n ON n.oid = c.relnamespace
---   WHERE n.nspname = 'public'
---     AND relname IN (
---       'delete_user_data_atomic_lifecycle_context',
---       'tax_rule_parameters'
---     );
---
---   SELECT evtname, evtevent, evtenabled, evtfoid::regprocedure::text
---   FROM pg_event_trigger
---   WHERE evtname = 'ensure_rls';
+-- After a future approved COMMIT, run the separate read-only verifier:
+--   supabase/repair_scripts/20261010_staging_schema_parity_postcheck_READ_ONLY.sql
 
 -- DRAFT SAFETY: keep rollback until Pontus approves execution and commit.
 ROLLBACK;

@@ -102,12 +102,24 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - Draft-only Staging repair proposal:
   `supabase/repair_scripts/20261010_staging_schema_parity_repair_DRAFT.sql`.
   It is review-only, Staging-only, rollback-by-default, and has not been
-  executed.
+  executed. A 2026-10-10 independent review found NO-GO because data preflight
+  was not race-safe and postchecks were only comments; the local draft now adds
+  deterministic table locks before data checks, schema-qualified constraint
+  guards, and a fail-closed target-attestation marker.
+- Draft-only read-only postcheck:
+  `supabase/repair_scripts/20261010_staging_schema_parity_postcheck_READ_ONLY.sql`.
+  It has not been run. It is intended to verify numeric columns, unique/FK
+  definitions, RLS, `ensure_rls`, table grants, RPC grants, and data-safety
+  counts after a future explicitly approved Staging repair commit.
 - Draft-only baseline notes:
   `supabase/repair_scripts/20261010_staging_schema_parity_baseline_notes.md`.
   The active CLI baseline has not been changed.
-- Staging-write-E2E remains paused. No database repair, migration, or write-E2E
-  is approved yet.
+- Remaining risk: ordinary SQL cannot independently prove the Supabase project
+  ref, so any future execution still requires separate explicit target
+  verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
+  marker is set. No database repair, migration, or write-E2E is approved yet.
+- Staging-write-E2E remains paused / NO-GO until Staging schema parity is
+  repaired, postchecked, and separately approved.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
@@ -151,11 +163,12 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
-- Next safe Staging-repair step, if Pontus approves it later: rerun the
-  read-only preflight immediately before execution, review the exact SQL, run it
-  only against Staging `fzxqiqenqjzhlyxxpvhg`, replace final `ROLLBACK` with
-  `COMMIT` only for that approved execution, and verify live metadata parity
-  before any Staging-write-E2E is reconsidered.
+- Next safe Staging-repair step, if Pontus approves it later: verify the
+  connected target out-of-band as Staging `fzxqiqenqjzhlyxxpvhg`, set the
+  required session marker, rerun the read-only preflight immediately before
+  execution, review the exact SQL, replace final `ROLLBACK` with `COMMIT` only
+  for that approved execution, then run the read-only postcheck and verify all
+  rows are `PASS` before any Staging-write-E2E is reconsidered.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.

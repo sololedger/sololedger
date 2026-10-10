@@ -34,3 +34,20 @@ Production without needing a Staging-only repair. At minimum, review and add:
 Do not edit historical applied migrations casually. A baseline correction needs
 its own review because it changes the behavior of future fresh environments, not
 the already-running Production database.
+
+## Repair Draft Safety Notes
+
+The Staging-only repair draft is intentionally separate from a future baseline
+correction. It now takes deterministic `ACCESS EXCLUSIVE` locks before data
+preflight so numeric, unique, and FK checks run while relevant Staging writes
+are blocked. A lock timeout should stop the repair attempt; it should not retry
+automatically.
+
+The draft cannot prove the Supabase project ref from ordinary SQL. A future
+approved execution therefore must verify the connected target outside the
+database as `fzxqiqenqjzhlyxxpvhg` and set the required session marker before
+running the draft. Missing or different marker values fail closed.
+
+After a future approved Staging repair commit, run the read-only postcheck:
+`supabase/repair_scripts/20261010_staging_schema_parity_postcheck_READ_ONLY.sql`.
+Every row should report `PASS` before Staging-write-E2E is reconsidered.
