@@ -132,6 +132,21 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   superuser capability, so the Session Pooler path is not yet proven sufficient
   for the full repair. No repair SQL, migration, DDL, data write, postcheck, or
   write-E2E has been run.
+- Read-only metadata inspection on Staging through the verified Session Pooler
+  found that the target tables and relevant functions are owned by `postgres`,
+  `rls_auto_enable()` exists and returns `event_trigger`, `ensure_rls` is still
+  absent, and the active role is not superuser. This supports splitting the
+  repair so the other schema/grant changes remain atomic while `ensure_rls`
+  stays a separately unresolved parity item.
+- Partial draft prepared:
+  `supabase/repair_scripts/20261010_staging_schema_parity_repair_without_event_trigger_DRAFT.sql`.
+  It keeps the target marker, advisory lock, deterministic table locks,
+  race-safe data preflight, numeric changes, unique constraints, FK rebuilds,
+  RLS-enable changes for existing drifted tables, and grants from the reviewed
+  draft, but intentionally does not create/drop/modify `ensure_rls`. The full
+  read-only postcheck must still be run after any future partial repair; a
+  missing `ensure_rls` must remain `FAIL` and must not be treated as full
+  schema parity.
 - Remaining risk: ordinary SQL cannot independently prove the Supabase project
   ref, so any future execution still requires separate explicit target
   verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
@@ -181,14 +196,14 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
-- Next safe Staging-repair step, if Pontus approves it later: first resolve the
-  event trigger privilege gap for the chosen Staging-only execution path. Then
-  verify the connected target out-of-band as Staging `fzxqiqenqjzhlyxxpvhg`,
-  verify required session continuity, set the required session marker, rerun
-  the read-only preflight immediately before execution, review the exact SQL,
-  replace final `ROLLBACK` with `COMMIT` only for that approved execution, then
-  run the read-only postcheck and verify all rows are `PASS` before any
-  Staging-write-E2E is reconsidered.
+- Next safe Staging-repair step, if Pontus approves it later: run the partial
+  draft only in a separate explicitly approved Staging-only execution pass, with
+  verified Session Pooler session continuity, out-of-band target verification,
+  session marker, fresh preflight, `ROLLBACK` replaced by `COMMIT` only in the
+  approved execution input, and no automatic retry. Then run the full read-only
+  postcheck; all non-event-trigger checks must pass, while `ensure_rls` remains
+  a separately tracked blocker until an approved Supabase-supported method is
+  used for that event trigger.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.
