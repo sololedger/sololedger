@@ -53,7 +53,8 @@ Last updated: 2026-10-10
 Verified on 2026-10-10:
 
 - KAN-59 is `In Review`, assigned to Pontus, and awaiting manual local
-  testing. It fixes the responsive header/navigation clipping bug and is
+  testing after the approved one-line desktop header refinement with a
+  `Mer` menu. It fixes the responsive header/navigation clipping bug and is
   linked to KAN-44 as related UI/readability work.
 - KAN-56, KAN-57, and KAN-58 are `Done`; Pontus approved final Jira closure
   after Production release and manual Production acceptance.
@@ -81,8 +82,10 @@ Current known open Jira work from the latest retained snapshot:
 
 ## Current Active Work
 
-- KAN-59 responsive header/navigation fix is implemented locally and ready for
-  Pontus manual testing. No Production/Staging deploy was performed.
+- KAN-59 responsive header/navigation fix is implemented locally with compact
+  one-line desktop navigation from `lg`/1024 px, a `Mer` dropdown for
+  secondary pages, separate Admin/Logga ut controls, and preserved mobile
+  hamburger navigation. No Production/Staging deploy was performed.
 - KAN-56/KAN-57/KAN-58 remain code-, DB-, Edge-, Vercel-, smoke-,
   owner-accepted, and closed in Jira.
 - Do not start Adobe corrections, KAN-44, KAN-47, KAN-48, KAN-53, or any new
@@ -117,6 +120,7 @@ Current known open Jira work from the latest retained snapshot:
   Production deploy and still requires explicit approval. The retained local
   docs-only closeout commit is `147fdb5`.
 - KAN-59 changed `src/components/Layout.tsx` and `PROJECT_STATE.md` only.
+  The current local adjustment keeps `audit-packages/` untouched.
 - `audit-packages/` remains untracked and unrelated to the KAN-56/KAN-57/KAN-58
   release/closeout.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
@@ -147,8 +151,9 @@ Current known open Jira work from the latest retained snapshot:
 
 ## Next Safe Step
 
-1. Pontus manually tests KAN-59 locally as a normal user and admin across
-   mobile, tablet, laptop, and desktop widths.
+1. Pontus manually tests the adjusted KAN-59 header locally as a normal user
+   and admin across mobile, tablet, laptop, and desktop widths, including the
+   `Mer` dropdown and active-page indication.
 2. After Pontus accepts KAN-59, decide whether to push/release the local
    commits. Do not push without explicit approval.
 3. Start KAN-35/KAN-47 or another selected work item only after Pontus
