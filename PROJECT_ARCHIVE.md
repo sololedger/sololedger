@@ -6,6 +6,43 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-35 / KAN-47 Complete Transaction History Release
+
+- KAN-35 and KAN-47 reached Production release, Pontus manual Production
+  acceptance, and Jira `Done` on 2026-10-10.
+- Production `main`/`origin/main` release commit:
+  `0f4e316f0db8f94942f229c6665a5875e3451d6b`
+  (`docs: update KAN-35 KAN-47 release checkpoint`).
+- Final Vercel Production deployment:
+  `dpl_7ZbZuwLUavdQJReTvgNWJBzB5WPm`,
+  `sololedger-6334acy49-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build log verified branch `main`, commit
+  `0f4e316`, status `Ready`.
+- KAN-35 scope completed: transaction history now loads through complete-safe
+  `fetchAllRows`/chunked journal-row loading, verifies exact counts, preserves
+  user/year scope, fails closed on incomplete history, and only shows history
+  after a verified complete status for the currently selected year. Older
+  overlapping loads and refreshes cannot overwrite newer history.
+- KAN-47 scope completed: TransactionTable has compact search, category/source
+  filter chips, sorting, show-more behavior, category/source regression
+  coverage, and amount/date search. The work is presentation/read behavior and
+  does not mutate bookkeeping data.
+- Local verification before release included the focused transaction-history
+  loader/state/filter scripts, `npm run typecheck`, `npm run test`,
+  `npm run test:e2e:smoke`, and `git diff --check`.
+- Production verification was non-destructive. Pontus manually accepted the
+  released KAN-35 and KAN-47 behavior in Production on 2026-10-10.
+- Full Staging-write-E2E and real browser E2E with over 1000 transactions were
+  not verified for this release and remain documented limitations.
+- KAN-60 was created separately as a future `Bug`, priority `Medium`,
+  status `To Do`: historically linked customer invoices are missing from the
+  `Kundfakturor` filter. KAN-60 concerns historical links between manual
+  vouchers and customer invoices from earlier KAN-51 work, not ordinary
+  `customer_invoice` transactions and not a confirmed double-booking problem.
+- No database migration, Supabase write, data repair, backfill, new bookkeeping,
+  deploy outside the approved release, or KAN-60 implementation was part of
+  this closeout.
+
 ### KAN-59 Responsive Header / Adaptive Navigation Release
 
 - KAN-59 reached Production release, Pontus manual Production acceptance, and
