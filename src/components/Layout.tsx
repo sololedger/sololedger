@@ -22,41 +22,43 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 <div className="mb-8 bg-white rounded-3xl border shadow-sm overflow-hidden">
 
   {/* TOPPRAD */}
-  <div className="flex items-center justify-between gap-3 p-4">
+  <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center xl:justify-between">
 
-    {/* LOGGA */}
-    <div className="flex items-center gap-3 min-w-0">
-      <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-lg shadow-emerald-200 shrink-0">
-        S
+    <div className="flex w-full items-center justify-between gap-3 xl:w-auto xl:shrink-0">
+      {/* LOGGA */}
+      <div className="flex min-w-0 items-center gap-3 sm:min-w-[19rem] xl:min-w-[20rem]">
+        <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-lg shadow-emerald-200 shrink-0">
+          S
+        </div>
+
+        <div className="flex flex-col min-w-0">
+          <h1 className="whitespace-nowrap text-xl font-black italic uppercase tracking-tighter text-gray-800 leading-none">
+            SoloLedger
+          </h1>
+
+          <span className="mt-1 text-[10px] font-medium leading-snug text-gray-400 sm:text-xs sm:whitespace-nowrap">
+            Bokföring för enskild firma – utan anställda
+          </span>
+        </div>
       </div>
 
-      <div className="flex flex-col min-w-0">
-        <h1 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 leading-none">
-          SoloLedger
-        </h1>
-
-        <span className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1 truncate">
-          Bokföring för enskild firma – utan anställda
-        </span>
-      </div>
+      {/* HAMBURGARE – ENDAST MOBIL */}
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(prev => !prev)}
+        className="md:hidden w-10 h-10 shrink-0 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center font-black text-lg transition-all"
+        aria-label={mobileMenuOpen ? 'Stäng meny' : 'Öppna meny'}
+        aria-expanded={mobileMenuOpen}
+      >
+        {mobileMenuOpen ? '✕' : '☰'}
+      </button>
     </div>
 
-    {/* HAMBURGARE – ENDAST MOBIL */}
-    <button
-      type="button"
-      onClick={() => setMobileMenuOpen(prev => !prev)}
-      className="md:hidden w-10 h-10 shrink-0 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center font-black text-lg transition-all"
-      aria-label={mobileMenuOpen ? 'Stäng meny' : 'Öppna meny'}
-      aria-expanded={mobileMenuOpen}
-    >
-      {mobileMenuOpen ? '✕' : '☰'}
-    </button>
-
     {/* DESKTOPNAVIGATION */}
-    <nav className="hidden md:flex gap-2 bg-gray-100 p-1 rounded-xl items-center">
+    <nav className="hidden w-full flex-wrap items-center justify-start gap-2 rounded-xl bg-gray-100 p-1 md:flex xl:w-auto xl:flex-1 xl:justify-end">
       <button
         onClick={() => setActiveTab('dashboard')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'dashboard'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -67,7 +69,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('kontoplan')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'kontoplan'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -78,7 +80,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('fakturor')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'fakturor'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -89,7 +91,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('inventarier')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'inventarier'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -100,7 +102,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('ne')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'ne'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -111,7 +113,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('moms')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'moms'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -122,7 +124,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('faq')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'faq'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -133,7 +135,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
 
       <button
         onClick={() => setActiveTab('profil')}
-        className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
           activeTab === 'profil'
             ? 'bg-white text-emerald-600 shadow-sm'
             : 'text-gray-400 hover:text-gray-600'
@@ -145,7 +147,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
       {isAdmin && (
         <button
           onClick={() => setActiveTab('admin')}
-          className={`px-6 py-2 rounded-lg font-bold text-xs transition-all ${
+          className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
             activeTab === 'admin'
               ? 'bg-white text-purple-600 shadow-sm'
               : 'text-gray-400 hover:text-gray-600'

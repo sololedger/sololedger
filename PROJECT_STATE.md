@@ -52,6 +52,9 @@ Last updated: 2026-10-10
 
 Verified on 2026-10-10:
 
+- KAN-59 is `In Review`, assigned to Pontus, and awaiting manual local
+  testing. It fixes the responsive header/navigation clipping bug and is
+  linked to KAN-44 as related UI/readability work.
 - KAN-56, KAN-57, and KAN-58 are `Done`; Pontus approved final Jira closure
   after Production release and manual Production acceptance.
 - KAN-55 is `Done`; Pontus performed the final Jira closure after manual
@@ -78,9 +81,9 @@ Current known open Jira work from the latest retained snapshot:
 
 ## Current Active Work
 
-- No Codex implementation task is currently active after KAN-56/KAN-57/KAN-58
-  closeout.
-- KAN-56/KAN-57/KAN-58 are code-, DB-, Edge-, Vercel-, smoke-,
+- KAN-59 responsive header/navigation fix is implemented locally and ready for
+  Pontus manual testing. No Production/Staging deploy was performed.
+- KAN-56/KAN-57/KAN-58 remain code-, DB-, Edge-, Vercel-, smoke-,
   owner-accepted, and closed in Jira.
 - Do not start Adobe corrections, KAN-44, KAN-47, KAN-48, KAN-53, or any new
   Jira work unless Pontus explicitly starts that work.
@@ -110,9 +113,10 @@ Current known open Jira work from the latest retained snapshot:
 
 ## Git / Local Files
 
-- Current documentation-only closeout changes should include only
-  `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md`; commit locally only, no push
-  without explicit approval.
+- Local `main` remains ahead of `origin/main`; push to `main` would trigger
+  Production deploy and still requires explicit approval. The retained local
+  docs-only closeout commit is `147fdb5`.
+- KAN-59 changed `src/components/Layout.tsx` and `PROJECT_STATE.md` only.
 - `audit-packages/` remains untracked and unrelated to the KAN-56/KAN-57/KAN-58
   release/closeout.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
@@ -143,9 +147,14 @@ Current known open Jira work from the latest retained snapshot:
 
 ## Next Safe Step
 
-1. Start a new selected work item only after Pontus explicitly chooses it.
-2. Do not start new bookkeeping/VAT/customer-invoice work without a selected
+1. Pontus manually tests KAN-59 locally as a normal user and admin across
+   mobile, tablet, laptop, and desktop widths.
+2. After Pontus accepts KAN-59, decide whether to push/release the local
+   commits. Do not push without explicit approval.
+3. Start KAN-35/KAN-47 or another selected work item only after Pontus
+   explicitly chooses it.
+4. Do not start new bookkeeping/VAT/customer-invoice work without a selected
    Jira issue and explicit instruction.
-3. Known non-blocking test improvements for future hardening: full
+5. Known non-blocking test improvements for future hardening: full
    staging-write E2E as a complete suite, and automated verification of a fully
    fresh Supabase migration chain.
