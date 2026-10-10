@@ -202,10 +202,17 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   the generic first visible text-input locator wrote the description into the
   date field, while old rows with the same description gave a false positive.
   The KAN-40 test now uses label-scoped locators, a unique run description, and
-  verifies filled date/description/amount plus a newly visible correction row
-  before the NE assertion. The accounting flow is still not verified after this
-  test-only stabilization and requires a separately approved Staging-write
-  retry.
+  verifies filled date/description/amount plus the newly visible correction
+  row before any NE assertion. A later approved retry created balanced
+  uncorrected `VER-155` for the E2E user and proved B13 `1 000 kr`, but failed
+  because older 2026 E2E data already left the full NE balance unclean. The
+  KAN-40 test no longer depends on a globally clean NE report; it verifies the
+  unique booking's journal rows, B13 delta, negative-bank delta, and correction
+  reversal. `VER-155` still waits for separate explicit approval to correct via
+  the ordinary app flow. Local verification for the test-only strategy change
+  passed (`typecheck`, E2E safety preflight, static KAN-40 Playwright listing,
+  and `git diff --check`); KAN-40 is not yet verified by a Staging-write run
+  after this change and requires a separately approved retry.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
