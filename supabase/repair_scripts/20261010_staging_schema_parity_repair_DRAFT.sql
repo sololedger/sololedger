@@ -86,6 +86,11 @@ DECLARE
   v_count bigint;
   v_version_count bigint;
   v_head text;
+  v_trigger_definition text;
+  v_trigger_enabled text;
+  v_trigger_function_md5 text;
+  v_trigger_function_owner text;
+  v_trigger_function_security_definer boolean;
 BEGIN
   SELECT count(*), max(version)
     INTO v_version_count, v_head
@@ -281,12 +286,100 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'journal_entries.credit cannot be losslessly constrained to numeric(15,2).';
   END IF;
+
+  SELECT
+    pg_get_triggerdef(t.oid),
+    t.tgenabled::text,
+    md5(pg_get_functiondef(p.oid)),
+    pg_get_userbyid(p.proowner),
+    p.prosecdef
+  INTO
+    v_trigger_definition,
+    v_trigger_enabled,
+    v_trigger_function_md5,
+    v_trigger_function_owner,
+    v_trigger_function_security_definer
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_proc p ON p.oid = t.tgfoid
+  WHERE n.nspname = 'public'
+    AND c.relname = 'transactions'
+    AND t.tgname = 'enforce_domestic_sales_vat_treatment'
+    AND NOT t.tgisinternal;
+
+  IF v_trigger_definition IS DISTINCT FROM 'CREATE TRIGGER enforce_domestic_sales_vat_treatment BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON public.transactions FOR EACH ROW EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()' THEN
+    RAISE EXCEPTION 'Unexpected enforce_domestic_sales_vat_treatment trigger definition: %', coalesce(v_trigger_definition, '<missing>');
+  END IF;
+
+  IF v_trigger_enabled IS DISTINCT FROM 'O' THEN
+    RAISE EXCEPTION 'Unexpected enforce_domestic_sales_vat_treatment enabled status: %', coalesce(v_trigger_enabled, '<missing>');
+  END IF;
+
+  IF v_trigger_function_md5 IS DISTINCT FROM '05818d852a061e3207a45c4f870301d8' THEN
+    RAISE EXCEPTION 'Unexpected enforce_domestic_sales_vat_treatment function hash: %', coalesce(v_trigger_function_md5, '<missing>');
+  END IF;
+
+  IF v_trigger_function_owner IS DISTINCT FROM 'postgres'
+     OR v_trigger_function_security_definer IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Unexpected enforce_domestic_sales_vat_treatment function ownership/security: owner %, security_definer %.',
+      coalesce(v_trigger_function_owner, '<missing>'),
+      coalesce(v_trigger_function_security_definer::text, '<missing>');
+  END IF;
+
+  IF EXISTS (
+    WITH target_attrs AS (
+      SELECT c.oid AS relid, a.attnum, n.nspname, c.relname, a.attname
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE n.nspname = 'public'
+        AND NOT a.attisdropped
+        AND (
+          (c.relname = 'transactions' AND a.attname IN ('amount', 'vat_rate'))
+          OR
+          (c.relname = 'journal_entries' AND a.attname IN ('debit', 'credit'))
+        )
+    )
+    SELECT 1
+    FROM target_attrs ta
+    JOIN pg_depend d
+      ON d.refclassid = 'pg_class'::regclass
+     AND d.refobjid = ta.relid
+     AND d.refobjsubid = ta.attnum
+    WHERE d.classid IN (
+        'pg_trigger'::regclass,
+        'pg_rewrite'::regclass,
+        'pg_constraint'::regclass,
+        'pg_proc'::regclass,
+        'pg_class'::regclass
+      )
+      AND NOT (
+        d.classid = 'pg_trigger'::regclass
+        AND d.objid = (
+          SELECT t.oid
+          FROM pg_trigger t
+          WHERE t.tgrelid = 'public.transactions'::regclass
+            AND t.tgname = 'enforce_domestic_sales_vat_treatment'
+            AND NOT t.tgisinternal
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'Unexpected dependency found on a targeted numeric column. Stop and inspect before altering column types.';
+  END IF;
 END;
 $preflight$;
 
 -- ---------------------------------------------------------------------------
 -- 2. Numeric type parity. Preflight above rejects any lossy conversion.
 -- ---------------------------------------------------------------------------
+
+-- The VAT guard trigger has an UPDATE OF vat_rate dependency that PostgreSQL
+-- refuses to reparse during ALTER COLUMN TYPE. The transactions table is
+-- already ACCESS EXCLUSIVE locked, so no other session can write transactions
+-- while the trigger is absent. If any later step fails, this whole transaction
+-- rolls back and restores the original trigger.
+DROP TRIGGER enforce_domestic_sales_vat_treatment ON public.transactions;
 
 ALTER TABLE public.transactions
   ALTER COLUMN amount TYPE numeric(15,2),
@@ -295,6 +388,46 @@ ALTER TABLE public.transactions
 ALTER TABLE public.journal_entries
   ALTER COLUMN debit TYPE numeric(15,2),
   ALTER COLUMN credit TYPE numeric(15,2);
+
+CREATE TRIGGER enforce_domestic_sales_vat_treatment
+  BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction
+  ON public.transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_domestic_sales_vat_treatment();
+
+DO $vat_trigger_restore_guard$
+DECLARE
+  v_trigger_definition text;
+  v_trigger_enabled text;
+  v_trigger_function_md5 text;
+BEGIN
+  SELECT
+    pg_get_triggerdef(t.oid),
+    t.tgenabled::text,
+    md5(pg_get_functiondef(p.oid))
+  INTO
+    v_trigger_definition,
+    v_trigger_enabled,
+    v_trigger_function_md5
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_proc p ON p.oid = t.tgfoid
+  WHERE n.nspname = 'public'
+    AND c.relname = 'transactions'
+    AND t.tgname = 'enforce_domestic_sales_vat_treatment'
+    AND NOT t.tgisinternal;
+
+  IF v_trigger_definition IS DISTINCT FROM 'CREATE TRIGGER enforce_domestic_sales_vat_treatment BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON public.transactions FOR EACH ROW EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()'
+     OR v_trigger_enabled IS DISTINCT FROM 'O'
+     OR v_trigger_function_md5 IS DISTINCT FROM '05818d852a061e3207a45c4f870301d8' THEN
+    RAISE EXCEPTION 'VAT trigger was not restored exactly: definition %, enabled %, function hash %.',
+      coalesce(v_trigger_definition, '<missing>'),
+      coalesce(v_trigger_enabled, '<missing>'),
+      coalesce(v_trigger_function_md5, '<missing>');
+  END IF;
+END;
+$vat_trigger_restore_guard$;
 
 -- ---------------------------------------------------------------------------
 -- 3. Missing unique constraints.

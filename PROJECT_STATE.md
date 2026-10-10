@@ -101,11 +101,12 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   replacements.
 - Draft-only Staging repair proposal:
   `supabase/repair_scripts/20261010_staging_schema_parity_repair_DRAFT.sql`.
-  It is review-only, Staging-only, rollback-by-default, and has not been
-  executed. A 2026-10-10 independent review found NO-GO because data preflight
-  was not race-safe and postchecks were only comments; the local draft now adds
-  deterministic table locks before data checks, schema-qualified constraint
-  guards, and a fail-closed target-attestation marker.
+  It is review-only, Staging-only, and rollback-by-default. A 2026-10-10
+  independent review found NO-GO because data preflight was not race-safe and
+  postchecks were only comments; the local draft now adds deterministic table
+  locks before data checks, schema-qualified constraint guards, and a
+  fail-closed target-attestation marker. A later approved execution input
+  derived from this draft aborted before commit and rolled back cleanly.
 - Draft-only read-only postcheck:
   `supabase/repair_scripts/20261010_staging_schema_parity_postcheck_READ_ONLY.sql`.
   It has not been run. It is intended to verify numeric columns, unique/FK
@@ -127,17 +128,10 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   session state preserved on the same psql connection. The live database role
   resolved to `postgres`; schema/database `CREATE` privileges appeared present,
   but `rolsuper` was `false`.
-- Remaining blocker: the current Staging repair draft includes `ensure_rls`
-  event trigger DDL. PostgreSQL event trigger creation normally requires
-  superuser capability, so the Session Pooler path is not yet proven sufficient
-  for the full repair. No repair SQL, migration, DDL, data write, postcheck, or
-  write-E2E has been run.
-- Read-only metadata inspection on Staging through the verified Session Pooler
-  found that the target tables and relevant functions are owned by `postgres`,
-  `rls_auto_enable()` exists and returns `event_trigger`, `ensure_rls` is still
-  absent, and the active role is not superuser. This supports splitting the
-  repair so the other schema/grant changes remain atomic while `ensure_rls`
-  stays a separately unresolved parity item.
+- Prior read-only analysis found an official Supabase-supported event-trigger
+  path for `postgres`/Supautils, so the full repair draft remains the intended
+  parity path. The future execution must still fail closed if `CREATE EVENT
+  TRIGGER ensure_rls` is rejected by the platform.
 - Partial draft prepared:
   `supabase/repair_scripts/20261010_staging_schema_parity_repair_without_event_trigger_DRAFT.sql`.
   It keeps the target marker, advisory lock, deterministic table locks,
@@ -162,11 +156,23 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   remain unconstrained `numeric`. The blocking trigger definition is:
   `BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON
   public.transactions EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()`.
-- New repair blocker: the full draft must be revised and re-reviewed to handle
-  the trigger dependency around `transactions.vat_rate` before any future
-  Staging repair execution. Do not simply drop/recreate the trigger without
-  explicitly verifying the current live trigger/function definition and keeping
-  the whole repair race-safe and transactional.
+- Read-only Staging and Production metadata inspection on 2026-10-10 verified
+  that `enforce_domestic_sales_vat_treatment` has the same trigger definition,
+  enabled status `O`, owner/function properties, and function hash in both
+  environments. Numeric-column dependency inventory found exactly one blocker:
+  that trigger depends on `public.transactions.vat_rate`; no extra trigger,
+  view/rule, constraint, class, or function dependencies were found for
+  `transactions.amount`, `transactions.vat_rate`, `journal_entries.debit`, or
+  `journal_entries.credit`.
+- The full repair draft now handles the VAT trigger dependency locally while
+  preserving the rule: under the existing `ACCESS EXCLUSIVE` table locks it
+  verifies the exact trigger/function/dependency state, drops only
+  `enforce_domestic_sales_vat_treatment`, alters the numeric columns, recreates
+  the same trigger, and verifies exact restoration before continuing. The draft
+  remains rollback-by-default and has not been executed after this correction.
+- The read-only postcheck now verifies the VAT trigger definition, enabled
+  status, function hash/properties, and expected numeric-column dependency in
+  addition to the existing parity checks.
 - Remaining risk: ordinary SQL cannot independently prove the Supabase project
   ref, so any future execution still requires separate explicit target
   verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
@@ -216,14 +222,13 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
-- Next safe Staging-repair step, if Pontus approves it later: run the partial
-  draft only in a separate explicitly approved Staging-only execution pass, with
-  verified Session Pooler session continuity, out-of-band target verification,
-  session marker, fresh preflight, `ROLLBACK` replaced by `COMMIT` only in the
-  approved execution input, and no automatic retry. Then run the full read-only
-  postcheck; all non-event-trigger checks must pass, while `ensure_rls` remains
-  a separately tracked blocker until an approved Supabase-supported method is
-  used for that event trigger.
+- Next safe Staging-repair step, if Pontus approves it later: run the corrected
+  full draft only in a separate explicitly approved Staging-only execution pass,
+  with verified Session Pooler session continuity, out-of-band target
+  verification, session marker, fresh preflight, `ROLLBACK` replaced by
+  `COMMIT` only in the approved execution input, and no automatic retry. Then
+  run the full read-only postcheck; every row must be `PASS` before
+  Staging-write-E2E is reconsidered.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.

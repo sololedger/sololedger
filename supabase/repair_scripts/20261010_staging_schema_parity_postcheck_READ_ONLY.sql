@@ -130,6 +130,151 @@ event_trigger_checks AS (
   FROM expected_event_trigger e
   LEFT JOIN actual_event_trigger a ON a.object_name = e.object_name
 ),
+actual_vat_trigger AS (
+  SELECT
+    'transactions.' || t.tgname AS object_name,
+    pg_get_triggerdef(t.oid) AS trigger_definition,
+    t.tgenabled::text AS trigger_enabled,
+    md5(pg_get_functiondef(p.oid)) AS function_definition_md5,
+    pg_get_userbyid(p.proowner) || '|' || p.prosecdef::text || '|' || p.prorettype::regtype::text AS function_properties
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_proc p ON p.oid = t.tgfoid
+  WHERE n.nspname = 'public'
+    AND c.relname = 'transactions'
+    AND t.tgname = 'enforce_domestic_sales_vat_treatment'
+    AND NOT t.tgisinternal
+),
+vat_trigger_checks AS (
+  SELECT
+    'trigger' AS section,
+    'transactions.enforce_domestic_sales_vat_treatment definition' AS object_name,
+    'CREATE TRIGGER enforce_domestic_sales_vat_treatment BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON public.transactions FOR EACH ROW EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()' AS expected,
+    COALESCE((SELECT trigger_definition FROM actual_vat_trigger), '<missing>') AS actual,
+    CASE
+      WHEN (SELECT trigger_definition FROM actual_vat_trigger) = 'CREATE TRIGGER enforce_domestic_sales_vat_treatment BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON public.transactions FOR EACH ROW EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()'
+      THEN 'PASS'
+      ELSE 'FAIL'
+    END AS status
+  UNION ALL
+  SELECT
+    'trigger' AS section,
+    'transactions.enforce_domestic_sales_vat_treatment enabled' AS object_name,
+    'O' AS expected,
+    COALESCE((SELECT trigger_enabled FROM actual_vat_trigger), '<missing>') AS actual,
+    CASE WHEN (SELECT trigger_enabled FROM actual_vat_trigger) = 'O' THEN 'PASS' ELSE 'FAIL' END AS status
+  UNION ALL
+  SELECT
+    'trigger_function' AS section,
+    'public.enforce_domestic_sales_vat_treatment() hash' AS object_name,
+    '05818d852a061e3207a45c4f870301d8' AS expected,
+    COALESCE((SELECT function_definition_md5 FROM actual_vat_trigger), '<missing>') AS actual,
+    CASE
+      WHEN (SELECT function_definition_md5 FROM actual_vat_trigger) = '05818d852a061e3207a45c4f870301d8'
+      THEN 'PASS'
+      ELSE 'FAIL'
+    END AS status
+  UNION ALL
+  SELECT
+    'trigger_function' AS section,
+    'public.enforce_domestic_sales_vat_treatment() properties' AS object_name,
+    'postgres|true|trigger' AS expected,
+    COALESCE((SELECT function_properties FROM actual_vat_trigger), '<missing>') AS actual,
+    CASE
+      WHEN (SELECT function_properties FROM actual_vat_trigger) = 'postgres|true|trigger'
+      THEN 'PASS'
+      ELSE 'FAIL'
+    END AS status
+),
+actual_numeric_dependencies AS (
+  WITH target_attrs AS (
+    SELECT c.oid AS relid,
+           a.attnum,
+           n.nspname || '.' || c.relname || '.' || a.attname AS target_column
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE n.nspname = 'public'
+      AND NOT a.attisdropped
+      AND (
+        (c.relname = 'transactions' AND a.attname IN ('amount', 'vat_rate'))
+        OR
+        (c.relname = 'journal_entries' AND a.attname IN ('debit', 'credit'))
+      )
+  )
+  SELECT
+    ta.target_column,
+    d.classid::regclass::text AS dependent_catalog,
+    CASE
+      WHEN d.classid = 'pg_trigger'::regclass THEN (
+        SELECT tn.nspname || '.' || tc.relname || '.' || tt.tgname
+        FROM pg_trigger tt
+        JOIN pg_class tc ON tc.oid = tt.tgrelid
+        JOIN pg_namespace tn ON tn.oid = tc.relnamespace
+        WHERE tt.oid = d.objid
+      )
+      WHEN d.classid = 'pg_rewrite'::regclass THEN (
+        SELECT rn.nspname || '.' || rc.relname || '.' || rr.rulename
+        FROM pg_rewrite rr
+        JOIN pg_class rc ON rc.oid = rr.ev_class
+        JOIN pg_namespace rn ON rn.oid = rc.relnamespace
+        WHERE rr.oid = d.objid
+      )
+      WHEN d.classid = 'pg_constraint'::regclass THEN (
+        SELECT cn.nspname || '.' || cc.relname || '.' || ct.conname
+        FROM pg_constraint ct
+        JOIN pg_class cc ON cc.oid = ct.conrelid
+        JOIN pg_namespace cn ON cn.oid = cc.relnamespace
+        WHERE ct.oid = d.objid
+      )
+      WHEN d.classid = 'pg_proc'::regclass THEN (SELECT oid::regprocedure::text FROM pg_proc WHERE oid = d.objid)
+      WHEN d.classid = 'pg_class'::regclass THEN d.objid::regclass::text
+      ELSE NULL
+    END AS dependent_object
+  FROM target_attrs ta
+  JOIN pg_depend d
+    ON d.refclassid = 'pg_class'::regclass
+   AND d.refobjid = ta.relid
+   AND d.refobjsubid = ta.attnum
+  WHERE d.classid IN (
+      'pg_trigger'::regclass,
+      'pg_rewrite'::regclass,
+      'pg_constraint'::regclass,
+      'pg_proc'::regclass,
+      'pg_class'::regclass
+    )
+),
+expected_numeric_dependencies(target_column, dependent_catalog, dependent_object) AS (
+  VALUES
+    ('public.transactions.vat_rate', 'pg_trigger', 'public.transactions.enforce_domestic_sales_vat_treatment')
+),
+numeric_dependency_checks AS (
+  SELECT
+    'numeric_dependency' AS section,
+    e.target_column AS object_name,
+    e.dependent_catalog || '|' || e.dependent_object AS expected,
+    COALESCE(a.dependent_catalog || '|' || a.dependent_object, '<missing>') AS actual,
+    CASE WHEN a.dependent_object IS NULL THEN 'FAIL' ELSE 'PASS' END AS status
+  FROM expected_numeric_dependencies e
+  LEFT JOIN actual_numeric_dependencies a
+    ON a.target_column = e.target_column
+   AND a.dependent_catalog = e.dependent_catalog
+   AND a.dependent_object = e.dependent_object
+  UNION ALL
+  SELECT
+    'numeric_dependency' AS section,
+    a.target_column AS object_name,
+    '<no unexpected dependency>' AS expected,
+    a.dependent_catalog || '|' || a.dependent_object AS actual,
+    'FAIL' AS status
+  FROM actual_numeric_dependencies a
+  LEFT JOIN expected_numeric_dependencies e
+    ON e.target_column = a.target_column
+   AND e.dependent_catalog = a.dependent_catalog
+   AND e.dependent_object = a.dependent_object
+  WHERE e.target_column IS NULL
+),
 full_privileges AS (
   SELECT 'DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE'::text AS value
 ),
@@ -376,6 +521,10 @@ UNION ALL
 SELECT section, object_name, expected, actual, status FROM rls_checks
 UNION ALL
 SELECT section, object_name, expected, actual, status FROM event_trigger_checks
+UNION ALL
+SELECT section, object_name, expected, actual, status FROM vat_trigger_checks
+UNION ALL
+SELECT section, object_name, expected, actual, status FROM numeric_dependency_checks
 UNION ALL
 SELECT section, object_name, expected, actual, status FROM table_grant_checks
 UNION ALL
