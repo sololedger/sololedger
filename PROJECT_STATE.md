@@ -208,11 +208,12 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   because older 2026 E2E data already left the full NE balance unclean. The
   KAN-40 test no longer depends on a globally clean NE report; it verifies the
   unique booking's journal rows, B13 delta, negative-bank delta, and correction
-  reversal. `VER-155` still waits for separate explicit approval to correct via
-  the ordinary app flow. Local verification for the test-only strategy change
-  passed (`typecheck`, E2E safety preflight, static KAN-40 Playwright listing,
-  and `git diff --check`); KAN-40 is not yet verified by a Staging-write run
-  after this change and requires a separately approved retry.
+  reversal. `VER-155` and later `VER-157` were corrected through the ordinary
+  app flow as separately approved Staging E2E cleanup. A final approved KAN-40
+  retry after the local NE year-selector fix still failed at the B13 UI text
+  assertion after creating `VER-159`; read-only aftercheck found `VER-159` as
+  the only remaining uncorrected KAN-40 original. KAN-40 remains not
+  Staging-verified and should be parked unless Pontus explicitly reopens it.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files

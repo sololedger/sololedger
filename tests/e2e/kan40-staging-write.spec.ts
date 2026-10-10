@@ -171,6 +171,7 @@ async function expectCheckCreditCategoryOption(page: Page) {
 
 async function verifyNeB13(page: Page, expectedB13: number) {
   await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+  await selectAccountingYear(page, testYear)
   await expect(neB13Amount(page, expectedB13)).toBeVisible({ timeout: 20_000 })
 }
 
@@ -236,6 +237,15 @@ function bookingTransactionRow(page: Page) {
     hasText: bookingDescription,
     has: page.getByTitle('Korrigera'),
   })
+}
+
+async function selectAccountingYear(page: Page, year: number) {
+  const yearSelect = page.locator('select').filter({
+    has: page.locator(`option[value="${year}"]`),
+  }).first()
+
+  await yearSelect.selectOption(String(year))
+  await expect(yearSelect).toHaveValue(String(year))
 }
 
 async function createE2EReadClient() {
