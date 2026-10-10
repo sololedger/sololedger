@@ -147,6 +147,26 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   read-only postcheck must still be run after any future partial repair; a
   missing `ensure_rls` must remain `FAIL` and must not be treated as full
   schema parity.
+- Full Staging repair execution attempt on 2026-10-10 used PostgreSQL 17 `psql`
+  through the verified Staging Shared Session Pooler with TLS and
+  `PGPASSFILE` `C:\SoloLedger\LocalTest\pgpass_staging_supabase.conf`.
+  A fresh read-only preflight passed, and the full draft was run with the
+  required session marker in the same psql session. The transaction aborted
+  before commit when PostgreSQL rejected `ALTER TABLE public.transactions ALTER
+  COLUMN vat_rate TYPE numeric(5,2)` because trigger
+  `enforce_domestic_sales_vat_treatment` depends on `transactions.vat_rate`.
+  No automatic retry was attempted.
+- Read-only rollback verification after the aborted repair showed no commit:
+  the targeted unique constraints and `ensure_rls` are still absent, the two
+  targeted RLS-enable states are still disabled, and the checked numeric columns
+  remain unconstrained `numeric`. The blocking trigger definition is:
+  `BEFORE INSERT OR UPDATE OF type, vat_rate, user_id, source, is_correction ON
+  public.transactions EXECUTE FUNCTION enforce_domestic_sales_vat_treatment()`.
+- New repair blocker: the full draft must be revised and re-reviewed to handle
+  the trigger dependency around `transactions.vat_rate` before any future
+  Staging repair execution. Do not simply drop/recreate the trigger without
+  explicitly verifying the current live trigger/function definition and keeping
+  the whole repair race-safe and transactional.
 - Remaining risk: ordinary SQL cannot independently prove the Supabase project
   ref, so any future execution still requires separate explicit target
   verification for Staging `fzxqiqenqjzhlyxxpvhg` before the required session
