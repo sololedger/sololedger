@@ -8,8 +8,9 @@ Last updated: 2026-10-10
 - GitHub repository: `sololedger/sololedger`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- `origin/main` and local `main` are verified at
+- `origin/main` is verified at
   `0f4e316f0db8f94942f229c6665a5875e3451d6b`.
+- Local `main` has unpushed local checkpoint commits above `origin/main`.
 - Production application URL: `https://sololedger.vercel.app`
 - Current Production release commit:
   `0f4e316f0db8f94942f229c6665a5875e3451d6b`
@@ -76,19 +77,31 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 
 ## Current Active Work
 
-- No implementation task is active after the account-change handoff.
-- Next safe step is to wait for Pontus to select the next Jira/task scope.
+- Local development safety has been tightened so plain `npm run dev` runs a
+  fail-closed preflight before Next.js starts.
+- The local dev preflight requires verified Staging Supabase
+  `fzxqiqenqjzhlyxxpvhg` and refuses Production
+  `wbaxmuvudpnkvuliicuy`.
+- A git-ignored `.env.local` supplies local dev Staging Supabase values from
+  the approved local E2E configuration. Do not commit env files or credentials.
+- Staging/Production live schema, RPC, RLS, and grant parity is not approved:
+  drift has been observed and must be resolved or explicitly accepted before
+  Production-representative Staging-write-E2E.
+- Staging-write-E2E remains paused. No database repair, migration, or write-E2E
+  is approved yet.
 - KAN-60 is known future work only; do not begin it without explicit approval.
 
 ## Git / Local Files
 
-- This checkpoint updates handoff documentation only.
-- After this checkpoint commit, local `main` is expected to be one commit ahead
-  of `origin/main` until Pontus explicitly approves a push.
+- Local `main` is expected to remain ahead of `origin/main` until Pontus
+  explicitly approves a push.
 - `audit-packages/` remains untracked and unrelated; do not touch, stage, or
   commit it without explicit approval.
 - Local git-ignored files hold staging E2E env/auth state. Do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
+- Local git-ignored `.env.local` now holds safe local dev defaults for Staging
+  and placeholder local Stripe values to avoid falling back to Production Stripe
+  secrets during ordinary local dev.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
   an immutable historical snapshot.
 
@@ -100,6 +113,9 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - For complete-safe data loading or security-sensitive changes, add/run focused
   regression tests around fetch completeness, tenant isolation, and no missing
   rows.
+- Plain `npm run dev` must pass the local dev preflight before Next.js starts.
+  If the effective Supabase URL is missing, unknown, or Production, startup
+  must fail closed.
 - Staging/write E2E may run only against verified staging
   `fzxqiqenqjzhlyxxpvhg` with the dedicated Playwright user and local
   git-ignored credentials. Never run destructive/write E2E against Production.
