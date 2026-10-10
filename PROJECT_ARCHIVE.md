@@ -6,6 +6,57 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-56 / KAN-57 / KAN-58 DB Regression Repair Release
+
+- KAN-56, KAN-57, and KAN-58 reached Production release, Pontus manual
+  Production acceptance, and Jira `Done` on 2026-10-10.
+- Production `main`/`origin/main` release commits:
+  `a74f03ddfb2bdbce4467271f599ea1ac04e6b7d67`
+  (`docs: finalize KAN-55 closeout and project handoff`) and
+  `68942aa7db73e1031ca2815d2908a2a2d58af996`
+  (`KAN-56 KAN-57 KAN-58 repair delete and year-close regressions`).
+- Vercel Production deployment:
+  `dpl_8JzW66bPDMisHM3shaHhoNTjCm2p`,
+  `sololedger-q4avp7aaz-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build log verified branch `main`, commit
+  `68942aa`, status `Ready`.
+- Supabase Production ref `wbaxmuvudpnkvuliicuy` received only the approved
+  migrations in order: `20261009203900_kan56_kan57_db_regression_repair.sql`
+  then `20261009220552_kan56_customer_invoice_booking_delete_context.sql`.
+  Final Production migration head is `20261009220552`.
+- Production DB post-check confirmed both migration versions, lifecycle-context
+  rows `0`, RLS enabled on relevant tables, lifecycle table grants restricted
+  to `postgres`, `delete_user_data_atomic(uuid)` executable only by `postgres`
+  and `service_role`, and relevant immutability triggers still installed.
+- KAN-56 scope completed: `delete_user_data_atomic` and lifecycle-context use
+  the correct `backend_pid` path; admin/profile deletion protections and
+  delete result counts are restored; fixed-asset, tax-account, VAT V2,
+  customer-invoice, and related user-owned deletion ordering/parity are covered.
+- KAN-57 scope completed: `close_year_atomic(integer)` again blocks unsafe
+  year closing for unpaid/unfinished customer invoices while preserving the
+  mandatory fixed-asset depreciation guard and other year-close protections.
+- KAN-58 scope completed: local DB rollback regression guard, metadata and
+  invariant checks, admin-delete dry-run contract tests, lifecycle postcheck
+  harness, and documented run instructions were added. The write-capable DB
+  regression guard refuses Supabase/non-local targets and was run against the
+  verified isolated local database `sololedger_kan17c_test`.
+- Edge Function `delete-user` was deployed to Supabase Production as version
+  `10`, status `ACTIVE`, with `verify_jwt=true`. Downloaded Production source
+  matched the approved local `index.ts` SHA-256 exactly.
+- Automated release verification included local DB regression, invariant,
+  admin-delete dry-run, typecheck, E2E safety, read-only E2E smoke, domain
+  tests, `git diff --check`, Production DB read-only postchecks, Vercel build
+  verification, HTTP `200`, and Production public-auth Playwright smoke 2/2.
+- Pontus manually verified Production after release: login works, dashboard and
+  existing bookkeeping display normally, customer invoices and fixed assets open
+  without error, and no unexpected error messages appear.
+- No real Production user deletion or Production bookkeeping mutation was used
+  for final verification. Destructive admin-delete behavior was verified in
+  Staging, not Production.
+- Remaining non-blocking hardening follow-ups: full staging-write E2E has not
+  been run as a complete suite for this closeout, and a fully fresh Supabase
+  migration-chain build is not yet automated as its own release gate.
+
 ### KAN-55 Ordinary Purchase Input VAT Deduction Release
 
 - KAN-55 reached Production release, Pontus owner acceptance, and Jira `Done`

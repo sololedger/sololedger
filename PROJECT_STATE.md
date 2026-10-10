@@ -1,22 +1,26 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 ## Current Baseline
 
 - Repository: `C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user`
 - Branch: `main`
 - Remote: `https://github.com/sololedger/sololedger.git`
-- Git status at KAN-55 closeout start: `main` and `origin/main` both point to
-  `f6696fa88f9ff730732ddc67e362fecf7ae68d68`; working tree was clean before
-  this documentation update.
-- Production is verified through the completed KAN-55 release.
+- Git baseline after KAN-56/KAN-57/KAN-58 Production release:
+  `main` and `origin/main` both point to
+  `68942aa7db73e1031ca2815d2908a2a2d58af996`
+  (`KAN-56 KAN-57 KAN-58 repair delete and year-close regressions`) before
+  this documentation closeout.
+- Production is verified through the completed KAN-56/KAN-57/KAN-58 release.
 - Current Production Vercel deployment for `https://sololedger.vercel.app`:
-  `dpl_8LXPsmEk6gB9o37iS6JiNpFZUWSn`,
-  `sololedger-p9ntxvjzl-sololedger1.vercel.app`, status `Ready`, built from
-  `f6696fa`.
-- Supabase Production ref: `wbaxmuvudpnkvuliicuy`; KAN-55 migration head
-  `20261008175927` is live.
+  `dpl_8JzW66bPDMisHM3shaHhoNTjCm2p`,
+  `sololedger-q4avp7aaz-sololedger1.vercel.app`, status `Ready`, built from
+  `68942aa`.
+- Supabase Production ref: `wbaxmuvudpnkvuliicuy`; current migration head
+  `20261009220552` is live.
+- Supabase Production Edge Function `delete-user` is version 10, `ACTIVE`,
+  with JWT verification enabled.
 - Supabase staging/E2E ref: `fzxqiqenqjzhlyxxpvhg` (`sololedger-staging`).
 - Push to GitHub `main` auto-deploys Vercel Production. Treat any future push
   to `main` as a production deploy requiring explicit approval.
@@ -46,12 +50,14 @@ Last updated: 2026-10-09
 
 ## Jira Status Snapshot
 
-Verified on 2026-10-09 for KAN-55:
+Verified on 2026-10-10:
 
+- KAN-56, KAN-57, and KAN-58 are `Done`; Pontus approved final Jira closure
+  after Production release and manual Production acceptance.
 - KAN-55 is `Done`; Pontus performed the final Jira closure after manual
   Production acceptance.
 
-Current open Jira work from read-only JQL on 2026-10-09:
+Current known open Jira work from the latest retained snapshot:
 
 - KAN-44 is `To Do` and assigned to Codex, but it is not active in this session.
 - Other open `To Do` items include KAN-9, KAN-10, KAN-11, KAN-24, KAN-25,
@@ -72,13 +78,22 @@ Current open Jira work from read-only JQL on 2026-10-09:
 
 ## Current Active Work
 
-- No Codex implementation task is currently active after KAN-55 closeout.
-- KAN-55 is code-, DB-, release-, smoke-, owner-accepted, and closed in Jira.
+- No Codex implementation task is currently active after KAN-56/KAN-57/KAN-58
+  closeout.
+- KAN-56/KAN-57/KAN-58 are code-, DB-, Edge-, Vercel-, smoke-,
+  owner-accepted, and closed in Jira.
 - Do not start Adobe corrections, KAN-44, KAN-47, KAN-48, KAN-53, or any new
   Jira work unless Pontus explicitly starts that work.
 
 ## Completed Release
 
+- KAN-56/KAN-57/KAN-58 are closed. Production release commit:
+  `68942aa7db73e1031ca2815d2908a2a2d58af996`
+  (`KAN-56 KAN-57 KAN-58 repair delete and year-close regressions`).
+  Supabase Production migrations `20261009203900` and `20261009220552` are
+  live; Edge `delete-user` v10 is `ACTIVE` with JWT verification; Vercel
+  Production is `Ready` from commit `68942aa`; Production smoke and Pontus
+  manual acceptance passed.
 - KAN-55 is closed from the Codex/release side. Production release commit:
   `f6696fa88f9ff730732ddc67e362fecf7ae68d68`
   (`KAN-55 keep purchase VAT profile guidance visible`). Production Vercel is
@@ -96,7 +111,10 @@ Current open Jira work from read-only JQL on 2026-10-09:
 ## Git / Local Files
 
 - Current documentation-only closeout changes should include only
-  `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md`.
+  `PROJECT_STATE.md` and `PROJECT_ARCHIVE.md`; commit locally only, no push
+  without explicit approval.
+- `audit-packages/` remains untracked and unrelated to the KAN-56/KAN-57/KAN-58
+  release/closeout.
 - Local git-ignored files hold staging E2E env/auth state; do not copy
   credentials into Git, Jira, `PROJECT_STATE.md`, `PROJECT_ARCHIVE.md`, or chat.
 - The canonical External Audit #1 files `SOLOLEDGER_AUDIT_*.md` are tracked as
@@ -125,7 +143,9 @@ Current open Jira work from read-only JQL on 2026-10-09:
 
 ## Next Safe Step
 
-1. If a handoff/checkpoint commit is desired, commit only the documentation
-   closeout files after explicit approval.
+1. Start a new selected work item only after Pontus explicitly chooses it.
 2. Do not start new bookkeeping/VAT/customer-invoice work without a selected
    Jira issue and explicit instruction.
+3. Known non-blocking test improvements for future hardening: full
+   staging-write E2E as a complete suite, and automated verification of a fully
+   fresh Supabase migration chain.
