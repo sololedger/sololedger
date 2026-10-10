@@ -87,6 +87,25 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 - Staging/Production live schema, RPC, RLS, and grant parity is not approved:
   drift has been observed and must be resolved or explicitly accepted before
   Production-representative Staging-write-E2E.
+- Staging schema drift root cause is verified: Staging was built from the
+  active CLI baseline, while Production already had earlier manually applied
+  live schema effects before the migration ledger was aligned. Normalized
+  relevant RPC and RLS policy definitions matched, but constraints, numeric
+  column types, legacy FK cascade behavior, RLS-enable status, the `ensure_rls`
+  event trigger, and grants differed.
+- Read-only aggregated Staging preflight on 2026-10-10 found zero duplicate
+  groups for `closed_years(user_id, year)` and
+  `import_batches(user_id, file_hash)`, zero orphan rows for the targeted FK
+  rebuilds, zero non-lossless values for the targeted numeric type changes, and
+  no dependency rows blocking the targeted missing unique constraints or FK
+  replacements.
+- Draft-only Staging repair proposal:
+  `supabase/repair_scripts/20261010_staging_schema_parity_repair_DRAFT.sql`.
+  It is review-only, Staging-only, rollback-by-default, and has not been
+  executed.
+- Draft-only baseline notes:
+  `supabase/repair_scripts/20261010_staging_schema_parity_baseline_notes.md`.
+  The active CLI baseline has not been changed.
 - Staging-write-E2E remains paused. No database repair, migration, or write-E2E
   is approved yet.
 - KAN-60 is known future work only; do not begin it without explicit approval.
@@ -132,6 +151,11 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   or Production-authenticated testing without explicit approval for that step.
 - Any DB/RPC/schema/RLS/grant/index/Edge change requires fresh source-of-truth
   inspection and explicit approval.
+- Next safe Staging-repair step, if Pontus approves it later: rerun the
+  read-only preflight immediately before execution, review the exact SQL, run it
+  only against Staging `fzxqiqenqjzhlyxxpvhg`, replace final `ROLLBACK` with
+  `COMMIT` only for that approved execution, and verify live metadata parity
+  before any Staging-write-E2E is reconsidered.
 - Local development and test configuration must not be redirected to Production.
 - Jira is used for planning, status, and handoff; it is not source of truth for
   code, database implementation, accounting behavior, or live Supabase state.
