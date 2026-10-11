@@ -1,6 +1,6 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 ## Current Baseline
 
@@ -69,14 +69,30 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   backfill, new bookkeeping, or data repair is approved in this checkpoint.
 - KAN-59, KAN-56, KAN-57, KAN-58, and KAN-55 are `Done`.
 - Other open items from the retained snapshot include KAN-9, KAN-11, KAN-24,
-  KAN-25, KAN-34, KAN-44, KAN-48, and KAN-53. Do not start them unless Pontus
+  KAN-25, KAN-34, KAN-44, and KAN-53. Do not start them unless Pontus
   selects the work.
+- KAN-48 is selected for the current local product checkpoint. Jira was read
+  only; no Jira status/comment/assignment mutation has been made.
 - Historical Adobe invoices remain a separate unresolved correction task. Do
   not change them without a selected/approved work item.
 - Full repo lint still has older unrelated debt.
 
 ## Current Active Work
 
+- KAN-48 has been implemented locally only. The Fakturor view now has
+  display-only filters for invoice number/customer search, payment status, and
+  useful year-end/status review states, plus a reset action and filtered empty
+  result state. The filtering uses already-loaded invoice data and does not
+  mutate invoice status, invoice data, bookings, accounting logic, Supabase, or
+  Jira.
+- KAN-48 verification run on 2026-10-11: `node scripts/test-customer-invoice-filters.ts`
+  PASS, `npm run typecheck` PASS, `npm run test:domain` PASS, and
+  `git diff --check` PASS with only Git CRLF working-copy warnings. Targeted
+  `npx eslint src/components/CustomerInvoicesPanel.tsx src/lib/customerInvoiceFilters.ts src/lib/customerInvoiceUi.ts scripts/test-customer-invoice-filters.ts`
+  was attempted but failed on pre-existing `react-hooks/set-state-in-effect`
+  findings in `CustomerInvoicesPanel.tsx` around the existing profile-default
+  effect and invoice-loading effect; no KAN-48 lint-specific finding was
+  identified. No Staging-write E2E was run.
 - Local development safety has been tightened so plain `npm run dev` runs a
   fail-closed preflight before Next.js starts.
 - The local dev preflight requires verified Staging Supabase

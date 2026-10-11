@@ -27,6 +27,15 @@ import {
   fmtCustomerInvoiceCurrency,
   hasAnyCustomerInvoiceYearEndBooking,
 } from '@/lib/customerInvoiceUi'
+import {
+  CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS,
+  CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS,
+  DEFAULT_CUSTOMER_INVOICE_FILTERS,
+  filterCustomerInvoices,
+  hasActiveCustomerInvoiceFilters,
+  type CustomerInvoicePaymentFilter,
+  type CustomerInvoiceYearEndFilter,
+} from '@/lib/customerInvoiceFilters'
 import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
 
 interface CustomerInvoicesPanelProps {
@@ -111,6 +120,9 @@ export default function CustomerInvoicesPanel({
   )
   const [editAttachmentUrl, setEditAttachmentUrl] = useState<string | null>(null)
   const [pendingUndoInvoice, setPendingUndoInvoice] = useState<CustomerInvoice | null>(null)
+  const [invoiceFilters, setInvoiceFilters] = useState({
+    ...DEFAULT_CUSTOMER_INVOICE_FILTERS,
+  })
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
@@ -161,10 +173,23 @@ export default function CustomerInvoicesPanel({
   const unsafeVatBlockers = invoices.filter(invoice =>
     customerInvoiceHasUnsafeVatBlocker(invoice, selectedYear)
   )
+  const filteredInvoices = useMemo(
+    () => filterCustomerInvoices({
+      invoices,
+      filters: invoiceFilters,
+      selectedYear,
+    }),
+    [invoiceFilters, invoices, selectedYear]
+  )
+  const invoiceFiltersActive = hasActiveCustomerInvoiceFilters(invoiceFilters)
   const yearEndTotal = yearEndCandidates.reduce(
     (sum, invoice) => sum + invoice.grossAmount,
     0
   )
+
+  function clearInvoiceFilters() {
+    setInvoiceFilters({ ...DEFAULT_CUSTOMER_INVOICE_FILTERS })
+  }
 
   async function refreshAfterAction(message: string) {
     await loadInvoices()
@@ -639,9 +664,16 @@ export default function CustomerInvoicesPanel({
 
       <div className="mt-6 border-t border-gray-100 pt-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-            Registrerade fakturor
-          </p>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              Registrerade fakturor
+            </p>
+            {invoices.length > 0 && (
+              <p className="mt-1 text-[10px] font-bold text-gray-400">
+                Visar {filteredInvoices.length} av {invoices.length} fakturor
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => void loadInvoices()}
@@ -660,6 +692,87 @@ export default function CustomerInvoicesPanel({
             Inga kundfakturor registrerade till och med {selectedYear}.
           </p>
         ) : (
+          <>
+            <div className="mb-3 rounded-2xl border border-gray-100 bg-gray-50/70 px-3 py-3">
+              <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
+                    Sök
+                  </span>
+                  <input
+                    type="search"
+                    value={invoiceFilters.search}
+                    onChange={event =>
+                      setInvoiceFilters(prev => ({
+                        ...prev,
+                        search: event.target.value,
+                      }))
+                    }
+                    placeholder="Fakturanr eller kund"
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none transition-colors placeholder:text-gray-300 focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
+                    Betalstatus
+                  </span>
+                  <select
+                    value={invoiceFilters.payment}
+                    onChange={event =>
+                      setInvoiceFilters(prev => ({
+                        ...prev,
+                        payment: event.target.value as CustomerInvoicePaymentFilter,
+                      }))
+                    }
+                    className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-600 outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                  >
+                    {CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
+                    Bokslut
+                  </span>
+                  <select
+                    value={invoiceFilters.yearEnd}
+                    onChange={event =>
+                      setInvoiceFilters(prev => ({
+                        ...prev,
+                        yearEnd: event.target.value as CustomerInvoiceYearEndFilter,
+                      }))
+                    }
+                    className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-600 outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                  >
+                    {CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={clearInvoiceFilters}
+                  disabled={!invoiceFiltersActive}
+                  className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Rensa filter
+                </button>
+              </div>
+            </div>
+
+            {filteredInvoices.length === 0 ? (
+              <p className="rounded-xl bg-gray-50 px-4 py-6 text-center text-xs font-bold text-gray-400">
+                Inga fakturor matchar sökning eller filter.
+              </p>
+            ) : (
           <div className="overflow-hidden rounded-xl border border-gray-100">
             <div className="hidden grid-cols-7 gap-3 bg-gray-50 px-4 py-3 text-[9px] font-black uppercase text-gray-400 md:grid">
               <span>Faktura</span>
@@ -671,7 +784,7 @@ export default function CustomerInvoicesPanel({
               <span>Detaljer</span>
             </div>
             <div className="divide-y divide-gray-100">
-              {invoices.map(invoice => {
+              {filteredInvoices.map(invoice => {
                 const anyReceivableBooked = hasAnyCustomerInvoiceYearEndBooking(invoice)
                 const needsYearEndBooking = customerInvoiceNeedsYearEndBooking(invoice, selectedYear)
                 const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
@@ -999,6 +1112,8 @@ export default function CustomerInvoicesPanel({
               })}
             </div>
           </div>
+            )}
+          </>
         )}
       </div>
 

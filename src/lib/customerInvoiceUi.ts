@@ -3,7 +3,7 @@ import type {
   DomesticSalesVatTreatment,
   VatRegistrationStatus,
 } from '@/lib/vatDomain'
-import { formatIsoDateSv } from '@/lib/dateUi'
+import { formatIsoDateSv } from './dateUi.ts'
 
 export function fmtCustomerInvoiceCurrency(value: number | null | undefined) {
   if (value == null) return 'Saknas'
