@@ -79,6 +79,23 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 
 ## Current Active Work
 
+- Permanent GitHub branch `staging` exists and points to the KAN-48 checkpoint
+  `2f0944558c7b6bf1679af83e09372b2d427b0521`. The first Vercel Preview for
+  `staging` failed before Ready because Stripe was initialized during API route
+  module import while Preview intentionally has no Stripe environment variables.
+- A local Staging-build fix is prepared: `/api/checkout`, `/api/portal`, and
+  `/api/webhook` now initialize Stripe lazily only when the Stripe operation is
+  actually needed. If required Stripe configuration is missing, the affected
+  route returns a controlled 503 JSON error instead of crashing the build/app.
+  Existing Stripe behavior is intended to remain unchanged when valid config is
+  present. No Vercel env, Supabase, database, Jira, push, or deploy action was
+  performed for this fix.
+- Staging-build fix verification on 2026-10-11: `node scripts/test-stripe-server-config.ts`
+  PASS, targeted ESLint for the changed Stripe files PASS, `npm run typecheck`
+  PASS, `npm run test:domain` PASS, and `npm run build` PASS after allowing
+  network access for Next/Google Fonts. A first sandboxed build attempt failed
+  only because Google Fonts could not be fetched in the restricted network
+  environment.
 - KAN-48 has been implemented locally only. The Fakturor view now has
   display-only filters for invoice number/customer search, payment status, and
   useful year-end/status review states, plus a reset action and filtered empty

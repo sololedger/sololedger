@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
-})
+import {
+  errorMessage,
+  getCheckoutStripeConfig,
+  stripeUnavailableResponse,
+} from '@/lib/stripeServer'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,12 +31,17 @@ export async function POST(req: Request) {
 
     const userId = user.id
     const userEmail = user.email
+    const stripeConfig = getCheckoutStripeConfig()
 
-    const stripeSession = await stripe.checkout.sessions.create({
+    if (!stripeConfig.ok) {
+      return stripeUnavailableResponse(stripeConfig.missing)
+    }
+
+    const stripeSession = await stripeConfig.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID!,
+          price: stripeConfig.priceId,
           quantity: 1,
         },
       ],
@@ -44,15 +49,15 @@ export async function POST(req: Request) {
       subscription_data: {
         trial_period_days: 14,
       },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?status=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/?status=cancelled`,
+      success_url: `${stripeConfig.siteUrl}/?status=success`,
+      cancel_url: `${stripeConfig.siteUrl}/?status=cancelled`,
       customer_email: userEmail || undefined, // Skickar med mailen om den finns
       client_reference_id: userId, // Detta ID aktiverar premium i Supabase via din webhook!
     })
 
     return NextResponse.json({ url: stripeSession.url })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Stripe Checkout Error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: errorMessage(err) }, { status: 500 })
   }
 }

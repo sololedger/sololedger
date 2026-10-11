@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-
-// @ts-ignore
-import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
-})
+import type Stripe from 'stripe'
+import {
+  errorMessage,
+  getWebhookStripeConfig,
+  stripeUnavailableResponse,
+} from '@/lib/stripeServer'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-function parseEndDate(rawEnd: any): string {
+type StripeSubscriptionSummary = {
+  status: string
+  current_period_end: string | number
+}
+
+function parseEndDate(rawEnd: string | number): string {
   if (typeof rawEnd === 'number') {
     return new Date(rawEnd * 1000).toISOString()
   }
@@ -35,28 +39,33 @@ export async function POST(req: Request) {
   if (!signature) {
     return NextResponse.json({ error: 'Mottog ingen Stripe-signatur' }, { status: 400 })
   }
+  const stripeConfig = getWebhookStripeConfig()
 
-  let event: any
+  if (!stripeConfig.ok) {
+    return stripeUnavailableResponse(stripeConfig.missing)
+  }
+
+  let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = stripeConfig.stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      stripeConfig.webhookSecret
     )
-  } catch (err: any) {
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: `Webhook Error: ${errorMessage(err)}` }, { status: 400 })
   }
 
   // 1. Köp slutförs / Trial påbörjas
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as any
+    const session = event.data.object as Stripe.Checkout.Session
     const userId = session.client_reference_id
-    const customerId = session.customer as string
-    const subscriptionId = session.subscription as string
+    const customerId = typeof session.customer === 'string' ? session.customer : null
+    const subscriptionId = typeof session.subscription === 'string' ? session.subscription : null
 
     if (userId && subscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+      const subscription = await stripeConfig.stripe.subscriptions.retrieve(subscriptionId) as unknown as StripeSubscriptionSummary
       const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
@@ -73,11 +82,11 @@ export async function POST(req: Request) {
 
   // 2. Förnyelse lyckas
   if (event.type === 'invoice.payment_succeeded') {
-    const invoice = event.data.object as any
-    const subscriptionId = invoice.subscription as string
+    const invoice = event.data.object as unknown as { subscription?: string | null }
+    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : null
 
     if (subscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+      const subscription = await stripeConfig.stripe.subscriptions.retrieve(subscriptionId) as unknown as StripeSubscriptionSummary
       const endDate = parseEndDate(subscription.current_period_end)
 
       await supabaseAdmin
@@ -93,7 +102,7 @@ export async function POST(req: Request) {
   // 3. Prenumeration ändras (t.ex. trial -> active, cancel_at_period_end,
   // statusändring eller nytt current_period_end)
   if (event.type === 'customer.subscription.updated') {
-    const subscription = event.data.object as any
+    const subscription = event.data.object as unknown as StripeSubscriptionSummary & { id: string }
     const subscriptionId = subscription.id
     const endDate = parseEndDate(subscription.current_period_end)
 
@@ -108,7 +117,7 @@ export async function POST(req: Request) {
 
   // 4. Prenumeration avslutas permanent
   if (event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object as any
+    const subscription = event.data.object as { id: string }
     const subscriptionId = subscription.id
 
     await supabaseAdmin

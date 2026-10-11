@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
-})
+import {
+  errorMessage,
+  getPortalStripeConfig,
+  stripeUnavailableResponse,
+} from '@/lib/stripeServer'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,15 +38,20 @@ export async function POST(req: Request) {
     if (error || !profile?.stripe_customer_id) {
       return NextResponse.json({ error: 'Ingen Stripe-kund hittades' }, { status: 404 })
     }
+    const stripeConfig = getPortalStripeConfig()
 
-    const session = await stripe.billingPortal.sessions.create({
+    if (!stripeConfig.ok) {
+      return stripeUnavailableResponse(stripeConfig.missing)
+    }
+
+    const session = await stripeConfig.stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/`,
+      return_url: `${stripeConfig.siteUrl}/`,
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Portal error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: errorMessage(err) }, { status: 500 })
   }
 }
