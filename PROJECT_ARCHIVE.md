@@ -6,6 +6,34 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-48 Fakturor Search And Filtering Release
+
+- KAN-48 reached Production release on 2026-10-11 at commit
+  `609b902756046a467a241f497b38feb4339ac1a9`
+  (`KAN-48 fix invoice filter search`).
+- Final Vercel Production deployment:
+  `dpl_BgMR9sNoQCrRqbJmd5qgthRhhpL9`,
+  `https://sololedger-17gsffhcj-sololedger1.vercel.app`, aliased to
+  `https://sololedger.vercel.app`; build verified branch `main`, commit
+  `609b902`, status `Ready`.
+- `origin/main`, `origin/staging`, and local `main` were synchronized at
+  `609b902` after release.
+- Scope completed: Fakturor gained display-only search/filter/sort improvements
+  for invoice number, customer phrase, invoice-date prefixes, amount search,
+  paid/unpaid buttons, year-end status buttons, reset, empty result state, and
+  a compact filter layout consistent with transaction history.
+- Stripe checkout/portal/webhook initialization was made lazy so builds and
+  environments without Stripe configuration fail with controlled route errors
+  instead of crashing the app. Existing configured Stripe behavior was
+  preserved.
+- Verification included focused invoice-filter regression scripts,
+  `npm run typecheck`, `npm run test:domain`, `npm run build`,
+  `git diff --check`, Staging manual acceptance by Pontus, and non-destructive
+  Production smoke checks for the start/login pages and Stripe route metadata.
+- No database migration, Supabase write, Vercel environment change, Jira
+  mutation, write-E2E run, or bookkeeping/VAT/year-end logic change was part of
+  this release.
+
 ### KAN-35 / KAN-47 Complete Transaction History Release
 
 - KAN-35 and KAN-47 reached Production release, Pontus manual Production

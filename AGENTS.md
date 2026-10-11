@@ -56,6 +56,47 @@ Use this default workflow unless the user gives a different instruction:
 6. Create a checkpoint.
 7. Commit or push only after explicit user approval.
 
+## Permanent Git, Staging, And Production Workflow
+
+- `main` is Production. A push to GitHub `main` deploys Production and always
+  requires explicit Pontus approval for that exact release.
+- `staging` is the permanent test branch/environment. It deploys Vercel Preview
+  against Supabase Staging `fzxqiqenqjzhlyxxpvhg`.
+- New Jira/product work should be developed on a small work branch, normally
+  `codex/KAN-xx-short-name`, not directly on `main`. Keep one Jira scope per
+  branch unless Pontus explicitly approves batching.
+- Finished work is integrated into `staging` only after local verification and
+  an explicit approval to publish to Staging. Underkända or unfinished changes
+  stay off `main`; fix them on the work branch or remove/revert them from
+  `staging` before any Production release.
+- For parallel Jira work, keep separate work branches. Only the branch or exact
+  commits approved for the current acceptance candidate should be merged or
+  fast-forwarded into `staging`.
+- After Pontus accepts Staging, Production release means moving `main` to the
+  exact approved commit set and verifying the Vercel Production deployment.
+  Then keep `staging` and `main` synchronized again unless Pontus intentionally
+  keeps new work staged.
+
+Routine Staging push:
+
+1. Verify branch, `git status`, commit relation, and exactly which tracked
+   changes/commits will publish. Ensure `audit-packages/` and local env/auth
+   files are not included.
+2. Push only `staging`, never `main`.
+3. Check Vercel once for the right branch/commit and report commit plus
+   deployment status if quickly available. Do not repeat Vercel env review,
+   URL fetches, or long polling when configuration is unchanged.
+
+Production release:
+
+1. Require explicit Pontus approval for the exact commit or commit set.
+2. Verify `main` can fast-forward to the approved commit and list what will be
+   released. Confirm underkända or untested Staging changes are excluded.
+3. Push only `main`, never with force-push or history rewriting.
+4. Verify Vercel Production built from `main` at the approved commit and do a
+   brief non-destructive smoke check. Database writes, migrations, Vercel env
+   changes, and Jira mutations remain separate explicit approvals.
+
 ## Project Structure
 
 Important repo areas:
