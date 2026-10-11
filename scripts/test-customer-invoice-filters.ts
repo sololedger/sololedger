@@ -132,6 +132,14 @@ function apply(partial: Partial<CustomerInvoiceFilterState>) {
   })
 }
 
+function applyTo(customInvoices: CustomerInvoice[], partial: Partial<CustomerInvoiceFilterState>) {
+  return filterCustomerInvoices({
+    invoices: customInvoices,
+    filters: filters(partial),
+    selectedYear,
+  })
+}
+
 console.log('\n=== SoloLedger Customer Invoice Filter Tests ===\n')
 
 assertEqual(hasActiveCustomerInvoiceFilters(DEFAULT_CUSTOMER_INVOICE_FILTERS), false, 'default filters are inactive')
@@ -145,7 +153,16 @@ assertDeepEqual(ids(apply({ search: 'beta byrå' })), ['invoice-beta'], 'custome
 assertDeepEqual(ids(apply({ search: '2026' })), ['invoice-gamma', 'invoice-delta', 'invoice-beta', 'invoice-alpha'], 'year search matches invoice date year, not amount')
 assertDeepEqual(ids(apply({ search: '2026-09' })), ['invoice-beta', 'invoice-alpha'], 'month search matches invoice date month')
 assertDeepEqual(ids(apply({ search: '2026-09-15' })), ['invoice-alpha'], 'day search matches exact invoice date')
+assertDeepEqual(ids(apply({ search: '2500' })), ['invoice-beta'], 'amount search supports compact kronor')
 assertDeepEqual(ids(apply({ search: '2 500' })), ['invoice-beta'], 'amount search supports Swedish spacing')
+assertDeepEqual(ids(apply({ search: '2500 kr' })), ['invoice-beta'], 'amount search supports currency suffix')
+assertDeepEqual(ids(apply({ search: '1000' })), ['invoice-alpha'], 'amount search supports four-digit non-year amounts')
+assertDeepEqual(ids(apply({ search: '1 000' })), ['invoice-alpha'], 'amount search supports spaced four-digit amounts')
+assertDeepEqual(
+  ids(apply({ search: '2026' })),
+  ['invoice-gamma', 'invoice-delta', 'invoice-beta', 'invoice-alpha'],
+  'pure invoice year search still uses invoice date instead of amount'
+)
 assertDeepEqual(ids(apply({ payment: 'unpaid' })), ['invoice-delta', 'invoice-alpha', 'invoice-prior'], 'unpaid filter excludes paid invoices')
 assertDeepEqual(ids(apply({ payment: 'paid' })), ['invoice-gamma', 'invoice-beta'], 'paid filter includes only paid invoices')
 assertDeepEqual(ids(apply({ yearEnd: 'needs_year_end' })), ['invoice-alpha'], 'year-end-needed filter excludes unknown VAT and already-booked invoices')
@@ -164,5 +181,36 @@ assertEqual(customerInvoiceYearEndLabel(invoices[1], selectedYear), 'Ingen kundf
 assertEqual(customerInvoiceYearEndLabel(invoices[2], selectedYear), 'Kundfordran vid bokslut 2026', 'year-end label preserves booked receivable even when invoice is now paid')
 assertEqual(customerInvoiceYearEndLabel(invoices[3], selectedYear), 'Moms oklar för bokslut 2026', 'year-end label shows unsafe VAT blocker')
 assertEqual(customerInvoiceYearEndLabel(invoices[4], selectedYear), 'Avser bokslut 2025', 'year-end label shows other fiscal year')
+
+const customerPhraseInvoices = [
+  invoice({
+    id: 'customer-x',
+    invoiceNumber: 'F-2026-X',
+    customerName: 'Kund X AB',
+    invoiceDate: '2026-11-01',
+  }),
+  invoice({
+    id: 'e2e-momsfri',
+    invoiceNumber: 'F-2026-E2E',
+    customerName: 'E2E KAN-14 momsfri kund',
+    invoiceDate: '2026-10-01',
+  }),
+]
+
+assertDeepEqual(
+  ids(applyTo(customerPhraseInvoices, { search: 'kund x' })),
+  ['customer-x'],
+  'multi-word customer search matches a contiguous phrase in one field'
+)
+assertDeepEqual(
+  ids(applyTo(customerPhraseInvoices, { search: 'momsfri kund' })),
+  ['e2e-momsfri'],
+  'multi-word customer search still finds contiguous customer phrases'
+)
+assertDeepEqual(
+  ids(applyTo(customerPhraseInvoices, { search: 'kund' })),
+  ['customer-x', 'e2e-momsfri'],
+  'single-word customer search remains broad'
+)
 
 console.log('\nAll customer invoice filter tests passed.\n')

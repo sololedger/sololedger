@@ -703,7 +703,7 @@ export default function CustomerInvoicesPanel({
           </p>
         ) : (
           <>
-            <div className="mb-3 flex flex-col gap-2">
+            <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-gray-100 bg-gray-50/70 px-3 py-3">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <label className="relative w-full md:max-w-md">
                   <span className="sr-only">
@@ -729,7 +729,7 @@ export default function CustomerInvoicesPanel({
                   />
                 </label>
 
-                <label className="flex items-center gap-2 md:w-auto">
+                <label className="flex items-center justify-between gap-2 md:w-auto md:justify-start">
                   <span className="sr-only">Sortering</span>
                   <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
                     Sortering
@@ -753,50 +753,52 @@ export default function CustomerInvoicesPanel({
                 </label>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
-                  Betalning
-                </span>
-                {CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS.map(option => {
-                  const active = invoiceFilters.payment === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setInvoiceFilters(prev => ({
-                        ...prev,
-                        payment: option.value as CustomerInvoicePaymentFilter,
-                      }))}
-                      className={filterButtonClass(active)}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+                    Betalning
+                  </span>
+                  {CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS.map(option => {
+                    const active = invoiceFilters.payment === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setInvoiceFilters(prev => ({
+                          ...prev,
+                          payment: option.value as CustomerInvoicePaymentFilter,
+                        }))}
+                        className={filterButtonClass(active)}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
-                  Bokslut
-                </span>
-                {CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS.map(option => {
-                  const active = invoiceFilters.yearEnd === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setInvoiceFilters(prev => ({
-                        ...prev,
-                        yearEnd: option.value as CustomerInvoiceYearEndFilter,
-                      }))}
-                      className={filterButtonClass(active)}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+                    Bokslut
+                  </span>
+                  {CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS.map(option => {
+                    const active = invoiceFilters.yearEnd === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setInvoiceFilters(prev => ({
+                          ...prev,
+                          yearEnd: option.value as CustomerInvoiceYearEndFilter,
+                        }))}
+                        className={filterButtonClass(active)}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
 
                 {invoiceFiltersActive && (
                   <>

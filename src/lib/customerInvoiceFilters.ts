@@ -80,9 +80,12 @@ function normalizeSearchText(value: unknown) {
 
 function searchAmountOre(search: string) {
   const raw = String(search ?? '').trim()
-  if (/^\d{4}(?:-\d{2})?(?:-\d{2})?$/.test(raw)) return null
+  if (searchDatePrefix(raw)) return null
 
-  const compact = raw.replace(/[\s\u00a0]/g, '')
+  const compact = raw
+    .toLocaleLowerCase('sv-SE')
+    .replace(/\s*(?:kr|kronor)\s*$/u, '')
+    .replace(/[\s\u00a0]/g, '')
   if (!compact || !/^\d+(?:[,.]\d{1,2})?$/.test(compact)) return null
 
   const match = compact.match(/^(\d+)(?:[,.](\d{1,2}))?$/)
@@ -102,9 +105,9 @@ function amountOre(value: unknown) {
 
 function searchDatePrefix(search: string) {
   const raw = String(search ?? '').trim()
-  if (/^\d{4}$/.test(raw)) return raw
-  if (/^\d{4}-\d{2}$/.test(raw)) return raw
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  if (/^(?:19|20)\d{2}$/.test(raw)) return raw
+  if (/^(?:19|20)\d{2}-\d{2}$/.test(raw)) return raw
+  if (/^(?:19|20)\d{2}-\d{2}-\d{2}$/.test(raw)) return raw
   return null
 }
 
@@ -116,18 +119,15 @@ function invoiceMatchesSearch(invoice: CustomerInvoice, search: string) {
   if (searchedAmount != null) return amountOre(invoice.grossAmount) === searchedAmount
 
   const normalizedSearch = normalizeSearchText(search)
-  const terms = normalizedSearch.split(' ').filter(Boolean)
-  if (terms.length === 0) return true
+  if (!normalizedSearch) return true
 
-  const corpus = normalizeSearchText([
+  return [
     invoice.invoiceNumber,
     invoice.customerName,
     invoice.invoiceDate,
     invoice.invoiceDate.slice(0, 7),
     invoice.invoiceDate.slice(0, 4),
-  ].join(' '))
-
-  return terms.every(term => corpus.includes(term))
+  ].some(value => normalizeSearchText(value).includes(normalizedSearch))
 }
 
 function invoiceMatchesPayment(

@@ -80,9 +80,8 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 ## Current Active Work
 
 - Permanent GitHub branch `staging` exists and points to
-  `a1873cd3858da5f1147e7a2487aa2f44ec7ef2c8`
-  (`fix: defer Stripe initialization for staging builds`). Vercel Preview for
-  `staging` is Ready at
+  `7033fc6a0436d31bfb5bfd4a11c0dfa308fcdc9e`
+  (`KAN-48 compact invoice filters`). Vercel Preview for `staging` is Ready at
   `https://sololedger-git-staging-sololedger1.vercel.app` and uses Supabase
   Staging `fzxqiqenqjzhlyxxpvhg`; Preview Stripe variables remain inactive.
 - Production is unchanged on GitHub/Vercel branch `main`, commit
@@ -97,13 +96,22 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   result state. The filtering uses already-loaded invoice data and does not
   mutate invoice status, invoice data, bookings, accounting logic, Supabase, or
   Jira.
-- KAN-48 post-Staging manual-test refinement is local only and not pushed: the
-  filter UI is now compact like `TransactionTable`, search supports invoice
-  number, customer, gross amount, and invoice-date prefixes (`YYYY`,
+- KAN-48 post-Staging manual-test refinement was pushed to `staging` in
+  `7033fc6`: the filter UI is compact like `TransactionTable`, search supports
+  invoice number, customer, gross amount, and invoice-date prefixes (`YYYY`,
   `YYYY-MM`, `YYYY-MM-DD`), payment/year-end filters are small buttons, and
   sort supports invoice date, due date, and amount. Visible year-end labels now
   distinguish needs receivable, booked receivable, unsafe VAT, other fiscal
   year, and no receivable without changing bookkeeping rules.
+- KAN-48 follow-up fix after manual Staging test is local only and not pushed:
+  amount search now treats pure plausible invoice years such as `2026` as
+  invoice-date search, while `2500`, `2 500`, `2500 kr`, `1000`, and `1 000`
+  match actual invoice amounts. Multi-word text search now requires the
+  contiguous phrase in one relevant field, so `kund x` no longer matches
+  `E2E KAN-14 momsfri kund`. The invoice filter area has a subtler bordered
+  background and a more compact combined filter row. No summary cards,
+  bookkeeping, VAT, year-end logic, database, Vercel env, Jira, push, or deploy
+  change has been made for this follow-up yet.
 - The three Fakturor summary cards were verified and intentionally not changed:
   `Obetalda` counts currently unpaid loaded invoices, `Kundfordran kvar` counts
   invoices that still need a year-end receivable booking for selected year, and
@@ -116,6 +124,11 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
   with only Git CRLF working-copy warnings. Targeted ESLint still fails only on
   the pre-existing `react-hooks/set-state-in-effect` findings in
   `CustomerInvoicesPanel.tsx`; no new lint finding was identified.
+- KAN-48 follow-up verification on 2026-10-11: `node scripts/test-customer-invoice-filters.ts`
+  PASS, `npm run typecheck` PASS, `npm run test:domain` PASS, `npm run build`
+  PASS after rerun with network access for Next/Google Fonts, and
+  `git diff --check` PASS with only Git CRLF working-copy warnings. No
+  Staging-write E2E was run.
 - KAN-48 verification run on 2026-10-11: `node scripts/test-customer-invoice-filters.ts`
   PASS, `npm run typecheck` PASS, `npm run test:domain` PASS, and
   `git diff --check` PASS with only Git CRLF working-copy warnings. Targeted
