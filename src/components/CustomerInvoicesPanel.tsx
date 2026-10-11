@@ -29,11 +29,13 @@ import {
 } from '@/lib/customerInvoiceUi'
 import {
   CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS,
+  CUSTOMER_INVOICE_SORT_OPTIONS,
   CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS,
   DEFAULT_CUSTOMER_INVOICE_FILTERS,
   filterCustomerInvoices,
   hasActiveCustomerInvoiceFilters,
   type CustomerInvoicePaymentFilter,
+  type CustomerInvoiceSortMode,
   type CustomerInvoiceYearEndFilter,
 } from '@/lib/customerInvoiceFilters'
 import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
@@ -189,6 +191,14 @@ export default function CustomerInvoicesPanel({
 
   function clearInvoiceFilters() {
     setInvoiceFilters({ ...DEFAULT_CUSTOMER_INVOICE_FILTERS })
+  }
+
+  function filterButtonClass(active: boolean) {
+    return `h-8 rounded-full border px-3 text-[10px] font-black uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-100 ${
+      active
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm'
+        : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
+    }`
   }
 
   async function refreshAfterAction(message: string) {
@@ -693,11 +703,17 @@ export default function CustomerInvoicesPanel({
           </p>
         ) : (
           <>
-            <div className="mb-3 rounded-2xl border border-gray-100 bg-gray-50/70 px-3 py-3">
-              <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end">
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
-                    Sök
+            <div className="mb-3 flex flex-col gap-2">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <label className="relative w-full md:max-w-md">
+                  <span className="sr-only">
+                    Sök fakturor
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-300"
+                  >
+                    ⌕
                   </span>
                   <input
                     type="search"
@@ -708,63 +724,95 @@ export default function CustomerInvoicesPanel({
                         search: event.target.value,
                       }))
                     }
-                    placeholder="Fakturanr eller kund"
-                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none transition-colors placeholder:text-gray-300 focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                    placeholder="Fakturanr, kund, belopp eller fakturadatum"
+                    className="h-10 w-full rounded-2xl border border-gray-200 bg-white pl-9 pr-4 text-sm font-bold text-gray-700 shadow-sm outline-none transition-colors placeholder:text-gray-300 focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
                   />
                 </label>
 
-                <label className="flex flex-col gap-1">
-                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
-                    Betalstatus
+                <label className="flex items-center gap-2 md:w-auto">
+                  <span className="sr-only">Sortering</span>
+                  <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+                    Sortering
                   </span>
                   <select
-                    value={invoiceFilters.payment}
+                    value={invoiceFilters.sort}
                     onChange={event =>
                       setInvoiceFilters(prev => ({
                         ...prev,
-                        payment: event.target.value as CustomerInvoicePaymentFilter,
+                        sort: event.target.value as CustomerInvoiceSortMode,
                       }))
                     }
-                    className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-600 outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                    className="h-9 max-w-full rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-500 shadow-sm outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
                   >
-                    {CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS.map(option => (
+                    {CUSTOMER_INVOICE_SORT_OPTIONS.map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
                   </select>
                 </label>
+              </div>
 
-                <label className="flex flex-col gap-1">
-                  <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-gray-400">
-                    Bokslut
-                  </span>
-                  <select
-                    value={invoiceFilters.yearEnd}
-                    onChange={event =>
-                      setInvoiceFilters(prev => ({
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+                  Betalning
+                </span>
+                {CUSTOMER_INVOICE_PAYMENT_FILTER_OPTIONS.map(option => {
+                  const active = invoiceFilters.payment === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setInvoiceFilters(prev => ({
                         ...prev,
-                        yearEnd: event.target.value as CustomerInvoiceYearEndFilter,
-                      }))
-                    }
-                    className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-600 outline-none transition-colors focus:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-100"
-                  >
-                    {CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                        payment: option.value as CustomerInvoicePaymentFilter,
+                      }))}
+                      className={filterButtonClass(active)}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-                <button
-                  type="button"
-                  onClick={clearInvoiceFilters}
-                  disabled={!invoiceFiltersActive}
-                  className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-[9px] font-black uppercase tracking-wider text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Rensa filter
-                </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wide text-gray-300">
+                  Bokslut
+                </span>
+                {CUSTOMER_INVOICE_YEAR_END_FILTER_OPTIONS.map(option => {
+                  const active = invoiceFilters.yearEnd === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setInvoiceFilters(prev => ({
+                        ...prev,
+                        yearEnd: option.value as CustomerInvoiceYearEndFilter,
+                      }))}
+                      className={filterButtonClass(active)}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+
+                {invoiceFiltersActive && (
+                  <>
+                    <span className="mx-1 hidden h-4 w-px bg-gray-200 sm:block" aria-hidden="true" />
+                    <span className="text-[11px] font-bold text-gray-400">
+                      Visar {filteredInvoices.length} av {invoices.length} fakturor
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearInvoiceFilters}
+                      className="h-8 rounded-full border border-gray-200 bg-white px-3 text-[10px] font-black uppercase tracking-wide text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-100"
+                    >
+                      Rensa
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

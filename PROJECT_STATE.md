@@ -79,29 +79,43 @@ Verified on 2026-10-10 after KAN-35/KAN-47 release:
 
 ## Current Active Work
 
-- Permanent GitHub branch `staging` exists and points to the KAN-48 checkpoint
-  `2f0944558c7b6bf1679af83e09372b2d427b0521`. The first Vercel Preview for
-  `staging` failed before Ready because Stripe was initialized during API route
-  module import while Preview intentionally has no Stripe environment variables.
-- A local Staging-build fix is prepared: `/api/checkout`, `/api/portal`, and
-  `/api/webhook` now initialize Stripe lazily only when the Stripe operation is
-  actually needed. If required Stripe configuration is missing, the affected
-  route returns a controlled 503 JSON error instead of crashing the build/app.
-  Existing Stripe behavior is intended to remain unchanged when valid config is
-  present. No Vercel env, Supabase, database, Jira, push, or deploy action was
-  performed for this fix.
-- Staging-build fix verification on 2026-10-11: `node scripts/test-stripe-server-config.ts`
-  PASS, targeted ESLint for the changed Stripe files PASS, `npm run typecheck`
-  PASS, `npm run test:domain` PASS, and `npm run build` PASS after allowing
-  network access for Next/Google Fonts. A first sandboxed build attempt failed
-  only because Google Fonts could not be fetched in the restricted network
-  environment.
-- KAN-48 has been implemented locally only. The Fakturor view now has
+- Permanent GitHub branch `staging` exists and points to
+  `a1873cd3858da5f1147e7a2487aa2f44ec7ef2c8`
+  (`fix: defer Stripe initialization for staging builds`). Vercel Preview for
+  `staging` is Ready at
+  `https://sololedger-git-staging-sololedger1.vercel.app` and uses Supabase
+  Staging `fzxqiqenqjzhlyxxpvhg`; Preview Stripe variables remain inactive.
+- Production is unchanged on GitHub/Vercel branch `main`, commit
+  `0f4e316f0db8f94942f229c6665a5875e3451d6b`, deployment
+  `dpl_7ZbZuwLUavdQJReTvgNWJBzB5WPm`.
+- `/api/checkout`, `/api/portal`, and `/api/webhook` initialize Stripe lazily
+  only when the Stripe operation is actually needed. Missing Stripe config
+  returns a controlled 503 JSON error instead of crashing the build/app.
+- KAN-48 has been implemented and published to Staging. The Fakturor view has
   display-only filters for invoice number/customer search, payment status, and
   useful year-end/status review states, plus a reset action and filtered empty
   result state. The filtering uses already-loaded invoice data and does not
   mutate invoice status, invoice data, bookings, accounting logic, Supabase, or
   Jira.
+- KAN-48 post-Staging manual-test refinement is local only and not pushed: the
+  filter UI is now compact like `TransactionTable`, search supports invoice
+  number, customer, gross amount, and invoice-date prefixes (`YYYY`,
+  `YYYY-MM`, `YYYY-MM-DD`), payment/year-end filters are small buttons, and
+  sort supports invoice date, due date, and amount. Visible year-end labels now
+  distinguish needs receivable, booked receivable, unsafe VAT, other fiscal
+  year, and no receivable without changing bookkeeping rules.
+- The three Fakturor summary cards were verified and intentionally not changed:
+  `Obetalda` counts currently unpaid loaded invoices, `Kundfordran kvar` counts
+  invoices that still need a year-end receivable booking for selected year, and
+  `Summa` totals those same remaining booking candidates. Future-dated paid
+  invoices are already `paid`, so they do not count as unpaid or remaining
+  booking candidates.
+- KAN-48 refinement verification on 2026-10-11: `node scripts/test-customer-invoice-filters.ts`
+  PASS, `npm run typecheck` PASS, `npm run test:domain` PASS, `npm run build`
+  PASS with network access for Next/Google Fonts, and `git diff --check` PASS
+  with only Git CRLF working-copy warnings. Targeted ESLint still fails only on
+  the pre-existing `react-hooks/set-state-in-effect` findings in
+  `CustomerInvoicesPanel.tsx`; no new lint finding was identified.
 - KAN-48 verification run on 2026-10-11: `node scripts/test-customer-invoice-filters.ts`
   PASS, `npm run typecheck` PASS, `npm run test:domain` PASS, and
   `git diff --check` PASS with only Git CRLF working-copy warnings. Targeted

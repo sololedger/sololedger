@@ -85,6 +85,12 @@ export function customerInvoiceYearEndLabel(invoice: CustomerInvoice, fiscalYear
   if (targetFiscalYear !== fiscalYear) {
     return `Avser bokslut ${targetFiscalYear}`
   }
+  if (customerInvoiceHasUnsafeVatBlocker(invoice, fiscalYear)) {
+    return `Moms oklar för bokslut ${fiscalYear}`
+  }
+  if (customerInvoiceNeedsYearEndBooking(invoice, fiscalYear)) {
+    return `Behöver kundfordran vid bokslut ${fiscalYear}`
+  }
   return 'Ingen kundfordran vid bokslut'
 }
 
