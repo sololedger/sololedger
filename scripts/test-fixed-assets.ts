@@ -237,6 +237,20 @@ assert(
 )
 
 assert(
+  fixedAssetsPanelSource.includes('showUsefulLifeQuestion') &&
+    fixedAssetsPanelSource.includes("usefulLifeAnswer !== ''"),
+  'Fixed asset panel keeps the useful-life selector visible after the user has selected an answer.'
+)
+
+assert(
+  fixedAssetsPanelSource.includes('Kopplingen ändrar inte den gamla verifikationen') &&
+    fixedAssetsPanelSource.includes('Bedömningsvärde för paketet') &&
+    fixedAssetsPanelSource.includes('Det här köpet: kostnad') &&
+    fixedAssetsPanelSource.includes('Tidigare kostnadsförda delar omklassades'),
+  'Fixed asset panel explains connected acquisitions and separates package assessment value from the current booking amount.'
+)
+
+assert(
   fixedAssetsPanelSource.includes('Anskaffningsvärde') &&
     fixedAssetsPanelSource.includes('Bokförda avskrivningar') &&
     fixedAssetsPanelSource.includes('Bokfört värde kollektivt') &&
@@ -259,6 +273,21 @@ assert(
     kan62MigrationSource.includes('REVOKE ALL ON FUNCTION public.book_fixed_asset_acquisition_atomic_unchecked_kan54(jsonb) FROM authenticated;') &&
     kan62MigrationSource.includes('GRANT EXECUTE ON FUNCTION public.book_fixed_asset_acquisition_atomic_unchecked_kan54(jsonb) TO postgres;'),
   'KAN-62 migration derives fixed-asset invoice amounts from gross amount and VAT rate and stores the selected VAT metadata.'
+)
+
+const kan62GroupLockingMigrationSource = readFileSync(
+  'supabase/migrations/20261012153000_kan62_fixed_asset_group_locking.sql',
+  'utf8'
+)
+
+assert(
+  kan62GroupLockingMigrationSource.includes('WITH locked_prior_assets AS') &&
+    kan62GroupLockingMigrationSource.includes('FOR UPDATE') &&
+    kan62GroupLockingMigrationSource.indexOf('WITH locked_prior_assets AS') <
+      kan62GroupLockingMigrationSource.indexOf('v_threshold_basis_amount := round') &&
+    kan62GroupLockingMigrationSource.indexOf('v_threshold_basis_amount := round') <
+      kan62GroupLockingMigrationSource.indexOf('SELECT round(coalesce(sum(fa.expensed_amount), 0), 2)'),
+  'KAN-62 group locking migration locks connected fixed-asset rows before threshold and reclassification calculations.'
 )
 
 console.log('fixed asset domain tests passed')

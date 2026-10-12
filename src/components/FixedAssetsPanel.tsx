@@ -112,6 +112,23 @@ function fixedAssetVatDeductionNotice(
   return null
 }
 
+function HelpHint({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <span
+        aria-label={text}
+        tabIndex={0}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 bg-white text-[10px] font-black leading-none text-gray-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+      >
+        ?
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs font-bold normal-case leading-relaxed text-gray-700 shadow-lg group-hover:block group-focus-within:block">
+        {text}
+      </span>
+    </span>
+  )
+}
+
 export default function FixedAssetsPanel({
   selectedYear,
   isYearLocked,
@@ -312,6 +329,12 @@ export default function FixedAssetsPanel({
   const capitalizedAssets = assets.filter(
     asset => asset.assetStatus === 'active' && asset.capitalizedAmount > 0
   )
+  const showUsefulLifeQuestion =
+    decision?.status === 'needs_useful_life' ||
+    (decision?.status === 'ready' &&
+      (decision.decisionType === 'capitalized' ||
+        decision.decisionType === 'immediate_expense_short_life')) ||
+    usefulLifeAnswer !== ''
   const latestRun = depreciationRuns.find(run => run.fiscalYear === selectedYear)
   const estimatedDepreciation = useMemo(() => {
     if (!taxRules) return null
@@ -434,7 +457,7 @@ export default function FixedAssetsPanel({
       })
 
       setMessage(
-        `${result.idempotentReplay ? 'Inventariet var redan bokfört' : 'Bokfört'} som ${decisionLabel(result.decisionType)}. Verifikation ${result.verNr}.`
+        `${result.idempotentReplay ? 'Inventariet var redan bokfört' : 'Bokfört'} som ${decisionLabel(result.decisionType)}. Verifikation ${result.verNr}.${result.reclassificationAmount > 0 ? ` Tidigare kostnadsförda delar omklassades med ${formatMoney(result.reclassificationAmount)} kr i en separat verifikation.` : ''}`
       )
       acquisitionSubmissionRef.current = null
       setDescription('')
@@ -645,9 +668,12 @@ export default function FixedAssetsPanel({
           </div>
 
           <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-black uppercase tracking-widest text-gray-500">
-              Samband med annan utrustning
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-500">
+                Samband med annan utrustning
+              </p>
+              <HelpHint text="Välj fristående köp när utrustningen kan användas själv. Välj paket när delarna hör ihop, till exempel vid funktionellt samband eller delleverans. Ett senare inköp kan göra att hela paketet behöver bedömas tillsammans." />
+            </div>
             <div className="mt-3 grid gap-2">
               {[
                 ['standalone', 'Fristående köp'],
@@ -679,7 +705,10 @@ export default function FixedAssetsPanel({
             {connectionAssessment === 'connected' && (
               <div className="mt-4 space-y-4">
                 <label className="block space-y-1 text-xs font-bold text-gray-600">
-                  Gruppnamn
+                  <span className="inline-flex items-center gap-2">
+                    Gruppnamn
+                    <HelpHint text="Namnet hjälper dig känna igen paketet i efterhand. Exempel: Kamerapaket, datorarbetsplats eller ljudrigg." />
+                  </span>
                   <input
                     value={acquisitionGroupName}
                     onChange={(event) => setAcquisitionGroupName(event.target.value)}
@@ -689,7 +718,10 @@ export default function FixedAssetsPanel({
                 </label>
 
                 <label className="block space-y-1 text-xs font-bold text-gray-600">
-                  Känt samlat anskaffningsvärde om hela paketet redan är känt
+                  <span className="inline-flex items-center gap-2">
+                    Känt samlat anskaffningsvärde
+                    <HelpHint text="Fyll i hela paketets kända eller uppskattade anskaffningsvärde, inte bara köpet du bokför nu. Lämna tomt om hela värdet inte är känt." />
+                  </span>
                   <input
                     inputMode="decimal"
                     value={plannedGroupBasisAmount}
@@ -701,6 +733,9 @@ export default function FixedAssetsPanel({
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-600">
                     Koppla tidigare registrerade delar
+                  </p>
+                  <p className="text-xs font-bold leading-relaxed text-gray-500">
+                    Kopplingen ändrar inte den gamla verifikationen. Om paketet ska aktiveras skapar SoloLedger en separat omklassning för tidigare kostnadsförda delar.
                   </p>
                   {priorConnectableAssets.length === 0 ? (
                     <p className="text-xs font-bold text-gray-500">
@@ -734,7 +769,7 @@ export default function FixedAssetsPanel({
             )}
           </div>
 
-          {decision?.status === 'needs_useful_life' && (
+          {showUsefulLifeQuestion && (
             <label className="mt-4 block space-y-1 text-xs font-bold text-gray-600">
               Beräknad användningstid
               <select
@@ -764,7 +799,10 @@ export default function FixedAssetsPanel({
                 Faktura {formatMoney(decision.grossAmount)} kr inkl. moms · Underlag {formatMoney(decision.taxableBaseAmount)} kr · Fakturamoms {formatMoney(decision.supplierVatAmount)} kr ({decision.vatRate} %)
               </p>
               <p className="mt-1 text-xs font-bold text-emerald-800">
-                Anskaffningsvärde {formatMoney(decision.thresholdBasisAmount)} kr · Kostnad {formatMoney(decision.expensedAmount)} kr · Inventarievärde {formatMoney(decision.capitalizedAmount)} kr · Momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
+                Det här köpet: kostnad {formatMoney(decision.expensedAmount)} kr · inventarievärde {formatMoney(decision.capitalizedAmount)} kr · momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
+              </p>
+              <p className="mt-1 text-xs font-bold text-emerald-800">
+                Bedömningsvärde för paketet: {formatMoney(decision.thresholdBasisAmount)} kr
               </p>
             </div>
           )}
