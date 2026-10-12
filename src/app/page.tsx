@@ -1111,6 +1111,7 @@ export default function Home() {
           <OverviewCards
             data={data}
             taxRate={taxRate}
+            selectedYear={selectedYear}
             transactions={transactions}
             journalMap={journalMap}
             setActiveModal={setActiveModal}

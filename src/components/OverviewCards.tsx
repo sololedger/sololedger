@@ -1,5 +1,7 @@
 'use client'
+import { useState } from 'react'
 import { DashboardData } from '@/lib/calculations'
+import { buildBankAccountHistory, type BankHistoryEntry } from '@/lib/bankAccountHistory'
 
 interface OverviewTransaction {
   id: string
@@ -7,6 +9,7 @@ interface OverviewTransaction {
   date: string
   is_correction?: boolean | null
   corrects_ver_nr?: number | null
+  source?: string | null
 }
 
 interface OverviewJournalEntry {
@@ -19,6 +22,7 @@ interface OverviewJournalEntry {
 interface OverviewCardsProps {
   data: DashboardData
   taxRate: number
+  selectedYear: number
   transactions: OverviewTransaction[]
   journalMap: Record<string, OverviewJournalEntry[] | undefined>
   setActiveModal: (modal: null | 'bank' | 'skatt' | 'moms' | 'resultat') => void
@@ -28,17 +32,23 @@ interface OverviewCardsProps {
 export default function OverviewCards({
   data,
   taxRate,
+  selectedYear,
   transactions,
   journalMap,
   setActiveModal,
   activeModal,
 }: OverviewCardsProps) {
-  // Bygg ett set av alla ver_nr som har blivit korrigerade
-  const neutralizedVerNrs = new Set(
-    transactions
-      .filter(tx => tx.is_correction && tx.corrects_ver_nr != null)
-      .map(tx => tx.corrects_ver_nr)
-  )
+  const [showBankCorrections, setShowBankCorrections] = useState(false)
+  const bankHistory = buildBankAccountHistory({ transactions, journalMap })
+  const bankEntries = showBankCorrections ? bankHistory.entries : bankHistory.defaultEntries
+  const bankPeriodEnd = `${selectedYear}-12-31`
+
+  function bankEntryLabel(entry: BankHistoryEntry) {
+    if (entry.kind === 'correction') return 'Bokföringsrättelse'
+    if (entry.kind === 'neutralized_original') return 'Rättad verifikation'
+    if (entry.kind === 'uncertain_correction') return 'Rättelse - visas för kontroll'
+    return entry.sourceLabel
+  }
 
   return (
     <>
@@ -178,69 +188,103 @@ export default function OverviewCards({
                 </h2>
 
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
-                  Transaktionshistorik
+                  Bokförda bankrader · inte bankverifierat kontoutdrag
                 </p>
 
+                {bankHistory.openingBalanceCount > 0 && (
+                  <div className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-black uppercase text-emerald-700">
+                          Ingående balans
+                        </p>
+                        <p className="text-[10px] font-bold text-emerald-700/70 mt-0.5">
+                          Från importerad bokföringshistorik
+                        </p>
+                      </div>
+                      <span className={`font-black tabular-nums ${bankHistory.openingBalanceAmount >= 0 ? 'text-emerald-700' : 'text-red-500'}`}>
+                        {bankHistory.openingBalanceAmount >= 0 ? '+' : ''}
+                        {bankHistory.openingBalanceAmount.toLocaleString('sv-SE')} kr
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {bankHistory.correctionEntries.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBankCorrections(prev => !prev)}
+                    className="mb-3 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-500 hover:border-amber-200 hover:text-amber-600 transition-colors"
+                  >
+                    {showBankCorrections ? 'Dölj bokföringsrättelser' : `Visa bokföringsrättelser (${bankHistory.correctionEntries.length})`}
+                  </button>
+                )}
+
                 <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
-                  {transactions.map(tx => {
-                    const journal = journalMap[tx.id] || []
-                    const bankEntry = journal.find(e => e.account_number === '1930')
-                    if (!bankEntry) return null
-
-                    const amount = Number(bankEntry.debit) - Number(bankEntry.credit)
-                    const isCorrection = tx.is_correction === true
-                    const verNr = journal[0]?.ver_nr
-                    const isNeutralized = !isCorrection && verNr != null && neutralizedVerNrs.has(verNr)
-
-                    return (
+                  {bankEntries.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 px-4 py-5 text-center">
+                      <p className="text-xs font-black uppercase text-gray-500">
+                        Inga bokförda bankrader att visa
+                      </p>
+                      {bankHistory.correctionEntries.length > 0 && !showBankCorrections && (
+                        <p className="text-[10px] font-bold text-gray-400 mt-1">
+                          Det finns bara interna bokföringsrättelser i perioden.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    bankEntries.map(entry => (
                       <div
-                        key={tx.id}
-                        className={`flex flex-wrap justify-between items-center gap-2 rounded-2xl px-4 py-3 transition-all ${
-                          isCorrection
-                            ? 'bg-amber-50/60 opacity-60'
-                            : isNeutralized
-                            ? 'bg-gray-50/40 opacity-50'
-                            : 'bg-gray-50/60 hover:bg-gray-100/60'
+                        key={entry.id}
+                        className={`rounded-2xl px-4 py-3 transition-all ${
+                          entry.isInternalAdjustment
+                            ? 'border border-amber-100 bg-amber-50/60'
+                            : entry.direction === 'in'
+                            ? 'bg-emerald-50/55 hover:bg-emerald-50'
+                            : 'bg-gray-50/70 hover:bg-gray-100/70'
                         }`}
                       >
-                        <div>
-                          <p className={`font-bold text-sm ${
-                            isCorrection
-                              ? 'text-amber-500 line-through'
-                              : isNeutralized
-                              ? 'text-gray-300 line-through'
-                              : 'text-gray-700'
-                          }`}>
-                            {isCorrection
-                              ? `↩ ${tx.description.replace('↩ ', '')}`
-                              : tx.description}
-                          </p>
+                        <div className="flex flex-wrap justify-between items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className={`font-bold text-sm break-words ${
+                              entry.isInternalAdjustment ? 'text-amber-700' : 'text-gray-700'
+                            }`}>
+                              {entry.description}
+                            </p>
 
-                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                            {tx.date}
-                          </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide text-gray-400">
+                              <span>{entry.date}</span>
+                              <span>VER-{entry.verNr ?? '-'}</span>
+                              <span className={entry.source === 'sie_import' ? 'text-blue-500' : entry.source === 'customer_invoice' ? 'text-emerald-600' : entry.isInternalAdjustment ? 'text-amber-600' : ''}>
+                                {bankEntryLabel(entry)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <p className={`font-black text-sm tabular-nums ${
+                              entry.isInternalAdjustment
+                                ? 'text-amber-600'
+                                : entry.amount >= 0
+                                ? 'text-emerald-600'
+                                : 'text-red-500'
+                            }`}>
+                              {entry.amount >= 0 ? '+' : ''}
+                              {entry.amount.toLocaleString('sv-SE')} kr
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-gray-300 mt-0.5">
+                              {entry.amount >= 0 ? 'In' : 'Ut'}
+                            </p>
+                          </div>
                         </div>
-
-                        <span className={`font-black text-sm tabular-nums ${
-                          isCorrection
-                            ? 'text-amber-400 line-through'
-                            : isNeutralized
-                            ? 'text-gray-300 line-through'
-                            : amount >= 0
-                            ? 'text-emerald-600'
-                            : 'text-red-500'
-                        }`}>
-                          {amount >= 0 ? '+' : ''}
-                          {amount.toLocaleString('sv-SE')} kr
-                        </span>
                       </div>
-                    )
-                  }).filter(Boolean)}
+                    ))
+                  )}
                 </div>
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2 font-black uppercase tracking-tighter">
                   <span className="text-[11px] text-gray-500">
-                    Aktuellt Saldo
+                    Bokfört saldo per {bankPeriodEnd}
                   </span>
 
                   <span className={`text-xl font-black ${data.bankSaldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
