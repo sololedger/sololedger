@@ -21,6 +21,39 @@ export interface TransactionHistoryJournalRow {
 
 export type TransactionHistoryJournalMap = Record<string, TransactionHistoryJournalRow[]>
 
+export interface TransactionHistoryFixedAssetReclassificationLink {
+  assetId: string
+  assetName: string
+  amount: number
+  eventDate: string
+  originalTransactionId: string
+  reclassificationTransactionId: string
+  originalVerNr: number | null
+  reclassificationVerNr: number | null
+}
+
+export interface TransactionHistoryFixedAssetTrace {
+  reclassifiedBy: TransactionHistoryFixedAssetReclassificationLink[]
+  reclassifies: TransactionHistoryFixedAssetReclassificationLink[]
+}
+
+interface TransactionHistoryFixedAssetRow {
+  id: string
+  user_id?: string | null
+  acquisition_transaction_id: string
+  name?: string | null
+}
+
+interface TransactionHistoryFixedAssetEventRow {
+  id: string
+  user_id?: string | null
+  asset_id: string
+  transaction_id: string
+  event_type: string
+  event_date: string
+  amount?: number | string | null
+}
+
 interface TransactionHistoryQueryBuilder<T> {
   select(columns: string, options?: { count?: 'exact' }): TransactionHistoryQueryBuilder<T>
   eq(column: string, value: unknown): TransactionHistoryQueryBuilder<T>
@@ -102,6 +135,125 @@ function buildJournalMap(
   return journalMap
 }
 
+function firstVerNr(journalMap: TransactionHistoryJournalMap, transactionId: string) {
+  const verNr = journalMap[transactionId]?.[0]?.ver_nr
+  return typeof verNr === 'number' ? verNr : null
+}
+
+function emptyFixedAssetTrace(): TransactionHistoryFixedAssetTrace {
+  return {
+    reclassifiedBy: [],
+    reclassifies: [],
+  }
+}
+
+function fixedAssetTraceFor(
+  transaction: TransactionHistoryRow
+): TransactionHistoryFixedAssetTrace {
+  const existing = transaction.fixed_asset_trace
+  if (
+    existing &&
+    typeof existing === 'object' &&
+    'reclassifiedBy' in existing &&
+    'reclassifies' in existing
+  ) {
+    return existing as TransactionHistoryFixedAssetTrace
+  }
+
+  const trace = emptyFixedAssetTrace()
+  transaction.fixed_asset_trace = trace
+  return trace
+}
+
+async function attachFixedAssetReclassificationTrace({
+  client,
+  userId,
+  transactions,
+  journalMap,
+}: {
+  client: TransactionHistorySupabaseClient
+  userId: string
+  transactions: TransactionHistoryRow[]
+  journalMap: TransactionHistoryJournalMap
+}) {
+  const transactionIds = transactions.map(transaction => transaction.id)
+  if (transactionIds.length === 0) return
+
+  const transactionById = new Map(transactions.map(transaction => [transaction.id, transaction]))
+  const events = await fetchAllRowsByChunks<TransactionHistoryFixedAssetEventRow, string>({
+    context: 'transaction history fixed asset reclassification events',
+    values: transactionIds,
+    createQuery: ids =>
+      client
+        .from<TransactionHistoryFixedAssetEventRow>('fixed_asset_events')
+        .select('id, user_id, asset_id, transaction_id, event_type, event_date, amount', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('event_type', 'reclassification')
+        .in('transaction_id', ids)
+        .order('event_date', { ascending: true })
+        .order('id', { ascending: true }) as TransactionHistoryQueryBuilder<TransactionHistoryFixedAssetEventRow> &
+        FetchAllRangeQuery<TransactionHistoryFixedAssetEventRow>,
+  })
+
+  const relevantEvents = events.filter(event => transactionById.has(event.transaction_id))
+  if (relevantEvents.length === 0) return
+
+  for (const event of relevantEvents) {
+    if (event.user_id !== userId) {
+      throw new TransactionHistoryLoadError(
+        'Inventariehändelserna kunde inte verifieras: en rad tillhör fel användare.'
+      )
+    }
+  }
+
+  const assetIds = Array.from(new Set(relevantEvents.map(event => event.asset_id)))
+  const assets = await fetchAllRowsByChunks<TransactionHistoryFixedAssetRow, string>({
+    context: 'transaction history fixed asset reclassified assets',
+    values: assetIds,
+    createQuery: ids =>
+      client
+        .from<TransactionHistoryFixedAssetRow>('fixed_assets')
+        .select('id, user_id, acquisition_transaction_id, name', { count: 'exact' })
+        .eq('user_id', userId)
+        .in('id', ids)
+        .order('id', { ascending: true }) as TransactionHistoryQueryBuilder<TransactionHistoryFixedAssetRow> &
+        FetchAllRangeQuery<TransactionHistoryFixedAssetRow>,
+  })
+
+  const assetById = new Map<string, TransactionHistoryFixedAssetRow>()
+  for (const asset of assets) {
+    if (asset.user_id !== userId) {
+      throw new TransactionHistoryLoadError(
+        'Inventariekopplingarna kunde inte verifieras: en rad tillhör fel användare.'
+      )
+    }
+    assetById.set(asset.id, asset)
+  }
+
+  for (const event of relevantEvents) {
+    const asset = assetById.get(event.asset_id)
+    if (!asset || !transactionById.has(asset.acquisition_transaction_id)) continue
+
+    const originalTransaction = transactionById.get(asset.acquisition_transaction_id)
+    const reclassificationTransaction = transactionById.get(event.transaction_id)
+    if (!originalTransaction || !reclassificationTransaction) continue
+
+    const link: TransactionHistoryFixedAssetReclassificationLink = {
+      assetId: asset.id,
+      assetName: asset.name || 'Inventarie',
+      amount: Number(event.amount ?? 0),
+      eventDate: event.event_date,
+      originalTransactionId: asset.acquisition_transaction_id,
+      reclassificationTransactionId: event.transaction_id,
+      originalVerNr: firstVerNr(journalMap, asset.acquisition_transaction_id),
+      reclassificationVerNr: firstVerNr(journalMap, event.transaction_id),
+    }
+
+    fixedAssetTraceFor(originalTransaction).reclassifiedBy.push(link)
+    fixedAssetTraceFor(reclassificationTransaction).reclassifies.push(link)
+  }
+}
+
 export async function loadCompleteTransactionHistory({
   client,
   userId,
@@ -150,9 +302,18 @@ export async function loadCompleteTransactionHistory({
             FetchAllRangeQuery<TransactionHistoryJournalRow>,
       })
 
+  const journalMap = buildJournalMap(journalRows, userId, allowedTransactionIds)
+
+  await attachFixedAssetReclassificationTrace({
+    client,
+    userId,
+    transactions,
+    journalMap,
+  })
+
   return {
     transactions,
-    journalMap: buildJournalMap(journalRows, userId, allowedTransactionIds),
+    journalMap,
   }
 }
 

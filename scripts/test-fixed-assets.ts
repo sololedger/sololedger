@@ -246,8 +246,17 @@ assert(
   fixedAssetsPanelSource.includes('Kopplingen ändrar inte den gamla verifikationen') &&
     fixedAssetsPanelSource.includes('Bedömningsvärde för paketet') &&
     fixedAssetsPanelSource.includes('Det här köpet: kostnad') &&
-    fixedAssetsPanelSource.includes('Tidigare kostnadsförda delar omklassades'),
+    fixedAssetsPanelSource.includes('Tidigare kostnadsförda delar omklassades') &&
+    fixedAssetsPanelSource.includes('Omklassificering vid bokföring') &&
+    fixedAssetsPanelSource.includes('kommer att omklassificeras från 5410 till 1220 via en separat verifikation'),
   'Fixed asset panel explains connected acquisitions and separates package assessment value from the current booking amount.'
+)
+
+assert(
+  fixedAssetsPanelSource.includes('connectedAssessmentAssets') &&
+    fixedAssetsPanelSource.includes("asset.assetStatus === 'expensed'") &&
+    fixedAssetsPanelSource.includes("decision.decisionType !== 'capitalized'"),
+  'Fixed asset panel previews reclassification only for expensed connected parts when the new package is capitalized.'
 )
 
 assert(

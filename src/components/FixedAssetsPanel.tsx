@@ -247,6 +247,18 @@ export default function FixedAssetsPanel({
     () => priorConnectableAssets.filter(asset => connectedAssetIds.includes(asset.id)),
     [connectedAssetIds, priorConnectableAssets]
   )
+  const connectedAssessmentAssets = useMemo(() => {
+    const selectedGroupIds = new Set(
+      selectedConnectedAssets
+        .map(asset => asset.acquisitionGroupId)
+        .filter((groupId): groupId is string => Boolean(groupId))
+    )
+
+    return priorConnectableAssets.filter(asset =>
+      connectedAssetIds.includes(asset.id) ||
+      (asset.acquisitionGroupId != null && selectedGroupIds.has(asset.acquisitionGroupId))
+    )
+  }, [connectedAssetIds, priorConnectableAssets, selectedConnectedAssets])
   const parsedGrossAmount = parseAmount(grossAmount)
   const hasValidPurchaseAmount =
     grossAmount.trim() !== '' &&
@@ -279,21 +291,17 @@ export default function FixedAssetsPanel({
     const currentAmount = currentAcquisitionBasisAmount
     if (connectionAssessment !== 'connected') return currentAmount
 
-    const priorBasis = selectedConnectedAssets.reduce(
-      (sum, asset) =>
-        sum +
-        (asset.decisionType === 'immediate_expense_short_life'
-          ? 0
-          : fixedAssetAcquisitionBasis(asset)),
+    const priorBasis = connectedAssessmentAssets.reduce(
+      (sum, asset) => sum + fixedAssetAcquisitionBasis(asset),
       0
     )
     const plannedBasis = parseAmount(plannedGroupBasisAmount)
     return Math.max(currentAmount + priorBasis, plannedBasis)
   }, [
     connectionAssessment,
+    connectedAssessmentAssets,
     currentAcquisitionBasisAmount,
     plannedGroupBasisAmount,
-    selectedConnectedAssets,
   ])
 
   const decision = useMemo(() => {
@@ -325,6 +333,24 @@ export default function FixedAssetsPanel({
     usefulLifeAnswer,
     effectiveVatDeductionEntitlement,
   ])
+  const reclassificationPreviewItems = useMemo(() => {
+    if (
+      connectionAssessment !== 'connected' ||
+      decision?.status !== 'ready' ||
+      decision.decisionType !== 'capitalized'
+    ) {
+      return []
+    }
+
+    return connectedAssessmentAssets.filter(asset =>
+      asset.assetStatus === 'expensed' &&
+      (
+        asset.decisionType === 'immediate_expense_small_value' ||
+        asset.decisionType === 'immediate_expense_short_life'
+      ) &&
+      Number(asset.expensedAmount || 0) > 0
+    )
+  }, [connectedAssessmentAssets, connectionAssessment, decision])
 
   const capitalizedAssets = assets.filter(
     asset => asset.assetStatus === 'active' && asset.capitalizedAmount > 0
@@ -804,6 +830,20 @@ export default function FixedAssetsPanel({
               <p className="mt-1 text-xs font-bold text-emerald-800">
                 Bedömningsvärde för paketet: {formatMoney(decision.thresholdBasisAmount)} kr
               </p>
+              {reclassificationPreviewItems.length > 0 && (
+                <div className="mt-3 rounded-lg border border-emerald-200 bg-white/70 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                    Omklassificering vid bokföring
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-bold text-emerald-800">
+                    {reclassificationPreviewItems.map(asset => (
+                      <li key={asset.id}>
+                        {asset.description}: {formatMoney(asset.expensedAmount)} kr kommer att omklassificeras från 5410 till 1220 via en separat verifikation.
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

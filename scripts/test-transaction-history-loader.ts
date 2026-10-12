@@ -1,14 +1,36 @@
 import {
   loadCompleteTransactionHistory,
   transactionHistoryErrorMessage,
+  type TransactionHistoryFixedAssetTrace,
   type TransactionHistoryJournalRow,
   type TransactionHistoryRow,
   type TransactionHistorySupabaseClient,
 } from '../src/lib/transactionHistoryLoader.ts'
 import type { FetchAllQueryResult, FetchAllRangeQuery } from '../src/lib/supabaseFetchAll.ts'
 
-type TableName = 'transactions' | 'journal_entries'
-type TestRow = TransactionHistoryRow | TransactionHistoryJournalRow
+type TableName = 'transactions' | 'journal_entries' | 'fixed_asset_events' | 'fixed_assets'
+type FixedAssetEventTestRow = {
+  id: string
+  user_id?: string | null
+  asset_id: string
+  transaction_id: string
+  event_type: string
+  event_date: string
+  amount?: number | string | null
+  [key: string]: unknown
+}
+type FixedAssetTestRow = {
+  id: string
+  user_id?: string | null
+  acquisition_transaction_id: string
+  name?: string | null
+  [key: string]: unknown
+}
+type TestRow =
+  | TransactionHistoryRow
+  | TransactionHistoryJournalRow
+  | FixedAssetEventTestRow
+  | FixedAssetTestRow
 
 interface QueryCall {
   table: TableName
@@ -169,21 +191,31 @@ class FakeSupabaseClient {
   private readonly options: FakeClientOptions
 
   constructor(
-    tables: Record<TableName, TestRow[]>,
+    tables: Partial<Record<TableName, TestRow[]>>,
     options: FakeClientOptions = {}
   ) {
-    this.tables = tables
+    this.tables = {
+      transactions: tables.transactions ?? [],
+      journal_entries: tables.journal_entries ?? [],
+      fixed_asset_events: tables.fixed_asset_events ?? [],
+      fixed_assets: tables.fixed_assets ?? [],
+    }
     this.options = options
   }
 
-  from<T = unknown>(table: string): any {
-    if (table !== 'transactions' && table !== 'journal_entries') {
+  from(table: string): unknown {
+    if (
+      table !== 'transactions' &&
+      table !== 'journal_entries' &&
+      table !== 'fixed_asset_events' &&
+      table !== 'fixed_assets'
+    ) {
       throw new Error(`Unexpected table: ${table}`)
     }
 
     return new FakeQuery(
       table,
-      this.tables[table] as T[] & TestRow[],
+      this.tables[table],
       this.calls,
       this.options
     )
@@ -199,6 +231,8 @@ function createFixture() {
   const userB = 'user-b'
   const transactions: TransactionHistoryRow[] = []
   const journalEntries: TransactionHistoryJournalRow[] = []
+  const fixedAssetEvents: FixedAssetEventTestRow[] = []
+  const fixedAssets: FixedAssetTestRow[] = []
 
   for (let index = 0; index < 1001; index += 1) {
     const id = `tx-${String(index).padStart(4, '0')}`
@@ -257,7 +291,79 @@ function createFixture() {
     ver_nr: 1,
   })
 
-  return { userA, transactions, journalEntries }
+  transactions.push(
+    {
+      id: 'tx-fixed-original',
+      user_id: userA,
+      date: '2026-09-10',
+      description: 'TEST – Datormus',
+      amount: 1000,
+      source: 'fixed_asset',
+    },
+    {
+      id: 'tx-fixed-reclass',
+      user_id: userA,
+      date: '2026-10-10',
+      description: 'Omklassificering TEST – Datormus',
+      amount: 1000,
+      source: 'fixed_asset_reclassification',
+    }
+  )
+  journalEntries.push(
+    {
+      id: 'je-fixed-original-1',
+      user_id: userA,
+      transaction_id: 'tx-fixed-original',
+      ver_nr: 151,
+      account_number: '5410',
+      debit: 1000,
+      credit: 0,
+    },
+    {
+      id: 'je-fixed-original-2',
+      user_id: userA,
+      transaction_id: 'tx-fixed-original',
+      ver_nr: 151,
+      account_number: '1930',
+      debit: 0,
+      credit: 1000,
+    },
+    {
+      id: 'je-fixed-reclass-1',
+      user_id: userA,
+      transaction_id: 'tx-fixed-reclass',
+      ver_nr: 152,
+      account_number: '1220',
+      debit: 1000,
+      credit: 0,
+    },
+    {
+      id: 'je-fixed-reclass-2',
+      user_id: userA,
+      transaction_id: 'tx-fixed-reclass',
+      ver_nr: 152,
+      account_number: '5410',
+      debit: 0,
+      credit: 1000,
+    }
+  )
+  fixedAssets.push({
+    id: 'asset-mouse',
+    user_id: userA,
+    acquisition_transaction_id: 'tx-fixed-original',
+    name: 'TEST – Datormus',
+  })
+  fixedAssetEvents.push({
+    id: 'event-fixed-reclass',
+    user_id: userA,
+    asset_id: 'asset-mouse',
+    transaction_id: 'tx-fixed-reclass',
+    event_type: 'reclassification',
+    event_date: '2026-10-10',
+    amount: 1000,
+  })
+
+  return { userA, transactions, journalEntries, fixedAssetEvents, fixedAssets }
 }
 
 console.log('\n=== SoloLedger Transaction History Loader Tests ===\n')
@@ -266,6 +372,8 @@ const fixture = createFixture()
 const client = new FakeSupabaseClient({
   transactions: fixture.transactions,
   journal_entries: fixture.journalEntries,
+  fixed_asset_events: fixture.fixedAssetEvents,
+  fixed_assets: fixture.fixedAssets,
 })
 
 const result = await loadCompleteTransactionHistory({
@@ -275,16 +383,16 @@ const result = await loadCompleteTransactionHistory({
   endDate: '2026-12-31',
 })
 
-assertEqual(result.transactions.length, 1001, 'loads more than 1000 transactions')
+assertEqual(result.transactions.length, 1003, 'loads more than 1000 transactions')
 assertEqual(
   Object.values(result.journalMap).flat().length,
-  2502,
+  2506,
   'loads more than 1000 journal rows'
 )
 assertEqual(result.journalMap['tx-0000'].length, 3, 'maps multiple journal rows per transaction')
 assertEqual(result.journalMap['tx-1000'].length, 2, 'maps final correction journal rows')
 assertEqual(result.transactions[0].id, 'tx-1000', 'stable database order uses date desc and id desc')
-assertEqual(result.transactions[1000].id, 'tx-0000', 'stable paging preserves last same-date row')
+assertEqual(result.transactions[1002].id, 'tx-0000', 'stable paging preserves last same-date row')
 assertTrue(
   result.transactions.every(row => row.user_id === fixture.userA && row.date?.startsWith('2026')),
   'tenant isolation and year filter are preserved'
@@ -296,6 +404,32 @@ assertTrue(
 assertTrue(
   result.transactions.some(row => row.source === 'customer_invoice_payment' && row.customer_invoice_id === 'invoice-999'),
   'invoice transaction metadata is preserved'
+)
+const originalFixedAssetTx = result.transactions.find(row => row.id === 'tx-fixed-original')
+const reclassificationTx = result.transactions.find(row => row.id === 'tx-fixed-reclass')
+const originalFixedAssetTrace =
+  originalFixedAssetTx?.fixed_asset_trace as TransactionHistoryFixedAssetTrace | undefined
+const reclassificationTrace =
+  reclassificationTx?.fixed_asset_trace as TransactionHistoryFixedAssetTrace | undefined
+assertEqual(
+  originalFixedAssetTrace?.reclassifiedBy?.[0]?.reclassificationVerNr,
+  152,
+  'original fixed-asset purchase is linked to the real reclassification VER number'
+)
+assertEqual(
+  originalFixedAssetTrace?.reclassifiedBy?.[0]?.amount,
+  1000,
+  'original fixed-asset purchase trace includes the reclassified amount'
+)
+assertEqual(
+  reclassificationTrace?.reclassifies?.[0]?.originalVerNr,
+  151,
+  'reclassification transaction links back to the real original VER number'
+)
+assertEqual(
+  reclassificationTrace?.reclassifies?.[0]?.assetName,
+  'TEST – Datormus',
+  'reclassification trace uses the existing fixed-asset name'
 )
 
 const transactionCall = client.calls.find(call => call.table === 'transactions')
@@ -348,7 +482,7 @@ await assertThrows(
     startDate: '2026-01-01',
     endDate: '2026-12-31',
   }),
-  'fetched 1001 of 1002',
+  'fetched 1003 of 1004',
   'transaction count/data mismatch fails closed'
 )
 
@@ -414,6 +548,33 @@ await assertThrows(
   }),
   'fel användare',
   'cross-tenant journal row fails closed'
+)
+
+await assertThrows(
+  () => loadCompleteTransactionHistory({
+    client: asHistoryClient(new FakeSupabaseClient({
+      transactions: fixture.transactions,
+      journal_entries: fixture.journalEntries,
+      fixed_asset_events: [
+        ...fixture.fixedAssetEvents,
+        {
+          id: 'bad-cross-tenant-event',
+          user_id: 'user-b',
+          asset_id: 'asset-mouse',
+          transaction_id: 'tx-fixed-reclass',
+          event_type: 'reclassification',
+          event_date: '2026-10-10',
+          amount: 1000,
+        },
+      ],
+      fixed_assets: fixture.fixedAssets,
+    }, { ignoreFiltersTable: 'fixed_asset_events' })),
+    userId: fixture.userA,
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+  }),
+  'Inventariehändelserna kunde inte verifieras',
+  'cross-tenant fixed-asset event fails closed'
 )
 
 await assertThrows(
