@@ -1,5 +1,6 @@
 import {
   calculateFixedAssetDecision,
+  calculateFixedAssetInvoiceAmounts,
   calculateK1CollectiveDepreciation,
   type FixedAssetTaxRuleParameters,
 } from '../src/lib/fixedAssets.ts'
@@ -29,10 +30,53 @@ const taxRules2026: FixedAssetTaxRuleParameters = {
   },
 }
 
+const invoice25 = calculateFixedAssetInvoiceAmounts({
+  grossAmount: 12500,
+  vatRate: 25,
+})
+
+assertEqual(
+  invoice25.taxableBaseAmount,
+  10000,
+  '12 500 kr inklusive 25 % moms gives 10 000 kr taxable base.'
+)
+assertEqual(
+  invoice25.supplierVatAmount,
+  2500,
+  '12 500 kr inklusive 25 % moms gives 2 500 kr invoice VAT.'
+)
+
+const invoice12 = calculateFixedAssetInvoiceAmounts({
+  grossAmount: 112,
+  vatRate: 12,
+})
+
+assertEqual(
+  invoice12.taxableBaseAmount,
+  100,
+  '12 % fixed-asset invoice VAT is derived from gross amount with currency rounding.'
+)
+assertEqual(
+  invoice12.supplierVatAmount,
+  12,
+  '12 % fixed-asset invoice VAT amount is derived, not typed freely.'
+)
+
+const invoice0 = calculateFixedAssetInvoiceAmounts({
+  grossAmount: 10000,
+  vatRate: 0,
+})
+
+assertEqual(
+  invoice0.supplierVatAmount,
+  0,
+  '0 % fixed-asset invoice has no supplier VAT.'
+)
+
 const smallValueBoundary = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 29600,
-    supplierVatAmount: 7400,
+    grossAmount: 37000,
+    vatRate: 25,
     vatDeductionEntitlement: 'full',
   },
   taxRules2026
@@ -46,8 +90,8 @@ assertEqual(
 
 const smallValueBelowBoundary = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 29599.99,
-    supplierVatAmount: 7400,
+    grossAmount: 36999.99,
+    vatRate: 25,
     vatDeductionEntitlement: 'full',
   },
   taxRules2026
@@ -70,27 +114,42 @@ assert(
   'Fully deductible VAT is not added to the expense amount.'
 )
 
-const noDeductionBelowBoundary = calculateFixedAssetDecision(
+const noDeductionAtBoundary = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 29599.99,
-    supplierVatAmount: 7400,
+    grossAmount: 29599.99,
+    vatRate: 25,
     vatDeductionEntitlement: 'none',
   },
   taxRules2026
 )
 
 assert(
-  noDeductionBelowBoundary.status === 'ready' &&
-    noDeductionBelowBoundary.decisionType === 'immediate_expense_small_value' &&
-    noDeductionBelowBoundary.expensedAmount === 36999.99 &&
-    noDeductionBelowBoundary.nonDeductibleVatAmount === 7400,
-  'Non-deductible VAT is expensed/capitalized but does not make the threshold basis include VAT by default.'
+  noDeductionAtBoundary.status === 'ready' &&
+    noDeductionAtBoundary.decisionType === 'immediate_expense_small_value' &&
+    noDeductionAtBoundary.expensedAmount === 29599.99 &&
+    noDeductionAtBoundary.thresholdBasisAmount === 29599.99,
+  'Non-deductible VAT is included in the default threshold/acquisition basis.'
+)
+
+const noDeductionOverBoundary = calculateFixedAssetDecision(
+  {
+    grossAmount: 29600,
+    vatRate: 25,
+    vatDeductionEntitlement: 'none',
+  },
+  taxRules2026
+)
+
+assertEqual(
+  noDeductionOverBoundary.status,
+  'needs_useful_life',
+  'No-deduction threshold testing uses gross acquisition value including non-deductible VAT.'
 )
 
 const connectedPurchase = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 25000,
-    supplierVatAmount: 6250,
+    grossAmount: 25000,
+    vatRate: 25,
     vatDeductionEntitlement: 'full',
     thresholdBasisAmount: 40000,
   },
@@ -105,8 +164,8 @@ assertEqual(
 
 const shortLife = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 40000,
-    supplierVatAmount: 10000,
+    grossAmount: 50000,
+    vatRate: 25,
     vatDeductionEntitlement: 'full',
     usefulLifeAnswer: 'max_three_years',
   },
@@ -121,8 +180,8 @@ assert(
 
 const capitalizedNoDeduction = calculateFixedAssetDecision(
   {
-    taxableBaseAmount: 40000,
-    supplierVatAmount: 10000,
+    grossAmount: 50000,
+    vatRate: 25,
     vatDeductionEntitlement: 'none',
     usefulLifeAnswer: 'more_than_three_years_or_unknown',
   },
@@ -165,9 +224,16 @@ const fixedAssetsPanelSource = readFileSync(
 
 assert(
   fixedAssetsPanelSource.includes('hasValidPurchaseAmount') &&
-    fixedAssetsPanelSource.includes('Ange inköpsbelopp exklusive moms så visar SoloLedger') &&
+    fixedAssetsPanelSource.includes('Ange inköpsbelopp inklusive moms så visar SoloLedger') &&
     !fixedAssetsPanelSource.includes('Direkt kostnad: mindre värde – 0 kr'),
   'Fixed asset panel shows neutral guidance before a valid purchase amount instead of a zero-kronor assessment.'
+)
+
+assert(
+  fixedAssetsPanelSource.includes('Belopp inkl. moms') &&
+    fixedAssetsPanelSource.includes('fixedAssetVatRates') &&
+    !fixedAssetsPanelSource.includes('value={supplierVatAmount}'),
+  'Fixed asset panel uses gross invoice amount and selected invoice VAT rate instead of free supplier VAT amount.'
 )
 
 assert(
@@ -176,6 +242,23 @@ assert(
     fixedAssetsPanelSource.includes('Bokfört värde kollektivt') &&
     fixedAssetsPanelSource.includes('totalBookedDepreciation'),
   'Fixed asset register distinguishes acquisition value from collective current book value after depreciation.'
+)
+
+const kan62MigrationSource = readFileSync(
+  'supabase/migrations/20261012123000_kan62_fixed_asset_gross_vat_rate.sql',
+  'utf8'
+)
+
+assert(
+  kan62MigrationSource.includes("p_payload->>'gross_amount'") &&
+    kan62MigrationSource.includes("p_payload->>'vat_rate'") &&
+    kan62MigrationSource.includes("v_vat_rate := (p_payload->>'vat_rate')::numeric;") &&
+    kan62MigrationSource.includes('v_supplier_vat_amount := round(v_paid_amount - v_taxable_base_amount, 2);') &&
+    kan62MigrationSource.includes('v_current_acquisition_basis_amount := round(v_taxable_base_amount + v_non_deductible_vat_amount') &&
+    kan62MigrationSource.includes('v_vat_rate,') &&
+    kan62MigrationSource.includes('REVOKE ALL ON FUNCTION public.book_fixed_asset_acquisition_atomic_unchecked_kan54(jsonb) FROM authenticated;') &&
+    kan62MigrationSource.includes('GRANT EXECUTE ON FUNCTION public.book_fixed_asset_acquisition_atomic_unchecked_kan54(jsonb) TO postgres;'),
+  'KAN-62 migration derives fixed-asset invoice amounts from gross amount and VAT rate and stores the selected VAT metadata.'
 )
 
 console.log('fixed asset domain tests passed')

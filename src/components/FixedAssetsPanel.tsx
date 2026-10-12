@@ -11,12 +11,15 @@ import {
 } from '@/lib/accountingService'
 import {
   calculateFixedAssetDecision,
+  calculateFixedAssetInvoiceAmounts,
   calculateK1CollectiveDepreciation,
+  isFixedAssetVatRate,
   type FixedAsset,
   type FixedAssetConnectionAssessment,
   type FixedAssetDepreciationRun,
   type FixedAssetTaxRuleParameters,
   type FixedAssetUsefulLifeAnswer,
+  type FixedAssetVatRate,
   type FixedAssetVatDeductionEntitlement,
 } from '@/lib/fixedAssets'
 import type { PaymentAccountRole } from '@/lib/paymentAccountRoles'
@@ -48,6 +51,8 @@ const paymentSourceLabels: Record<PaymentSourceChoice, string> = {
   owner_private: 'Privat betalning',
 }
 
+const fixedAssetVatRates: FixedAssetVatRate[] = [25, 12, 6, 0]
+
 function formatMoney(amount: number) {
   return amount.toLocaleString('sv-SE', {
     minimumFractionDigits: 2,
@@ -59,6 +64,12 @@ function parseAmount(value: string) {
   const normalized = value.replace(/\s/g, '').replace(',', '.')
   if (!normalized) return 0
   return Number(normalized)
+}
+
+function fixedAssetAcquisitionBasis(asset: FixedAsset) {
+  return Math.round(
+    (asset.taxableBaseAmount + asset.nonDeductibleVatAmount) * 100
+  ) / 100
 }
 
 function dateInYear(year: number) {
@@ -125,8 +136,8 @@ export default function FixedAssetsPanel({
   const [description, setDescription] = useState('')
   const [acquisitionDate, setAcquisitionDate] = useState(dateInYear(selectedYear))
   const [supplierCountry, setSupplierCountry] = useState<'SE' | 'foreign'>('SE')
-  const [taxableBaseAmount, setTaxableBaseAmount] = useState('')
-  const [supplierVatAmount, setSupplierVatAmount] = useState('')
+  const [grossAmount, setGrossAmount] = useState('')
+  const [vatRate, setVatRate] = useState<FixedAssetVatRate>(25)
   const [vatDeductionEntitlement, setVatDeductionEntitlement] =
     useState<FixedAssetVatDeductionEntitlement>(
       defaultFixedAssetVatDeduction(companyVatProfileResult.profile)
@@ -219,13 +230,36 @@ export default function FixedAssetsPanel({
     () => priorConnectableAssets.filter(asset => connectedAssetIds.includes(asset.id)),
     [connectedAssetIds, priorConnectableAssets]
   )
-  const parsedTaxableBaseAmount = parseAmount(taxableBaseAmount)
+  const parsedGrossAmount = parseAmount(grossAmount)
   const hasValidPurchaseAmount =
-    taxableBaseAmount.trim() !== '' &&
-    Number.isFinite(parsedTaxableBaseAmount) &&
-    parsedTaxableBaseAmount > 0
+    grossAmount.trim() !== '' &&
+    Number.isFinite(parsedGrossAmount) &&
+    parsedGrossAmount > 0 &&
+    isFixedAssetVatRate(vatRate)
+  const invoiceAmounts = useMemo(() => {
+    if (!hasValidPurchaseAmount) return null
+
+    try {
+      return calculateFixedAssetInvoiceAmounts({
+        grossAmount: parsedGrossAmount,
+        vatRate,
+      })
+    } catch {
+      return null
+    }
+  }, [hasValidPurchaseAmount, parsedGrossAmount, vatRate])
+  const currentAcquisitionBasisAmount = invoiceAmounts
+    ? Math.round(
+        (
+          invoiceAmounts.taxableBaseAmount +
+          (effectiveVatDeductionEntitlement === 'none'
+            ? invoiceAmounts.supplierVatAmount
+            : 0)
+        ) * 100
+      ) / 100
+    : 0
   const previewThresholdBasisAmount = useMemo(() => {
-    const currentAmount = parsedTaxableBaseAmount
+    const currentAmount = currentAcquisitionBasisAmount
     if (connectionAssessment !== 'connected') return currentAmount
 
     const priorBasis = selectedConnectedAssets.reduce(
@@ -233,15 +267,15 @@ export default function FixedAssetsPanel({
         sum +
         (asset.decisionType === 'immediate_expense_short_life'
           ? 0
-          : asset.taxableBaseAmount),
+          : fixedAssetAcquisitionBasis(asset)),
       0
     )
     const plannedBasis = parseAmount(plannedGroupBasisAmount)
     return Math.max(currentAmount + priorBasis, plannedBasis)
   }, [
     connectionAssessment,
+    currentAcquisitionBasisAmount,
     plannedGroupBasisAmount,
-    parsedTaxableBaseAmount,
     selectedConnectedAssets,
   ])
 
@@ -253,8 +287,8 @@ export default function FixedAssetsPanel({
     try {
       return calculateFixedAssetDecision(
         {
-          taxableBaseAmount: parseAmount(taxableBaseAmount),
-          supplierVatAmount: parseAmount(supplierVatAmount),
+          grossAmount: parseAmount(grossAmount),
+          vatRate,
           vatDeductionEntitlement: effectiveVatDeductionEntitlement,
           thresholdBasisAmount: previewThresholdBasisAmount,
           usefulLifeAnswer: usefulLifeAnswer || null,
@@ -267,10 +301,10 @@ export default function FixedAssetsPanel({
   }, [
     connectionAssessment,
     hasValidPurchaseAmount,
+    grossAmount,
     previewThresholdBasisAmount,
-    supplierVatAmount,
     taxRules,
-    taxableBaseAmount,
+    vatRate,
     usefulLifeAnswer,
     effectiveVatDeductionEntitlement,
   ])
@@ -369,8 +403,8 @@ export default function FixedAssetsPanel({
         supplierCountry: 'SE' as const,
         paymentAccountRole: paymentRole,
         vatDeductionEntitlement: effectiveVatDeductionEntitlement,
-        taxableBaseAmount: parseAmount(taxableBaseAmount),
-        supplierVatAmount: parseAmount(supplierVatAmount),
+        grossAmount: parseAmount(grossAmount),
+        vatRate,
         thresholdBasisAmount: previewThresholdBasisAmount,
         connectionAssessment,
         acquisitionGroupName:
@@ -404,8 +438,7 @@ export default function FixedAssetsPanel({
       )
       acquisitionSubmissionRef.current = null
       setDescription('')
-      setTaxableBaseAmount('')
-      setSupplierVatAmount('')
+      setGrossAmount('')
       setConnectionAssessment('')
       setPlannedGroupBasisAmount('')
       setAcquisitionGroupName('')
@@ -542,11 +575,11 @@ export default function FixedAssetsPanel({
             </label>
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
-              Belopp exkl. moms
+              Belopp inkl. moms
               <input
                 inputMode="decimal"
-                value={taxableBaseAmount}
-                onChange={(event) => setTaxableBaseAmount(event.target.value)}
+                value={grossAmount}
+                onChange={(event) => setGrossAmount(event.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
                 required
               />
@@ -554,12 +587,22 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Moms på fakturan
-              <input
-                inputMode="decimal"
-                value={supplierVatAmount}
-                onChange={(event) => setSupplierVatAmount(event.target.value)}
+              <select
+                value={vatRate}
+                onChange={(event) => {
+                  const nextRate = Number(event.target.value)
+                  if (isFixedAssetVatRate(nextRate)) {
+                    setVatRate(nextRate)
+                  }
+                }}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
-              />
+              >
+                {fixedAssetVatRates.map(rate => (
+                  <option key={rate} value={rate}>
+                    {rate} %
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
@@ -646,7 +689,7 @@ export default function FixedAssetsPanel({
                 </label>
 
                 <label className="block space-y-1 text-xs font-bold text-gray-600">
-                  Känt samlat belopp exkl. moms om hela paketet redan är känt
+                  Känt samlat anskaffningsvärde om hela paketet redan är känt
                   <input
                     inputMode="decimal"
                     value={plannedGroupBasisAmount}
@@ -680,7 +723,7 @@ export default function FixedAssetsPanel({
                             className="mt-1 h-4 w-4 accent-emerald-600"
                           />
                           <span>
-                            {asset.description} · {formatMoney(asset.taxableBaseAmount)} kr · {asset.acquisitionDate}
+                            {asset.description} · {formatMoney(fixedAssetAcquisitionBasis(asset))} kr · {asset.acquisitionDate}
                           </span>
                         </label>
                       ))}
@@ -717,8 +760,11 @@ export default function FixedAssetsPanel({
               <p className="mt-1 text-sm font-black text-emerald-900">
                 {decisionLabel(decision.decisionType)}
               </p>
+              <p className="mt-2 text-xs font-bold text-emerald-800">
+                Faktura {formatMoney(decision.grossAmount)} kr inkl. moms · Underlag {formatMoney(decision.taxableBaseAmount)} kr · Fakturamoms {formatMoney(decision.supplierVatAmount)} kr ({decision.vatRate} %)
+              </p>
               <p className="mt-1 text-xs font-bold text-emerald-800">
-                Kostnad {formatMoney(decision.expensedAmount)} kr · Inventarievärde {formatMoney(decision.capitalizedAmount)} kr · Momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
+                Anskaffningsvärde {formatMoney(decision.thresholdBasisAmount)} kr · Kostnad {formatMoney(decision.expensedAmount)} kr · Inventarievärde {formatMoney(decision.capitalizedAmount)} kr · Momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
               </p>
             </div>
           )}
@@ -731,7 +777,7 @@ export default function FixedAssetsPanel({
                   Förhandsbedömning
                 </p>
                 <p className="mt-1 text-sm font-bold text-gray-600">
-                  Ange inköpsbelopp exklusive moms så visar SoloLedger om köpet kan kostnadsföras direkt eller ska bli inventarie.
+                  Ange inköpsbelopp inklusive moms så visar SoloLedger om köpet kan kostnadsföras direkt eller ska bli inventarie.
                 </p>
               </div>
             )}
