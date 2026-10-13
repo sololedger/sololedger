@@ -104,6 +104,7 @@ try {
     ['-v', 'skip_migration=1', '-f', 'supabase/tests/kan30_delete_user_data_vat_lifecycle_red_candidate.sql'],
     ['supabase/tests/kan36_fixed_assets_candidate.sql'],
     ['-v', 'skip_migration=1', '-f', 'supabase/tests/kan46_customer_invoice_lifecycle_candidate.sql'],
+    ['supabase/tests/kan63_customer_invoice_vat_guard_candidate.sql'],
     ['supabase/tests/kan54_fixed_asset_vat_deduction_guard_candidate.sql'],
     ['supabase/tests/kan55_purchase_input_vat_deduction_candidate.sql'],
   ]
