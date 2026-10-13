@@ -127,12 +127,18 @@ export default function CustomerInvoicesPanel({
     ...DEFAULT_CUSTOMER_INVOICE_FILTERS,
   })
 
-  const loadInvoices = useCallback(async () => {
+  const loadInvoices = useCallback(async (options?: { clearNoticeOnSuccess?: boolean }) => {
     setLoading(true)
     try {
       const rows = await getCustomerInvoices(selectedYear)
       setInvoices(rows)
-      setNotice(current => current?.type === 'error' ? current : null)
+      setNotice(current =>
+        options?.clearNoticeOnSuccess
+          ? null
+          : current?.type === 'error'
+            ? current
+            : null
+      )
     } catch (error) {
       setNotice({
         type: 'error',
@@ -358,6 +364,7 @@ export default function CustomerInvoicesPanel({
     setEditingInvoiceId(null)
     setEditAttachmentUrl(null)
     setEditForm(initialForm({ vatStatus, domesticSalesVatTreatment }))
+    setNotice(null)
   }
 
   async function handleEditInvoice(invoice: CustomerInvoice, event: FormEvent<HTMLFormElement>) {
@@ -711,7 +718,7 @@ export default function CustomerInvoicesPanel({
           </div>
           <button
             type="button"
-            onClick={() => void loadInvoices()}
+            onClick={() => void loadInvoices({ clearNoticeOnSuccess: true })}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-50"
           >
             Uppdatera

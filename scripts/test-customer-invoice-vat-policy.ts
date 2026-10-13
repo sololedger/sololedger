@@ -18,6 +18,13 @@ function assertIncludes(actual: string | null, expected: string, message: string
   console.log(`PASS: ${message}`)
 }
 
+function assertMatches(actual: string, expected: RegExp, message: string) {
+  if (!expected.test(actual)) {
+    throw new Error(`${message}: expected source to match ${expected}`)
+  }
+  console.log(`PASS: ${message}`)
+}
+
 function policy(input: Parameters<typeof getCustomerInvoiceVatPolicy>[0]) {
   return getCustomerInvoiceVatPolicy(input)
 }
@@ -94,6 +101,26 @@ assertIncludes(
   customerInvoicesPanelSource,
   "disabled={!vatPolicy.taxableAllowed && editForm.vatTreatment !== 'taxable'}",
   'existing taxable invoice choice remains visible for harmless edits after profile changes'
+)
+assertMatches(
+  customerInvoicesPanelSource,
+  /async function handleEditInvoice[\s\S]*vatRelevantChanged && editForm\.vatTreatment === 'taxable' && !vatPolicy\.taxableAllowed[\s\S]*catch \(error\) \{[\s\S]*type: 'error'[\s\S]*Fakturan kunde inte uppdateras\./,
+  'denied VAT-relevant customer invoice edit shows an edit error'
+)
+assertMatches(
+  customerInvoicesPanelSource,
+  /function cancelEdit\(\) \{[\s\S]*setEditingInvoiceId\(null\)[\s\S]*setEditAttachmentUrl\(null\)[\s\S]*setEditForm\(initialForm\(\{ vatStatus, domesticSalesVatTreatment \}\)\)[\s\S]*setNotice\(null\)[\s\S]*\}/,
+  'canceling customer invoice edit clears stale edit errors'
+)
+assertIncludes(
+  customerInvoicesPanelSource,
+  "onClick={() => void loadInvoices({ clearNoticeOnSuccess: true })}",
+  'manual customer invoice refresh clears stale errors after successful reload'
+)
+assertMatches(
+  customerInvoicesPanelSource,
+  /const loadInvoices = useCallback\(async \(options\?: \{ clearNoticeOnSuccess\?: boolean \}\)[\s\S]*options\?\.clearNoticeOnSuccess[\s\S]*\? null[\s\S]*current\?\.type === 'error'[\s\S]*catch \(error\) \{[\s\S]*type: 'error'[\s\S]*Kunde inte hämta fakturor\./,
+  'customer invoice reload still shows a fresh error when loading fails'
 )
 if (customerInvoicesPanelSource.includes('coerceCustomerInvoiceVatTreatmentForPolicy')) {
   throw new Error('customer invoice edit must not silently rewrite existing VAT treatment')
