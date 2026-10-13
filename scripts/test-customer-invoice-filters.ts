@@ -213,4 +213,27 @@ assertDeepEqual(
   'single-word customer search remains broad'
 )
 
+const numericInvoiceNumberInvoices = [
+  invoice({
+    id: 'numeric-1001',
+    invoiceNumber: '1001',
+    customerName: 'Historisk kund',
+    invoiceDate: '2026-08-01',
+    grossAmount: 3000,
+  }),
+  invoice({
+    id: 'numeric-1002',
+    invoiceNumber: '1002',
+    customerName: 'Annan historisk kund',
+    invoiceDate: '2026-08-02',
+    grossAmount: 4000,
+  }),
+]
+
+assertDeepEqual(
+  ids(applyTo(numericInvoiceNumberInvoices, { search: '1001' })),
+  ['numeric-1001'],
+  'numeric invoice number search finds the invoice even when amount differs'
+)
+
 console.log('\nAll customer invoice filter tests passed.\n')

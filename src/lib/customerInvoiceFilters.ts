@@ -115,19 +115,20 @@ function invoiceMatchesSearch(invoice: CustomerInvoice, search: string) {
   const datePrefix = searchDatePrefix(search)
   if (datePrefix) return invoice.invoiceDate.startsWith(datePrefix)
 
-  const searchedAmount = searchAmountOre(search)
-  if (searchedAmount != null) return amountOre(invoice.grossAmount) === searchedAmount
-
   const normalizedSearch = normalizeSearchText(search)
   if (!normalizedSearch) return true
 
-  return [
+  const textMatch = [
     invoice.invoiceNumber,
     invoice.customerName,
     invoice.invoiceDate,
     invoice.invoiceDate.slice(0, 7),
     invoice.invoiceDate.slice(0, 4),
   ].some(value => normalizeSearchText(value).includes(normalizedSearch))
+  if (textMatch) return true
+
+  const searchedAmount = searchAmountOre(search)
+  return searchedAmount != null && amountOre(invoice.grossAmount) === searchedAmount
 }
 
 function invoiceMatchesPayment(
