@@ -551,6 +551,140 @@ assertField(mixed.fields, '30', 57, 'CASE G')
 assertField(mixed.fields, '48', 77, 'CASE G')
 assertField(mixed.fields, '49', 30, 'CASE G')
 
+const customerInvoicePayment = assertReady(
+  {
+    transactions: [
+      tx({ id: 'customer-invoice-payment', source: 'customer_invoice', date: '2026-08-15' }),
+    ],
+    journalRows: [
+      row({ transactionId: 'customer-invoice-payment', accountNumber: '1930', debit: 1250 }),
+      row({ transactionId: 'customer-invoice-payment', accountNumber: '3010', credit: 1000 }),
+      row({ transactionId: 'customer-invoice-payment', accountNumber: '2611', credit: 250 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE G2 customer invoice payment_same_year'
+)
+
+assertField(customerInvoicePayment.fields, '05', 1000, 'CASE G2')
+assertField(customerInvoicePayment.fields, '10', 250, 'CASE G2')
+assertField(customerInvoicePayment.fields, '49', 250, 'CASE G2')
+
+const customerInvoiceYearEndReceivable = assertReady(
+  {
+    transactions: [
+      tx({
+        id: 'customer-invoice-year-end',
+        source: 'customer_invoice',
+        date: '2026-12-31',
+      }),
+      tx({
+        id: 'customer-invoice-next-year-settlement',
+        source: 'customer_invoice',
+        date: '2027-01-15',
+      }),
+    ],
+    journalRows: [
+      row({
+        transactionId: 'customer-invoice-year-end',
+        accountNumber: '1510',
+        debit: 1250,
+        date: '2026-12-31',
+      }),
+      row({
+        transactionId: 'customer-invoice-year-end',
+        accountNumber: '3010',
+        credit: 1000,
+        date: '2026-12-31',
+      }),
+      row({
+        transactionId: 'customer-invoice-year-end',
+        accountNumber: '2611',
+        credit: 250,
+        date: '2026-12-31',
+      }),
+      row({
+        transactionId: 'customer-invoice-next-year-settlement',
+        accountNumber: '1930',
+        debit: 1250,
+        date: '2027-01-15',
+      }),
+      row({
+        transactionId: 'customer-invoice-next-year-settlement',
+        accountNumber: '1510',
+        credit: 1250,
+        date: '2027-01-15',
+      }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE G3 customer invoice year_end_receivable counts once in fiscal year',
+  { startDate: '2026-01-01', endDate: '2026-12-31' }
+)
+
+assertField(customerInvoiceYearEndReceivable.fields, '05', 1000, 'CASE G3')
+assertField(customerInvoiceYearEndReceivable.fields, '10', 250, 'CASE G3')
+assertField(customerInvoiceYearEndReceivable.fields, '49', 250, 'CASE G3')
+
+const customerInvoiceSettlementNextYear = assertReady(
+  {
+    transactions: [
+      tx({
+        id: 'customer-invoice-year-end',
+        source: 'customer_invoice',
+        date: '2026-12-31',
+      }),
+      tx({
+        id: 'customer-invoice-next-year-settlement',
+        source: 'customer_invoice',
+        date: '2027-01-15',
+      }),
+    ],
+    journalRows: [
+      row({
+        transactionId: 'customer-invoice-year-end',
+        accountNumber: '2611',
+        credit: 250,
+        date: '2026-12-31',
+      }),
+      row({
+        transactionId: 'customer-invoice-next-year-settlement',
+        accountNumber: '1930',
+        debit: 1250,
+        date: '2027-01-15',
+      }),
+      row({
+        transactionId: 'customer-invoice-next-year-settlement',
+        accountNumber: '1510',
+        credit: 1250,
+        date: '2027-01-15',
+      }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE G4 customer invoice receivable_settlement has no new VAT next year',
+  { startDate: '2027-01-01', endDate: '2027-12-31' }
+)
+
+assertField(customerInvoiceSettlementNextYear.fields, '05', 0, 'CASE G4')
+assertField(customerInvoiceSettlementNextYear.fields, '10', 0, 'CASE G4')
+assertField(customerInvoiceSettlementNextYear.fields, '49', 0, 'CASE G4')
+
+assertBlocked(
+  {
+    transactions: [
+      tx({ id: 'customer-invoice-input-vat', source: 'customer_invoice' }),
+    ],
+    journalRows: [
+      row({ transactionId: 'customer-invoice-input-vat', accountNumber: '2641', debit: 250 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'customer_invoice_vat_unsupported',
+  'CASE G5 customer invoice input VAT blocks instead of being inferred'
+)
+
 assertBlocked(
   {
     transactions: [

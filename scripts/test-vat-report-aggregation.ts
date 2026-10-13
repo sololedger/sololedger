@@ -341,12 +341,16 @@ const controlledLifecycleRows = assertReady(
       tx('vat-closing-zero-net', 'vat_closing'),
       tx('vat-settlement-stray-vat', 'vat_settlement'),
       tx('tax-movement-stray-vat', 'tax_account_movement'),
+      tx('fixed-asset-stray-vat', 'fixed_asset'),
+      tx('fixed-asset-reclass-stray-vat', 'fixed_asset_reclassification'),
     ],
     journalRows: [
       row('vat-closing-zero-net', '2614', 57, 0),
       row('vat-closing-zero-net', '2645', 0, 57),
       row('vat-settlement-stray-vat', '2611', 0, 25),
       row('tax-movement-stray-vat', '2641', 25, 0),
+      row('fixed-asset-stray-vat', '2641', 125, 0),
+      row('fixed-asset-reclass-stray-vat', '2611', 0, 125),
     ],
     vatV2Snapshots: [],
   },
@@ -357,6 +361,120 @@ assertField(controlledLifecycleRows.fields, '05', 0, 'CASE A2')
 assertField(controlledLifecycleRows.fields, '10', 0, 'CASE A2')
 assertField(controlledLifecycleRows.fields, '48', 0, 'CASE A2')
 assertField(controlledLifecycleRows.fields, '49', 0, 'CASE A2')
+
+const customerInvoiceSameYear = assertReady(
+  {
+    transactions: [tx('customer-invoice-payment', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-payment', '1930', 1250, 0),
+      row('customer-invoice-payment', '3010', 0, 1000),
+      row('customer-invoice-payment', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A3 customer invoice payment_same_year'
+)
+
+assertField(customerInvoiceSameYear.fields, '05', 1000, 'CASE A3')
+assertField(customerInvoiceSameYear.fields, '10', 250, 'CASE A3')
+assertField(customerInvoiceSameYear.fields, '49', 250, 'CASE A3')
+assertEqual(customerInvoiceSameYear.legacy.domesticSalesBase25, 1000, 'CASE A3 -> 25 percent base')
+
+const customerInvoiceYearEndReceivable = assertReady(
+  {
+    transactions: [tx('customer-invoice-receivable', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-receivable', '1510', 1250, 0),
+      row('customer-invoice-receivable', '3010', 0, 1000),
+      row('customer-invoice-receivable', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A4 customer invoice year_end_receivable'
+)
+
+assertField(customerInvoiceYearEndReceivable.fields, '05', 1000, 'CASE A4')
+assertField(customerInvoiceYearEndReceivable.fields, '10', 250, 'CASE A4')
+assertField(customerInvoiceYearEndReceivable.fields, '49', 250, 'CASE A4')
+
+const customerInvoiceSettlement = assertReady(
+  {
+    transactions: [tx('customer-invoice-settlement', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-settlement', '1930', 1250, 0),
+      row('customer-invoice-settlement', '1510', 0, 1250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A5 customer invoice receivable_settlement'
+)
+
+assertField(customerInvoiceSettlement.fields, '05', 0, 'CASE A5')
+assertField(customerInvoiceSettlement.fields, '10', 0, 'CASE A5')
+assertField(customerInvoiceSettlement.fields, '49', 0, 'CASE A5')
+
+const customerInvoiceYearEndAndLaterSettlement = assertReady(
+  {
+    transactions: [
+      tx('customer-invoice-year-end', 'customer_invoice'),
+      tx('customer-invoice-next-year-settlement', 'customer_invoice'),
+    ],
+    journalRows: [
+      row('customer-invoice-year-end', '1510', 1250, 0, true),
+      row('customer-invoice-year-end', '3010', 0, 1000, true),
+      row('customer-invoice-year-end', '2611', 0, 250, true),
+      row('customer-invoice-next-year-settlement', '1930', 1250, 0, false),
+      row('customer-invoice-next-year-settlement', '1510', 0, 1250, false),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A6 customer invoice year-end with next-year settlement outside period'
+)
+
+assertField(customerInvoiceYearEndAndLaterSettlement.fields, '05', 1000, 'CASE A6')
+assertField(customerInvoiceYearEndAndLaterSettlement.fields, '10', 250, 'CASE A6')
+assertField(customerInvoiceYearEndAndLaterSettlement.fields, '49', 250, 'CASE A6')
+
+const customerInvoiceReversal = assertReady(
+  {
+    transactions: [tx('customer-invoice-payment-reversal', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-payment-reversal', '1930', 0, 1250),
+      row('customer-invoice-payment-reversal', '3010', 1000, 0),
+      row('customer-invoice-payment-reversal', '2611', 250, 0),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A7 customer invoice payment_same_year_reversal'
+)
+
+assertField(customerInvoiceReversal.fields, '05', -1000, 'CASE A7')
+assertField(customerInvoiceReversal.fields, '10', -250, 'CASE A7')
+assertField(customerInvoiceReversal.fields, '49', -250, 'CASE A7')
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-input-vat', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-input-vat', '2641', 250, 0),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_vat_unsupported',
+  'CASE A8 customer invoice input VAT is not silently inferred'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-reverse-charge', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-reverse-charge', '2614', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_vat_unsupported',
+  'CASE A9 customer invoice reverse-charge indicator is not silently inferred'
+)
 
 const v2Only = assertReady(
   {

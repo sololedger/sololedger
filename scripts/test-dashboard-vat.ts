@@ -210,6 +210,23 @@ assertEqual(mixedFullYear.utgaendeMoms, 107, 'CASE D mixed full-year -> outgoing
 assertEqual(mixedFullYear.ingaendeMoms, 20, 'CASE D mixed full-year -> deductible input VAT')
 assertEqual(mixedFullYear.momsNetto, 87, 'CASE D mixed full-year -> payable VAT')
 
+const customerInvoicePayment = dashboardVat({
+  transactions: [
+    tx({ id: 'customer-invoice-payment', source: 'customer_invoice', date: '2026-10-13' }),
+  ],
+  journalRows: [
+    row({ transactionId: 'customer-invoice-payment', accountNumber: '1930', debit: 1250, date: '2026-10-13' }),
+    row({ transactionId: 'customer-invoice-payment', accountNumber: '3010', credit: 1000, date: '2026-10-13' }),
+    row({ transactionId: 'customer-invoice-payment', accountNumber: '2611', credit: 250, date: '2026-10-13' }),
+  ],
+  vatV2Snapshots: [],
+})
+
+assertEqual(customerInvoicePayment.utgaendeMoms, 250, 'CASE D2 customer invoice -> outgoing VAT')
+assertEqual(customerInvoicePayment.ingaendeMoms, 0, 'CASE D2 customer invoice -> deductible input VAT')
+assertEqual(customerInvoicePayment.momsNetto, 250, 'CASE D2 customer invoice -> payable VAT')
+assertEqual(customerInvoicePayment.momspliktigForsaljning25, 1000, 'CASE D2 customer invoice -> 25 percent base')
+
 const correctedSafeWithdrawal = calculateDashboard(
   { '1930': 1000 },
   0,
