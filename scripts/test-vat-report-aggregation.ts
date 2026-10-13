@@ -380,6 +380,59 @@ assertField(customerInvoiceSameYear.fields, '10', 250, 'CASE A3')
 assertField(customerInvoiceSameYear.fields, '49', 250, 'CASE A3')
 assertEqual(customerInvoiceSameYear.legacy.domesticSalesBase25, 1000, 'CASE A3 -> 25 percent base')
 
+const customerInvoiceRoundedBase = assertReady(
+  {
+    transactions: [tx('customer-invoice-rounded-base', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-rounded-base', '1930', 416.66, 0),
+      row('customer-invoice-rounded-base', '3010', 0, 333.33),
+      row('customer-invoice-rounded-base', '2611', 0, 83.33),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A3A customer invoice uses 3010 sales base instead of reverse-derived VAT base'
+)
+
+assertField(customerInvoiceRoundedBase.fields, '05', 333.33, 'CASE A3A')
+assertField(customerInvoiceRoundedBase.fields, '10', 83.33, 'CASE A3A')
+assertField(customerInvoiceRoundedBase.fields, '49', 83.33, 'CASE A3A')
+
+const customerInvoiceSameYear12 = assertReady(
+  {
+    transactions: [tx('customer-invoice-payment-12', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-payment-12', '1930', 1120, 0),
+      row('customer-invoice-payment-12', '3010', 0, 1000),
+      row('customer-invoice-payment-12', '2621', 0, 120),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A3B customer invoice payment_same_year 12 percent'
+)
+
+assertField(customerInvoiceSameYear12.fields, '05', 1000, 'CASE A3B')
+assertField(customerInvoiceSameYear12.fields, '11', 120, 'CASE A3B')
+assertField(customerInvoiceSameYear12.fields, '49', 120, 'CASE A3B')
+assertEqual(customerInvoiceSameYear12.legacy.domesticSalesBase12, 1000, 'CASE A3B -> 12 percent base')
+
+const customerInvoiceSameYear6 = assertReady(
+  {
+    transactions: [tx('customer-invoice-payment-6', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-payment-6', '1930', 1060, 0),
+      row('customer-invoice-payment-6', '3010', 0, 1000),
+      row('customer-invoice-payment-6', '2631', 0, 60),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A3C customer invoice payment_same_year 6 percent'
+)
+
+assertField(customerInvoiceSameYear6.fields, '05', 1000, 'CASE A3C')
+assertField(customerInvoiceSameYear6.fields, '12', 60, 'CASE A3C')
+assertField(customerInvoiceSameYear6.fields, '49', 60, 'CASE A3C')
+assertEqual(customerInvoiceSameYear6.legacy.domesticSalesBase6, 1000, 'CASE A3C -> 6 percent base')
+
 const customerInvoiceYearEndReceivable = assertReady(
   {
     transactions: [tx('customer-invoice-receivable', 'customer_invoice')],
@@ -452,6 +505,29 @@ assertField(customerInvoiceReversal.fields, '05', -1000, 'CASE A7')
 assertField(customerInvoiceReversal.fields, '10', -250, 'CASE A7')
 assertField(customerInvoiceReversal.fields, '49', -250, 'CASE A7')
 
+const customerInvoiceCrossPeriodReversal = assertReady(
+  {
+    transactions: [
+      tx('customer-invoice-original-outside-period', 'customer_invoice'),
+      tx('customer-invoice-reversal-in-period', 'customer_invoice'),
+    ],
+    journalRows: [
+      row('customer-invoice-original-outside-period', '1930', 1250, 0, false),
+      row('customer-invoice-original-outside-period', '3010', 0, 1000, false),
+      row('customer-invoice-original-outside-period', '2611', 0, 250, false),
+      row('customer-invoice-reversal-in-period', '1930', 0, 1250, true),
+      row('customer-invoice-reversal-in-period', '3010', 1000, 0, true),
+      row('customer-invoice-reversal-in-period', '2611', 250, 0, true),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE A7B customer invoice reversal across report boundary'
+)
+
+assertField(customerInvoiceCrossPeriodReversal.fields, '05', -1000, 'CASE A7B')
+assertField(customerInvoiceCrossPeriodReversal.fields, '10', -250, 'CASE A7B')
+assertField(customerInvoiceCrossPeriodReversal.fields, '49', -250, 'CASE A7B')
+
 assertBlocked(
   {
     transactions: [tx('customer-invoice-input-vat', 'customer_invoice')],
@@ -466,6 +542,61 @@ assertBlocked(
 
 assertBlocked(
   {
+    transactions: [tx('customer-invoice-lone-vat', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-lone-vat', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_voucher_inconsistent',
+  'CASE A8B customer invoice lone VAT row blocks'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-wrong-sales-base', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-wrong-sales-base', '1930', 1250, 0),
+      row('customer-invoice-wrong-sales-base', '3010', 0, 900),
+      row('customer-invoice-wrong-sales-base', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_voucher_inconsistent',
+  'CASE A8C customer invoice mismatched sales base blocks'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-wrong-counter-account', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-wrong-counter-account', '1910', 1250, 0),
+      row('customer-invoice-wrong-counter-account', '3010', 0, 1000),
+      row('customer-invoice-wrong-counter-account', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_voucher_inconsistent',
+  'CASE A8D customer invoice missing 1930/1510 counter account blocks'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-mixed-counter-account', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-mixed-counter-account', '1930', 625, 0),
+      row('customer-invoice-mixed-counter-account', '1510', 625, 0),
+      row('customer-invoice-mixed-counter-account', '3010', 0, 1000),
+      row('customer-invoice-mixed-counter-account', '2611', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_voucher_inconsistent',
+  'CASE A8E customer invoice split 1930/1510 counter account blocks'
+)
+
+assertBlocked(
+  {
     transactions: [tx('customer-invoice-reverse-charge', 'customer_invoice')],
     journalRows: [
       row('customer-invoice-reverse-charge', '2614', 0, 250),
@@ -474,6 +605,45 @@ assertBlocked(
   },
   'customer_invoice_vat_unsupported',
   'CASE A9 customer invoice reverse-charge indicator is not silently inferred'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-2650-2641', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-2650-2641', '2650', 0, 250),
+      row('customer-invoice-2650-2641', '2641', 250, 0),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_vat_unsupported',
+  'CASE A10 customer invoice 265x with input VAT blocks before settlement skip'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('customer-invoice-2650-2614', 'customer_invoice')],
+    journalRows: [
+      row('customer-invoice-2650-2614', '2650', 0, 250),
+      row('customer-invoice-2650-2614', '2614', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'customer_invoice_vat_unsupported',
+  'CASE A11 customer invoice 265x with reverse-charge output blocks before settlement skip'
+)
+
+assertBlocked(
+  {
+    transactions: [tx('legacy-2650-2614', 'manual')],
+    journalRows: [
+      row('legacy-2650-2614', '2650', 0, 250),
+      row('legacy-2650-2614', '2614', 0, 250),
+    ],
+    vatV2Snapshots: [],
+  },
+  'legacy_reverse_charge_ambiguous',
+  'CASE A12 legacy 265x with reverse-charge indicator blocks before settlement skip'
 )
 
 const v2Only = assertReady(

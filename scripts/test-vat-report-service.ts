@@ -570,6 +570,38 @@ assertField(customerInvoicePayment.fields, '05', 1000, 'CASE G2')
 assertField(customerInvoicePayment.fields, '10', 250, 'CASE G2')
 assertField(customerInvoicePayment.fields, '49', 250, 'CASE G2')
 
+assertBlocked(
+  {
+    transactions: [
+      tx({ id: 'customer-invoice-lone-vat', source: 'customer_invoice' }),
+    ],
+    journalRows: [
+      row({ transactionId: 'customer-invoice-lone-vat', accountNumber: '2611', credit: 250 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'customer_invoice_voucher_inconsistent',
+  'CASE G2B customer invoice lone VAT row blocks'
+)
+
+assertBlocked(
+  {
+    transactions: [
+      tx({ id: 'customer-invoice-wrong-sales-base', source: 'customer_invoice' }),
+    ],
+    journalRows: [
+      row({ transactionId: 'customer-invoice-wrong-sales-base', accountNumber: '1930', debit: 1250 }),
+      row({ transactionId: 'customer-invoice-wrong-sales-base', accountNumber: '3010', credit: 900 }),
+      row({ transactionId: 'customer-invoice-wrong-sales-base', accountNumber: '2611', credit: 250 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'customer_invoice_voucher_inconsistent',
+  'CASE G2C customer invoice mismatched sales base blocks'
+)
+
 const customerInvoiceYearEndReceivable = assertReady(
   {
     transactions: [
@@ -670,6 +702,68 @@ assertField(customerInvoiceSettlementNextYear.fields, '05', 0, 'CASE G4')
 assertField(customerInvoiceSettlementNextYear.fields, '10', 0, 'CASE G4')
 assertField(customerInvoiceSettlementNextYear.fields, '49', 0, 'CASE G4')
 
+const customerInvoiceCrossPeriodReversal = assertReady(
+  {
+    transactions: [
+      tx({
+        id: 'customer-invoice-original-outside-period',
+        source: 'customer_invoice',
+        date: '2026-12-20',
+      }),
+      tx({
+        id: 'customer-invoice-reversal-in-period',
+        source: 'customer_invoice',
+        date: '2027-01-15',
+      }),
+    ],
+    journalRows: [
+      row({
+        transactionId: 'customer-invoice-original-outside-period',
+        accountNumber: '1930',
+        debit: 1250,
+        date: '2026-12-20',
+      }),
+      row({
+        transactionId: 'customer-invoice-original-outside-period',
+        accountNumber: '3010',
+        credit: 1000,
+        date: '2026-12-20',
+      }),
+      row({
+        transactionId: 'customer-invoice-original-outside-period',
+        accountNumber: '2611',
+        credit: 250,
+        date: '2026-12-20',
+      }),
+      row({
+        transactionId: 'customer-invoice-reversal-in-period',
+        accountNumber: '1930',
+        credit: 1250,
+        date: '2027-01-15',
+      }),
+      row({
+        transactionId: 'customer-invoice-reversal-in-period',
+        accountNumber: '3010',
+        debit: 1000,
+        date: '2027-01-15',
+      }),
+      row({
+        transactionId: 'customer-invoice-reversal-in-period',
+        accountNumber: '2611',
+        debit: 250,
+        date: '2027-01-15',
+      }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'CASE G4B customer invoice reversal counts in reversal period',
+  { startDate: '2027-01-01', endDate: '2027-12-31' }
+)
+
+assertField(customerInvoiceCrossPeriodReversal.fields, '05', -1000, 'CASE G4B')
+assertField(customerInvoiceCrossPeriodReversal.fields, '10', -250, 'CASE G4B')
+assertField(customerInvoiceCrossPeriodReversal.fields, '49', -250, 'CASE G4B')
+
 assertBlocked(
   {
     transactions: [
@@ -683,6 +777,22 @@ assertBlocked(
   'aggregation_blocked',
   'customer_invoice_vat_unsupported',
   'CASE G5 customer invoice input VAT blocks instead of being inferred'
+)
+
+assertBlocked(
+  {
+    transactions: [
+      tx({ id: 'customer-invoice-2650-2614', source: 'customer_invoice' }),
+    ],
+    journalRows: [
+      row({ transactionId: 'customer-invoice-2650-2614', accountNumber: '2650', credit: 250 }),
+      row({ transactionId: 'customer-invoice-2650-2614', accountNumber: '2614', credit: 250 }),
+    ],
+    vatV2Snapshots: [],
+  },
+  'aggregation_blocked',
+  'customer_invoice_vat_unsupported',
+  'CASE G5B customer invoice 265x with reverse-charge row blocks'
 )
 
 assertBlocked(
@@ -743,6 +853,98 @@ if (manyVatReport.status === 'ready') {
   assertField(manyVatReport.report.fields, '10', 25025, 'KAN-33 1001 VAT rows')
   assertField(manyVatReport.report.fields, '49', 25025, 'KAN-33 1001 VAT rows')
 }
+
+const customerInvoiceDbReport = await getVatReportForPeriodFromDb(
+  fakeDb({
+    transactions: [
+      {
+        id: 'customer-invoice-db-payment',
+        user_id: USER_ID,
+        date: '2026-08-15',
+        source: 'customer_invoice',
+        import_batch_id: null,
+      },
+    ],
+    journal_entries: [
+      {
+        user_id: USER_ID,
+        transaction_id: 'customer-invoice-db-payment',
+        account_number: '1930',
+        debit: 1250,
+        credit: 0,
+        date: '2026-08-15',
+      },
+      {
+        user_id: USER_ID,
+        transaction_id: 'customer-invoice-db-payment',
+        account_number: '3010',
+        debit: 0,
+        credit: 1000,
+        date: '2026-08-15',
+      },
+      {
+        user_id: USER_ID,
+        transaction_id: 'customer-invoice-db-payment',
+        account_number: '2611',
+        debit: 0,
+        credit: 250,
+        date: '2026-08-15',
+      },
+    ],
+    import_batches: [],
+    vat_audit_snapshots: [],
+  }) as Parameters<typeof getVatReportForPeriodFromDb>[0],
+  USER_ID,
+  START_DATE,
+  END_DATE
+)
+
+assertEqual(
+  customerInvoiceDbReport.status,
+  'ready',
+  'CASE I customer invoice DB loader fetches complete voucher rows'
+)
+
+if (customerInvoiceDbReport.status === 'ready') {
+  assertField(customerInvoiceDbReport.report.fields, '05', 1000, 'CASE I')
+  assertField(customerInvoiceDbReport.report.fields, '10', 250, 'CASE I')
+  assertField(customerInvoiceDbReport.report.fields, '49', 250, 'CASE I')
+}
+
+const incompleteCustomerInvoiceDbReport = await getVatReportForPeriodFromDb(
+  fakeDb({
+    transactions: [
+      {
+        id: 'customer-invoice-db-lone-vat',
+        user_id: USER_ID,
+        date: '2026-08-15',
+        source: 'customer_invoice',
+        import_batch_id: null,
+      },
+    ],
+    journal_entries: [
+      {
+        user_id: USER_ID,
+        transaction_id: 'customer-invoice-db-lone-vat',
+        account_number: '2611',
+        debit: 0,
+        credit: 250,
+        date: '2026-08-15',
+      },
+    ],
+    import_batches: [],
+    vat_audit_snapshots: [],
+  }) as Parameters<typeof getVatReportForPeriodFromDb>[0],
+  USER_ID,
+  START_DATE,
+  END_DATE
+)
+
+assertEqual(
+  incompleteCustomerInvoiceDbReport.status,
+  'blocked',
+  'CASE J incomplete customer invoice DB-loaded voucher blocks'
+)
 
 console.log('\n-----------------------------------')
 console.log(`Passed tests: ${passed}`)
