@@ -19,19 +19,81 @@ export function customerInvoiceVatLabel(invoice: CustomerInvoice) {
   return `${invoice.vatRate ?? '?'}% moms`
 }
 
+export type CustomerInvoiceVatPolicy = {
+  taxableAllowed: boolean
+  safeDefault: CustomerInvoice['vatTreatment']
+  notice: string | null
+  taxableBlocker: string | null
+}
+
+export function getCustomerInvoiceVatPolicy(input: {
+  vatStatus: VatRegistrationStatus
+  domesticSalesVatTreatment: DomesticSalesVatTreatment
+}): CustomerInvoiceVatPolicy {
+  if (
+    input.vatStatus === 'registered' &&
+    input.domesticSalesVatTreatment === 'taxable'
+  ) {
+    return {
+      taxableAllowed: true,
+      safeDefault: 'unknown',
+      notice: null,
+      taxableBlocker: null,
+    }
+  }
+
+  if (input.vatStatus === 'not_registered') {
+    return {
+      taxableAllowed: false,
+      safeDefault: 'exempt',
+      notice:
+        'Företagsprofilen säger att företaget inte är momsregistrerat. Vanlig svensk kundfaktura registreras därför utan moms.',
+      taxableBlocker:
+        'Företagsprofilen säger att företaget inte är momsregistrerat. Vanlig svensk kundfaktura kan inte vara momspliktig.',
+    }
+  }
+
+  if (input.domesticSalesVatTreatment === 'small_business_exempt') {
+    return {
+      taxableAllowed: false,
+      safeDefault: 'exempt',
+      notice:
+        'Företagsprofilen säger att svensk försäljning är momsbefriad enligt småföretagarregeln. Vanlig svensk kundfaktura registreras därför utan moms.',
+      taxableBlocker:
+        'Företagsprofilen säger att svensk försäljning är momsbefriad enligt småföretagarregeln. Uppdatera Profil om förhållandena har ändrats.',
+    }
+  }
+
+  if (input.domesticSalesVatTreatment === 'exempt_other') {
+    return {
+      taxableAllowed: false,
+      safeDefault: 'exempt',
+      notice:
+        'Företagsprofilen säger att svensk försäljning är momsfri. Vanlig svensk kundfaktura registreras därför utan moms.',
+      taxableBlocker:
+        'Företagsprofilen säger att svensk försäljning är momsfri. Uppdatera Profil om förhållandena har ändrats.',
+    }
+  }
+
+  return {
+    taxableAllowed: false,
+    safeDefault: 'unknown',
+    notice:
+      input.domesticSalesVatTreatment === 'mixed'
+        ? 'Företagsprofilen säger blandad svensk försäljning. SoloLedger tillåter inte fri momspliktig override för vanlig kundfaktura.'
+        : 'Företagsprofilen saknar säker momsregel för vanlig svensk kundfaktura. SoloLedger gissar inte moms.',
+    taxableBlocker:
+      input.domesticSalesVatTreatment === 'mixed'
+        ? 'Företagsprofilen säger blandad svensk försäljning. Välj Moms oklar eller uppdatera Profil innan svensk moms debiteras.'
+        : 'Företagsprofilen saknar säker momsregel för vanlig svensk kundfaktura. SoloLedger gissar inte moms.',
+  }
+}
+
 export function defaultCustomerInvoiceVatTreatment(input: {
   vatStatus: VatRegistrationStatus
   domesticSalesVatTreatment: DomesticSalesVatTreatment
 }): CustomerInvoice['vatTreatment'] {
-  if (
-    input.vatStatus === 'not_registered' ||
-    input.domesticSalesVatTreatment === 'small_business_exempt' ||
-    input.domesticSalesVatTreatment === 'exempt_other'
-  ) {
-    return 'exempt'
-  }
-
-  return 'unknown'
+  return getCustomerInvoiceVatPolicy(input).safeDefault
 }
 
 function isoYear(isoDate: string) {

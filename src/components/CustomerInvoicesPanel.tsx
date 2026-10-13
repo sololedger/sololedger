@@ -25,6 +25,7 @@ import {
   defaultCustomerInvoiceVatTreatment,
   formatCustomerInvoiceDate,
   fmtCustomerInvoiceCurrency,
+  getCustomerInvoiceVatPolicy,
   hasAnyCustomerInvoiceYearEndBooking,
 } from '@/lib/customerInvoiceUi'
 import {
@@ -142,16 +143,17 @@ export default function CustomerInvoicesPanel({
     }
   }, [selectedYear])
 
+  const vatPolicy = useMemo(
+    () => getCustomerInvoiceVatPolicy({ vatStatus, domesticSalesVatTreatment }),
+    [domesticSalesVatTreatment, vatStatus]
+  )
+
   useEffect(() => {
-    const safeDefault = defaultCustomerInvoiceVatTreatment({
-      vatStatus,
-      domesticSalesVatTreatment,
-    })
     setForm(prev => ({
       ...prev,
-      vatTreatment: prev.vatTreatment === 'unknown' ? safeDefault : prev.vatTreatment,
+      vatTreatment: prev.vatTreatment === 'unknown' ? vatPolicy.safeDefault : prev.vatTreatment,
     }))
-  }, [domesticSalesVatTreatment, vatStatus])
+  }, [vatPolicy])
 
   useEffect(() => {
     void loadInvoices()
@@ -219,6 +221,9 @@ export default function CustomerInvoicesPanel({
       }
       if (!form.attachment) {
         throw new Error('Lägg till fakturaunderlaget innan du registrerar fakturan.')
+      }
+      if (form.vatTreatment === 'taxable' && !vatPolicy.taxableAllowed) {
+        throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte registreras med svensk moms enligt Profil.')
       }
 
       const attachmentUrl = await onUploadAttachment(form.attachment)
@@ -373,6 +378,18 @@ export default function CustomerInvoicesPanel({
       if (!attachmentUrl) {
         throw new Error('Fakturaunderlag krävs för kundfaktura.')
       }
+      const editVatRate = editForm.vatTreatment === 'taxable' ? Number(editForm.vatRate) : null
+      const vatRelevantChanged =
+        editForm.vatTreatment !== invoice.vatTreatment ||
+        editVatRate !== invoice.vatRate ||
+        grossAmount !== invoice.grossAmount ||
+        editForm.invoiceDate !== invoice.invoiceDate ||
+        editForm.serviceDate !== invoice.serviceDate ||
+        attachmentUrl !== invoice.attachmentUrl
+
+      if (vatRelevantChanged && editForm.vatTreatment === 'taxable' && !vatPolicy.taxableAllowed) {
+        throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte uppdateras med svensk moms enligt Profil.')
+      }
 
       await updateCustomerInvoiceUnbooked({
         invoiceId: invoice.id,
@@ -383,7 +400,7 @@ export default function CustomerInvoicesPanel({
         dueDate: editForm.dueDate,
         grossAmount,
         vatTreatment: editForm.vatTreatment,
-        vatRate: editForm.vatTreatment === 'taxable' ? Number(editForm.vatRate) : null,
+        vatRate: editVatRate,
         attachmentUrl,
       })
 
@@ -606,7 +623,9 @@ export default function CustomerInvoicesPanel({
               className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
             >
               <option value="unknown">Osäker - stoppa bokning</option>
-              <option value="taxable">Momspliktig svensk försäljning</option>
+              <option value="taxable" disabled={!vatPolicy.taxableAllowed}>
+                Momspliktig svensk försäljning
+              </option>
               <option value="exempt">Momsfri / ej moms</option>
             </select>
           </label>
@@ -658,6 +677,12 @@ export default function CustomerInvoicesPanel({
         {form.vatTreatment === 'unknown' && (
           <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-[10px] font-bold text-amber-800">
             Fakturan kan sparas, men betalning och bokslut stoppas tills momsfakta är klar.
+          </p>
+        )}
+
+        {vatPolicy.notice && (
+          <p className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-[10px] font-bold text-gray-600">
+            {vatPolicy.notice}
           </p>
         )}
 
@@ -1015,7 +1040,12 @@ export default function CustomerInvoicesPanel({
                                   className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
                                 >
                                   <option value="unknown">Osäker - stoppa bokning</option>
-                                  <option value="taxable">Momspliktig svensk försäljning</option>
+                                  <option
+                                    value="taxable"
+                                    disabled={!vatPolicy.taxableAllowed && editForm.vatTreatment !== 'taxable'}
+                                  >
+                                    Momspliktig svensk försäljning
+                                  </option>
                                   <option value="exempt">Momsfri / ej moms</option>
                                 </select>
                               </label>
@@ -1035,6 +1065,12 @@ export default function CustomerInvoicesPanel({
                                 </label>
                               )}
                             </div>
+
+                            {vatPolicy.notice && (
+                              <p className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-bold text-gray-600">
+                                {vatPolicy.notice}
+                              </p>
+                            )}
 
                             <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
                               <span className="text-[9px] font-black uppercase text-gray-500">
