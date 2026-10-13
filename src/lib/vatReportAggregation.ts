@@ -66,6 +66,7 @@ export type VatReportAggregationErrorCode =
   | 'vat_v2_snapshot_malformed'
   | 'vat_v2_snapshot_unsupported'
   | 'vat_v2_snapshot_inconsistent'
+  | 'customer_invoice_vat_unsupported'
   | 'legacy_reverse_charge_ambiguous'
 
 export interface VatReportAggregationError {
@@ -471,6 +472,22 @@ function finalizeNetVat(fields: VatReportFields) {
   )
 }
 
+function addDomesticOutputVat(input: {
+  row: VatReportJournalRowInput
+  totals: {
+    outputVat25: number
+    outputVat12: number
+    outputVat6: number
+  }
+}) {
+  const netCredit = roundCurrency(input.row.credit - input.row.debit)
+  const rate = legacyVatRateForAccount(input.row.accountNumber)
+
+  if (rate === 25) input.totals.outputVat25 = roundCurrency(input.totals.outputVat25 + netCredit)
+  if (rate === 12) input.totals.outputVat12 = roundCurrency(input.totals.outputVat12 + netCredit)
+  if (rate === 6) input.totals.outputVat6 = roundCurrency(input.totals.outputVat6 + netCredit)
+}
+
 export function aggregateVatReport(input: {
   transactions: VatReportTransactionInput[]
   journalRows: VatReportJournalRowInput[]
@@ -554,6 +571,14 @@ export function aggregateVatReport(input: {
       legacyVatInferenceTransactionIds.has(row.transactionId) &&
       !nativeVatV2TransactionIds.has(row.transactionId)
   )
+  const customerInvoiceTransactionIds = new Set(
+    input.transactions
+      .filter(tx => tx.source === 'customer_invoice')
+      .map(tx => tx.id)
+  )
+  const customerInvoiceRows = input.journalRows.filter(
+    row => customerInvoiceTransactionIds.has(row.transactionId)
+  )
   const candidateTransactionIds = new Set(
     legacyRows
       .filter(row => (
@@ -562,7 +587,16 @@ export function aggregateVatReport(input: {
       ))
       .map(row => row.transactionId)
   )
+  const customerInvoiceCandidateTransactionIds = new Set(
+    customerInvoiceRows
+      .filter(row => (
+        row.inReportPeriod &&
+        (isOutputVatAccount(row.accountNumber) || isInputVatAccount(row.accountNumber))
+      ))
+      .map(row => row.transactionId)
+  )
   const rowsByTransaction = new Map<string, VatReportJournalRowInput[]>()
+  const customerInvoiceRowsByTransaction = new Map<string, VatReportJournalRowInput[]>()
 
   for (const row of legacyRows) {
     if (!candidateTransactionIds.has(row.transactionId)) continue
@@ -570,6 +604,14 @@ export function aggregateVatReport(input: {
     const rows = rowsByTransaction.get(row.transactionId) ?? []
     rows.push(row)
     rowsByTransaction.set(row.transactionId, rows)
+  }
+
+  for (const row of customerInvoiceRows) {
+    if (!customerInvoiceCandidateTransactionIds.has(row.transactionId)) continue
+
+    const rows = customerInvoiceRowsByTransaction.get(row.transactionId) ?? []
+    rows.push(row)
+    customerInvoiceRowsByTransaction.set(row.transactionId, rows)
   }
 
   for (const [transactionId, rows] of rowsByTransaction) {
@@ -589,6 +631,29 @@ export function aggregateVatReport(input: {
       transactionId,
       'Legacy/manual/SIE VAT rows contain reverse-charge indicators but no authoritative VAT treatment or VAT return base field.',
       ambiguousRow.accountNumber
+    ))
+  }
+
+  for (const [transactionId, rows] of customerInvoiceRowsByTransaction) {
+    if (rows.some(row => isSettlementAccount(row.accountNumber))) {
+      continue
+    }
+
+    const unsupportedRow = rows.find(row => (
+      row.inReportPeriod &&
+      (
+        isInputVatAccount(row.accountNumber) ||
+        isLegacyReverseChargeVatIndicator(row.accountNumber)
+      )
+    ))
+
+    if (!unsupportedRow) continue
+
+    errors.push(error(
+      'customer_invoice_vat_unsupported',
+      transactionId,
+      'Customer invoice VAT report aggregation only supports ordinary domestic output VAT rows.',
+      unsupportedRow.accountNumber
     ))
   }
 
@@ -612,13 +677,31 @@ export function aggregateVatReport(input: {
       const netCredit = roundCurrency(row.credit - row.debit)
 
       if (isOutputVatAccount(row.accountNumber)) {
-        const rate = legacyVatRateForAccount(row.accountNumber)
-        if (rate === 25) outputVat25 = roundCurrency(outputVat25 + netCredit)
-        if (rate === 12) outputVat12 = roundCurrency(outputVat12 + netCredit)
-        if (rate === 6) outputVat6 = roundCurrency(outputVat6 + netCredit)
+        const totals = { outputVat25, outputVat12, outputVat6 }
+        addDomesticOutputVat({ row, totals })
+        outputVat25 = totals.outputVat25
+        outputVat12 = totals.outputVat12
+        outputVat6 = totals.outputVat6
       } else if (isInputVatAccount(row.accountNumber)) {
         inputVat = roundCurrency(inputVat - netCredit)
       }
+    }
+  }
+
+  for (const rows of customerInvoiceRowsByTransaction.values()) {
+    if (rows.some(row => isSettlementAccount(row.accountNumber))) {
+      continue
+    }
+
+    for (const row of rows) {
+      if (!row.inReportPeriod) continue
+      if (!isOutputVatAccount(row.accountNumber)) continue
+
+      const totals = { outputVat25, outputVat12, outputVat6 }
+      addDomesticOutputVat({ row, totals })
+      outputVat25 = totals.outputVat25
+      outputVat12 = totals.outputVat12
+      outputVat6 = totals.outputVat6
     }
   }
 
