@@ -249,10 +249,14 @@ function buildVatReportAggregatorInput(input: {
   }
 
   const knownTransactionIds = new Set(transactions.map(row => row.id))
+  const transactionById = new Map(transactions.map(row => [row.id, row]))
   const journalRows: VatReportJournalRowInput[] = input.rows.journalRows
     .filter(row => (
       knownTransactionIds.has(row.transaction_id) &&
-      isVat26Account(row.account_number)
+      (
+        isVat26Account(row.account_number) ||
+        transactionById.get(row.transaction_id)?.source === 'customer_invoice'
+      )
     ))
     .map(row => ({
       transactionId: row.transaction_id,
@@ -457,6 +461,26 @@ export async function getVatReportForPeriodFromDb(
             .in('transaction_id', ids)
             .like('account_number', '26%') as FetchAllRangeQuery<VatReportJournalEntryRow>,
         })
+    const customerInvoiceTransactionIds = allTransactionRowsWithBatchStatus
+      .filter(row => row.source === 'customer_invoice')
+      .map(row => row.id)
+    const customerInvoiceTransactionIdSet = new Set(customerInvoiceTransactionIds)
+    const customerInvoiceJournalRows =
+      customerInvoiceTransactionIds.length === 0
+        ? [] as VatReportJournalEntryRow[]
+        : await fetchAllRowsByChunks<VatReportJournalEntryRow, string>({
+          context: 'complete customer invoice journal rows for VAT report',
+          values: customerInvoiceTransactionIds,
+          createQuery: ids => db
+            .from('journal_entries')
+            .select('user_id, transaction_id, account_number, debit, credit, date', { count: 'exact' })
+            .eq('user_id', userId)
+            .in('transaction_id', ids) as FetchAllRangeQuery<VatReportJournalEntryRow>,
+        })
+    const reportJournalRows = [
+      ...all26Rows.filter(row => !customerInvoiceTransactionIdSet.has(row.transaction_id)),
+      ...customerInvoiceJournalRows,
+    ]
 
     const snapshotRows =
       periodVatV2TransactionIds.length === 0
@@ -477,7 +501,7 @@ export async function getVatReportForPeriodFromDb(
       endDate,
       rows: {
         transactions: allTransactionRowsWithBatchStatus,
-        journalRows: all26Rows,
+        journalRows: reportJournalRows,
         vatV2Snapshots: snapshotRows,
       },
     })
