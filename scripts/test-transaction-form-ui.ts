@@ -1,4 +1,9 @@
 import { readFileSync } from 'node:fs'
+import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi.ts'
+
+function readSource(file: string, encoding: 'utf8') {
+  return readFileSync(file, encoding).replace(/\r\n/g, '\n')
+}
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -6,11 +11,11 @@ function assert(condition: unknown, message: string): asserts condition {
   }
 }
 
-const transactionFormSource = readFileSync(
+const transactionFormSource = readSource(
   'src/components/TransactionForm.tsx',
   'utf8'
 )
-const appPageSource = readFileSync('src/app/page.tsx', 'utf8')
+const appPageSource = readSource('src/app/page.tsx', 'utf8')
 
 assert(
   transactionFormSource.includes(
@@ -165,17 +170,33 @@ assert(
   'Ordinary Swedish sale VAT UI is not scoped to only the canonical forsaljning category ID'
 )
 
-const customerInvoiceUiSource = readFileSync(
+const customerInvoiceUiSource = readSource(
   'src/lib/customerInvoiceUi.ts',
   'utf8'
 )
 
+for (const treatment of ['small_business_exempt', 'exempt_other'] as const) {
+  assert(
+    defaultCustomerInvoiceVatTreatment({
+      vatStatus: 'registered', domesticSalesVatTreatment: treatment,
+    }) === 'exempt',
+    'Registered domestic exempt profile defaults customer invoice VAT to exempt'
+  )
+}
 assert(
-  customerInvoiceUiSource.includes('defaultCustomerInvoiceVatTreatment') &&
-    customerInvoiceUiSource.includes("domesticSalesVatTreatment === 'small_business_exempt'") &&
-    customerInvoiceUiSource.includes("return 'exempt'"),
-  'Customer invoice VAT default can safely use domestic exempt profile facts without guessing taxable VAT'
+  defaultCustomerInvoiceVatTreatment({
+    vatStatus: 'not_registered', domesticSalesVatTreatment: 'unknown',
+  }) === 'exempt',
+  'Not VAT registered defaults customer invoice VAT to exempt'
 )
+for (const treatment of ['taxable', 'mixed', 'unknown'] as const) {
+  assert(
+    defaultCustomerInvoiceVatTreatment({
+      vatStatus: 'registered', domesticSalesVatTreatment: treatment,
+    }) === 'unknown',
+    'Taxable or unresolved profile does not silently default to exempt'
+  )
+}
 
 assert(
   customerInvoiceUiSource.includes('customerInvoiceCanUndoPayment') &&
@@ -193,7 +214,7 @@ assert(
   'Customer invoice year-end badge describes receivable-at-year-end semantics instead of general fiscal-year inclusion'
 )
 
-const customerInvoicesPanelSource = readFileSync(
+const customerInvoicesPanelSource = readSource(
   'src/components/CustomerInvoicesPanel.tsx',
   'utf8'
 )
@@ -214,19 +235,19 @@ assert(
   'Customer invoice panel wording keeps year-end receivable actions explicit'
 )
 
-const kan14MigrationSource = readFileSync(
+const kan14MigrationSource = readSource(
   'supabase/migrations/20261006120000_kan14_vat_v2_no_deduction.sql',
   'utf8'
 )
-const kan22MigrationSource = readFileSync(
+const kan22MigrationSource = readSource(
   'supabase/migrations/20261007130000_kan22_vat_v2_business_facts.sql',
   'utf8'
 )
-const kan36RedirectMigrationSource = readFileSync(
+const kan36RedirectMigrationSource = readSource(
   'supabase/migrations/20261008110000_kan36_redirect_manual_equipment_purchases.sql',
   'utf8'
 )
-const accountingServiceSource = readFileSync(
+const accountingServiceSource = readSource(
   'src/lib/accountingService.ts',
   'utf8'
 )

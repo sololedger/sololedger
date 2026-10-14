@@ -1,3 +1,4 @@
+import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
 import type { PaymentAccountRole } from './paymentAccountRoles'
@@ -136,6 +137,7 @@ function normalizeAccountBalanceRows(
 }
 
 export async function bookTransaction(tx: BookTransactionInput) {
+  const amount = parseStandardBookingAmount(tx.amount)
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
   // Hela den vanliga bokningen sker nu atomärt i databasen:
@@ -144,7 +146,7 @@ export async function bookTransaction(tx: BookTransactionInput) {
   const payload = {
     date: tx.date,
     description: tx.description,
-    amount: tx.amount,
+    amount,
     type: tx.type,
     vat_rate: tx.vat_rate ?? 0,
     input_vat_deduction_entitlement:
@@ -1723,6 +1725,7 @@ interface BookPeriodizedTransactionInput extends BookTransactionInput {
 export async function bookPeriodizedTransaction(
   tx: BookPeriodizedTransactionInput
 ) {
+  const amount = parseStandardBookingAmount(tx.amount)
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
 
   // Hela periodiseringen sker nu atomärt i databasen:
@@ -1733,7 +1736,7 @@ export async function bookPeriodizedTransaction(
     date: tx.date,
     future_date: tx.future_date,
     description: tx.description,
-    amount: tx.amount,
+    amount,
     type: tx.type,
     vat_rate: tx.vat_rate ?? 0,
     input_vat_deduction_entitlement:

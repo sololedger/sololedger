@@ -1,4 +1,5 @@
 'use client'
+import { standardBookingAmountError } from '@/lib/standardBookingAmount'
 import { useRef, useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
 import SwedishDateInput from './SwedishDateInput'
@@ -181,6 +182,7 @@ export default function TransactionForm({
   onOpenCustomerInvoices,
   onOpenFixedAssets,
 }: TransactionFormProps) {
+  const [ordinaryAmountSubmitAttempted, setOrdinaryAmountSubmitAttempted] = useState(false)
   const [favName, setFavName] = useState('')
   const [showFavInput, setShowFavInput] = useState(false)
   const [descriptionHighlight, setDescriptionHighlight] = useState(false)
@@ -208,6 +210,22 @@ export default function TransactionForm({
   const ordinaryV1AmountRequired = shouldRequireOrdinaryV1AmountForVatV2Form({
     assessmentActive: vatV2AssessmentEnabled,
   })
+  const ordinaryAmountError =
+    !editingBooked && ordinaryV1AmountRequired &&
+    (formData.amount !== '' || ordinaryAmountSubmitAttempted)
+      ? standardBookingAmountError(formData.amount)
+      : null
+
+  function handleOrdinarySubmit(e: FormEvent<HTMLFormElement>) {
+    if (!editingBooked && standardBookingAmountError(formData.amount)) {
+      e.preventDefault()
+      setOrdinaryAmountSubmitAttempted(true)
+      return
+    }
+    setOrdinaryAmountSubmitAttempted(false)
+    onSubmit(e)
+  }
+
   const vatV2Preflight = buildVatV2TransactionPreflight({
     companyProfile: companyVatProfileResult.profile,
     transaction: {
@@ -516,7 +534,7 @@ export default function TransactionForm({
         />
       )}
 
-      <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : onSubmit}>
+      <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : handleOrdinarySubmit}>
         {editingBooked ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">
             <div>
@@ -761,6 +779,10 @@ export default function TransactionForm({
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
+                    max="9999999999999.99"
+                    aria-invalid={Boolean(ordinaryAmountError)}
+                    aria-describedby={ordinaryAmountError ? 'standard-booking-amount-error' : undefined}
                     value={formData.amount}
                     onChange={e =>
                       setFormData({
@@ -776,6 +798,11 @@ export default function TransactionForm({
                     } ${isYearLocked ? 'opacity-40' : ''}`}
                     required={ordinaryV1AmountRequired}
                   />
+                  {ordinaryAmountError && (
+                    <p id="standard-booking-amount-error" role="alert" className="text-xs font-bold text-red-700">
+                      {ordinaryAmountError}
+                    </p>
+                  )}
                 </div>
 
                 {showOrdinaryInputVatDeduction && (

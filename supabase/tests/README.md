@@ -34,3 +34,25 @@ Use `npm run test:admin-delete-lifecycle-postcheck` with
 postcheck when a deletion harness needs to verify that lifecycle context rows
 are cleaned up. The postcheck refuses Production and only allows localhost or
 the known hosted staging ref.
+
+## KAN-72 standard booking integrity
+
+The local guard also applies 20261014100000_kan72_standard_booking_integrity.sql
+and runs kan72_standard_booking_integrity_candidate.sql with rollback.
+The fixture covers standard and periodized amount validation, stored journal
+identity/balance, deliberately injected journal faults (including cancelling
+imbalances across two verifications), atomic number rollback, known VAT rounding,
+profile/year/period guards, attachment metadata and existing correction paths.
+It also exercises real authenticated and anonymous caller roles. Do not run the
+fixture directly against hosted or ordinary user data.
+
+To reproduce the pre-fix behavior on an isolated local baseline, run the fixture
+with psql variable apply_kan72_migration=0; use =1 to apply the candidate inside
+its rollback transaction. The guarded suite uses =0 after its local-only apply.
+
+The review follow-up also injects extra journal rows on another transaction
+with the same owner and verification number. It checks ordinary and both
+periodized verifications, NULL/zero/balanced extra rows and number rollback.
+Rows for another user with the same number must not affect the check.
+The domain regression exercises Chromium number-input strings and exact
+decimal/exponent normalization before any Number/valueAsNumber conversion.
