@@ -2,6 +2,55 @@
 
 Last updated: 2026-10-14
 
+## Current objective: KAN-72 journal index review remediation
+
+- Branch: codex/KAN-72-journal-user-ver-index.
+- Worktree: C:/Users/Familjedator/.codex/worktrees/kan72-journal-index/sololedger_multi_user.
+- HEAD/base: 5ae670c326932abb44a360c10308db3de8c6a371. No new commit authorized/created.
+- Remote Production remains 357c980; remote Staging remains 30e82ad.
+- Original KAN-72 worktree at 5ae670c and Staging integration at 920c50ee3ef575877d47872adec5bb9a7fe98ebc remain clean/preserved.
+- Original staging checkout ef498b9 and its documentation commits/untracked files are preserved.
+- KAN-62/65 remain paused. No product logic or previously reviewed migration changed.
+- Index review was PASS WITH NOTES but explicitly NOT commit-ready. This local follow-up fixes P2 directive placement and P3 directive-contract coverage; no independent approval is claimed. User approved local remediation/tests only.
+
+## Candidate / scope
+
+- New migration 20261014123000_kan72_journal_user_ver_index.sql: nonunique B-tree public.journal_entries(user_id,ver_nr), created CONCURRENTLY outside transactions; postguard rejects name collisions/invalid definitions/builds.
+- No INCLUDE, partial predicate, uniqueness or removal of existing indexes. Existing transaction_id index still covers the OR query's other branch.
+- New scripts/test-kan72-journal-index.mjs and npm test:db-index command; no dependency/lockfile change.
+- New supabase/tests/KAN72_JOURNAL_INDEX.md contains exact runbook, evidence, risks, recovery and both release tracks.
+- Accounting integration: physical access path only; RPC/amount validation/journal/VAT/result/NE/dashboard/correction/source logic and all ACL/RLS/policy/constraint definitions unchanged. Existing KAN-55 guards preserved.
+- Before hosted release: repeat exact index/connection preflight, then separately approved Staging journal -> VAT -> dashboard -> NE acceptance of original KAN-72 flows.
+
+## Actual verification: review remediation
+
+- Directive moved from line 3 to absolute line 1. Index SQL/catalog guard otherwise byte-identical to pre-fix candidate.
+- New behavioral CLI contract records txid_current() in two fixture-only DO statements. Both migration up and db push use pinned CLI 2.120.0, fresh data-empty local clones and explicit localhost destinations.
+- Actual up IDs 47761/47762 and push IDs 47785/47786 differ: PASS. Missing/line-3 controls share IDs and fail the same assertion even though index/ledger creation succeeds.
+- Separate source mutations: line 3 and missing directive each produce test process exit 1 at the behavioral up_actual assertion. Original worktree migration never temporarily mutated.
+- Full npm run test:db-index PASS: six directive fixtures, prior creation/idempotency/collision/invalid-build/rollback/CLI contracts, twelve ABBA trials, 12,600 successful synthetic bookings, balanced/contiguous/isolated journal postchecks.
+- Prior public indexes (definitions/OIDs/flags), RPC/ACL/RLS/policies/constraints unchanged in local before/after checks. App code and all committed migrations remain unchanged.
+- Full local DB regression PASS: eight fixtures with index, s72idx_fixreg_prod_mv8002u5 (::1:5432), zero residual users/accounts/transactions/journals/numbers. Schema-only clone plus existing repo tax-reference seed; initial missing-seed setup failure corrected before rerun.
+- npm run test PASS (38 domain scripts + admin-delete dry-run + DB invariants); typecheck PASS; E2E safety PASS; safe regression PASS (38 domain scripts + public Chromium 2/2), process-only webpack fallback/synthetic loopback.
+- Lintdiff PASS: zero new diagnostics. Full lint remains 86 existing errors/6 warnings; revised script lint clean. git diff --check PASS.
+- Not run: authenticated/write E2E, hosted migration/acceptance, Production build and hosted/cold-cache load tests. No hosted write authorized; build not applicable to SQL/test/doc-only correction.
+- Current evidence outside Git: C:/Users/Familjedator/.codex/visualizations/2026/10/14/01a13a0a-f224-70a2-8949-b549ce26f191/; full index run index-tests/run-1791975469956. Earlier performance/three-shape DB evidence remains in C:/SoloLedger/LocalTest/kan72-index-evidence/ and is explicitly historical in the runbook.
+- Exactly four candidate files edited this follow-up: index migration, test script, runbook and PROJECT_STATE.md. Prior package.json addition preserved unchanged; candidate still comprises five dirty/new files.
+
+## Hosted method / next safe step
+
+- Recommended pinned official CLI 2.120.0, --skip-vault, explicit verified target, no seed/roles/include-all; directive -- pg-delta: transaction=false on the absolute FIRST line. Do not use transactional Supabase GitHub branching/MCP.
+- Operate with ONE migration operator; no concurrent privileged index/schema DDL. Postcheck exact definition and valid/ready/live flags. Invalid index after interruption requires separately approved recovery.
+- Hosted TLS connection/session continuity and operation-specific timeouts still require verification BEFORE any DDL. Local protocol tests do not authorize/verify hosted routing.
+- Staging may apply approved versions 20261014100000 then 20261014123000 through CLI when acceptance writers are idle.
+- Production should prebuild same named concurrent index under separate DDL approval before KAN-72, then apply the two exact files through official CLI; locally verified OID preserved and ledger order correct.
+- Invalid index cleanup/retry and any valid-index rollback require exact separate approvals. No automated drop/history repair.
+- Next safe step: renewed independent review of both fixes and the complete five-file candidate. Stop after local verification; no commit approval requested in this turn. After independent acceptance, request separate local commit/integration approvals. The SAME index version/SQL follows both release tracks; never release Staging history containing KAN-62/65 to Production.
+- No new commit, push, merge, deploy, hosted migration/write or Jira mutation. Stop after local candidate and await approval.
+
+## Retained original KAN-72 checkpoint (snapshot at 5ae670c)
+
+
 ## Current Objective: KAN-72
 
 - Independent re-review: PASS MED ANMARKNINGAR. All three findings independently verified fixed; Pontus approved one local KAN-72 commit. Staging acceptance remains pending.
