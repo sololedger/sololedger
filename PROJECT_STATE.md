@@ -2,58 +2,48 @@
 
 Last updated: 2026-10-14
 
-## Current local objective: KAN-72 Staging integration
+## Current objective: KAN-72 Staging journal index integration
 
-- Local integration branch: codex/KAN-72-staging-integration.
+- Branch: codex/KAN-72-staging-integration.
 - Worktree: C:/Users/Familjedator/.codex/worktrees/kan72-staging-integration/sololedger_multi_user.
-- Base: remote Staging 30e82adf9d2868e0e1f1c028b433bc11aa9a7ff7, reverified before integration.
-- Production remains 357c980fba8a343ec7330b26b6268e6525cd49d4.
-- Applied only approved KAN-72 commit 5ae670c326932abb44a360c10308db3de8c6a371 with cherry-pick --no-commit. No integration commit is approved.
-- PROJECT_STATE.md was the sole text conflict. The published Staging handoff is retained below.
-- KAN-62/KAN-65 remain paused pending Skatteverket. Their product code and migrations must remain unchanged.
-- Original staging checkout at ef498b9, its two documentation commits, audit-packages/ and scripts/create-kan63-staging-user.mjs are preserved.
-- Original KAN-72 worktree/commit remains unchanged; Production release must use that Production-based candidate, not this Staging history.
+- HEAD/base: 920c50ee3ef575877d47872adec5bb9a7fe98ebc (approved original Staging integration). No new commit is approved or created.
+- Approved index source: d67db203c0d270aadbaa276c03eaa23ea48838bc on codex/KAN-72-journal-user-ver-index; independent Granska KAN-72 journalindex PASS. Both directive/test findings independently verified fixed.
+- Only index scope transferred: portable four-file patch from that commit; PROJECT_STATE.md separately preserves Staging context. No cherry-pick/merge sequencer, no automatic commit, no text conflict.
+- KAN-62 / KAN-65: ON HOLD pending Skatteverket. Existing product code and two KAN-62 migrations are preserved; never transfer this Staging history wholesale to Production.
+- Original staging checkout ef498b9 and all its existing untracked files are preserved. Production-based index/standard-booking worktrees remain unchanged.
+- Previously recorded remote refs: Production 357c980, Staging 30e82ad; not changed or refreshed in this local integration.
 
-## KAN-72 scope and earlier evidence
+## Candidate and preserved boundaries
 
-- Exact decimal/exponent normalization preserves .50, .01, 1e2 and 1E-2 while rejecting nonpositive, nonfinite, sub-cent, overflow and hidden precision.
-- Shared validation covers TransactionForm, page submit before upload and both standard service entry points. Booked metadata edits remain supported.
-- New migration 20261014100000 replaces only book_transaction_atomic(jsonb) and book_periodized_transaction_atomic(jsonb).
-- Validation precedes number allocation; each full user/verification journal plus all transaction-linked rows is checked for identities, valid rows, expected count and exact balance. Periodization checks both verifications separately.
-- Existing KAN-55 guards, VAT/number lock order and controlled corrections are preserved. No new source, report policy, RLS/grant change, global journal trigger, refund logic or index.
-- Accounting integration surface: journal -> VAT report -> dashboard/result/NE/balances; periodization/correction/year-boundary effects require Staging acceptance. Invoice/payment/receivable logic is unchanged.
-- Independent re-review of original KAN-72: PASS MED ANMARKNINGAR. All three findings fixed; 25,000 parser cases, journal fault/rollback/numbering and concurrency verified.
-- Earlier Production-based checks: npm test, test:regression (38 domain scripts + smoke 2/2), local DB regression (8 fixtures), types, DB invariants and E2E safety PASS. Full lint had 86 inherited errors/6 warnings; zero new diagnostics.
-- These are earlier original-candidate results, not results for the combined Staging candidate.
-- P3: no composite journal index on user_id/ver_nr in either live environment. Measure query plans, booking duration and contention with synthetic local histories before any separately approved index change.
+- Five local candidate files: PROJECT_STATE.md, package.json, scripts/test-kan72-journal-index.mjs, supabase/migrations/20261014123000_kan72_journal_user_ver_index.sql, supabase/tests/KAN72_JOURNAL_INDEX.md. Changes remain UNCOMMITTED and UNSTAGED.
+- Index SQL/version 20261014123000, test script and runbook match the approved index commit exactly. transaction=false is the absolute first line.
+- Original KAN-72 migration stays 20261014100000; unchanged and identical between tracks. Staging KAN-36/54 gross/rate fixture adaptations stay byte-identical to 920c50e.
+- package.json adds only test:db-index. Existing domain tests/scripts and package-lock unchanged.
+- No app/product/RPC/RLS/grant/trigger/accounting/source/VAT/NE/report/correction/SIE/year-end logic change. Existing indexes are preserved. Only physical journal access path is added.
+- Earlier 920c50e integration verification and performance evidence remain in that committed PROJECT_STATE.md and C:/SoloLedger/LocalTest/kan72-integration-evidence/. Copied index runbook contains historical Production-based evidence; current Staging results belong below.
 
-## Integration verification and next step
+## Current verification
 
-- Combined candidate npm run test: PASS (38 domain scripts, admin-delete dry-run and DB invariants).
-- npm run test:regression: PASS (38 domain scripts, public Chromium smoke 2/2). First attempt failed on Turbopack's external node_modules junction; one bounded rerun used an external process-only --webpack preload. No repo/build config changed.
-- Types (--incremental false), E2E safety and DB invariants: PASS.
-- Full local DB regression: 8/8 rollback fixtures PASS on sololedger_kan72_staging_test, localhost (::1):5432; no users, accounts, transactions, journals or number rows remain.
-- Fresh original Production-based npm test, types and local DB regression: PASS separately; original worktree/commit untouched.
-- Full lint: FAIL on both exact Staging base and candidate, 85 existing errors/6 warnings. Normalized per-file/rule/message multiset lintdiff: zero new diagnostics.
-- KAN-36/54 old payload failures reproduced before adaptation. Helpers now select an allowed rate that reproduces existing rounded net/VAT exactly. No-deduction small-value input adjusted to gross 29,599.99; old gross 36,999.99 retained as an explicit rejected useful-life case, matching existing KAN-62 domain tests. No accounting policy or KAN-62/65 product change.
-- Relevant local/live Staging schema matches: 33 constraints, 16 indexes, 13 policies and RLS flags for seven affected tables. All eight RPC ACL sets match; six unchanged helper/correction/inventory definitions match exactly. Only the two KAN-72 RPC definitions differ.
-- Six synthetic performance databases: 1,000/10,000/100,000 journal rows per owner + 1,000 other-user rows; 80 standard, 40 periodized and 100 four-client mixed bookings per variant. All 1,320 benchmark transactions succeeded; complete journals, contiguous numbers and other-user counter unchanged.
-- Average ordinary booking ms, base -> candidate: 1.684 -> 1.929 (1k), 1.791 -> 3.215 (10k), 1.809 -> 18.117 (100k).
-- Average periodized booking ms: 2.172 -> 2.847 / 2.435 -> 5.095 / 2.254 -> 32.216. Four-client p95 at 100k: 17.167 -> 238.844 ms; up to three transaction-ID lock waiters observed.
-- Integrity query at 100k: sequential scan, 14.765 ms, 1,554 shared buffers. Local rollback-only (user_id, ver_nr) index probe: BitmapOr, 0.145 ms, four buffers. Index absent and data/counters unchanged after every ROLLBACK. No index migration created.
-- Recommendation: separately approve/index-review before Production at large-history scale. This is synthetic warm-cache evidence, not a hosted latency guarantee; no concurrent indexed benchmark or hosted write acceptance run.
-- Reproducible harnesses/raw plans/logs: C:/SoloLedger/LocalTest/kan72-integration-evidence/ (outside Git). Disposable synthetic performance DBs, including setup attempts, are retained.
-- Final git diff --check: PASS. Exactly 14 approved files; ten unchanged blobs equal original KAN-72, service patch contains only the two amount guards, published Staging handoff retained. No secrets/generated artifacts or new commits. All candidate files staged locally for review (git diff HEAD / --cached).
+- npm run test PASS (38 domain scripts + admin-delete dry-run + DB invariants); typecheck --incremental false PASS; E2E safety PASS.
+- Full npm run test:db-index PASS: six pinned CLI 2.120.0 transaction/negative-control cases, creation/idempotency/eight collisions/invalid-build/recovery/ledger checks, twelve ABBA trials and 12,600 synthetic bookings. Journal balance/numbering/isolation and previous index/RPC/security/constraint invariants PASS.
+- Local Staging DB regression PASS, 8/8 fixtures, s72idx_stageverified_mv814n9p (::1:5432), data-empty clone of established sololedger_kan72_staging_test. CLI applied 20261014100000 then 20261014123000; zero residual user/accounting rows. KAN-36/54 adapted fixtures and KAN-55 all PASS.
+- Additional fresh reconstruction: all 40 exact Staging repo migrations applied/recorded through pinned CLI, including both KAN-62 versions. Repo/local ledger identity and order match. Repeated migration up preserves index; all user/accounting tables remain empty.
+- IMPORTANT discrepancy: DB regression on that fresh chain FAILS at the KAN-72 anon privilege assertion. Both standard RPCs inherit PUBLIC execute (proacl NULL), unlike the established local Staging template's explicit authenticated/service_role-only ACLs. Index create/drop does not alter ACLs/RPCs; no product/ACL/migration repair made. Fresh bootstrap uses local schema-only Auth and minimal Storage scaffolding, not a hosted Supabase emulator. This is a separate reconstruction/privilege finding; do not describe fresh-chain regression as green or infer current hosted ACL state from it.
+- Public Chromium browser-smoke PASS 2/2, local app only; process-only established webpack preload and synthetic loopback Supabase values. No env/source change or hosted request.
+- Lintdiff PASS, zero new diagnostics; new script zero errors/warnings. Full Staging lint remains 85 existing errors/6 warnings, identical to baseline. git diff --check PASS.
+- Exact index migration/version and standard KAN-72 migration match both tracks; test script/runbook match approved index commit. Staging KAN-36/54 fixture blobs, product/RPC/RLS/grant/old migration/lockfile files unchanged from 920c50e. All other worktrees/refs preserved.
+- Not run: hosted/write browser E2E, hosted migration/acceptance, Production build, hosted/cold-cache load tests. Existing-source full checks are historical, not substituted for these fresh combined tests.
+- Evidence outside Git: C:/Users/Familjedator/.codex/visualizations/2026/10/14/01a13a0a-f224-70a2-8949-b549ce26f191/staging-index-integration/; index-suite/run-1791977173575, established-staging-db-result.json, fresh-chain-permission-discrepancy.json, lintdiff-result.json and browser-smoke.log. Separate databases retained; no template/user data changed.
+- Ready for independent review of this exact local index integration WITH the above fresh-chain regression discrepancy explicitly disclosed. No new commit/approval for publication. Separate diagnosis is required before claiming fresh reconstruction is verified.
 
-- KAN-36/54 SQL fixtures still use the pre-KAN-62 payload. Only test-contract adaptations are approved; a real product defect or bookkeeping change requires stopping and reporting.
-- Supabase Production: wbaxmuvudpnkvuliicuy; Staging: fzxqiqenqjzhlyxxpvhg. Write-capable DB regressions must remain localhost-only.
-- Read-only analysis found Staging get_next_ver_nr has broader PUBLIC/anon execute grants than Production; the identity guard remains. KAN-72 does not modify that inherited difference.
-- Staging public URL requires Vercel login. Hosted acceptance must verify its actual Supabase connection before writes.
-- KAN-72 migration is not hosted. Staging migration identity must later be preserved through official CLI; only version 20261014100000 may be pending.
-- Jira KAN-72 read-only verified In Progress. No Jira mutation is authorized.
-- Current approval: local integration, test fixtures and synthetic local DB/performance tests only.
-- No new commit, push, hosted migration/write, deploy or change to KAN-62/65 product behavior.
-- Next step: independent review of this uncommitted local candidate, with measured performance risk and separate index decision before Production.
+## Approval boundaries and next safe step
+
+- Local integration and isolated LOCAL database/test writes only. No new commit, push, merge to staging/main, cherry-pick commit, deploy, hosted migration/write or Jira mutation approved/performed.
+- Supabase Production wbaxmuvudpnkvuliicuy; Staging fzxqiqenqjzhlyxxpvhg. These are never write-test targets in this task. All write-capable regression targets must be independently verified loopback databases.
+- Hosted migration order after separate approval: 20261014100000 then 20261014123000. Preserve repo/live migration identity; no history repair or pre-registration.
+- One migration operator; no simultaneous privileged index/schema changes. Postcheck exact definition and valid/ready/live flags. Invalid index after interruption requires separately approved recovery.
+- Hosted connection/session/TLS/timeouts and representative journal -> VAT -> dashboard -> NE, periodization/correction acceptance remain separate future Staging work.
+- Next safe step: finish local combined tests, then independent review of the uncommitted five-file index integration. Stop after report; no publication authorized.
 
 ## Retained published Staging handoff (before KAN-72 integration)
 
