@@ -10,6 +10,8 @@ export interface VatReportDisplayRow {
 }
 
 export interface VatReportPresentation {
+  historicalReviewRequired: boolean
+  closingReconciliationRequired: boolean
   fields: Record<VatReturnField, number>
   domesticSalesBase: number
   domesticSalesBase25: number
@@ -51,6 +53,8 @@ export function buildVatReportPresentation(
   )
 
   return {
+    historicalReviewRequired: report.historicalReviewRequired === true,
+    closingReconciliationRequired: report.closingReconciliationRequired === true,
     fields,
     domesticSalesBase: fields['05'],
     domesticSalesBase25: report.legacy.domesticSalesBase25,

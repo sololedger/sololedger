@@ -202,7 +202,7 @@ if (legacyReverseChargeShape.status === 'blocked') {
   )
 }
 
-const undoneSieImport = assertReady(
+assertBlocked(
   {
     transactions: [tx('undone-sie-reverse-charge-like', 'sie_import', 'undone')],
     journalRows: [
@@ -213,15 +213,12 @@ const undoneSieImport = assertReady(
     ],
     vatV2Snapshots: [],
   },
+  'legacy_reverse_charge_ambiguous',
   'KAN-32 undo original transaction from undone SIE batch'
 )
 
-assertField(undoneSieImport.fields, '05', 0, 'KAN-32 undo original')
-assertField(undoneSieImport.fields, '10', 0, 'KAN-32 undo original')
-assertField(undoneSieImport.fields, '48', 0, 'KAN-32 undo original')
-assertField(undoneSieImport.fields, '49', 0, 'KAN-32 undo original')
 
-const undoneSieImportWithUndoTransaction = assertReady(
+assertBlocked(
   {
     transactions: [
       tx('undone-original-full-year', 'sie_import', 'undone'),
@@ -239,13 +236,10 @@ const undoneSieImportWithUndoTransaction = assertReady(
     ],
     vatV2Snapshots: [],
   },
+  'legacy_reverse_charge_ambiguous',
   'KAN-32 undo full-year dashboard shape with original and SIE undo'
 )
 
-assertField(undoneSieImportWithUndoTransaction.fields, '05', 0, 'KAN-32 undo full-year')
-assertField(undoneSieImportWithUndoTransaction.fields, '10', 0, 'KAN-32 undo full-year')
-assertField(undoneSieImportWithUndoTransaction.fields, '48', 0, 'KAN-32 undo full-year')
-assertField(undoneSieImportWithUndoTransaction.fields, '49', 0, 'KAN-32 undo full-year')
 
 assertBlocked(
   {

@@ -71,16 +71,16 @@ assertEqual(
     source: 'sie_import',
     importBatchStatus: 'undone',
   }),
-  false,
-  'dashboard VAT source filter ignores original transaction from undone SIE batch'
+  true,
+  'KAN-71 dashboard includes booked original in its journal period after undo'
 )
 assertEqual(
   isLegacyVatInferenceTransaction({
     source: 'sie_import_undo',
     importBatchStatus: 'undone',
   }),
-  false,
-  'dashboard VAT source filter ignores SIE undo transaction from undone batch'
+  true,
+  'KAN-71 dashboard includes SIE undo with its journal sign and period'
 )
 assertEqual(
   isLegacyVatInferenceTransaction({

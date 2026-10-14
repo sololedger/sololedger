@@ -204,7 +204,7 @@ export default function ProfileSettings({
       `Ångra SIE-importen "${item.filename}"?\n\n` +
       `${item.imported_count ?? item.verification_count ?? 0} importerade verifikationer kommer att rättas automatiskt med KORRVER. ` +
       `Originalverifikationerna ligger kvar för spårbarhet.\n\n` +
-      `Ångringen kan stoppas om räkenskapsåret är låst eller om någon importerad verifikation redan har korrigerats.`
+      `Momsrelevanta verifikationer kan bara återställas inom samma verifierade öppna momsperiod. Historiska momsperioder kräver separat hantering. Ångringen stoppas också vid låst år, osäker omvänd moms eller tidigare rättelser.`
     )
 
     if (!ok) return

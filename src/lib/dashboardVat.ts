@@ -5,13 +5,25 @@ import {
   type VatReportSupabaseClient,
 } from './vatReportService.ts'
 import { buildVatReportPresentation, vatReportBlockedMessage } from './vatReportPresentation.ts'
+import { HISTORICAL_SIE_VAT_REVIEW_MESSAGE } from './sieVatHistory.ts'
 
 const DASHBOARD_VAT_BLOCKED_MESSAGE =
   'Momsöversikten kan inte beräknas säkert. Kontrollera momsrapporten innan säkert uttag används.'
+const VAT_CLOSING_RECONCILIATION_MESSAGE =
+  'Journalavstämningen kan inte stämmas av mot ett lagrat momsavslut. Historiska momsperioder kräver separat kontroll innan säkert uttag kan beräknas.'
 
 export function dashboardVatBreakdownFromReportResult(
   result: VatReportServiceResult
 ): MomsBreakdown {
+  if (result.status === 'ready' &&
+    (result.report.historicalReviewRequired || result.report.closingReconciliationRequired)) {
+    return {
+      utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0,
+      manualReviewRequired: true,
+      manualReviewMessage: result.report.historicalReviewRequired
+        ? HISTORICAL_SIE_VAT_REVIEW_MESSAGE : VAT_CLOSING_RECONCILIATION_MESSAGE,
+    }
+  }
   if (result.status === 'blocked') {
     return {
       utgaendeMoms: 0,

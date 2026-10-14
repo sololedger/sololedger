@@ -11,6 +11,7 @@ import {
   fetchAllRowsByChunks,
   type FetchAllRangeQuery,
 } from './supabaseFetchAll.ts'
+import { historicalSieUndoNeedsReview } from './sieVatHistory.ts'
 
 export type VatReportServiceErrorCode =
   | 'query_failed'
@@ -62,9 +63,20 @@ export interface VatReportAuditSnapshotRow {
 }
 
 export interface LoadedVatReportRows {
+  // Authenticated DB verdict includes descendants outside the report/year.
+  sieCorrectionHistoryReviewRequired?: boolean
   transactions: VatReportTransactionRow[]
   journalRows: VatReportJournalEntryRow[]
   vatV2Snapshots: VatReportAuditSnapshotRow[]
+  vatPeriods?: {
+    id: string
+    user_id: string
+    period_start: string
+    period_end: string
+    source: string
+    status?: string
+    closing_amount?: number | string | null
+  }[]
 }
 
 type VatReportInputBuildResult =
@@ -100,6 +112,7 @@ type VatReportSupabaseQuery = {
 
 export type VatReportSupabaseClient = {
   from(table: string): VatReportSupabaseQuery
+  rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>
 }
 
 function isInPeriod(date: string | null | undefined, startDate: string, endDate: string) {
@@ -181,6 +194,10 @@ function assertLoadedTenantScope(
       'invalid_loaded_scope',
       'Loaded VAT report snapshots contain rows outside the authenticated user scope.'
     ))
+  }
+
+  if (rows.vatPeriods?.some(row => row.user_id !== userId)) {
+    errors.push(serviceError('invalid_loaded_scope', 'VAT period belongs to another user.'))
   }
 
   return errors
@@ -297,6 +314,28 @@ function buildVatReportAggregatorInput(input: {
   }
 }
 
+function closingReconciliationRequired(input: {
+  userId: string; startDate: string; endDate: string; rows: LoadedVatReportRows
+}) {
+  for (const period of input.rows.vatPeriods ?? []) {
+    if (period.source !== 'sololedger' ||
+      !['closed', 'declared'].includes(period.status ?? '') ||
+      period.period_end < input.startDate || period.period_start > input.endDate) continue
+    // A partial period does not provide enough evidence to compare its full
+    // stored closing. Annual zero/matching totals cannot hide period errors.
+    if (period.period_start < input.startDate || period.period_end > input.endDate ||
+      period.closing_amount == null || !Number.isFinite(Number(period.closing_amount))) return true
+    const built = buildVatReportAggregatorInput({
+      ...input, startDate: period.period_start, endDate: period.period_end,
+    })
+    if (built.status === 'blocked') return true
+    const calculated = aggregateVatReport(built.input)
+    if (calculated.status === 'blocked' ||
+      Math.abs(calculated.report.fields['49'] - Number(period.closing_amount)) >= 0.005) return true
+  }
+  return false
+}
+
 export function calculateVatReportFromLoadedRows(input: {
   userId: string
   startDate: string
@@ -330,7 +369,12 @@ export function calculateVatReportFromLoadedRows(input: {
 
   return {
     status: 'ready',
-    report: aggregation.report,
+    report: {
+      ...aggregation.report,
+      historicalReviewRequired: input.rows.sieCorrectionHistoryReviewRequired === true ||
+        historicalSieUndoNeedsReview(input.rows),
+      closingReconciliationRequired: closingReconciliationRequired(input),
+    },
     errors: [],
   }
 }
@@ -366,6 +410,15 @@ export async function getVatReportForPeriodFromDb(
   endDate: string
 ): Promise<VatReportServiceResult> {
   try {
+    const history = await db.rpc('get_sie_vat_history_review', {
+      p_start_date: startDate, p_end_date: endDate,
+    })
+    if (history.error || typeof history.data !== 'boolean') {
+      return queryError(
+        'Momshistoriken kunde inte verifieras. Momsavslut och säkert uttag kräver en verifierad historik.',
+        history.error
+      )
+    }
     const period26Rows = await fetchAllRows<
       Pick<VatReportJournalEntryRow, 'user_id' | 'transaction_id' | 'account_number' | 'date'>
     >({
@@ -442,18 +495,29 @@ export async function getVatReportForPeriodFromDb(
     const importBatchStatusById = new Map(
       importBatchRows.map(row => [row.id, row.status])
     )
-    const allTransactionRowsWithBatchStatus = allTransactionRows.map(row => ({
+    const undoneBatchIds = importBatchRows.filter(row => row.status === 'undone').map(row => row.id)
+    const batchTransactions = undoneBatchIds.length === 0 ? [] :
+      await fetchAllRowsByChunks<VatReportTransactionRow, string>({
+        context: 'complete undone SIE batch transactions',
+        values: undoneBatchIds,
+        createQuery: ids => db.from('transactions')
+          .select('id, user_id, date, source, import_batch_id', { count: 'exact' })
+          .eq('user_id', userId).in('import_batch_id', ids) as FetchAllRangeQuery<VatReportTransactionRow>,
+      })
+    for (const row of batchTransactions) allTransactionsById.set(row.id, row)
+    const completeTransactionIds = Array.from(allTransactionsById.keys())
+    const allTransactionRowsWithBatchStatus = Array.from(allTransactionsById.values()).map(row => ({
       ...row,
       import_batch_status: row.import_batch_id
         ? importBatchStatusById.get(row.import_batch_id) ?? null
         : null,
     }))
     const all26Rows =
-      relevantTransactionIds.length === 0
+      completeTransactionIds.length === 0
         ? [] as VatReportJournalEntryRow[]
         : await fetchAllRowsByChunks<VatReportJournalEntryRow, string>({
           context: 'complete VAT report journal rows',
-          values: relevantTransactionIds,
+          values: completeTransactionIds,
           createQuery: ids => db
             .from('journal_entries')
             .select('user_id, transaction_id, account_number, debit, credit, date', { count: 'exact' })
@@ -495,14 +559,25 @@ export async function getVatReportForPeriodFromDb(
             .in('transaction_id', ids) as FetchAllRangeQuery<VatReportAuditSnapshotRow>,
         })
 
+    const vatPeriods = await fetchAllRows<
+      NonNullable<LoadedVatReportRows['vatPeriods']>[number]
+    >({
+      context: 'VAT closing reconciliation and SIE period verification',
+      createQuery: () => db.from('vat_periods')
+        .select('id, user_id, period_start, period_end, source, status, closing_amount', { count: 'exact' })
+        .eq('user_id', userId) as FetchAllRangeQuery<NonNullable<LoadedVatReportRows['vatPeriods']>[number]>,
+    })
+
     return calculateVatReportFromLoadedRows({
       userId,
       startDate,
       endDate,
       rows: {
+        sieCorrectionHistoryReviewRequired: history.data,
         transactions: allTransactionRowsWithBatchStatus,
         journalRows: reportJournalRows,
         vatV2Snapshots: snapshotRows,
+        vatPeriods,
       },
     })
   } catch (err) {

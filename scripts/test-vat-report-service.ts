@@ -203,9 +203,10 @@ type FakeTableName =
   | 'journal_entries'
   | 'import_batches'
   | 'vat_audit_snapshots'
+  | 'vat_periods'
 
 type FakeRow = Record<string, unknown>
-type FakeDbRows = Record<FakeTableName, FakeRow[]>
+type FakeDbRows = Record<Exclude<FakeTableName, 'vat_periods'>, FakeRow[]> & { vat_periods?: FakeRow[] }
 
 class FakeVatReportQuery {
   private readonly rows: FakeRow[]
@@ -275,10 +276,11 @@ class FakeVatReportQuery {
 
 function fakeDb(rows: FakeDbRows) {
   return {
+    rpc: async () => ({ data: false, error: null }),
     from(table: FakeTableName) {
       return {
         select() {
-          return new FakeVatReportQuery(rows[table])
+          return new FakeVatReportQuery(rows[table] ?? [])
         },
       }
     },
@@ -336,7 +338,7 @@ assertBlocked(
   'KAN-32 legacy/SIE reverse-charge-shaped rows'
 )
 
-const undoneSieQ3 = assertReady(
+assertBlocked(
   {
     transactions: [
       tx({
@@ -354,14 +356,13 @@ const undoneSieQ3 = assertReady(
     ],
     vatV2Snapshots: [],
   },
+  'aggregation_blocked',
+  'legacy_reverse_charge_ambiguous',
   'KAN-32 Q3 original transaction from undone SIE batch'
 )
 
-assertField(undoneSieQ3.fields, '10', 0, 'KAN-32 Q3 undone original')
-assertField(undoneSieQ3.fields, '48', 0, 'KAN-32 Q3 undone original')
-assertField(undoneSieQ3.fields, '49', 0, 'KAN-32 Q3 undone original')
 
-const undoneSieFullYearDashboardShape = assertReady(
+assertBlocked(
   {
     transactions: [
       tx({
@@ -410,13 +411,11 @@ const undoneSieFullYearDashboardShape = assertReady(
     ],
     vatV2Snapshots: [],
   },
-  'KAN-32 full-year dashboard shape with undone original and SIE undo',
-  { startDate: '2026-01-01', endDate: '2026-12-31' }
+  'aggregation_blocked',
+  'legacy_reverse_charge_ambiguous',
+  'KAN-32 full-year dashboard shape with undone original and SIE undo'
 )
 
-assertField(undoneSieFullYearDashboardShape.fields, '10', 0, 'KAN-32 full-year undone')
-assertField(undoneSieFullYearDashboardShape.fields, '48', 0, 'KAN-32 full-year undone')
-assertField(undoneSieFullYearDashboardShape.fields, '49', 0, 'KAN-32 full-year undone')
 
 assertBlocked(
   {

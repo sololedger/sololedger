@@ -78,6 +78,8 @@ export interface VatReportAggregationError {
 }
 
 export interface VatReportAggregation {
+  historicalReviewRequired?: boolean
+  closingReconciliationRequired?: boolean
   fields: VatReportFields
   legacy: {
     outputVat25: number
