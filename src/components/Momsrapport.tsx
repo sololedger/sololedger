@@ -24,6 +24,7 @@ import {
   type VatPeriodType,
 } from '@/lib/accountingService'
 import { getVatReportForPeriod } from '@/lib/vatReportService'
+import { HISTORICAL_SIE_VAT_REVIEW_MESSAGE } from '@/lib/sieVatHistory'
 import {
   buildVatReportPresentation,
   vatReportBlockedMessage,
@@ -348,10 +349,15 @@ export default function Momsrapport({
         todayIso,
       })
     : false
-  const canCloseSelectedPeriod = lifecycleCanCloseSelectedPeriod && hasCurrentReport
+  const reportNeedsReview = vatReport?.historicalReviewRequired === true ||
+    vatReport?.closingReconciliationRequired === true ||
+    (hasCurrentReport && selectedPeriod?.closing_amount != null &&
+      Math.abs((vatReport?.netVat ?? 0) - Number(selectedPeriod.closing_amount)) >= 0.005)
+  const canCloseSelectedPeriod = lifecycleCanCloseSelectedPeriod && hasCurrentReport && !reportNeedsReview
   const canDeclareSelectedPeriod =
     lifecycleCanDeclareSelectedPeriod &&
     hasCurrentReport &&
+    !reportNeedsReview &&
     declarationSubmittedOnIsValid
   const autoLoadCurrentReport = shouldAutoLoadVatReport({
     selectedPeriod,
@@ -2039,6 +2045,18 @@ export default function Momsrapport({
       {/* Results */}
       {currentVatReport && selectedPeriod && (
         <div className="space-y-4 animate-in fade-in duration-300">
+          {(selectedPeriod.status !== 'open' || reportNeedsReview) && (
+            <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              {reportNeedsReview
+                ? (currentVatReport.historicalReviewRequired
+                  ? HISTORICAL_SIE_VAT_REVIEW_MESSAGE
+                  : 'Journalavstämningen skiljer sig från det lagrade momsavslutet. Historiska momsperioder kräver separat hantering.')
+                : 'Beloppen nedan visar aktuell journalavstämning, inte en sparad kopia av en inlämnad momsdeklaration.'}
+              {selectedPeriod.closing_amount != null && (
+                <p className="mt-2">Lagrat momsavslut: {fmt(Number(selectedPeriod.closing_amount))} kr. Avslutet och tidigare deklarationsuppgifter ändras inte av denna avstämning.</p>
+              )}
+            </div>
+          )}
           <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-1">
             {periodLabel(selectedPeriod)} / {statusLabel(selectedPeriod.status)} / {sourceLabel(selectedPeriod.source)}
           </p>

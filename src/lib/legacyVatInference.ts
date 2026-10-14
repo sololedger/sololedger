@@ -5,12 +5,6 @@ export const LEGACY_VAT_INFERENCE_SOURCES = new Set([
   'sie_import_undo',
 ])
 
-const LEGACY_SIE_IMPORT_SOURCES = new Set([
-  'sie_import',
-  'sie_opening_balance',
-  'sie_import_undo',
-])
-
 const LEGACY_REVERSE_CHARGE_VAT_ACCOUNTS = new Set([
   '2614',
   '2624',
@@ -26,17 +20,9 @@ export function isLegacyVatInferenceTransaction(input: {
   source: string | null | undefined
   importBatchStatus?: string | null
 }) {
-  if (!isLegacyVatInferenceSource(input.source)) return false
-
-  if (
-    input.source != null &&
-    LEGACY_SIE_IMPORT_SOURCES.has(input.source) &&
-    input.importBatchStatus === 'undone'
-  ) {
-    return false
-  }
-
-  return true
+  // Booked originals and corrections belong to their journal periods even
+  // after a batch is undone. Batch status is import history, not VAT evidence.
+  return isLegacyVatInferenceSource(input.source)
 }
 
 export function isOutputVatAccount(accountNumber: string) {

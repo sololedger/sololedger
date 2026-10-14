@@ -1,133 +1,67 @@
 # SoloLedger Project State
 
-Last updated: 2026-10-14
+Last updated: 2026-10-14. KAN-71 independent review PASS reported by Pontus; local checkpoint authorized, no push.
 
-## Current objective: KAN-72 journal index review remediation
+## Current Objective / Next Safe Step
 
-- Branch: codex/KAN-72-journal-user-ver-index.
-- Worktree: C:/Users/Familjedator/.codex/worktrees/kan72-journal-index/sololedger_multi_user.
-- HEAD/base: 5ae670c326932abb44a360c10308db3de8c6a371. No new commit authorized/created.
-- Remote Production remains 357c980; remote Staging remains 30e82ad.
-- Original KAN-72 worktree at 5ae670c and Staging integration at 920c50ee3ef575877d47872adec5bb9a7fe98ebc remain clean/preserved.
-- Original staging checkout ef498b9 and its documentation commits/untracked files are preserved.
-- KAN-62/65 remain paused. No product logic or previously reviewed migration changed.
-- Index review was PASS WITH NOTES but explicitly NOT commit-ready. This local follow-up fixes P2 directive placement and P3 directive-contract coverage; no independent approval is claimed. User approved local remediation/tests only.
+- Pontus reports independent after-review PASS for the complete KAN-71 candidate. Implementation/review phase is finished; no further review loop without a concrete new finding. Current task: local checkpoint, isolated Staging release preparation and durable handoff.
+- Branch: codex/KAN-71-sie-vat-periods.
+- Worktree: C:/Users/Familjedator/.codex/worktrees/kan71-sie-vat-periods/sololedger_multi_user.
+- Implementation base: d67db203c0d270aadbaa276c03eaa23ea48838bc, verified Production KAN-72 release. The authorized local checkpoint includes exactly the KAN-71 files below; its commit is the containing implementation commit. KAN-62/65 excluded.
+- Freshly fetched origin/staging: 9ff22b45cc7b72e14d26a3d13a97219476965097; origin/main: d67db203c0d270aadbaa276c03eaa23ea48838bc. Canonical local staging is older/different documentation history and MUST NOT be the release base.
+- Read-only Staging ledger fzxqiqenqjzhlyxxpvhg: exactly 40 versions, matching origin/staging repository versions/names, latest 20261014123000. The three KAN-71 versions sort after all 40 in order 20261014162850 -> 20261014171038 -> 20261014174218.
+- Review/runbook: supabase/tests/KAN71_SIE_VAT_PERIODS.md. Exact hosted migration/publish/test-write steps need separate approval.
+- Jira KAN-71 last read: Bug / High / To Do / unassigned. No Jira mutation; task tracking is unchanged by this checkpoint. PASS is Pontus's supplied independent-review verdict.
 
-## Candidate / scope
+## Candidate / Accounting Surface
 
-- New migration 20261014123000_kan72_journal_user_ver_index.sql: nonunique B-tree public.journal_entries(user_id,ver_nr), created CONCURRENTLY outside transactions; postguard rejects name collisions/invalid definitions/builds.
-- No INCLUDE, partial predicate, uniqueness or removal of existing indexes. Existing transaction_id index still covers the OR query's other branch.
-- New scripts/test-kan72-journal-index.mjs and npm test:db-index command; no dependency/lockfile change.
-- New supabase/tests/KAN72_JOURNAL_INDEX.md contains exact runbook, evidence, risks, recovery and both release tracks.
-- Accounting integration: physical access path only; RPC/amount validation/journal/VAT/result/NE/dashboard/correction/source logic and all ACL/RLS/policy/constraint definitions unchanged. Existing KAN-55 guards preserved.
-- Before hosted release: repeat exact index/connection preflight, then separately approved Staging journal -> VAT -> dashboard -> NE acceptance of original KAN-72 flows.
+- Original and undo VAT rows contribute with correct signs by journal date; undone batch status no longer deletes report contributions.
+- Entire relevant undone batch/period evidence is loaded across period/year boundaries. Uncertain/cross-period historical undo blocks safe withdrawal and new automatic UI close/declaration decisions.
+- Closed/declared reports explicitly show current journal reconciliation separately from the preserved stored closing amount; no historical declaration is silently claimed/repaired.
+- Migration 20261014162850_kan71_sie_undo_vat_period_guard.sql changes only undo_sie_import_atomic and close_vat_period_atomic, preserving identity/ACL boundaries.
+- New review migration 20261014171038_kan71_sie_correction_period_guard.sql guards generic corrections and legacy manual-source SIE descendants through existing corrects_ver_nr provenance. Same-open-period corrections remain valid; closed/declared/other-period/year-crossing/ambiguous SIE paths fail atomically. Private lineage helper has no anon/authenticated EXECUTE.
+- Report/dashboard reconciliation now compares EVERY affected closed/declared period with its stored amount, even without undone imports and when annual differences cancel. Difference or incomplete evidence blocks safe withdrawal; no historical state is changed.
+- Undo locks original journal + correction months, rechecks state after locks, requires exactly the same verified open SoloLedger period, and rejects ambiguous reverse VAT, year crossing and locked years.
+- Close blocks new decisions on unsafe legacy undone SIE evidence or ambiguous SIE reverse VAT. Historical closing amounts/rows/declaration state stay unchanged.
+- Third migration 20261014174218_kan71_legacy_sie_correction_history_guard.sql reuses sie_correction_lineage for all tenant VAT corrections, including manual/no-batch descendants outside the report/year. The authenticated read RPC and post-month-lock new-close guard share one verdict. Cross-period/year, missing/overlapping/imported periods and ambiguous reverse VAT require review. Valid ordinary manual and same-period SIE chains remain valid.
+- Report/dashboard consume the authoritative verdict even when a stored original close matches its journal; warning blocks automatic close/declaration UI and safe withdrawal. Missing/failed RPC fails closed. Already closed/declared DB behavior stays intact. Deploy migration BEFORE application code after separate approval.
+- Provenance uses is_correction/corrects_ver_nr and user-scoped journal ver_nr to a preserved SIE source, never descriptions/amount guesses. Broken/ambiguous VAT lineage blocks the user's history-dependent decisions conservatively without classifying it as SIE. Fully erased provenance cannot be reconstructed/distinguished from a legitimate manual origin.
+- No new table/domain, RLS/grant expansion, deletion lifecycle, SIE export, NE, invoice, year-close or KAN-62/65 logic change.
+- Full historic SKV field snapshots were not stored. This patch labels reconciliation; no new snapshot persistence/backfill is added.
 
-## Actual verification: review remediation
+## Verification / Limits
 
-- Directive moved from line 3 to absolute line 1. Index SQL/catalog guard otherwise byte-identical to pre-fix candidate.
-- New behavioral CLI contract records txid_current() in two fixture-only DO statements. Both migration up and db push use pinned CLI 2.120.0, fresh data-empty local clones and explicit localhost destinations.
-- Actual up IDs 47761/47762 and push IDs 47785/47786 differ: PASS. Missing/line-3 controls share IDs and fail the same assertion even though index/ledger creation succeeds.
-- Separate source mutations: line 3 and missing directive each produce test process exit 1 at the behavioral up_actual assertion. Original worktree migration never temporarily mutated.
-- Full npm run test:db-index PASS: six directive fixtures, prior creation/idempotency/collision/invalid-build/rollback/CLI contracts, twelve ABBA trials, 12,600 successful synthetic bookings, balanced/contiguous/isolated journal postchecks.
-- Prior public indexes (definitions/OIDs/flags), RPC/ACL/RLS/policies/constraints unchanged in local before/after checks. App code and all committed migrations remain unchanged.
-- Full local DB regression PASS: eight fixtures with index, s72idx_fixreg_prod_mv8002u5 (::1:5432), zero residual users/accounts/transactions/journals/numbers. Schema-only clone plus existing repo tax-reference seed; initial missing-seed setup failure corrected before rerun.
-- npm run test PASS (38 domain scripts + admin-delete dry-run + DB invariants); typecheck PASS; E2E safety PASS; safe regression PASS (38 domain scripts + public Chromium 2/2), process-only webpack fallback/synthetic loopback.
-- Lintdiff PASS: zero new diagnostics. Full lint remains 86 existing errors/6 warnings; revised script lint clean. git diff --check PASS.
-- Not run: authenticated/write E2E, hosted migration/acceptance, Production build and hosted/cold-cache load tests. No hosted write authorized; build not applicable to SQL/test/doc-only correction.
-- Current evidence outside Git: C:/Users/Familjedator/.codex/visualizations/2026/10/14/01a13a0a-f224-70a2-8949-b549ce26f191/; full index run index-tests/run-1791975469956. Earlier performance/three-shape DB evidence remains in C:/SoloLedger/LocalTest/kan72-index-evidence/ and is explicitly historical in the runbook.
-- Exactly four candidate files edited this follow-up: index migration, test script, runbook and PROJECT_STATE.md. Prior package.json addition preserved unchanged; candidate still comprises five dirty/new files.
+- Local DB sololedger_kan71_candidate_20261014 / localhost:5432 / ::1: separate data-empty copy of KAN-71 reproduction DB, relevant exact live definitions/helpers. Existing local DBs preserved.
+- Fifteen rollback SQL scenarios and thirteen actual RPC-source report assertions PASS. Existing manual-review close guard for all-zero VAT activity retained/tested.
+- Three two-session races PASS with observed advisory waits: close then undo, undo then close, two undos.
+- Latest review DB: sololedger_kan71_review_20261014 / localhost:5432 / ::1, schema-only copy plus exact live correction/security context. Earlier DBs preserved. 20 authenticated generic correction/lineage scenarios PASS; seven authenticated two-session races PASS, including lock on original's older month; both migrations preserve existing synthetic historical rows.
+- Migration preserves existing synthetic accounting/history/closing state PASS; balance, immutable originals, atomic failure, auth/tenant and duplicate undo checks PASS.
+- New domain/loader/report/dashboard/safe-withdrawal/SIE/NE regression included in test:domain; complete domain coverage PASS.
+- Typecheck, changed library/test lint and diff check PASS. React/test lint comparison: zero new diagnostics; ProfileSettings retains 12 existing diagnostics.
+- Public Playwright Chromium smoke 2/2 PASS via one documented process-only Webpack fallback. Default test:regression FAILED at Turbopack startup on the local dependency junction after domain PASS; do not call that literal command green.
+- Latest domain suite/typecheck/targeted lint and established Webpack public smoke 2/2 PASS. Independent after-review PASS reported by Pontus. Not run: authenticated feature-browser/write E2E, full lint cleanup, Production build or Staging acceptance. Release-candidate build/local integration checks follow in the isolated Staging worktree; manual checklist is in the runbook.
+- No whole-hosted-schema/data parity claim. Relevant live RPC/RLS/ACL/constraints/indexes inspected read-only.
+- SQL fixtures roll back; six NEW synthetic concurrency users remain in this dedicated candidate DB. Existing fixtures/users/history untouched.
+- Review serial fixtures roll back; 14 new synthetic race users retained only in the new review DB. Final evidence review-full-db-tests.log and C:/Users/FAMILJ~1/AppData/Local/Temp/sololedger-kan71-TOursX/.
+- Latest isolated DB sololedger_kan71_history_20261014 / localhost:5432 / ::1: schema-only copy of review DB, no data copied/old DB repair. 16 legacy history/direct-close rollback cases and 19 actual DB-verdict/report/safe-withdrawal snapshots PASS; includes Q2/Q3 closed/declared originals, no batch, multihop, ordinary manual, same open/closed period, year crossing (also one malformed spanning period), uncertain reverse VAT, missing/overlap/imported periods, orphan/foreign lineage, auth/ACL/tenant isolation.
+- Complete latest DB runner PASS: 15 original + 20 generic + 16 legacy SQL scenarios, 13 + 19 report assertions, seven observed two-session races. Migration preserves nonempty existing synthetic state exactly; close body differs only by new post-lock read guard. Latest full domain/typecheck/targeted lint/diff checks and public Webpack Chromium smoke 2/2 PASS. Default Turbopack limitation and authenticated browser/Staging gaps remain.
+- Latest DB evidence C:/Users/FAMILJ~1/AppData/Local/Temp/sololedger-kan71-KnnkmC/. Serial scenarios roll back; 14 NEW synthetic race users remain in this new DB after two passing runs. Earlier databases, users and historical fixtures untouched.
+- Evidence: C:/Users/Familjedator/.codex/visualizations/2026/10/14/01a13b30-3ccb-7de2-9f6b-a07a4c753484/kan71/ and C:/Users/FAMILJ~1/AppData/Local/Temp/sololedger-kan71-XtlFbD/.
 
-## Hosted method / next safe step
+## Exact Local Checkpoint Scope
 
-- Recommended pinned official CLI 2.120.0, --skip-vault, explicit verified target, no seed/roles/include-all; directive -- pg-delta: transaction=false on the absolute FIRST line. Do not use transactional Supabase GitHub branching/MCP.
-- Operate with ONE migration operator; no concurrent privileged index/schema DDL. Postcheck exact definition and valid/ready/live flags. Invalid index after interruption requires separately approved recovery.
-- Hosted TLS connection/session continuity and operation-specific timeouts still require verification BEFORE any DDL. Local protocol tests do not authorize/verify hosted routing.
-- Staging may apply approved versions 20261014100000 then 20261014123000 through CLI when acceptance writers are idle.
-- Production should prebuild same named concurrent index under separate DDL approval before KAN-72, then apply the two exact files through official CLI; locally verified OID preserved and ledger order correct.
-- Invalid index cleanup/retry and any valid-index rollback require exact separate approvals. No automated drop/history repair.
-- Next safe step: renewed independent review of both fixes and the complete five-file candidate. Stop after local verification; no commit approval requested in this turn. After independent acceptance, request separate local commit/integration approvals. The SAME index version/SQL follows both release tracks; never release Staging history containing KAN-62/65 to Production.
-- No new commit, push, merge, deploy, hosted migration/write or Jira mutation. Stop after local candidate and await approval.
+- Modified: package.json; scripts/test-dashboard-calculations.ts, test-vat-report-aggregation.ts, test-vat-report-service.ts; src/components/Momsrapport.tsx, ProfileSettings.tsx; src/lib/dashboardVat.ts, legacyVatInference.ts, vatReportAggregation.ts, vatReportPresentation.ts, vatReportService.ts; this state file.
+- New: scripts/test-sie-vat-periods.ts, run-kan71-local-regression.mjs; src/lib/sieVatHistory.ts; migration above; supabase/tests/kan71_sie_vat_period_guard.sql, kan71_concurrency_fixture.sql, KAN71_SIE_VAT_PERIODS.md.
+- Review adds second migration above and supabase/tests/kan71_generic_sie_correction_guard.sql; existing report/dashboard tests and local runner extended. All earlier candidate files preserved.
+- Latest follow-up adds third migration above and supabase/tests/kan71_legacy_sie_history_guard.sql; extends vatReportService.ts, sieVatHistory.ts, test-vat-report-service.ts, test-sie-vat-periods.ts, local runner and runbook. Earlier changes preserved; no KAN-62/65 edit.
+- Exactly 23 KAN-71 files are authorized for the local checkpoint: 12 previously modified and 11 new as listed above. No env/auth/evidence/generated files. package-lock.json, AGENTS.md, next-env.d.ts and all KAN-62/65 files unchanged.
+- node_modules is a local junction to existing dependencies; no dependency install/change. Generated .next/test results ignored.
+- Superseded KAN-72 operational history is in canonical PROJECT_ARCHIVE.md; old worktree pre-release state is replaced here, not used as current truth.
 
-## Retained original KAN-72 checkpoint (snapshot at 5ae670c)
+## Preserve / External Boundaries
 
-
-## Current Objective: KAN-72
-
-- Independent re-review: PASS MED ANMARKNINGAR. All three findings independently verified fixed; Pontus approved one local KAN-72 commit. Staging acceptance remains pending.
-- Jira KAN-72 was explicitly approved for In Progress and transitioned there.
-- Worktree: C:/Users/Familjedator/.codex/worktrees/kan72-standard-amount-guard/sololedger_multi_user
-- Branch: codex/KAN-72-standard-amount-guard
-- Base: 357c980fba8a343ec7330b26b6268e6525cd49d4. This approved local checkpoint is identified by git log -1 on the KAN-72 branch; no push is approved.
-- Production main/remote and Vercel build were reverified at that commit before implementation.
-- Production URL: https://sololedger.vercel.app; Staging URL: https://sololedger-git-staging-sololedger1.vercel.app
-- Remote Staging remains 30e82adf9d2868e0e1f1c028b433bc11aa9a7ff7.
-- Production Supabase: wbaxmuvudpnkvuliicuy; Staging Supabase: fzxqiqenqjzhlyxxpvhg.
-
-## Preserved Workspace / Paused Work
-
-- Original checkout remains on staging at ef498b9e5e2ca25c35216ee18899b7c51ab7cdc6.
-- Its ff671bf and ef498b9 documentation commits and untracked audit-packages/ and scripts/create-kan63-staging-user.mjs remain untouched.
-- KAN-62/KAN-65 remain paused pending Skatteverket; their Staging changes are absent from this Production-based branch.
-- Do not merge Staging wholesale into a Production candidate. Integrate only approved KAN-72 changes into Staging later.
-
-## Implementation / Review Surface
-
-- src/lib/standardBookingAmount.ts: shared exact digit/exponent normalization before whole-cent validation, numeric(15,2) range and conversion round-trip. Preserves .50, .01, 1e2 and 1E-2 without floating-point rounding.
-- src/components/TransactionForm.tsx: native constraints, visible accessible error and guarded ordinary submit.
-- src/app/page.tsx: validates raw amount before upload/write; booked attachment edits bypass new amount validation.
-- src/lib/accountingService.ts: validates both standard booking service entry points.
-- supabase/migrations/20261014100000_kan72_standard_booking_integrity.sql: replaces only book_transaction_atomic(jsonb) and book_periodized_transaction_atomic(jsonb).
-- RPCs validate amount before number allocation. Each check reads the entire (user_id, ver_nr) verification plus all rows linked to the new transaction; transaction/owner/number identities use IS DISTINCT FROM. Expected row count, valid nonnegative values and exact debit/credit balance are required. Both periodization verifications are checked separately. No locks added.
-- No global journal trigger, correction rewrite, new transaction source, refund flow, RLS/grant or report change.
-- Live definitions were read in this session before modification and their hashes reverified unchanged before implementation.
-- Scripts/tests added: scripts/test-standard-booking-amount.mjs and supabase/tests/kan72_standard_booking_integrity_candidate.sql.
-- package.json adds the service/UI regression to test:domain; scripts/run-db-regression-guard.mjs applies the new migration only to its verified local target and runs the new rollback fixture.
-
-## Accounting Integration Impact
-
-- Journal and two standard write paths change. Sources remain manual with existing periodization markers.
-- VAT aggregation/inference, VAT locks/periods, result/NE/balances, dashboard/safe withdrawal and SIE calculations remain unchanged; their existing regression paths were exercised.
-- Controlled correction and periodization-pair correction remain unchanged and are covered by local tests.
-- No customer-invoice/payment/receivable, settlement, year-close, deletion-lifecycle, Storage or Edge Function implementation change.
-- Before a separately approved Staging/Production candidate: inspect representative sale/purchase and periodization journals, VAT report, NE/dashboard, bank balance, correction and relevant SIE/year-boundary results. Invoice/receivable behavior is outside this change.
-
-## Actual Verification Results
-
-- RED before implementation: real service accepted -1250; local RPC accepted a negative standard booking and injected journal imbalance.
-- Final KAN-72 service/raw-input/rendered-form/actual page-handler tests: PASS, including Chromium DOM value versus valueAsNumber, valid decimal/exponent formats and sub-cent/overflow/precision disguises.
-- Final npm run typecheck: PASS.
-- Final npm run test:db-regression: PASS, including KAN-72 and seven existing rollback fixtures.
-- Local test DB independently verified: sololedger_kan17c_test, localhost (::1), port 5432. No hosted DB test writes.
-- SQL coverage: negative/zero/precision/invalid inputs at 0/6/12/25%, cent and known VAT rounding fixtures, maximum representable amount, full/no deduction, owner flows, ordinary/periodized journal faults, first/existing/multiple number rollback, metadata attachment preservation, profile/year/VAT/correction guards and actual authenticated/anon roles.
-- Postcheck found zero remaining KAN-72 transactions/accounts/fault triggers after rollback.
-- npm run test:db-invariants and npm run test:e2e:safety: PASS.
-- Public Playwright smoke on local app: 2/2 PASS.
-- npm run test:regression: PASS, all 38 domain scripts and public Playwright smoke 2/2.
-- npm run test: PASS, including all domain scripts, admin-delete dry-run and DB invariants.
-- scripts/test-transaction-form-ui.ts replaces the obsolete literal-return invoice assertion with actual defaultCustomerInvoiceVatTreatment calls for exempt, not-registered, taxable, mixed and unknown profiles. Invoice policy code remains unchanged.
-- Full npm run lint: FAIL, 86 existing errors and 6 warnings. Changed-file baseline comparison reports zero new diagnostics; new files lint clean.
-- git diff --check: PASS.
-- Authenticated/write browser acceptance and hosted migration verification not run: hosted writes are not approved.
-
-## Independent Review Follow-up (2026-10-14)
-
-- Finding 1 reproduced: Chromium accepted the four formats but the first parser rejected them. Exact digit/exponent normalization now preserves valid whole-cent amounts and rejects precision lost by Number/valueAsNumber.
-- Finding 2 reproduced: existing invoice assertion failed; behavioral profile-default tests replace it. No customer-invoice product logic changed.
-- Finding 3 reproduced in local rollback transactions for ordinary and periodized booking: an extra 0.01 debit with the same owner/number and a different transaction was accepted. Complete verification checks now reject it, including NULL, zero and balanced extra-row variants and an extra row on the second periodization verification.
-- Additional isolation test confirms another user's same verification number does not interfere. Failure fixtures verify all journal/transaction counts and the full number-table snapshot roll back, followed by a gap-free successful booking.
-- Candidate comparison after removing only KAN-72 additions found every KAN-55 statement unchanged in both RPCs. Existing KAN-55 rollback regression passes.
-- Original staging checkout reverified unchanged at ef498b9 with its existing untracked files. No Jira mutation in this follow-up.
-
-## Independent Re-review / Remaining Notes
-
-- Read the final PASS MED ANMARKNINGAR report from Granska KAN-72 beloppsskydd. Reviewer independently passed full test/regression, local DB regression, 25,000 parser cases, journal rollback/number sequence, concurrency, types and safety guards; no new lint diagnostics or blocking risk.
-- P3 potential performance risk: the broader user_id/ver_nr searches have no composite index in the inspected Production schema. Large user histories may increase query time while the number lock is held. No slowdown/deadlock was demonstrated. Measure query plans and booking time with large isolated fixtures before proposing any index migration; a new index requires separate approval.
-- Staging bookkeeping acceptance and the high-volume performance measurement remain outstanding.
-
-## Next Safe Step / Approval Boundaries
-
-- Wait for separate Staging integration/push and hosted migration approvals, then verify representative journal -> VAT report -> dashboard -> NE flows, periodization and correction. Release only the approved KAN-72 scope; KAN-62/65 remain paused.
-- KAN-72 remains In Progress. No In Review/Done transition or assignment was approved/performed.
-- This checkpoint is approved for one local commit only. No push, merge, deploy or Production/Staging data/schema write is approved or performed.
-- The new migration was applied only in the isolated local regression DB.
-- Wait for Pontus before publishing to Staging, hosted migration or deploy.
+- Canonical docs: C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user. Its staging HEAD e639347 and untracked audit-packages/ and scripts/create-kan63-staging-user.mjs preserved. Its already-dirty state doc points here.
+- All older KAN-48/KAN-63/KAN-72 worktrees retained. KAN-72 staging-integration dirty state and KAN-63 migration-prep two untracked KAN-62 migrations untouched.
+- Production wbaxmuvudpnkvuliicuy / Staging fzxqiqenqjzhlyxxpvhg: no hosted writes/migration, deploy, env change, data repair, push or Jira mutation. Local KAN-71 checkpoint/release-candidate commits are explicitly authorized by the current request.
+- KAN-62/65 remain ON HOLD; other backlog findings out of scope.
+- Next: prepare isolated release candidate FROM fetched origin/staging, preserving its complete existing changes including KAN-62/65. Record exact checkpoint/candidate hashes and local integration/build results in release PROJECT_STATE.md. Then stop for separate leader approval of exact Staging migration, push/deploy and dedicated test writes. No further code review is required absent concrete new findings.
