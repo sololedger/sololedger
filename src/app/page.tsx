@@ -1,4 +1,5 @@
 'use client'
+import { parseStandardBookingAmount } from '@/lib/standardBookingAmount'
 
 export const dynamic = 'force-dynamic'
 
@@ -520,6 +521,17 @@ export default function Home() {
       }
     }
 
+    // Booked metadata edits preserve their original economic fields.
+    let bookingAmount = 0
+    if (!editingBooked) {
+      try {
+        bookingAmount = parseStandardBookingAmount(formData.amount)
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Ogiltigt belopp.')
+        return
+      }
+    }
+
     submitInFlightRef.current = true
     setUploading(true)
 
@@ -557,7 +569,7 @@ export default function Home() {
           description: formData.description
         }
         if (!editingBooked) {
-          updatePayload.amount = Number(formData.amount)
+          updatePayload.amount = bookingAmount
           updatePayload.type = formData.type
           updatePayload.vat_rate = formData.vatRate
         }
@@ -574,7 +586,7 @@ export default function Home() {
             date: formData.date,
             future_date: futureDate,
             description: formData.description,
-            amount: Number(formData.amount),
+            amount: bookingAmount,
             type: formData.type,
             vat_rate: formData.vatRate,
             input_vat_deduction_entitlement: formData.inputVatDeduction,
@@ -586,7 +598,7 @@ export default function Home() {
           await bookTransaction({
             date: formData.date,
             description: formData.description,
-            amount: Number(formData.amount),
+            amount: bookingAmount,
             type: formData.type,
             vat_rate: formData.vatRate,
             input_vat_deduction_entitlement: formData.inputVatDeduction,

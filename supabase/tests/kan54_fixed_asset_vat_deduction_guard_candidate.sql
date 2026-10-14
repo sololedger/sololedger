@@ -120,8 +120,14 @@ AS $$
     'date', '2026-02-01',
     'description', p_description,
     'supplier_country', 'SE',
-    'taxable_base_amount', p_taxable,
-    'supplier_vat_amount', p_vat,
+    -- Preserve the existing net/VAT fixture amounts through the Staging gross/rate contract.
+    'gross_amount', p_taxable + p_vat,
+    'vat_rate', (
+      SELECT rate FROM (VALUES (0::numeric), (6), (12), (25)) AS allowed_rates(rate)
+      WHERE round((p_taxable + p_vat) / (1 + rate / 100), 2) = p_taxable
+        AND round(p_taxable + p_vat - round((p_taxable + p_vat) / (1 + rate / 100), 2), 2) = p_vat
+      ORDER BY rate LIMIT 1
+    ),
     'vat_deduction_entitlement', p_deduction,
     'payment_account_role', 'business_payment_account',
     'connection_assessment', 'standalone',

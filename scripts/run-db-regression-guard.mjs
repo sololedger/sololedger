@@ -99,7 +99,13 @@ try {
     'apply KAN-56 customer invoice booking delete-context migration to local test DB',
   )
 
+  verifyLocalDestination('KAN-72 standard booking integrity')
+  runPsql(['-v', 'ON_ERROR_STOP=1', '-f',
+    'supabase/migrations/20261014100000_kan72_standard_booking_integrity.sql'],
+    'apply KAN-72 migration to isolated local test DB')
+
   const rollbackTests = [
+    ['-v', 'ON_ERROR_STOP=1', '-v', 'apply_kan72_migration=0', '-f', 'supabase/tests/kan72_standard_booking_integrity_candidate.sql'],
     ['supabase/tests/kan56_kan57_db_regression_candidate.sql'],
     ['-v', 'skip_migration=1', '-f', 'supabase/tests/kan30_delete_user_data_vat_lifecycle_red_candidate.sql'],
     ['supabase/tests/kan36_fixed_assets_candidate.sql'],

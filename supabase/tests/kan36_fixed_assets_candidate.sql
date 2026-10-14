@@ -124,8 +124,14 @@ AS $$
     'date', p_date::text,
     'description', p_description,
     'supplier_country', p_supplier_country,
-    'taxable_base_amount', p_taxable,
-    'supplier_vat_amount', p_vat,
+    -- Preserve the existing net/VAT fixture amounts through the Staging gross/rate contract.
+    'gross_amount', p_taxable + p_vat,
+    'vat_rate', (
+      SELECT rate FROM (VALUES (0::numeric), (6), (12), (25)) AS allowed_rates(rate)
+      WHERE round((p_taxable + p_vat) / (1 + rate / 100), 2) = p_taxable
+        AND round(p_taxable + p_vat - round((p_taxable + p_vat) / (1 + rate / 100), 2), 2) = p_vat
+      ORDER BY rate LIMIT 1
+    ),
     'vat_deduction_entitlement', p_deduction,
     'payment_account_role', p_payment_role,
     'connection_assessment', coalesce(
@@ -192,17 +198,31 @@ BEGIN
     pg_temp.asset_payload(
       '2026-02-01',
       'KAN-36 no deduction under threshold',
-      29599.99,
-      7400,
+      -- Staging tests the gross basis for no deduction: 23,679.99 + 5,920 = 29,599.99.
+      23679.99,
+      5920,
       'none',
       'business_payment_account'
     )
   );
   v_tx_id := (v_result->>'transaction_id')::uuid;
   PERFORM pg_temp.assert_eq(v_result->>'decision_type', 'immediate_expense_small_value', 'below half PBB expenses immediately');
-  PERFORM pg_temp.assert_eq(pg_temp.journal_amount(v_user_id, v_tx_id, '5410', 'debit'), 36999.99::numeric, 'non-deductible VAT is expensed');
+  PERFORM pg_temp.assert_eq(pg_temp.journal_amount(v_user_id, v_tx_id, '5410', 'debit'), 29599.99::numeric, 'non-deductible VAT is expensed');
   PERFORM pg_temp.assert_eq(pg_temp.journal_amount(v_user_id, v_tx_id, '2641', 'debit'), 0::numeric, 'no-deduction purchase has no input VAT row');
-  PERFORM pg_temp.assert_eq(pg_temp.journal_amount(v_user_id, v_tx_id, '1930', 'credit'), 36999.99::numeric, 'company payment credits configured account');
+  PERFORM pg_temp.assert_eq(pg_temp.journal_amount(v_user_id, v_tx_id, '1930', 'credit'), 29599.99::numeric, 'company payment credits configured account');
+
+  -- Preserve the old financial input as an explicit Staging guard case:
+  -- its 36,999.99 gross basis exceeds half PBB when VAT is not deductible.
+  PERFORM pg_temp.assert_eq(
+    (pg_temp.asset_payload('2026-02-01', 'KAN-36 legacy no deduction basis', 29599.99, 7400, 'none', 'business_payment_account')->>'vat_rate')::numeric,
+    25::numeric,
+    'rounded legacy fixture still has an exact supported invoice VAT rate'
+  );
+  PERFORM pg_temp.assert_rejects(
+    format('select public.book_fixed_asset_acquisition_atomic(%L::jsonb)',
+      pg_temp.asset_payload('2026-02-01', 'KAN-36 legacy no deduction basis', 29599.99, 7400, 'none', 'business_payment_account')::text),
+    'gross no-deduction basis above half PBB requires useful-life assessment in existing Staging'
+  );
 
   v_replay_payload := pg_temp.asset_payload(
     '2026-02-01',
