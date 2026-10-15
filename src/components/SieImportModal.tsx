@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
-import { decodeSieBuffer, parseSieFile } from '@/lib/sieParser'
+import { decodeSieBuffer, parseSieFile, MAX_SIE_FILE_BYTES } from '@/lib/sieParser'
 import type { SieParseResult } from '@/lib/sieParser'
 import { importSieBatch, SieImportError } from '@/lib/sieImport'
 import type { ImportSieBatchResult } from '@/lib/sieImport'
@@ -34,6 +34,7 @@ export default function SieImportModal({
   const [step, setStep] = useState<Step>('select')
   const [isDragging, setIsDragging] = useState(false)
   const [filename, setFilename] = useState<string>('')
+  const [originalFile, setOriginalFile] = useState<File | null>(null)
   const [encoding, setEncoding] = useState<string>('')
   const [decodeWarnings, setDecodeWarnings] = useState<string[]>([])
   const [parseResult, setParseResult] = useState<SieParseResult | null>(null)
@@ -45,6 +46,7 @@ export default function SieImportModal({
   const reset = () => {
     setStep('select')
     setFilename('')
+    setOriginalFile(null)
     setEncoding('')
     setDecodeWarnings([])
     setParseResult(null)
@@ -60,13 +62,16 @@ export default function SieImportModal({
 
   const handleFile = useCallback(async (file: File) => {
     setFilename(file.name)
+    setOriginalFile(null)
     setStep('parsing')
     try {
+      if (file.size > MAX_SIE_FILE_BYTES) throw new Error('Filen får vara högst 4 MB.')
       const buffer = await file.arrayBuffer()
       const decoded = decodeSieBuffer(buffer)
-      const result = parseSieFile(decoded.content)
+      const result = parseSieFile(decoded.content, { strictImport: true })
       setEncoding(decoded.encoding)
-      setDecodeWarnings(decoded.warnings)
+      setDecodeWarnings(decoded.warnings.length ? ['Filens teckenkodning behöver kontrolleras.'] : [])
+      setOriginalFile(file)
       setParseResult(result)
       setStep('preview')
     } catch (err) {
@@ -92,7 +97,7 @@ export default function SieImportModal({
   }
 
   const handleImport = async () => {
-    if (!parseResult) return
+    if (!parseResult || !originalFile) return
     setStep('importing')
     setImportErrorMessage(null)
     setImportErrorIsInfo(false)
@@ -114,7 +119,7 @@ export default function SieImportModal({
         return
       }
 
-      const result = await importSieBatch(parseResult, filename)
+      const result = await importSieBatch(originalFile)
       setImportResult(result)
       await refreshData()
       await onUsageChanged()
