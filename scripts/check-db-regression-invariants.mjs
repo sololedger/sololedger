@@ -6,6 +6,8 @@ const repairMigration =
   '20261009203900_kan56_kan57_db_regression_repair.sql'
 const customerInvoiceBookingDeleteContextMigration =
   '20261009220552_kan56_customer_invoice_booking_delete_context.sql'
+const receiptDeletionMigration = '20261015121000_kan74_sie_receipt_deletion.sql'
+const receiptDeletion = readFileSync(join('supabase/migrations', receiptDeletionMigration), 'utf8')
 const edgeFunctionPath = 'supabase/functions/delete-user/index.ts'
 const adminDryRunPath = 'src/lib/adminDeleteDryRun.ts'
 const lifecyclePostcheckPath = 'scripts/check-admin-delete-lifecycle-postcheck.mjs'
@@ -92,9 +94,10 @@ for (const name of [
   'delete_user_data_atomic',
   'prevent_customer_invoice_booking_mutation',
 ]) {
-  if (latestCriticalDefinitions[name] !== customerInvoiceBookingDeleteContextMigration) {
+  const expected = name === 'delete_user_data_atomic' ? receiptDeletionMigration : customerInvoiceBookingDeleteContextMigration
+  if (latestCriticalDefinitions[name] !== expected) {
     fail(
-      `${name} senaste definition finns i ${latestCriticalDefinitions[name]}, inte ${customerInvoiceBookingDeleteContextMigration}`,
+      `${name} senaste definition finns i ${latestCriticalDefinitions[name]}, inte ${expected}`,
     )
   }
 }
@@ -113,6 +116,11 @@ if (
   fail('KAN-55 purchase VAT deduction helper ar inte senaste definition')
 }
 
+assertIncludes(receiptDeletion, 'DELETE FROM public.sie_import_inputs WHERE user_id = p_user_id', receiptDeletionMigration)
+assertIncludes(receiptDeletion, "'sie_import_inputs', v_sie_import_inputs", receiptDeletionMigration)
+assertIncludes(receiptDeletion, "v_role = 'admin'", receiptDeletionMigration)
+assertIncludes(receiptDeletion, 'public.delete_user_data_atomic_lifecycle_context', receiptDeletionMigration)
+assertIncludes(edge, 'const remainingCounts = await getUserCounts', edgeFunctionPath)
 assertIncludes(repair, 'backend_pid', repairMigration)
 assertNotIncludes(repair, 'ctx.pid', repairMigration)
 assertNotIncludes(repair, 'ON CONFLICT (pid, user_id)', repairMigration)
@@ -203,6 +211,7 @@ const dryRunKeys = [
   'transactions',
   'favorites',
   'import_batches',
+  'sie_import_inputs',
   'accounts',
   'closed_years',
   'ver_nr_sequences',

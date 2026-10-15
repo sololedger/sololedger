@@ -88,6 +88,14 @@ export interface SiePreviousYearResultBalance {
   amount: number
 }
 
+export interface SieClosingBalance {
+  yearIndex: number
+  accountNumber: string
+  amount: number
+}
+export const MAX_SIE_ROWS = 50_000
+export const MAX_SIE_FILE_BYTES = 4_000_000
+
 /** Resultatet av parseSieFile. */
 export interface SieParseResult {
   companyName: string | null
@@ -103,6 +111,7 @@ export interface SieParseResult {
    * de hör inte till den balans som ska skrivas in i bokföringen nu.
    */
   openingBalances: SieOpeningBalance[]
+  closingBalances: SieClosingBalance[]
   /**
    * Resultatkontosaldon från #RES -1. Används för att verifiera att
    * en #IB-differens motsvaras av föregående års ännu ej omförda resultat.
@@ -298,7 +307,7 @@ interface SieToken {
  *  - klammerlistor {...} (t.ex. objektlistan på en #TRANS-rad) som EN token
  *  - vanliga blankstegsavgränsade fält
  */
-function tokenizeLine(line: string): SieToken[] {
+function tokenizeLine(line: string, invalid?: () => void): SieToken[] {
   const tokens: SieToken[] = []
   let i = 0
   const n = line.length
@@ -314,6 +323,7 @@ function tokenizeLine(line: string): SieToken[] {
     if (ch === '"') {
       i++
       let value = ''
+      let closedQuote = false
       while (i < n) {
         if (line[i] === '"') {
           if (line[i + 1] === '"') {
@@ -322,11 +332,13 @@ function tokenizeLine(line: string): SieToken[] {
             continue
           }
           i++
+          closedQuote = true
           break
         }
         value += line[i]
         i++
       }
+      if (!closedQuote) invalid?.()
       tokens.push({ value, quoted: true, brace: false })
       continue
     }
@@ -355,11 +367,12 @@ function tokenizeLine(line: string): SieToken[] {
         value += line[i]
         i++
       }
+      if (depth !== 0) invalid?.()
       tokens.push({ value: value.trim(), quoted: false, brace: true })
       continue
     }
 
-    let start = i
+    const start = i
     while (i < n && line[i] !== ' ' && line[i] !== '\t') i++
     tokens.push({ value: line.slice(start, i), quoted: false, brace: false })
   }
@@ -415,7 +428,9 @@ function parseSieAmount(raw: string): number | null {
  * Kastar aldrig exceptions för vanliga formatfel i filen – dessa samlas
  * istället i `errors`/`warnings` på returvärdet.
  */
-export function parseSieFile(content: string): SieParseResult {
+export function parseSieFile(content: string, options: { strictImport?: boolean } = {}): SieParseResult {
+  const strict = options.strictImport === true
+  let strictOrgSeen = false
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -423,6 +438,7 @@ export function parseSieFile(content: string): SieParseResult {
   const verifications: SieVer[] = []
   const fiscalYears: SieFiscalYear[] = []
   const openingBalances: SieOpeningBalance[] = []
+  const closingBalances: SieClosingBalance[] = []
   const previousYearResultBalances: SiePreviousYearResultBalance[] = []
   const referencedAccounts = new Set<string>()
 
@@ -440,9 +456,17 @@ export function parseSieFile(content: string): SieParseResult {
       continue
     }
 
-    const tokens = tokenizeLine(trimmed)
+    const tokens = tokenizeLine(trimmed, strict ? () => errors.push('Ogiltig poststruktur.') : undefined)
     const tag = tokens[0]?.value ?? ''
 
+    if (strict && ['#RAR', '#IB', '#UB', '#RES'].includes(tag)) {
+      const index = tokens[1]?.value
+      if (!index || !/^(0|-[1-9]\d*)$/.test(index) || !Number.isSafeInteger(Number(index)) || Number(index) > 0) errors.push('Ogiltig årsindexpost.')
+      if (tag === '#RAR') {
+        if (!isRealSieDate(formatSieDate(tokens[2]?.value ?? '')) || !isRealSieDate(formatSieDate(tokens[3]?.value ?? ''))) errors.push('Ogiltig räkenskapsperiod.')
+      } else if (!tokens[2]?.value.trim() || !tokens[3]?.value || !Number.isFinite(parseSieAmount(tokens[3].value) ?? NaN)) errors.push('Ogiltig balanspost.')
+    }
+    if (strict && tag !== tag.toUpperCase() && ['#RAR','#IB','#UB','#RES','#VER','#TRANS'].includes(tag.toUpperCase())) errors.push('Ogiltig posttyp.')
     switch (tag) {
       case '#FNAMN': {
         companyName = tokens[1]?.value ?? null
@@ -451,6 +475,8 @@ export function parseSieFile(content: string): SieParseResult {
       }
 
       case '#ORGNR': {
+        if (strict && strictOrgSeen) errors.push('Tvetydigt företag i underlaget.')
+        strictOrgSeen = true
         orgNr = tokens[1]?.value ?? null
         i++
         break
@@ -522,6 +548,15 @@ export function parseSieFile(content: string): SieParseResult {
         break
       }
 
+      case '#UB': {
+        const yearIndex = Number(tokens[1]?.value)
+        const accountNumber = tokens[2]?.value
+        const amount = parseSieAmount(tokens[3]?.value ?? '')
+        if (Number.isInteger(yearIndex) && yearIndex <= 0 && accountNumber && amount !== null && Number.isFinite(amount)) closingBalances.push({ yearIndex, accountNumber, amount })
+        i++
+        break
+      }
+
       case '#RES': {
         // #RES <arsnr> <kontonr> <saldo> [<kvantitet>]
         // För IB-avstämningen behöver vi endast föregående års resultat
@@ -553,7 +588,7 @@ export function parseSieFile(content: string): SieParseResult {
       }
 
       case '#VER': {
-        const { ver, nextIndex } = parseVerBlock(lines, i, tokens, warnings, errors)
+        const { ver, nextIndex } = parseVerBlock(lines, i, tokens, warnings, errors, strict)
         if (ver) {
           verifications.push(ver)
           for (const t of ver.transactions) referencedAccounts.add(t.accountNumber)
@@ -563,7 +598,8 @@ export function parseSieFile(content: string): SieParseResult {
       }
 
       default: {
-        // Kända men ej stödda taggar i v1 (#UB, #RES, #DIM, #OBJEKT, #KTYP,
+        if (strict && ['#TRANS','#BTRANS','#RTRANS'].includes(tag)) errors.push('Bokföringsrad utanför verifikation.')
+        // Kända men ej stödda taggar i v1 (#RES, #DIM, #OBJEKT, #KTYP,
         // #SRU, #PROGRAM, #GEN, #ADRESS, #FNR, #TAXAR, #KPTYP, #VALUTA, #FLAGGA,
         // #FORMAT, #SIETYP, m.fl.) ignoreras medvetet – filen ska inte
         // underkännas bara för att de förekommer.
@@ -642,6 +678,34 @@ export function parseSieFile(content: string): SieParseResult {
   }
 
 
+  if (strict) {
+    // Parser diagnostics can contain source text in compatibility mode. Never
+    // expose those diagnostics at the authenticated server boundary.
+    const invalidSyntax = errors.length > 0
+    errors.length = 0
+    warnings.length = 0
+    if (invalidSyntax) errors.push('SIE-filen innehåller felaktiga eller otillräckliga bokföringsuppgifter.')
+    const periods = fiscalYears.filter(p => p.index === 0)
+    if (periods.length !== 1) errors.push('Filen måste innehålla exakt en giltig #RAR 0.')
+    else {
+      const p = periods[0]
+      if (!isRealSieDate(p.start) || !isRealSieDate(p.end) || p.start > p.end) errors.push('Räkenskapsperioden är ogiltig.')
+      else if (p.start.slice(0, 4) !== p.end.slice(0, 4)) errors.push('Flerårig SIE-import stöds ännu inte.')
+      else {
+        if (openingBalances.length > 0 && !p.start.endsWith('-01-01')) errors.push('Ingående balans kräver periodstart den 1 januari.')
+        if (verifications.some(v => !isRealSieDate(v.date) || v.date < p.start || v.date > p.end || v.transactions.some(t => {
+          const date = t.transDate ?? v.date
+          return !isRealSieDate(date) || date < p.start || date > p.end
+        }))) errors.push('Bokföringsdatum ligger utanför räkenskapsperioden eller är ogiltigt.')
+      }
+    }
+    const rows = verifications.reduce((n, v) => n + v.transactions.length, 0) + openingBalances.length
+      + (Math.abs(openingBalances.reduce((n, b) => n + b.amount, 0)) > BALANCE_EPSILON ? 1 : 0)
+    if (rows > MAX_SIE_ROWS) errors.push('Filen innehåller fler än 50 000 verifikationsrader.')
+    if (!verifications.length || verifications.some(v => !v.transactions.length || v.transactions.some(t => !t.accountNumber.trim() || !Number.isFinite(t.amount)))
+      || openingBalances.some(b => !b.accountNumber.trim() || !Number.isFinite(b.amount)) || previousYearResultBalances.some(b => !Number.isFinite(b.amount))) errors.push('Filen saknar giltiga bokföringsrader.')
+  }
+
   return {
     companyName,
     orgNr,
@@ -650,6 +714,7 @@ export function parseSieFile(content: string): SieParseResult {
     accounts: Array.from(accounts.values()).sort((a, b) => Number(a.number) - Number(b.number)),
     verifications,
     openingBalances,
+    closingBalances,
     previousYearResultBalances,
     accountCount: accounts.size,
     verificationCount: verifications.length,
@@ -669,7 +734,8 @@ function parseVerBlock(
   startIndex: number,
   headerTokens: SieToken[],
   warnings: string[],
-  errors: string[]
+  errors: string[],
+  strict = false
 ): { ver: SieVer | null; nextIndex: number } {
   const series = headerTokens[1]?.value
   const verNumber = headerTokens[2]?.value
@@ -723,15 +789,17 @@ function parseVerBlock(
       break
     }
 
-    const rowTokens = tokenizeLine(lineTrimmed)
+    const rowTokens = tokenizeLine(lineTrimmed, strict ? () => errors.push('Ogiltig radstruktur.') : undefined)
     const rowTag = rowTokens[0]?.value ?? ''
 
     if (rowTag === '#TRANS') {
-      const trans = parseTransLine(rowTokens, warnings, errors, `${series}${verNumber}`)
+      const trans = parseTransLine(rowTokens, warnings, errors, `${series}${verNumber}`, strict)
       if (trans) transactions.push(trans)
     } else if (rowTag === '#BTRANS' || rowTag === '#RTRANS') {
+      if (strict) errors.push('Bokföringsraden stöds inte för säker import.')
       // Budget- respektive saldoförda transaktioner – utanför scope i v1.
     } else {
+      if (strict) errors.push('Okänd bokföringsrad.')
       warnings.push(
         `Okänd rad inuti verifikation ${series}${verNumber}, ignoreras: "${lineTrimmed}"`
       )
@@ -790,7 +858,8 @@ function parseTransLine(
   tokens: SieToken[],
   warnings: string[],
   errors: string[],
-  verLabel: string
+  verLabel: string,
+  strict = false
 ): SieTrans | null {
   const accountNumber = tokens[1]?.value
   const objectToken = tokens[2]
@@ -801,6 +870,10 @@ function parseTransLine(
     return null
   }
 
+  if (strict && tokens[4] && !tokens[4].quoted && !isEightDigitDate(tokens[4].value)) {
+    errors.push('Ogiltigt raddatum eller radtext.')
+    return null
+  }
   const amount = parseSieAmount(amountRaw)
   if (amount === null) {
     errors.push(
@@ -845,4 +918,9 @@ function parseTransLine(
     description,
     quantity,
   }
+}
+function isRealSieDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number(value.slice(0, 4)) < 1) return false
+  const date = new Date(value + 'T00:00:00Z')
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
 }

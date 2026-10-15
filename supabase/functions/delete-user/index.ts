@@ -26,6 +26,7 @@ const TABLES = [
   'transactions',
   'favorites',
   'import_batches',
+  'sie_import_inputs',
   'accounts',
   'closed_years',
   'ver_nr_sequences',
@@ -190,6 +191,12 @@ Deno.serve(async (req) => {
 
     if (dbDeleteError) {
       throw new Error(`Kunde inte radera användardata atomiskt: ${dbDeleteError.message}`)
+    }
+
+    // Verify DB residuals (including pending receipts) before deleting Auth.
+    const remainingCounts = await getUserCounts(supabaseAdmin, userId)
+    if (Object.values(remainingCounts).some(count => count !== 0)) {
+      throw new Error('Användardata finns kvar efter DB-radering. Auth-användaren har inte raderats.')
     }
 
     // H4: gör en andra Storage-svepning efter DB-raderingen.
