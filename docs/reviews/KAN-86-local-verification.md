@@ -34,3 +34,24 @@ No broad accounting/write E2E, live DB check, build/deploy, commit or push is pa
 5. Check an existing SIE undo group and show-more. No posting, correction, edit submission or attachment replacement is needed for acceptance.
 
 Limitations: selected-year scope; optional view state only; no custom names, aliases or semantic correction chains. Existing SIE undo behavior remains its own established exception. Real authenticated/private-file acceptance remains Pontus's step after local synthetic verification and any separately approved publication.
+
+## UI follow-up after manual core PASS — 2026-10-16
+
+Pontus reports manual acceptance PASS in the isolated Staging Preview: VER-90/91/92 together, each original date/amount/description and debit/credit readable, common private PDF opens. This is leader-reported acceptance, not a new Codex authenticated inspection. It supersedes the earlier pending core/private-file acceptance above.
+
+Local changes on codex/KAN-86-shared-attachments at HEAD 6b72492:
+
+- Replace the small checkbox with a keyboard-operable button with switch semantics, explicit På/Av, accessible name/description, visible focus and a minimum 44 px target. Still off on mount; no persistence.
+- When grouping is active and not paused, count all attachment groups and their member verifications across visual pages. One/multiple groups use correct plural text; no groups has an explicit message and no jump action. Existing selected-year/full-transaction count remains separate. Paused/off modes expose no misleading active-group summary or jump.
+- Hoppa till första gruppen reveals complete pages through the first group in the actual display list, accounting for existing SIE undo collapse. After React commits, scroll and keyboard focus move to the visible desktop/mobile section. No reordering, automatic expansion, filter clearing or accounting sum. Repeated jumps never shrink already revealed pages; changing date order changes the first destination correctly.
+- Group membership helper, signed attachment routine, original details, accounting/data loaders and SIE undo behavior are unchanged. Accounting write-E2E is not applicable to these display controls.
+
+Verification in this follow-up:
+
+- PASS npm run typecheck; npm run test:history-groups.
+- PASS npm run test:history-ui: eight synthetic scenarios, real component and Tailwind, Chromium 1440/390 px; every remote request blocked. Switch default, Space/Enter, accessible description, touch target; one/multiple/zero groups and empty year; first group after 102 ordinary rows plus one collapsed 20-member SIE undo group; correct 50-to-150 pagination; repeated jump, unchanged chronological prefix and remaining show-more; oldest/newest destination; originals, details, exact signed-link path/bucket/TTL, actions, search/filter/sort pause and mobile overflow. Frozen originals unchanged in every scenario.
+- PASS focused ESLint on group component/UI test. TransactionTable baseline/current both 13 errors and one warning, identical after normalizing source-location line numbers embedded in diagnostics. Initial raw-message comparison differed only at the moved lines; no source change or lint suppression was needed. Full lint is not green.
+- Desktop/mobile control and mobile jump screenshots visually reviewed in ignored test-results/attachment-groups/.
+- No broad accounting E2E, hosted access/write, full regression rerun, build, new commit, push, merge or deploy. Previous full safe regression results above apply to the initial commit, not a new broad run.
+
+Pending acceptance after separately approved publication: default Av, switch På with accurate summary (test group contributes three verifications; other groups, if any, are counted too), jump on desktop/mobile, expand/open PDF and briefly check search/sort pause. Exact six-file commit/Preview plan is in KAN-86-isolated-preview-plan.md. No Production authorization.

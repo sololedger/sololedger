@@ -1,12 +1,34 @@
 # KAN-86 — isolerad Staging Preview, förberedd 2026-10-16
 
-**PASS: kodisolering och befintligt huvudtestfall. STOPP: publicering inväntar separat godkännande. Ingen Preview har skapats.**
+**Aktuell status 2026-10-16: första isolerade Previewn är publicerad och kärnfunktionen manuellt godkänd av Pontus. Lokal UI-uppdatering är förberedd. STOPP inför ny commit/publicering: nytt godkännande krävs.**
 
 Exekveringstillägg 2026-10-16: Pontus har därefter uttryckligen godkänt exakt denna tiofilscommit och separat Preview-publicering mot Staging, utan push/merge. Den fristående Previewns effektiva bygg-/runtime-URL och publika nyckel har kontrollerats mot Staging före publicering. Befintlig servernyckel är skyddad och konfigurerad; dess värde har inte verifierats eller ändrats. Ursprunglig plan/status nedan bevaras som beslutsunderlag. Commit-/deployresultat registreras efter exekvering, ingen Production-release.
 
-Pontus har godkänt lokal implementation/tester för detta förberedelsesteg, inte commit, push, merge, deploy eller Production. Alla kontroller i detta steg är läsande; ingen bred testomgång eller databas-/Storage-skrivning har körts.
+Historisk avgränsning för det första förberedelsesteget: då var endast lokal implementation/tester godkända, och kontrollerna inför första publiceringen var läsande. Senare separat godkänd första publicering och aktuell lokal UI-uppdatering redovisas ovan respektive nedan. Ingen bred testomgång eller databas-/Storage-skrivning har körts i förberedelsesteget.
 
-## Verifierat utgångsläge
+## Nytt leveranssteg: switch, sammanfattning och hopp (ännu inte publicerat)
+
+Den första tiofilscommitten är 6b72492a9ac07237ffaa7920e0353552bc79d1af, enda förälder 8692f0566feab0978976143d51fd5d1ed91daa19. Preview https://sololedger-8wtmqo7bh-sololedger1.vercel.app, dpl_3fZtvFLTCCAC6oqfg2yF1UNMcrNU, Ready. Pontus har därefter rapporterat manuell PASS för VER-90/91/92, originaluppgifter/journal och privat PDF. Ursprunglig plan nedan är historiskt beslutsunderlag; den anger inte aktuell opublicerad filstatus.
+
+**Exakt manifest för nästa föreslagna lokala commit, sex filer i KAN-86-arbetskopian:**
+
+1. src/components/TransactionTable.tsx
+2. src/components/AttachmentTransactionGroup.tsx
+3. scripts/test-transaction-attachment-ui.mjs
+4. PROJECT_STATE.md (inklusive bevarad publiceringsrapport från första Previewn)
+5. docs/reviews/KAN-86-local-verification.md
+6. docs/reviews/KAN-86-isolated-preview-plan.md
+
+Efter separat godkännande av commit och Preview-publicering:
+
+1. Kontrollera arbetskopia/gren/HEAD igen, staged/unstaged diff och exakt detta sexfilsmanifest. Skapa lokal commit D med enda förälder 6b72492, förslag: feat(KAN-86): clarify grouping controls and jump to first group. Inga andra arbetsfiler eller Staging-ändringar får följa med. Ingen commit görs i förberedelsesteget.
+2. Skapa en ren Git-arkivkopia från D med samma verifierade arkivmetod (core.autocrlf=false). Kontrollera källbytes mot D. Ingen .env/auth/audit/credential, ospårad eller ignorerad fil kopieras. Kandidaten innehåller exakt den tidigare main-basen plus KAN-86:s två godkända commitsteg; ingen merge eller byte av bas.
+3. Verifiera före publicering att den fristående Previewns effektiva publika bygg-/runtime-URL och publika Auth-koppling fortfarande är Staging fzxqiqenqjzhlyxxpvhg. Använd befintlig säker preflight utan secretutdata. Om bindningen är oklar eller ny konfiguration/credential krävs: STOPP för separat beslut. Inga miljöändringar ingår.
+4. Publicera arkivkopian via befintlig officiell Vercel CLI, uttryckligt Preview-mål, befintligt SoloLedger-projekt/scope och metadata för D/basen/isolering. Detta skapar en ny unik Preview-URL. Ingen Git-push, merge, permanent staging-alias eller Production-publicering ingår. Krävs Git-push/annan metod: STOPP.
+5. Kontrollera Ready/Preview/D och grundläggande sidladdning med befintligt Vercel-skydd. Rapportera ny URL och verifierad Staging-koppling. Ingen databas-/Storage-skrivning, migration, fixtureuppladdning eller bred testomgång.
+6. Pontus accepterar nya UI-delarna med befintligt testkonto/2026: Av från start, tydligt På, korrekt gruppantal, hopp till första gruppen, expandering/PDF och kort sök-/sorterings-/mobilkontroll. Tidigare kärn-PASS bevaras. Ingen Jira Done eller Production-release följer automatiskt.
+
+## Historiskt verifierat utgångsläge inför första Previewn
 
 - Arbetskopia: C:/Users/Familjedator/.codex/worktrees/kan86-shared-attachments/sololedger_multi_user, gren codex/KAN-86-shared-attachments, HEAD 8692f0566feab0978976143d51fd5d1ed91daa19. Inget staged och ingen ny commit.
 - GitHub main är fortfarande exakt 8692f0566feab0978976143d51fd5d1ed91daa19. GitHub staging är 5809094dd3ce808dba35986c65e772b842f0d0e1. KAN-86-grenen finns ännu inte på remote.
@@ -35,7 +57,7 @@ Pontus har godkänt lokal implementation/tester för detta förberedelsesteg, in
 9. docs/reviews/KAN-86-local-verification.md
 10. docs/reviews/KAN-86-isolated-preview-plan.md
 
-Produkt-/testfingeravtryck (SHA256, lästa i detta steg):
+Historiska produkt-/testfingeravtryck före första publiceringen (SHA256; gäller inte den nya UI-uppdateringen):
 
 | Fil | SHA256 |
 |---|---|

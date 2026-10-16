@@ -1,6 +1,6 @@
 'use client'
 
-import { useId } from 'react'
+import { useId, type Ref } from 'react'
 import type { AttachmentDisplayItem, AttachmentGroupItem } from '@/lib/transactionAttachmentGroups'
 
 export interface AttachmentGroupMember extends AttachmentGroupItem {
@@ -28,6 +28,7 @@ export interface AttachmentGroupMember extends AttachmentGroupItem {
 interface Props {
   group: Extract<AttachmentDisplayItem<AttachmentGroupMember>, { kind: 'attachmentGroup' }>
   expanded: boolean
+  focusTargetRef?: Ref<HTMLElement>
   onToggle: () => void
   onOpenAttachment: (path: string) => void
   isYearLocked: boolean
@@ -41,7 +42,7 @@ function money(value: number | string | null | undefined) {
 
 // The same content is used in desktop table cells and mobile cards.
 export default function AttachmentTransactionGroup({
-  group, expanded, onToggle, onOpenAttachment, isYearLocked, onEdit, onDelete,
+  group, expanded, focusTargetRef, onToggle, onOpenAttachment, isYearLocked, onEdit, onDelete,
 }: Props) {
   const detailsId = useId()
   const dateLabel = group.startDate === group.endDate
@@ -49,7 +50,8 @@ export default function AttachmentTransactionGroup({
     : `${group.startDate} – ${group.endDate}`
 
   return (
-    <section aria-label="Gemensamt underlag" className="min-w-0 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:p-5">
+    <section ref={focusTargetRef} tabIndex={-1} aria-label="Gemensamt underlag"
+      className="min-w-0 scroll-mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-bold text-gray-800">Gemensamt underlag</h3>

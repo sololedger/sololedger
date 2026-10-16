@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
   getTransactionSourceUiPolicy,
@@ -54,6 +54,20 @@ export default function TransactionTable({
   const [visibleCount, setVisibleCount] = useState(50)
   const [expandedUndoBatches, setExpandedUndoBatches] = useState<Set<string>>(new Set())
   const [groupAttachments, setGroupAttachments] = useState(false)
+  const groupingControlId = useId()
+  const [groupJumpRequest, setGroupJumpRequest] = useState(0)
+  const firstGroupTargets = useRef<{ desktop: HTMLElement | null; mobile: HTMLElement | null }>({
+    desktop: null, mobile: null,
+  })
+
+  // Run after React has revealed the required page and attached both layout refs.
+  // Only an explicit jump request moves focus/scroll; filters and data never do.
+  useEffect(() => {
+    if (groupJumpRequest === 0) return
+    const target = Object.values(firstGroupTargets.current).find(element => element?.getClientRects().length)
+    target?.focus({ preventScroll: true })
+    target?.scrollIntoView({ block: 'start' })
+  }, [groupJumpRequest])
   const [expandedAttachments, setExpandedAttachments] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<TransactionHistoryFilterState>({
     ...DEFAULT_TRANSACTION_HISTORY_FILTERS,
@@ -349,6 +363,18 @@ export default function TransactionTable({
     }
   }
 
+  const attachmentGroups = displayItems.filter(item => item.kind === 'attachmentGroup')
+  const groupedVerificationCount = attachmentGroups.reduce((count, group) => count + group.items.length, 0)
+  const firstAttachmentGroup = attachmentGroups[0]
+  const firstGroupIndex = displayItems.findIndex(item => item.kind === 'attachmentGroup')
+
+  function jumpToFirstGroup() {
+    if (firstGroupIndex < 0) return
+    // Reveal complete visual pages, keeping every preceding row in its original order.
+    setVisibleCount(previous => Math.max(previous, Math.ceil((firstGroupIndex + 1) / 50) * 50))
+    setGroupJumpRequest(previous => previous + 1)
+  }
+
   if (transactions.length === 0) {
     return (
       <div className="bg-white rounded-[2.5rem] border sl-section-shell overflow-hidden shadow-sm">
@@ -365,8 +391,9 @@ export default function TransactionTable({
     setFilters({ ...DEFAULT_TRANSACTION_HISTORY_FILTERS })
   }
 
-  const renderAttachmentGroup = (group: Extract<DisplayItem, { kind: 'attachmentGroup' }>) => (
+  const renderAttachmentGroup = (group: Extract<DisplayItem, { kind: 'attachmentGroup' }>, layout: 'desktop' | 'mobile') => (
     <AttachmentTransactionGroup group={group} expanded={expandedAttachments.has(group.key)}
+      focusTargetRef={group.key === firstAttachmentGroup?.key ? element => { firstGroupTargets.current[layout] = element } : undefined}
       onToggle={() => toggleAttachmentGroup(group.key)} onOpenAttachment={handleOpenAttachment}
       isYearLocked={isYearLocked} onEdit={onEdit} onDelete={onDelete} />
   )
@@ -374,18 +401,43 @@ export default function TransactionTable({
   return (
     <>
       <div className="mb-3 flex flex-col gap-2">
-        <label className="flex items-center gap-2 text-sm font-bold text-gray-600">
-          <input type="checkbox" checked={groupAttachments} onChange={event => {
-            setGroupAttachments(event.target.checked)
-            setVisibleCount(50)
-          }} />
-          Gruppera gemensamma underlag
-        </label>
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <div className="min-w-0">
+            <p id={groupingControlId} className="text-sm font-bold text-gray-800">Gruppera gemensamma underlag</p>
+            <p id={groupingControlId + '-help'} className="mt-1 text-xs text-gray-600">
+              Visa verifikationer med samma bilaga tillsammans i hopfällbara grupper.
+            </p>
+          </div>
+          <button type="button" role="switch" aria-checked={groupAttachments}
+            aria-labelledby={groupingControlId} aria-describedby={groupingControlId + '-help'}
+            onClick={() => { setGroupAttachments(previous => !previous); setVisibleCount(50) }}
+            className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+            <span aria-hidden="true" className={
+              'flex h-6 w-11 items-center rounded-full p-0.5 ' + (groupAttachments ? 'justify-end bg-emerald-700' : 'justify-start bg-gray-500')
+            }>
+              <span className="h-5 w-5 rounded-full bg-white shadow-sm" />
+            </span>
+            <span aria-hidden="true">{groupAttachments ? 'På' : 'Av'}</span>
+          </button>
+        </div>
         {groupAttachments && groupingPauseReason && (
           <p role="status" className="text-xs text-gray-500">{groupingPauseReason}</p>
         )}
         {groupAttachments && !groupingPauseReason && (
-          <p className="text-xs text-gray-500">{transactions.length} verifikationer · Grupper inom {selectedYear}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-600">
+            <p role="status">
+              {attachmentGroups.length > 0
+                ? attachmentGroups.length + ' ' + (attachmentGroups.length === 1 ? 'grupp hittad' : 'grupper hittade') + ' · ' + groupedVerificationCount + ' verifikationer'
+                : 'Inga grupper hittades inom ' + selectedYear + '.'}
+            </p>
+            {attachmentGroups.length > 0 && (
+              <button type="button" onClick={jumpToFirstGroup}
+                className="min-h-11 rounded-xl border border-gray-300 bg-white px-3 py-2 font-bold text-emerald-800 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+                Hoppa till första gruppen
+              </button>
+            )}
+            <p>{transactions.length} verifikationer · Grupper inom {selectedYear}</p>
+          </div>
         )}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <label className="relative w-full md:max-w-md">
@@ -494,7 +546,7 @@ export default function TransactionTable({
           <tbody className="divide-y divide-gray-100">
             {visibleItems.map((displayItem) => {
               if (displayItem.kind === 'attachmentGroup') {
-                return <tr key={displayItem.key}><td colSpan={5} className="p-4">{renderAttachmentGroup(displayItem)}</td></tr>
+                return <tr key={displayItem.key}><td colSpan={5} className="p-4">{renderAttachmentGroup(displayItem, 'desktop')}</td></tr>
               }
               if (displayItem.kind === 'sieUndoGroup') {
                 const { batchId, items } = displayItem
@@ -833,7 +885,7 @@ export default function TransactionTable({
       <div className="md:hidden flex flex-col gap-3">
         {visibleItems.map((displayItem) => {
           if (displayItem.kind === 'attachmentGroup') {
-            return <div key={displayItem.key}>{renderAttachmentGroup(displayItem)}</div>
+            return <div key={displayItem.key}>{renderAttachmentGroup(displayItem, 'mobile')}</div>
           }
           if (displayItem.kind === 'sieUndoGroup') {
             const { batchId, items } = displayItem
