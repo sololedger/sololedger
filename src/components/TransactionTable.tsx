@@ -9,6 +9,12 @@ import {
 } from '@/lib/transactionSourceUi'
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
+import AttachmentTransactionGroup from './AttachmentTransactionGroup'
+import {
+  attachmentGroupingPauseReason,
+  groupTransactionsByAttachment,
+  type AttachmentDisplayItem,
+} from '@/lib/transactionAttachmentGroups'
 import {
   DEFAULT_TRANSACTION_HISTORY_FILTERS,
   TRANSACTION_HISTORY_CATEGORY_OPTIONS,
@@ -47,6 +53,8 @@ export default function TransactionTable({
   // 50 tekniska KORRVER räknas alltså som en rad tills den fälls ut.
   const [visibleCount, setVisibleCount] = useState(50)
   const [expandedUndoBatches, setExpandedUndoBatches] = useState<Set<string>>(new Set())
+  const [groupAttachments, setGroupAttachments] = useState(false)
+  const [expandedAttachments, setExpandedAttachments] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<TransactionHistoryFilterState>({
     ...DEFAULT_TRANSACTION_HISTORY_FILTERS,
   })
@@ -288,6 +296,19 @@ export default function TransactionTable({
   })
 
   const filtersActive = hasActiveTransactionHistoryFilters(filters)
+  const groupingPauseReason = attachmentGroupingPauseReason(filters)
+  const attachmentItems = groupTransactionsByAttachment(
+    filteredEnriched, groupAttachments && !groupingPauseReason,
+  )
+
+  function toggleAttachmentGroup(key: string) {
+    setExpandedAttachments(previous => {
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // Gruppindelning för AUTOMATISKA rättelser efter "Ångra SIE-import".
   // Vanliga KORRVER flyttas inte: de ligger kvar i datum-/VER-ordning så
@@ -302,13 +323,18 @@ export default function TransactionTable({
   }
 
   type DisplayItem =
-    | { kind: 'transaction'; item: (typeof enriched)[number] }
+    | AttachmentDisplayItem<(typeof enriched)[number]>
     | { kind: 'sieUndoGroup'; batchId: string; items: typeof filteredEnriched }
 
   const displayItems: DisplayItem[] = []
   const emittedUndoBatches = new Set<string>()
 
-  for (const item of filteredEnriched) {
+  for (const attachmentItem of attachmentItems) {
+    if (attachmentItem.kind === 'attachmentGroup') {
+      displayItems.push(attachmentItem)
+      continue
+    }
+    const item = attachmentItem.item
     if (item.isSieUndo && item.tx.import_batch_id) {
       const batchId = String(item.tx.import_batch_id)
       if (emittedUndoBatches.has(batchId)) continue
@@ -339,9 +365,28 @@ export default function TransactionTable({
     setFilters({ ...DEFAULT_TRANSACTION_HISTORY_FILTERS })
   }
 
+  const renderAttachmentGroup = (group: Extract<DisplayItem, { kind: 'attachmentGroup' }>) => (
+    <AttachmentTransactionGroup group={group} expanded={expandedAttachments.has(group.key)}
+      onToggle={() => toggleAttachmentGroup(group.key)} onOpenAttachment={handleOpenAttachment}
+      isYearLocked={isYearLocked} onEdit={onEdit} onDelete={onDelete} />
+  )
+
   return (
     <>
       <div className="mb-3 flex flex-col gap-2">
+        <label className="flex items-center gap-2 text-sm font-bold text-gray-600">
+          <input type="checkbox" checked={groupAttachments} onChange={event => {
+            setGroupAttachments(event.target.checked)
+            setVisibleCount(50)
+          }} />
+          Gruppera gemensamma underlag
+        </label>
+        {groupAttachments && groupingPauseReason && (
+          <p role="status" className="text-xs text-gray-500">{groupingPauseReason}</p>
+        )}
+        {groupAttachments && !groupingPauseReason && (
+          <p className="text-xs text-gray-500">{transactions.length} verifikationer · Grupper inom {selectedYear}</p>
+        )}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <label className="relative w-full md:max-w-md">
             <span className="sr-only">Sök transaktionshistorik</span>
@@ -448,6 +493,9 @@ export default function TransactionTable({
 
           <tbody className="divide-y divide-gray-100">
             {visibleItems.map((displayItem) => {
+              if (displayItem.kind === 'attachmentGroup') {
+                return <tr key={displayItem.key}><td colSpan={5} className="p-4">{renderAttachmentGroup(displayItem)}</td></tr>
+              }
               if (displayItem.kind === 'sieUndoGroup') {
                 const { batchId, items } = displayItem
                 const first = items[0]
@@ -784,6 +832,9 @@ export default function TransactionTable({
       {/* ══════════════════════ MOBIL ══════════════════════ */}
       <div className="md:hidden flex flex-col gap-3">
         {visibleItems.map((displayItem) => {
+          if (displayItem.kind === 'attachmentGroup') {
+            return <div key={displayItem.key}>{renderAttachmentGroup(displayItem)}</div>
+          }
           if (displayItem.kind === 'sieUndoGroup') {
             const { batchId, items } = displayItem
             const first = items[0]

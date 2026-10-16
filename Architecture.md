@@ -268,7 +268,7 @@ Legacy-kategorin `avskrivning_inventarier` i `ACCOUNT_PRESETS` ska inte framstä
 - `SubscribeButton.tsx` - startar Stripe Checkout.
 - `SubscriptionGuard.tsx` - UI-gate för prenumerationsfunktioner.
 - `TransactionForm.tsx` - vanlig bokning och VAT V2-faktainsamling; hanterar kategori, moms, bilaga, periodisering och payment-role-konfiguration.
-- `TransactionTable.tsx` - historik, journalrader, källbadges, KORRVER, SIE-undo-grupper och systemtransaktionsskydd.
+- `TransactionTable.tsx` - historik, journalrader, källbadges, KORRVER, SIE-undo-grupper och systemtransaktionsskydd. KAN-86 lägger till valbar gruppering efter exakt gemensam bilagereferens via `transactionAttachmentGroups.ts` och delad dator-/mobilvy i `AttachmentTransactionGroup.tsx`; endast presentation inom valt år, utan ekonomisk gruppsumma. Sökning/filter och belopps-/VER-sortering pausar den nya grupperingen.
 
 ### `src/hooks`
 

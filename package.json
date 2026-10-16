@@ -20,7 +20,9 @@
     "test:e2e:smoke": "node scripts/run-playwright-e2e.mjs tests/e2e/public-auth.spec.ts --project=chromium",
     "test:e2e:write": "node scripts/run-playwright-e2e.mjs --write --project=chromium",
     "test:e2e:safety": "node scripts/test-e2e-preflight.mjs",
-    "test:regression": "npm run test:domain && npm run test:e2e:smoke",
+    "test:history-groups": "node scripts/test-transaction-attachment-groups.ts",
+    "test:history-ui": "node scripts/test-transaction-attachment-ui.mjs",
+    "test:regression": "npm run test:domain && npm run test:history-groups && npm run test:history-ui && npm run test:e2e:smoke",
     "test:kan74:db": "node scripts/test-sie-opening-guard.mjs"
   },
   "dependencies": {
