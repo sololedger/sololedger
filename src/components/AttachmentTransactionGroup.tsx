@@ -1,9 +1,12 @@
 'use client'
 
 import { useId, type Ref } from 'react'
+import TransactionPresentation from './TransactionPresentation'
+import type { HistoryPresentation } from '@/lib/transactionHistoryPresentation'
 import type { AttachmentDisplayItem, AttachmentGroupItem } from '@/lib/transactionAttachmentGroups'
 
 export interface AttachmentGroupMember extends AttachmentGroupItem {
+  presentation?: HistoryPresentation
   tx: AttachmentGroupItem['tx'] & {
     id: string
     description?: string | null
@@ -74,11 +77,15 @@ export default function AttachmentTransactionGroup({
               className="min-w-0 rounded-xl border border-gray-200 bg-white p-4">
               <div className="flex flex-wrap justify-between gap-2 text-sm font-bold text-gray-700">
                 <p>VER-{member.verNr ?? '–'} · {member.tx.date}</p>
-                <p>Belopp: {money(member.tx.amount)} kr</p>
+                <p className={member.presentation?.amountClass}>
+                  {member.presentation?.amountLabel ?? `Belopp: ${money(member.tx.amount)} kr`}
+                </p>
               </div>
               {member.isCorrection && <p className="text-sm text-amber-700">Korrigering · rättar VER-{member.tx.corrects_ver_nr ?? '–'}</p>}
               {member.isNeutralized && <p className="text-sm text-gray-600">Rättad med korrigeringsverifikation</p>}
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800">{member.tx.description}</p>
+              {member.presentation ? (
+                <TransactionPresentation presentation={member.presentation} original={member.tx.description ?? ''} />
+              ) : <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800">{member.tx.description}</p>}
               <dl className="mt-3 space-y-2 text-xs text-gray-700">
                 {member.journal.map(row => (
                   <div key={row.id} className="rounded-lg bg-gray-50 p-2">

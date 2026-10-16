@@ -10,6 +10,8 @@ import {
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
 import AttachmentTransactionGroup from './AttachmentTransactionGroup'
+import TransactionPresentation from './TransactionPresentation'
+import { buildHistoryPresentations } from '@/lib/transactionHistoryPresentation'
 import {
   attachmentGroupingPauseReason,
   groupTransactionsByAttachment,
@@ -122,6 +124,7 @@ export default function TransactionTable({
     return match?.[1]?.trim() || 'SIE-import'
   }
 
+  const presentations = buildHistoryPresentations(transactions, journalMap)
   const enriched = transactions.map((tx, originalIndex) => {
     const journal = journalMap[tx.id] || []
     const isCorrection = tx.is_correction === true
@@ -273,6 +276,7 @@ export default function TransactionTable({
 
     return {
       tx,
+      presentation: presentations.get(tx.id),
       journal: sortedJournal,
       isCorrection,
       verNr,
@@ -680,6 +684,7 @@ export default function TransactionTable({
                 badgeClass,
               } = displayItem.item
 
+              const presentation = displayItem.item.presentation
               return (
                 <tr key={tx.id} className={`group transition-all duration-150 ${rowClass}`}>
                   <td className="p-8 font-bold text-gray-400 text-sm">
@@ -774,13 +779,13 @@ export default function TransactionTable({
                       )}
                     </div>
 
-                    <p className={`font-bold ${
+                    {presentation ? <TransactionPresentation presentation={presentation} original={tx.description} /> : <p className={`font-bold ${
                       isCorrection
                         ? 'text-amber-700 text-xs pl-4 border-l-2 border-amber-200'
                         : textClass
                     }`}>
                       {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
-                    </p>
+                    </p>}
 
                     {isCorrection && tx.corrects_ver_nr != null && (
                       <p className="text-[9px] text-amber-500/80 font-bold mt-1 pl-4">
@@ -798,8 +803,8 @@ export default function TransactionTable({
                     )}
                   </td>
 
-                  <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${amountClass}`}>
-                    {isVatClosing ? (
+                  <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${presentation?.amountClass ?? amountClass}`}>
+                    {presentation?.amountLabel ? presentation.amountLabel : isVatClosing ? (
                       <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">
                         Systembokning
                       </span>
@@ -986,6 +991,7 @@ export default function TransactionTable({
             badgeClass,
           } = displayItem.item
 
+          const presentation = displayItem.item.presentation
           return (
             <div
               key={tx.id}
@@ -1028,7 +1034,9 @@ export default function TransactionTable({
                   )}
                 </div>
 
-                {isVatClosing ? (
+                {presentation?.amountLabel ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${presentation.amountClass}`}>{presentation.amountLabel}</p>
+                ) : isVatClosing ? (
                   <p className="font-black text-[10px] uppercase tracking-wide text-violet-500 text-right">
                     Systembokning
                   </p>
@@ -1105,13 +1113,13 @@ export default function TransactionTable({
                 )}
               </div>
 
-              <p className={`font-bold text-sm mb-2 ${
+              {presentation ? <TransactionPresentation presentation={presentation} original={tx.description} /> : <p className={`font-bold text-sm mb-2 ${
                 isCorrection
                   ? 'text-amber-700 text-xs pl-3 border-l-2 border-amber-200'
                   : textClass
               }`}>
                 {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
-              </p>
+              </p>}
 
               {isCorrection && tx.corrects_ver_nr != null && (
                 <p className="text-[9px] text-amber-500/80 font-bold mb-2 pl-3">

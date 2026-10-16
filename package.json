@@ -22,7 +22,9 @@
     "test:e2e:safety": "node scripts/test-e2e-preflight.mjs",
     "test:history-groups": "node scripts/test-transaction-attachment-groups.ts",
     "test:history-ui": "node scripts/test-transaction-attachment-ui.mjs",
-    "test:regression": "npm run test:domain && npm run test:history-groups && npm run test:history-ui && npm run test:e2e:smoke",
+    "test:history-presentation": "node scripts/test-transaction-history-presentation.ts",
+    "test:history-presentation-ui": "node scripts/test-transaction-presentation-ui.mjs",
+    "test:regression": "npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:e2e:smoke",
     "test:kan74:db": "node scripts/test-sie-opening-guard.mjs"
   },
   "dependencies": {

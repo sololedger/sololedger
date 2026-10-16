@@ -1,51 +1,54 @@
 # SoloLedger Project State
 
-Updated 2026-10-16: Pontus reports manual core acceptance PASS in isolated Preview (VER-90/91/92, full originals/journal and private PDF). Follow-up UI improvements implemented locally on the same isolated branch: accessible On/Off switch, group summary and jump to first group. Await new commit/Preview approval. Existing Preview unchanged; no hosted write or Production action.
+Updated 2026-10-17: Pontus approved a local synthetic demonstration, the isolated local commit (twelve reviewed files plus necessary demo code), and one separate Vercel Preview against Staging. Local demo PASS at desktop/mobile. Publishing this exact thirteen-file candidate; no push/merge, Production action or hosted data/configuration write approved.
 
 ## Current objective / next safe step
 
-- KAN-86: optional exact-shared-attachment groups in transaction history. Default off. Neutral title, true date interval/count, full original details and one private attachment link; no semantic correction inference or custom labels.
-- Next: Pontus reviews the local UI update and separately approves its six-file local commit plus a new isolated Staging Preview. Exact plan: docs/reviews/KAN-86-isolated-preview-plan.md. Existing accepted core Preview remains https://sololedger-8wtmqo7bh-sololedger1.vercel.app (dpl_3fZtvFLTCCAC6oqfg2yF1UNMcrNU). No commit/push/merge/deploy in this follow-up; no Production release or Jira Done.
-- Pre-publication effective Preview build/runtime URL and public Auth-settings read verified against fzxqiqenqjzhlyxxpvhg. Existing sensitive server variable is configured/protected; its actual value was not validated or changed. Standalone deployment env read after build was unavailable; do not claim it passed. Exact source archive, explicit Preview command and preflight establish the publication target.
-- Read-only before/after Staging verification PASS: VER-90/91/92, transaction/journal digest and same single owner-folder private attachment reference unchanged; existing PDF still present. No authenticated app login/private-document opening by Codex. Browser login page load PASS; anonymous HTTP redirects to Vercel SSO as expected.
-- Jira KAN-86 re-read 2026-10-16: In Review / Pontus; earlier implementation comment 11626 retained. No Jira mutation in this local-only follow-up. Manual core PASS is leader-reported; final switch/summary/jump acceptance remains.
+- KAN-87: readable KAN-84 Adobe presentation, positive refunds, neutral reclassifications, searchable aliases and preserved originals. Implementation/evidence: docs/reviews/KAN-87-local-verification.md.
+- NEXT: Execute approved local commit and isolated Preview, verify exact source/Ready/safe Staging binding, then check the existing E2E VER-90–92 group/private PDF without bookkeeping writes. Stop for Pontus manual acceptance afterwards. Local synthetic demo at http://127.0.0.1:3097 covers the positive KAN-87 case; no new hosted fixture is approved or needed for the accepted split plan.
+- GitHub main verified read-only this session at 7467143e3221b012b3d0e49397e2b0c8d3b6f445; remote staging 5809094dd3ce808dba35986c65e772b842f0d0e1. KAN-86 Production PASS is leader-reported; no deployment re-audit performed.
+- The inherited KAN-86 state was stale relative to current main. Its detailed evidence remains in docs/reviews/KAN-86-*.md, Git history and the preserved KAN-86 worktree; this file now describes this isolated KAN-87 scope.
 
-## Git / workspace
+## Workspace / uncommitted scope
 
-- Active managed worktree: C:/Users/Familjedator/.codex/worktrees/kan86-shared-attachments/sololedger_multi_user.
-- Branch codex/KAN-86-shared-attachments, HEAD 6b72492a9ac07237ffaa7920e0353552bc79d1af, sole parent/base 8692f0566feab0978976143d51fd5d1ed91daa19. Exactly ten files committed. Remote main/staging last verified at first publication as 8692f05/5809094; not refreshed in this local UI follow-up. No push or merge.
-- Committed scope: Architecture.md, PROJECT_STATE.md, package.json, src/components/TransactionTable.tsx, src/lib/transactionAttachmentGroups.ts, src/components/AttachmentTransactionGroup.tsx, scripts/test-transaction-attachment-groups.ts, scripts/test-transaction-attachment-ui.mjs, docs/reviews/KAN-86-local-verification.md, docs/reviews/KAN-86-isolated-preview-plan.md.
-- Before this follow-up only PROJECT_STATE.md was dirty, containing the preserved publication result. Six current modified paths: PROJECT_STATE.md, src/components/TransactionTable.tsx, src/components/AttachmentTransactionGroup.tsx, scripts/test-transaction-attachment-ui.mjs, docs/reviews/KAN-86-local-verification.md, docs/reviews/KAN-86-isolated-preview-plan.md. Nothing staged; no new commit. First-publication receipts remain outside Git at C:/Users/Familjedator/.codex/visualizations/2026/10/16/01a14537-423f-7941-aded-acd29c8f9bad/kan86-preview-release.
-- package-lock.json, accounting/RPC/loaders/reports/export, migrations and permanent AGENTS.md unchanged. No real env/Auth/credential files copied.
-- Canonical Desktop checkout stays on local staging 11d8306 with its existing modified PROJECT_STATE.md and untracked audit-packages/ and scripts/create-kan63-staging-user.mjs. This follow-up changes only the isolated KAN-86 worktree; preserve canonical files, all ignored files and all other worktrees.
+- Worktree: C:/Users/Familjedator/.codex/worktrees/kan87-history-presentation/sololedger_multi_user.
+- Branch codex/KAN-87-history-presentation. HEAD/base 7467143. No new commits, nothing staged.
+- Product: new src/lib/transactionHistoryPresentation.ts and src/components/TransactionPresentation.tsx; changed TransactionTable.tsx, AttachmentTransactionGroup.tsx and transactionHistoryFilters.ts.
+- Verification: new scripts/fixtures/kan84-presentation.ts, scripts/test-transaction-history-presentation.ts and scripts/test-transaction-presentation-ui.mjs; package.json adds both tests to safe regression.
+- Documentation: Architecture.md, PROJECT_STATE.md and docs/reviews/KAN-87-local-verification.md. These twelve reviewed files plus new scripts/kan87-demo.mjs are the complete approved thirteen-file commit scope. Demo script reuses the tested synthetic entry point; no src/route/import/product-build entry is added.
+- AGENTS.md, PROJECT_ARCHIVE.md, package-lock.json, environment/auth files, database/migrations, accounting/report engines, loaders, bank history and export unchanged. Synthetic screenshots live only in ignored test-results/history-presentation/.
+- Existing installed dependencies reused via local node_modules junction to the KAN-86 worktree. No installation or lockfile change.
 
-## Local UI follow-up verification (2026-10-16)
+## Result / limits
 
-- PASS typecheck and test:history-groups. Expanded existing test:history-ui PASS in all eight synthetic scenarios (default, multiple, none, empty at 1440/390 px). No real env/Auth/DB or remote requests.
-- Keyboard Space/Enter switch, default off, accessible name/description and 44 px touch target; one/multiple/zero group summaries; first group beyond two page boundaries; correct visible-layout focus/scroll, repeated jumps and both date orders. Show-more keeps every earlier row and SIE undo position. Existing originals, journals, private signing call, actions, search/category/sort pause, SIE undo and mobile overflow checks retained.
-- PASS focused lint: group component/UI script clean; TransactionTable exactly the same 13 pre-existing errors and one warning as HEAD after normalizing diagnostic line numbers. No new findings; full lint is not green.
-- Desktop/mobile control and mobile jump screenshots visually reviewed. No broad accounting/write E2E, full regression rerun, build or deployment for this UI-only follow-up. Earlier full safe regression below belongs to 6b72492.
-- Accounting integration: only display controls, counts and DOM focus/scroll changed. No transaction sources, journals/RPCs, loaders, VAT/NE/dashboard/balances, payments/corrections/year-end or SIE import/export changes. Accounting write-E2E checklist is not applicable.
+- Four verified reclassifications: short title, amber Bokföringsrättelse, neutral Omfört 285 kr, Ingen ny bankbetalning and original VER reference. Not treated as full KORRVER reversals.
+- Five verified refunds: +57 kr green and Inbetalning till bank. isIncome and all accounting data unchanged.
+- Verified October payment and five EU service-month labels. Adobe search finds all 19 relevant entries in the synthetic full-year/all-category fixture, retaining original text/VER/accounts.
+- Full original description in native disclosure; same metadata/component for desktop, mobile and expanded groups. Existing action identities, signed attachments, grouping/search pause and originals preserved.
+- Narrow fail-closed 2026 KAN-84 contract requires complete 15-member batch plus four originals, same explicit owner/private PDF, technical categories/source, exact journal structure/VER/dates/amounts/rates and corroborated generator format. No real identifiers in code/fixtures. Unknown/incomplete/corrected packages retain original display.
+- Earlier analysis verified live journal/account/report behavior read-only. This implementation reused the saved snapshot locally and matched exactly 15 entries; no fresh live DB/Storage call.
 
-## Earlier implementation verification (6b72492)
+## Verification
 
-- PASS npm run typecheck.
-- PASS focused ESLint on both new product files and both new test scripts. Existing TransactionTable: baseline/current both 13 errors and one warning, identical normalized diagnostics; zero new findings. Do not claim full repo lint is green.
-- PASS final npm run test:regression (exit 0): existing pure domain/SIE tests, new test:history-groups, new test:history-ui, public localhost smoke 2/2. Synthetic/dummy process configuration only, no login or data write.
-- Playwright real component + real Tailwind at 1440/390 px: opt-in, full originals, journal amounts, exact signed-link call, individual action identity, SIE undo expansion, search/count/category, sorting, pagination and no mobile horizontal overflow. Both screenshots visually inspected.
-- Initial public smoke runner stalled; its identified process tree was stopped. Bounded isolated retry passed, then final combined regression passed. An added SIE assertion initially matched the header range too; selector made exact and final suite passed.
-- PASS git diff --check. No build, full-lint cleanup or broad accounting/write E2E run; UI-only scope does not change accounting paths.
+- PASS typecheck and focused lint on all changed/new files except TransactionTable, which has identical normalized baseline/current 13 errors + one warning. Full lint is not green; no new diagnostic.
+- PASS new pure presentation/search/provenance/immutability/economic checks; actual desktop/mobile/group component tests at 1440/390, including signs/classes/originals/private signing/actions/no mutation/no remote calls/no mobile overflow. Screenshots visually reviewed.
+- PASS existing domain, attachment-group and all eight attachment-UI scenarios during safe regression.
+- Standard npm run test:regression exited 1 only at public-smoke startup because Turbopack rejects the external dependency junction. One bounded retry on local next dev --webpack ran the same public-auth Chromium tests: 2/2 PASS. All test components pass; initial wrapper exit must not be reported as zero. No configuration/source change for that environment workaround.
+- No build, full-lint cleanup or broad accounting/write E2E. Display-only integration map and accounting-checklist non-applicability documented in review report.
+- Jira handoff verified: KAN-87 In Review (transition 31), assigned to Pontus using Jira-verified account ID. Description updated and acceptance/limitation comment 11627 added. Not Done.
 
-## Boundaries / limitations
+## Isolated Preview preparation (no publication)
 
-- Grouping only within loaded selected year. Search/category and amount/VER sort pause the new grouping with an explanation. Existing SIE undo remains its established separate behavior.
-- Exact user ID + attachments bucket + raw nonblank reference; no description/batch/filename matching. Missing ownership never groups. Singleton rows unchanged.
-- No group economic sums and no source/booked/correction/journal mutations. Common attachment uses existing Storage signing/RLS; no files moved, duplicated or deleted.
-- No live DB/Storage write in implementation or Preview preparation. Read-only Staging inventory found existing dedicated E2E group VER-90/91/92 in 2026, dated 2026-10-17–12-31, with one existing owner-folder private PDF; ordinary rows exist. File content/authenticated opening not checked. Do not use Jessika/Production documents. SIE-undo VER-182 exists only in 2091, impractical for short manual acceptance; no new fixtures created. Main/staging remote heads verified unchanged at 8692f05/5809094. No new broad tests in preparation.
-- Superseding manual evidence: Pontus reports core private-PDF/full-original acceptance PASS in the isolated Preview. The new local UI controls await a separately approved Preview and acceptance. Only the initial isolated Preview was published; no Production publication. No new broad test suite. Initial CLI --skip-domain flag was rejected locally (Preview does not support it); no deployment existed, flag alone removed, then one successful Preview submitted. All attempt receipts retained.
+- Current GitHub main still 7467143; no additional commits/staging merge. Exact twelve-path scope reviewed; product/test fingerprint unchanged: 4963de36e2eb8f7d54abbc3ba23da2c5213e19027d4e0fb236da5e407fd3bb49. Preparation edits only this state and the existing review report; no thirteenth delivery file.
+- Existing Vercel project/scope verified read-only, Next.js/Node 24/default build and install, existing SSO protection. Individually allowlisted Preview public URL/key verify Staging fzxqiqenqjzhlyxxpvhg and Auth settings 200. Server-key value/binding not inspected. Automatic review rejected a full env pull; safe metadata/public-only alternative succeeded. No configuration change.
+- Read-only Staging over TLS/session-continuous pooler: two synthetic KAN-84 owners (20/21 transactions) both give zero helper matches because VER/date/original category differ. Existing dedicated E2E VER-90/91/92/private test file still available for grouping/auth regression, not positive KAN-87 display acceptance. No Production read/copy or hosted write in preparation.
+- Clean source candidate/manifest and dry upload inventory live outside Git in C:/Users/Familjedator/.codex/visualizations/2026/10/16/01a146e5-91e8-7401-839c-6aa74b5355ef/kan87-preview-preparation. Excludes all env/auth/audit/ignored state and dependency links. Not a commit/deployment. Fresh archive must be made from future approved commit.
+- Local dependency-junction cause is excluded from source delivery; use cloud install from unchanged lockfile, no prebuilt local output. Actual Preview build/runtime still unverified. No broad tests rerun. Jira re-read In Review / Pontus, unchanged.
 
-## Preserve other work
+## Preserve other work / retention
 
-- KAN-84 Production correction accepted PASS by leader; no further bookkeeping authorized. Evidence remains in its separate kan84-adobe-oneoff worktree/state. Do not rerun it or alter its original 18 work files.
-- KAN-74 implementation/checkpoint/release worktrees and all KAN-71/72/63 work remain untouched. This worktree inherited older KAN-74 checkpoint documentation from main; that inherited task state is superseded here, while its detailed docs remain unchanged.
-- KAN-62/65 holds and older database reconstruction/grant concerns are outside this task. Never integrate all local staging into Production or infer that old canonical connection/status claims were refreshed here.
+- Canonical Desktop checkout unchanged: local staging 11d8306, modified PROJECT_STATE.md, untracked audit-packages/ and scripts/create-kan63-staging-user.mjs.
+- KAN-86 worktree unchanged at 7467143 with its existing modified PROJECT_STATE.md.
+- KAN-84 worktree unchanged at 9756abc with pre-existing package.json and untracked implementation/SQL/review files. Do not rerun its accepted Production bookkeeping.
+- All older worktrees, credentials, fixtures and evidence preserved. KAN-62/65 holds and Staging-only history stay outside KAN-87.
+- Retention: replace inherited stale task state here with this active scope; no unrelated archive rewrite or cleanup. No permanent rule change.

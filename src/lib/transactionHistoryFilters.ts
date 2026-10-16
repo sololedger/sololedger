@@ -41,6 +41,7 @@ export interface TransactionHistoryJournalLike {
 }
 
 export interface TransactionHistoryFilterItem {
+  presentation?: { title: string; searchTerms: readonly string[] }
   tx: {
     id?: string | null
     date?: string | null
@@ -195,6 +196,8 @@ function searchCorpus(
     date.match(/^\d{4}-\d{2}-\d{2}$/) ? date.slice(0, 7) : '',
     date.match(/^\d{4}/)?.[0] ?? '',
     item.tx.description ?? '',
+    item.presentation?.title ?? '',
+    ...(item.presentation?.searchTerms ?? []),
     item.tx.type ?? '',
     item.tx.source ?? '',
     item.tx.customer_invoice_id ?? '',
