@@ -12,6 +12,24 @@ Correct bookkeeping, auditability, user isolation, and data integrity always com
 
 Core principle: **Osäker → SoloLedger gissar inte.**
 
+## Produktmål
+
+SoloLedgers främsta mål är att Jessika ska kunna använda programmet för sin enskilda firma år efter år: enkel löpande bokföring, fakturor, momsavstämning, förenklat årsbokslut och korrekta, begripliga belopp att manuellt föra över till deklarationen hos Skatteverket. Elektronisk deklarationsinlämning är inte ett krav.
+
+Programmet ska vara tillförlitligt och kunna användas av andra företagare på sikt, men framtida kommersialisering får inte skapa onödig komplexitet eller försena en fungerande produkt för Jessika.
+
+## Arbets- och prioriteringsprinciper
+
+1. Prioritera verkliga användarbehov, bekräftade fel och konkreta risker för bokföring, moms och deklaration.
+2. Återanvänd tidigare granskningar, tester, beslut och Jira-historik. Gör inte om redan genomförda kontroller utan tydlig anledning.
+3. Skilj bekräftade fel från misstankar, syntetiska testfall och teoretiska begränsningar.
+4. Föreslå inte omfattande granskningar utan ett konkret beslut de ska möjliggöra, tydlig avgränsning och proportionerlig arbetsinsats.
+5. Förklara tekniska frågor på begriplig svenska: vad problemet är, om det påverkar Jessika, vilken risk som finns och vad som behöver göras.
+6. Sträva efter att färdigställa användbara arbetsflöden och avsluta ärenden. Undvik att skapa nya arbetsområden för varje hypotetiskt specialfall.
+7. Behåll höga kvalitetskrav på bokföring, moms och deklaration. Konkreta allvarliga risker får aldrig ignoreras för att spara tid.
+8. Vid varje sessionshandoff ska produktmålet, dessa prioriteringsprinciper och aktuell faktisk leveransstatus framgå eller hänvisas till tydligt.
+9. Respektera att produktägaren inte är programmerare. Presentera beslut och resultat på en nivå som gör att han förstår vad som görs och varför.
+
 ## Communication With Pontus
 
 - Leader-facing answers to Pontus should normally be in simple, understandable Swedish.
