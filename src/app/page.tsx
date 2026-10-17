@@ -31,6 +31,7 @@ import AdminPanel from '@/components/AdminPanel'
 
 import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
+import { newBookingCategoryError } from '@/lib/bookingCategoryVisibility'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
 import { getTransactionHistoryViewState } from '@/lib/transactionHistoryState'
@@ -513,6 +514,9 @@ export default function Home() {
     }
 
     if (!editingId) {
+      const categoryError = newBookingCategoryError(kontoplan, formData.type,
+        kontoplanLoaded && !kontoplanLoading && !kontoplanError)
+      if (categoryError) { alert(categoryError); return }
       const selectedCategory = kontoplan.find(k => k.id === formData.type)
       if (selectedCategory && categoryRedirectsToFixedAssets(selectedCategory)) {
         alert('Utrustning bokförs under Inventarier. Gå till Inventarier så hjälper SoloLedger dig att bokföra köpet rätt, oavsett belopp.')
@@ -697,7 +701,7 @@ export default function Home() {
   const cancelEdit = () => {
     setEditingId(null)
     setEditingBooked(false)
-    setFormData(prev => ({ ...prev, description: '', amount: '', file: null }))
+    setFormData(prev => ({ ...prev, description: '', amount: '', file: null, type: '', vatRate: 0 }))
   }
 
   async function handleLockYear() {
@@ -1183,6 +1187,7 @@ export default function Home() {
               formData={formData}
               setFormData={setFormData}
               kontoplan={kontoplan}
+              kontoplanReady={kontoplanLoaded && !kontoplanLoading && !kontoplanError}
               isYearLocked={isYearLocked}
               editingId={editingId}
               editingBooked={editingBooked}

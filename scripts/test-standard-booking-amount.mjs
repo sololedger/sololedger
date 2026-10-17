@@ -128,12 +128,12 @@ assert.ok(handlerNode,'submit handler found')
 const handlerCode=ts.transpileModule(handlerNode.getText(tree),{
  compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS},
 }).outputText
-async function submitPage({ amount,booked=false,periodized=false,smallBusiness=false,confirmed=true }) {
+async function submitPage({ amount,booked=false,periodized=false,smallBusiness=false,confirmed=true,hidden=false,ready=true,category="sale" }) {
  const actions=[]
- const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,
+ const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,newBookingCategoryError:load("src/lib/bookingCategoryVisibility.ts").newBookingCategoryError,kontoplanLoaded:ready,kontoplanLoading:false,kontoplanError:null,
  isYearLocked:false,submitInFlightRef:{current:false},editingId:booked?'old-booking':null,
- editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale',credit_account:smallBusiness?'3010':'3001'}],
- formData:{date:'2026-02-01',description:'Metadata',amount,type:'sale',vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
+ editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale',hidden_from_new_booking:hidden,credit_account:smallBusiness?'3010':'3001'}],
+ formData:{date:'2026-02-01',description:'Metadata',amount,type:category,vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
  isSystemManagedTransaction:()=>false,categoryRedirectsToFixedAssets:()=>false,
  periodisera:periodized,periodMonth:'2027-01',profile:smallBusiness?{domestic_sales_vat_treatment:'small_business_exempt'}:{},
  window:{confirm:message=>{actions.push(['confirm',message]);return confirmed}},
@@ -179,3 +179,13 @@ assert.equal(confirmedNe[0][0],'confirm');assert.equal(confirmedNe[1][0],'upload
 assert.equal(confirmedNe[2][0],'book');assert.equal(confirmedNe[2][1].ne_sales_basis,'small_business_exempt')
 assert.equal(confirmedNe[2][1].ne_sales_basis_confirmed,true)
 console.log('KAN-88 actual submit confirms historical applicability before upload and atomic booking.')
+
+for(const periodized of [false,true]) {
+ for(const state of [{hidden:true},{category:'unknown'},{ready:false}]) {
+  const actions=await submitPage({amount:'1250',periodized,...state});
+  assert.equal(actions.length,1,'invalid category blocks before uploads and booking');
+  assert.equal(actions[0][0],'alert');
+ }
+}
+assert.equal((await submitPage({amount:'-1250',booked:true,hidden:true}))[0][0],'metadata','hidden historical metadata remains editable');
+console.log('PASS KAN-89 actual page handler: hidden, unknown and loading blocked for ordinary/periodized; historical metadata retained');

@@ -22,7 +22,7 @@ const accounts=[
  {id:'egen_insattning',name:'Egen insättning',debit_account:'1930',credit_account:'2018',default_vat_rate:25},
  {id:'egen_insättning',name:'Äldre insättning',debit_account:'1930',credit_account:'2018',default_vat_rate:25},
  {id:'forsaljning',name:'Testförsäljning',debit_account:'1930',credit_account:'3010',default_vat_rate:25},
- {id:'eget_uttag',name:'Eget uttag',debit_account:'2013',credit_account:'1930',default_vat_rate:0}]
+ {id:'eget_uttag',name:'Eget uttag',debit_account:'2013',credit_account:'1930',default_vat_rate:0}].map(account=>({...account,hidden_from_new_booking:false}))
 const initial={date:'2026-10-01',description:'Syntetiskt test',amount:'1250',type:'cost',vatRate:25,inputVatDeduction:'profile_default',file:null}
 function App(){
  const [form,setForm]=useState(initial)
@@ -33,7 +33,7 @@ function App(){
  window.configure=(p={})=>{setForm({...initial,...p.form});setProfile(p.missing?null:{vat_status:'registered',domestic_sales_vat_treatment:'taxable',default_deduction_entitlement:p.deduction??'full'});setLocked(!!p.locked);setBooked(!!p.booked);setMode('booking')}
  window.showInvoices=()=>setMode('invoices')
  window.currentForm=()=>form
- return mode==='booking'?<TransactionForm formData={form} setFormData={setForm} kontoplan={accounts}
+ return mode==='booking'?<TransactionForm formData={form} setFormData={setForm} kontoplan={accounts} kontoplanReady={true}
  isYearLocked={locked} editingId={booked?'synthetic-booked':null} editingBooked={booked} uploading={false}
  periodisera={false} setPeriodisera={()=>{}} periodMonth="2027-01" setPeriodMonth={()=>{}}
  onSubmit={e=>{e.preventDefault();window.fixtureCalls.push(['book',{...form}])}} onVatV2Submit={async()=>{throw Error('unexpected VAT V2')}}
