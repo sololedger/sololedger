@@ -45,7 +45,7 @@ function App(){
  onUploadAttachment={async()=>{throw Error('unexpected upload')}} onBookkeepingChanged={async()=>{}} onYearCloseBlockerChange={()=>{}}/>
 }
 const invoice=(id,number,extra={})=>({id,invoiceNumber:number,customerName:'Syntetisk kund',invoiceDate:'2026-10-01',serviceDate:'2026-10-01',dueDate:'2026-10-31',grossAmount:1250,netAmount:1000,vatAmount:250,vatRate:25,vatTreatment:'taxable',paymentStatus:'unpaid',paidAt:null,attachmentUrl:null,bookings:[],...extra})
-window.testInvoices=[invoice('same','SAME'),invoice('cross','CROSS',{bookings:[{id:'yr',bookingKind:'year_end_receivable',fiscalYear:2026,bookingDate:'2026-12-31',verNr:10,transactionId:'receivable'}]}),invoice('exempt','EXEMPT',{grossAmount:1000,netAmount:1000,vatAmount:0,vatRate:null,vatTreatment:'exempt'}),invoice('unknown','UNKNOWN',{vatTreatment:'unknown',vatRate:null})]
+window.testInvoices=[invoice('same','SAME'),invoice('cross','CROSS',{bookings:[{id:'yr',bookingKind:'year_end_receivable',fiscalYear:2026,bookingDate:'2026-12-31',verNr:10,transactionId:'receivable'}]}),invoice('exempt','EXEMPT',{grossAmount:1000,netAmount:1000,vatAmount:0,vatRate:null,vatTreatment:'exempt'}),invoice('unknown','UNKNOWN',{vatTreatment:'unknown',vatRate:null}),invoice('paid','PAID',{customerName:'Syntetisk kund med ett längre företagsnamn',grossAmount:9876543.21,netAmount:7901234.57,vatAmount:1975308.64,paymentStatus:'paid',paidAt:'2026-10-10',bookings:[{id:'paid-booking',bookingKind:'payment_same_year',bookingDate:'2026-10-10',fiscalYear:2026,verNr:21,transactionId:'paid-tx'}]})]
 createRoot(document.getElementById('root')).render(<App/> )
 `
 const serviceMock = `
@@ -137,6 +137,31 @@ try{
   await expect(panel.getByText(/Kundfordran är pengar som kunden är skyldig/)).toBeVisible()
   await expect(panel.getByText(/En momsfri faktura bokförs utan moms även vid bokslut/)).toBeVisible()
   const card=number=>page.getByTestId('customer-invoice-card').filter({hasText:number})
+  // KAN-67: one prominent total next to invoice identity, across payment states.
+  for(const [number,amount,status] of [['SAME','1 250 kr','Obetald'],['CROSS','1 250 kr','Obetald'],['PAID','9 876 543,21 kr','Betald'],['EXEMPT','1 000 kr','Obetald']]){
+   const c=card(number);await c.getByRole('button').first().click()
+   const header=c.getByTestId('customer-invoice-details-header')
+   await expect(header.getByText('Fakturabelopp',{exact:true})).toBeVisible()
+   await expect(header.getByText(amount,{exact:true})).toBeVisible()
+   await expect(header).toContainText(number+' · Syntetisk kund')
+   await expect(header).toContainText(status+' · ')
+   if(number==='CROSS')await expect(header).toContainText('Kundfordran vid bokslut 2026')
+   const layout=await header.evaluate(el=>{
+    const title=el.querySelector('p'),total=el.lastElementChild.lastElementChild
+    const h=el.getBoundingClientRect(),t=title.getBoundingClientRect(),a=total.getBoundingClientRect()
+    return {contained:a.left>=h.left&&a.right<=h.right&&a.bottom<=h.bottom,
+     prominent:parseFloat(getComputedStyle(total).fontSize)>parseFloat(getComputedStyle(title).fontSize),
+     sideBySide:a.left>t.right,stacked:a.top>t.bottom}
+   })
+   assert.ok(layout.contained&&layout.prominent)
+   assert.ok(width===1440?layout.sideBySide:layout.stacked)
+   assert.equal(await c.getByText(amount,{exact:true}).evaluateAll(es=>es.filter(el=>parseFloat(getComputedStyle(el).fontSize)>=18).length),1)
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+   await c.screenshot({path:'test-results/ui-round/'+width+'-invoice-'+number.toLowerCase()+'.png'})
+   await c.getByRole('button').first().click()
+  }
+  assert.equal(await page.evaluate(()=>window.fixtureCalls.length),0)
+  console.log('PASS KAN-67 amount header '+width+': unpaid/paid/receivable/exempt, large decimal amount, one prominent total, status preserved, zero calls')
   for(const number of ['SAME','CROSS']){
    const c=card(number);await c.getByRole('button').first().click()
    const payment=c.getByRole('form',{name:'Registrera betalning för faktura '+number})

@@ -934,18 +934,23 @@ export default function CustomerInvoicesPanel({
 
                     {expanded && (
                       <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
-                        <div className="mb-3 flex flex-col gap-1 border-b border-emerald-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-xs font-black text-gray-900">
+                        <div data-testid="customer-invoice-details-header" className="mb-3 flex flex-col gap-3 border-b border-emerald-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="break-words text-xs font-black text-gray-900">
                               {invoice.invoiceNumber} · {invoice.customerName}
                             </p>
                             <p className="mt-0.5 text-[10px] font-bold text-gray-500">
-                              {fmtCustomerInvoiceCurrency(invoice.grossAmount)} · {paymentLabel} · {yearEndLabel}
+                              {paymentLabel} · {yearEndLabel}
                             </p>
                           </div>
-                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">
-                            Detaljer för vald faktura
-                          </p>
+                          <div className="self-start rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:shrink-0">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                              Fakturabelopp
+                            </p>
+                            <p className="text-lg font-black tabular-nums text-gray-900">
+                              {fmtCustomerInvoiceCurrency(invoice.grossAmount)}
+                            </p>
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">

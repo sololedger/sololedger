@@ -160,3 +160,52 @@ Scope limited to the remaining ignored-file uncertainty. Rechecked the exact old
 Compare other existing worktree HEADs, statuses and changed/untracked-file metadata before and after this local commit. No other worktree edits/removal. Verify the commit tree/delta, empty staging area and clean UI working tree. The commit hash is reported after actual creation; no self-referential hash is written into this commit. No push/deploy authorized.
 
 Final pre-commit checks PASS: npm run typecheck; npm run test:ui-round (1440/390); targeted test lint; Production-base component lint comparison (TransactionForm 0 errors, CustomerInvoicesPanel exactly two pre-existing errors, no new diagnostics); diff/base/manifest/fingerprint checks. No accounting/DB test or public smoke repeated in finalization because product/test code is unchanged; earlier full constituent results/limits remain as documented.
+
+
+## Approved isolated Staging Preview — 2026-10-17
+
+
+PASS för deploy, manuell acceptans återstår.
+
+- URL: https://sololedger-n93xjhsj8-sololedger1.vercel.app
+- Deployment: dpl_7eu5z6K5cW1JXisFRhqunccRNgdL, READY.
+- Commit: d7825e6918dad83f21e94ea39fd7d31a75d3f7f9; parent 172f3a138874e587122ba500c8791a2ab9ac3a45. Exakt tiolfilmanifest verifierat.
+- Rent git-arkiv: alla 330 filer motsvarar Git-bytes; Vercel publicerade 329 källfiler (ignorerade .gitignore). Alla uppladdade källhashar verifierade.
+- Explicit target preview; befintlig Preview-konfig verifierad mot Supabase Staging. Publik nyckel kontrollerad endast i minne via auth settings GET; ingen full env pull eller serverhemlighet läst.
+- Nio observerade publicerade klientskript innehåller Staging-referensen och ingen Production-referens. Hjälptexter och nya UI-vakter finns i kompilerad kod. Detta bevisar inte faktisk rendering efter inloggning.
+- Production deployment/alias oförändrade; GitHub main/staging oförändrade. Ingen äldre staging eller KAN-62/65 ingår.
+- Inloggningssidan verifierad på dator 1440x1000 och mobil 390x844 utan horisontellt överflöde. Ingen inloggad dedikerad testsession finns i denna Preview-tab.
+- KAN-85/64/67/68: tidigare lokal PASS gäller; samtliga skyddade UI-scenarier EJ manuellt verifierade i Preview. KAN-67 ogiltigt datum/noll anrop har endast tidigare syntetisk lokal evidens. Inga betalningsförsök genomfördes.
+- KAN-88 kvarstår separat: observerad momsfri 3010 -> R1; förväntad R1/R2 ej fastställd.
+- Tidigare full lint/standardregressionswrapper inte gröna; dokumenterade baslinje-/miljöbegränsningar i incheckad lokal rapport.
+- Nätverkshistoriken var trunkerad; ingen slutsats om ogiltig betalningsgrind dras från Preview-nätverk.
+- Ingen push, merge, Production-deploy, migration, databas-/Storage-/konfigurationsskrivning eller Jira-ändring. Enda publiceringen är denna Preview.
+
+Nästa steg: Pontus testar med befintligt dedikerat Staging-konto och syntetiska befintliga data. Spara/bokför/betala inte. För giltigt datum -> ogiltig text -> betalningsknapp måste inga betalningsanrop ske; avbryt om lämplig obetald testfaktura saknas. Positiva betalningar eller nya fixtures kräver separat godkännande.
+
+
+## Pontus manual Preview acceptance and KAN-67 amount supplement — 2026-10-17
+
+Pontus reviewed d7825e6: KAN-85 manual UI PASS; KAN-64 manual UI PASS for profile without deduction (other variants retain earlier component evidence); KAN-67 partial manual PASS for empty date/total text, invalid-date submit was NOT tested; KAN-68 partial manual PASS for already-booked receivable explanation, other cases had no suitable existing data. This does not establish full hosted lifecycle acceptance.
+
+Local requested supplement (not yet committed/deployed):
+- CustomerInvoicesPanel.tsx: expanded details header shows one neutral Fakturabelopp box beside invoice/customer on desktop and below identity/status on mobile; existing small amount repetition removed from status subtitle. Paid/unpaid and year-end labels preserved. List amount and payment explanation retain subordinate sizing. Existing grossAmount formatter unchanged.
+- scripts/test-ui-round.mjs: reuse offline real-component harness with paid/large-decimal/long-customer fixture plus unpaid/receivable/exempt assertions, amount visibility/prominence/containment/status and responsive placement at 1440/390. One visually dominant amount per expanded card. Capture card screenshots in ignored test-results/ui-round.
+- PROJECT_STATE.md and this review: preserve prior uncommitted Preview evidence, add manual acceptance, exact manifest, current limits/next step.
+
+Verification PASS: npm run typecheck; npm run test:ui-round (all four Jira scenarios including earlier valid-date -> invalid text -> click -> zero calls; record/settle/undo mocked boundaries preserved; zero remote requests); node scripts/test-customer-invoice-filters.ts; node scripts/test-customer-invoice-vat-policy.ts; eslint scripts/test-ui-round.mjs; git diff --check. Component lint compared against d7825e6: same two existing react-hooks/set-state-in-effect errors at 159/166, no new messages. Visual review of synthetic mobile receivable and desktop paid screenshots PASS.
+
+Scope verification: code outside the expanded header is identical to HEAD after line-ending normalization. No state/handler/status/date/formatting/payment/VAT/receivable/undo/report/NE/RPC/DB changes. This is presentation-only, so no accounting lifecycle/DB checks or writes are needed; existing evidence remains. Full lint and standard safe regression wrapper remain subject to the earlier documented baseline/environment limitations and were not rerun. No new build, hosted test or new Preview.
+
+Exact delta from d7825e6: src/components/CustomerInvoicesPanel.tsx; scripts/test-ui-round.mjs; PROJECT_STATE.md; docs/reviews/KAN-85-64-67-68-local-verification.md. No files staged; HEAD unchanged. GitHub main rechecked at approved 172f3a138874e587122ba500c8791a2ab9ac3a45. No other worktree touched, no Jira mutation, commit, push, merge, deploy, migration or DB write.
+
+Recommendation: include in same UI release (no identified new accounting risk; small visual acceptance remains). Obtain approval for a local checkpoint of these four paths, then approval for updated isolated Preview from that exact new SHA. Build via clean git archive and verify READY/upload hashes/Staging public binding/unchanged Production as before. Do not use old staging or KAN-62/65. Existing published d7825e6 Preview does not contain this supplement. KAN-88 remains separate with expected R1/R2 unestablished. Stop for leader decision.
+
+
+## Supplement checkpoint / updated Preview authorization — 2026-10-17
+
+Pontus explicitly approved the local checkpoint and one updated isolated Staging Preview of precisely the new commit. Four approved paths only (CustomerInvoicesPanel.tsx, scripts/test-ui-round.mjs, PROJECT_STATE.md and this review); preserve prior dirty Preview documentation. Proposed/approved-scope commit message: feat(KAN-67): highlight invoice total in details header. Pre-commit HEAD d7825e6918dad83f21e94ea39fd7d31a75d3f7f9; sole Production ancestor/base 172f3a138874e587122ba500c8791a2ab9ac3a45; remote main/staging unchanged.
+
+Exact source diff reviewed: only expanded invoice-header JSX/classes/text changed; all code outside that block equals prior checkpoint after line-ending normalization. Test diff adds synthetic paid fixture and four-state responsive amount assertions, no external writes. No migration/env/auth/private attachment or unrelated file included. Other 16 worktrees captured before checkpoint using HEAD/status and changed/untracked filename/size/mtime metadata only; no credential contents read. Jira KAN-67 read-only rechecked In Progress; no Jira mutation approved/performed. Retention: all current acceptance/limits remain active; older evidence retained in this review, existing completed history left intact, no fifth file needed.
+
+Recheck typecheck and existing UI-round before committing; earlier targeted filter/VAT-policy/tests lint and unchanged two component lint diagnostics retained. No new product code or broad regression/DB tests needed for unchanged approved supplement. After commit, verify exact parent/manifest/clean UI tree and unchanged other-worktree metadata. Create clean git archive from new SHA with LF Git bytes, verify upload hashes, deploy Preview only with existing verified Staging Preview configuration; no full env pull/server-secret retrieval/config changes. Verify READY/code/Staging client ref/no Production client ref/unchanged Production and GitHub refs. Read-only new header check only if a suitable existing test session is available; otherwise report not manually verified and retain 1440/390 synthetic evidence. No positive payment/booking/fixture writes, push, merge, Production deploy, migration or Jira Done. Stop for visual acceptance.
