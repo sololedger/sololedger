@@ -209,3 +209,32 @@ Pontus explicitly approved the local checkpoint and one updated isolated Staging
 Exact source diff reviewed: only expanded invoice-header JSX/classes/text changed; all code outside that block equals prior checkpoint after line-ending normalization. Test diff adds synthetic paid fixture and four-state responsive amount assertions, no external writes. No migration/env/auth/private attachment or unrelated file included. Other 16 worktrees captured before checkpoint using HEAD/status and changed/untracked filename/size/mtime metadata only; no credential contents read. Jira KAN-67 read-only rechecked In Progress; no Jira mutation approved/performed. Retention: all current acceptance/limits remain active; older evidence retained in this review, existing completed history left intact, no fifth file needed.
 
 Recheck typecheck and existing UI-round before committing; earlier targeted filter/VAT-policy/tests lint and unchanged two component lint diagnostics retained. No new product code or broad regression/DB tests needed for unchanged approved supplement. After commit, verify exact parent/manifest/clean UI tree and unchanged other-worktree metadata. Create clean git archive from new SHA with LF Git bytes, verify upload hashes, deploy Preview only with existing verified Staging Preview configuration; no full env pull/server-secret retrieval/config changes. Verify READY/code/Staging client ref/no Production client ref/unchanged Production and GitHub refs. Read-only new header check only if a suitable existing test session is available; otherwise report not manually verified and retain 1440/390 synthetic evidence. No positive payment/booking/fixture writes, push, merge, Production deploy, migration or Jira Done. Stop for visual acceptance.
+
+
+## Updated isolated Preview outcome — 2026-10-17
+
+
+PASS / READY.
+
+- Checkpoint: 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340
+- Parent: d7825e6918dad83f21e94ea39fd7d31a75d3f7f9; Production ancestor: 172f3a138874e587122ba500c8791a2ab9ac3a45.
+- URL: https://sololedger-46uprewge-sololedger1.vercel.app
+- Deployment: dpl_5cresudSvQUDU9yVfiK5BKcRm24N.
+- Exact four-path commit: PROJECT_STATE.md; docs/reviews/KAN-85-64-67-68-local-verification.md; scripts/test-ui-round.mjs; src/components/CustomerInvoicesPanel.tsx.
+- Clean git archive 330 files equals committed bytes; all 329 Vercel source upload hashes match (.gitignore omitted by CLI). No local overlays/env/auth/private attachments.
+- Explicit target preview, existing SoloLedger project. Preview public Supabase URL/key independently verified against Staging fzxqiqenqjzhlyxxpvhg via read-only auth settings; no full env pull/server-secret read/config mutation. Nine observed deployed client scripts have Staging ref, no Production ref, new header/label and no removed details caption. Server secret binding not inspected.
+- Production dpl_3qo6dpN7Dqb78BqqeNrj1fzJkMe1, main commit and aliases unchanged; GitHub main/staging unchanged after deployment. Other 16 worktree HEAD/status/changed-untracked metadata unchanged. Exactly two release commits above Production; no old staging/KAN-62/65.
+- Current typecheck and component rerun PASS at 1440/390 (paid/unpaid/receivable/exempt, long customer/large amount with decimals, one prominent total, no overflow, date gate including valid-to-invalid zero calls, unchanged mocked record/settle/undo). Prior targeted invoice filter/VAT-policy/test lint PASS retained; component still has same two baseline lint errors. No DB tests/writes or hosted positive calls.
+- Public login renders; new origin has no authenticated test session. New amount-header rendering NOT manually verified in Preview. Source/bundle proof is not visual acceptance.
+- Next: Pontus log in with existing dedicated Staging account and visually check one neutral amount box near identity; paid/unpaid status and receivable information; desktop/mobile without overflow. Use existing data only; no new booking/payment/profile save/fixtures. Missing scenarios retain local synthetic evidence.
+- KAN-88 stays separate, expected NE R1/R2 unresolved. No accounting/NE logic change. Prior KAN-85/64 acceptance and KAN-67/68 partial acceptance preserved.
+- One local commit + one Preview deploy performed. No Git push/merge, Production deploy, migration, DB/Storage/configuration writes, worktree creation/removal or Jira mutation.
+
+Post-deploy evidence only: PROJECT_STATE.md and this review updated after deployment, uncommitted. No second commit; the published four-file checkpoint remains 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340.
+
+
+## Final acceptance / local account-switch closeout — 2026-10-17
+
+Pontus finally accepted the Production UI package. Jira read-only rechecked KAN-85/64/67/68 Done; KAN-88 and KAN-89 To Do. This supersedes earlier pending-review/acceptance snapshots above, without rewriting their historical evidence. No Jira mutation in this handoff. Production/main still 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340; prior Production PASS receipt and compact final closeout are preserved in PROJECT_ARCHIVE.md. KAN-88 NE R1/R2 remains unresolved and separate; KAN-89 category visibility is new/unimplemented.
+
+Pontus approved a local documentation-only checkpoint for account switch, no push required. Include this previously dirty Preview evidence plus updated state/archive; no product code, migration, secrets/private attachments or other-worktree changes. Continue in existing kan85-68-ui checkout/branch documented in PROJECT_STATE.md. Preserve all 17 worktrees and ignored material; no cleanup/new managed worktree. Verify other 16 worktree HEAD/status/file metadata after checkpoint. No tests needed for documentation-only changes beyond diff/scope/preservation checks.

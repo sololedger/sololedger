@@ -964,3 +964,72 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - Bounded checks covered exact parent directory, known app/snapshot logs, Git snapshot metadata and original-chat summaries. No verified inventory/backup of ignored contents or known unique ignored work/configuration/test material was identified; this is not proof that none existed.
 - Detailed evidence and previous STOP decisions remain in docs/reviews/KAN-85-64-67-68-local-verification.md, superseded by this explicit acceptance for checkpoint purposes. No cleanup/restore was performed during the investigation.
 - Permanent prevention rule now in AGENTS.md: explicit approval and tracked/untracked/ignored inventory before removal; do not trigger managed-worktree creation if automatic cleanup protection cannot be verified. App cleanup is NOT verified disabled; that environment limitation remains.
+
+
+## KAN-85/64/67/68 — technical Production PASS (2026-10-17)
+
+- Pontus accepted final Staging UI and explicitly approved release 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340. Verified exact history: 172f3a138874e587122ba500c8791a2ab9ac3a45 -> d7825e6918dad83f21e94ea39fd7d31a75d3f7f9 -> 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340; pushed exact SHA non-force to GitHub main only. No rebase/squash/cherry-pick or old staging/KAN-62/65 integration.
+- Delivered: KAN-85 deposit Belopp/no VAT/zero guard; KAN-64 verified existing profile text, no product code; KAN-67 empty validated date/full amount/neutral invoice header; KAN-68 receivable/year-end/settlement/exempt help. No shared date/RPC/report/NE/DB semantics changed. Ten-path release manifest retained in Git history and release receipt.
+- Automatic Vercel main integration produced dpl_HqcZejtMKu2z3SirE2dBeNfnGZmA READY/PROMOTED, same exact GitHub main SHA. Canonical https://sololedger.vercel.app/ HTTP 200. Nine observed deployed client scripts: Production wbaxmuvudpnkvuliicuy present, Staging absent, new amount/deposit/year-end code present. No manual Production deploy or environment/config changes.
+- Public browser smoke login/registration-view/reset-view PASS, all observed requests GET and responses 200, no failed requests/console errors or requests from view switches. No login/form submission/DB request/positive payment/booking/migration/Storage write. Bookkeeping data was not touched by release actions; no full global DB comparison or concurrent-user audit claimed.
+- Local supporting evidence: typecheck/UI-round 1440/390/all profile/VAT variants/deposit IDs and favorites/date invalidation/record-settle-undo/amount header statuses/layout PASS; targeted invoice filters/VAT-policy/tests lint PASS. Two prior component lint errors remain; original safe-regression wrapper had known Turbopack junction failure, prior constituents and bounded webpack public smoke passed. Earlier synthetic local rollback journal/VAT/NE/balance/dashboard lifecycle preserved; no Production DB test repeated. Detailed evidence remains in docs/reviews/KAN-85-64-67-68-local-verification.md.
+- Initial Preview dpl_7eu5z6K5cW1JXisFRhqunccRNgdL at d7825e6 and updated Preview dpl_5cresudSvQUDU9yVfiK5BKcRm24N at 2423f4b were clean archives (330 committed files/329 uploaded hashes matched) with explicit Staging binding and no Production client ref. Earlier dirty Preview review evidence preserved. Pontus initial partial KAN-67/68 acceptance and final full UI approval remain distinguished from absent hosted positive lifecycle tests.
+- Remote staging 5809094dd3ce808dba35986c65e772b842f0d0e1 and updated Preview unchanged by release; other 16 worktree HEAD/status/changed-untracked file metadata unchanged. Local main ref remains stale 0bc166de68f7989f6a3d1483c062f4b4b1570629, untouched. No worktree cleanup/creation.
+- After technical PASS, Jira KAN-85/67/68 assigned Pontus and moved to In Review, comments 11633/11634/11635. KAN-64 remains To Do/unassigned, already-working verification comment 11636. This was the immediate post-release snapshot. Final acceptance/Done verification below supersedes it.
+- KAN-88 remains separate/unimplemented, observed exempt 3010 -> R1; expected R1/R2 EJ FASTSTÄLLT. Historical old-worktree risk B accepted/CLOSED, earlier archive/detail preserved; automatic-cleanup disablement not verified. Existing private Staging PDF never accessed/reused here.
+- Release receipt: C:/Users/Familjedator/.codex/visualizations/2026/10/17/01a14929-cdaf-7f42-be41-c37f69ea04b4/kan85-68-production-release/release-result.md; exact deployment/push/public-client/smoke/other-worktree evidence adjacent. Post-release state/archive edits are local/uncommitted; prior dirty review retained; no documentation commit/push or staging synchronization authorized at that point. The later account-switch decision below authorizes a local documentation checkpoint only.
+
+
+## KAN-85/64/67/68 — final acceptance and local account-switch handoff (2026-10-17)
+
+- Pontus gave final Production acceptance. Jira read-only recheck: KAN-85 Done/Pontus; KAN-64 Done/unassigned; KAN-67 Done/Pontus; KAN-68 Done/Pontus. No Jira write in this handoff. KAN-64 remains a verified-already-working closeout with no new product implementation.
+- Production/GitHub main remains 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340; base 172f3a1 -> d7825e6 -> 2423f4b. Prior verified automatic Vercel Production dpl_HqcZejtMKu2z3SirE2dBeNfnGZmA READY, public HTTP/browser smoke, Production binding and unchanged data/write boundaries retained above. No new deploy, database operation or tool-auth experiment for account switch.
+- KAN-88 To Do/unassigned remains a separate unresolved NE investigation; observed exempt 3010 -> R1, expected R1/R2 EJ FASTSTÄLLT. KAN-89 To Do/unassigned newly requests per-user hiding/showing categories for new bookings while preserving history, safe favorites/defaults/legacy IDs and accounting/VAT behavior. Neither is implemented or automatically selected as the next task.
+- Active continuation path: C:/Users/Familjedator/.codex/worktrees/kan85-68-ui/sololedger_multi_user, branch codex/KAN-85-64-67-68-ui. Read AGENTS.md, PROJECT_STATE.md, Architecture.md, then relevant archive/review/Jira. Open this existing checkout directly; do not create a managed worktree. The Desktop checkout is an older dirty staging context, not current Production.
+- Authorized local documentation checkpoint: PROJECT_STATE.md, PROJECT_ARCHIVE.md and prior uncommitted docs/reviews/KAN-85-64-67-68-local-verification.md Preview evidence. Parent 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340; final SHA is reported after commit. New commit changes documentation only and is intentionally not pushed. No product/test/lockfile/env/auth/migration changes or Jira status changes.
+- Retention: accepted UI publication/verification/previous partial and final acceptance navigation now archived; detailed original review and historical worktree-risk findings retained without deleting history. Risk B remains accepted/CLOSED, AGENTS protection rule present, automatic cleanup-off control still unverified. No cleanup/removal/restore/prune/reset.
+- Tool/account continuity is not proven by repository continuity. Existing ignored local credentials/configuration/test material remain on the same computer, not stored/copied into Git or chat; next account may need its own normal connector/login access. No secrets read/hashed/copied and no external access setup attempted.
+
+### Preserved worktree inventory before local documentation checkpoint
+
+All 17 registered directories exist. For named managed worktrees below, absolute path is C:/Users/Familjedator/.codex/worktrees/<name>/sololedger_multi_user; Desktop has the explicit original repository path in current state. Counts cover Git tracked changes plus untracked files, excluding ignored contents. No content inspection of credentials/ignored files. Full HEAD/status/file-size/mtime receipt: C:/Users/Familjedator/.codex/visualizations/2026/10/17/01a14929-cdaf-7f42-be41-c37f69ea04b4/account-switch-handoff/worktrees-before.json.
+
+| Worktree | Branch | HEAD before checkpoint | Changed/untracked files |
+|---|---|---|---:|
+| Desktop (original repository) | staging | 11d830644232 | 7 |
+| kan63-production-candidate | codex/KAN-63-production-candidate | 357c980fba8a | 0 |
+| kan63-staging-integration | codex/KAN-63-staging-integration | 30e82adf9d28 | 0 |
+| kan63-staging-migration-prep | codex/KAN-63-staging-migration-prep | 01ae664f12e0 | 2 |
+| kan71-production-release | codex/KAN-71-production-release | 1d297c1fd387 | 1 |
+| kan71-sie-vat-periods | codex/KAN-71-sie-vat-periods | 69f928ac0208 | 0 |
+| kan71-staging-release | codex/KAN-71-staging-release | a47a57d07fd7 | 0 |
+| kan72-journal-index | codex/KAN-72-journal-user-ver-index | d67db203c0d2 | 0 |
+| kan72-staging-integration | codex/KAN-72-staging-integration | 9ff22b45cc7b | 1 |
+| kan72-standard-amount-guard | codex/KAN-72-standard-amount-guard | 5ae670c32693 | 0 |
+| kan74-release-checkpoint | codex/KAN-74-release-checkpoint | 8692f0566fea | 0 |
+| kan74-sie-opening-guard | codex/KAN-74-sie-opening-guard | 1d297c1fd387 | 26 |
+| kan74-staging-release | codex/KAN-74-staging-release | 5809094dd3ce | 5 |
+| kan84-adobe-oneoff | codex/KAN-84-adobe-oneoff | 9756abca8ac2 | 18 |
+| kan85-68-ui | codex/KAN-85-64-67-68-ui | 2423f4b3f090 | 3 |
+| kan86-shared-attachments | codex/KAN-86-shared-attachments | 7467143e3221 | 1 |
+| kan87-history-presentation | codex/KAN-87-history-presentation | 172f3a138874 | 1 |
+
+Dirty files outside the selected UI checkout (preserve; not included in handoff commit):
+
+- Desktop: ` M PROJECT_STATE.md`; `?? audit-packages/2026-10-independent-product-technical-audit/01_PRODUCT_OVERVIEW.md`; `?? audit-packages/2026-10-independent-product-technical-audit/02_ACCOUNTING_FLOWS.md`; `?? audit-packages/2026-10-independent-product-technical-audit/03_ACCOUNTING_RULES.md`; `?? audit-packages/2026-10-independent-product-technical-audit/04_TECHNICAL_ARCHITECTURE.md`; `?? audit-packages/2026-10-independent-product-technical-audit/05_TESTS_AND_KNOWN_RISKS.md`; `?? scripts/create-kan63-staging-user.mjs`.
+
+- kan63-staging-migration-prep: `?? supabase/migrations/20261012123000_kan62_fixed_asset_gross_vat_rate.sql`; `?? supabase/migrations/20261012153000_kan62_fixed_asset_group_locking.sql`.
+
+- kan71-production-release: ` M PROJECT_STATE.md`.
+
+- kan72-staging-integration: ` M PROJECT_STATE.md`.
+
+- kan74-sie-opening-guard: ` M PROJECT_STATE.md`; ` M package.json`; ` M scripts/check-db-regression-invariants.mjs`; ` M src/components/SieImportModal.tsx`; ` M src/lib/adminDeleteDryRun.ts`; ` M src/lib/sieImport.ts`; ` M src/lib/sieParser.ts`; ` M supabase/functions/delete-user/index.ts`; `?? docs/reviews/KAN-74-P1-blocker.md`; `?? docs/reviews/KAN-74-P2-period-blocker.md`; `?? docs/reviews/KAN-74-company-lock-followup.md`; `?? docs/reviews/KAN-74-server-import-design.md`; `?? docs/reviews/KAN-74-server-import-implementation.md`; `?? docs/reviews/KAN-74-sie-opening-guard.md`; `?? docs/reviews/KAN-74-single-year-guard.md`; `?? docs/reviews/KAN-74-staging-release-plan.md`; `?? scripts/test-sie-import.mjs`; `?? scripts/test-sie-opening-guard.mjs`; `?? src/app/api/sie/import/route.ts`; `?? src/lib/sieImportPayload.ts`; `?? src/lib/sieImportServer.ts`; `?? supabase/migrations/20261015115900_kan74_sie_verified_inputs.sql`; `?? supabase/migrations/20261015120000_kan74_sie_opening_balance_guard.sql`; `?? supabase/migrations/20261015121000_kan74_sie_receipt_deletion.sql`; `?? supabase/tests/helpers/kan74_receipt_fixture.sql`; `?? supabase/tests/kan74_sie_opening_guard.sql`.
+
+- kan74-staging-release: ` M PROJECT_STATE.md`; `?? docs/reviews/KAN-74-production-publication.md`; `?? docs/reviews/KAN-74-production-release-plan.md`; `?? docs/reviews/KAN-74-staging-publication.md`; `?? docs/reviews/KAN-74-staging-release-result.md`.
+
+- kan84-adobe-oneoff: ` M package.json`; `?? docs/reviews/KAN-84-B-pid-retest-pass.md`; `?? docs/reviews/KAN-84-B-timeout-diagnosis.md`; `?? docs/reviews/KAN-84-local-candidate.md`; `?? docs/reviews/KAN-84-staging-execution-stopped.md`; `?? docs/reviews/KAN-84-staging-run-ready.md`; `?? scripts/kan84/adobe-plan.mjs`; `?? scripts/kan84/adobe-sql.mjs`; `?? scripts/kan84/b-pid-retest.mjs`; `?? scripts/kan84/staging-kit.mjs`; `?? scripts/kan84/staging-migrate.ps1`; `?? scripts/kan84/staging-run.mjs`; `?? scripts/kan84/test-b-pid-monitor.mjs`; `?? scripts/kan84/test-local.mjs`; `?? scripts/kan84/test-plan.mjs`; `?? scripts/kan84/test-staging-kit.mjs`; `?? supabase/migrations/20261015180458_kan84_explicit_first_vat_year_period.sql`; `?? supabase/oneoff/kan84_adobe_body.sql`.
+
+- kan86-shared-attachments: ` M PROJECT_STATE.md`.
+
+- kan87-history-presentation: ` M PROJECT_STATE.md`.
