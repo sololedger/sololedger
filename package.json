@@ -24,8 +24,10 @@
     "test:history-ui": "node scripts/test-transaction-attachment-ui.mjs",
     "test:history-presentation": "node scripts/test-transaction-history-presentation.ts",
     "test:history-presentation-ui": "node scripts/test-transaction-presentation-ui.mjs",
-    "test:regression": "npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:e2e:smoke",
-    "test:kan74:db": "node scripts/test-sie-opening-guard.mjs"
+    "test:regression": "npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:ui-round && npm run test:e2e:smoke",
+    "test:kan74:db": "node scripts/test-sie-opening-guard.mjs",
+    "test:ui-round": "node scripts/test-ui-round.mjs",
+    "test:ui-round:lifecycle": "node scripts/test-ui-round-lifecycle.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

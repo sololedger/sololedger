@@ -44,6 +44,14 @@ Core principle: **Osäker → SoloLedger gissar inte.**
 - Prefer known fixtures, disposable test data, or rollback-safe verification for database testing.
 - If production data or live DB state must be inspected, keep the action read-only unless the user has explicitly approved a write.
 
+## Worktree Preservation
+
+- Do not automatically or manually delete/archive/remove any SoloLedger worktree without explicit Pontus approval for that exact worktree and a prior inventory of tracked changes, staged changes, untracked files and ignored local files. Check whether unique work, environment configuration, test fixtures or evidence needs to be preserved before removal.
+- Inspect only filenames/metadata for secret-bearing environment/auth/credential files; never read, display, copy or hash credential contents. Do not assume that a clean git status or a saved Git snapshot preserves ignored files.
+- Creating a managed worktree can trigger the app's automatic cleanup of another worktree. Before creating another managed worktree, verify a reliable automatic-cleanup protection/control. If it cannot be verified, do not trigger creation that may remove existing worktrees; reuse a suitable existing checkout and obtain a leader decision for any alternative.
+- Environment limitation: repository instructions do not disable the app's cleanup policy. No reliable setting/tool that disables automatic cleanup has been verified in this environment. Keep this limitation explicit until an actual control is verified; never describe the cleanup risk as solved merely because this rule was written.
+- Manual cleanup, app archive/removal, restore and configuration changes remain separate, explicitly approved actions. Preserve ignored local material through a reviewed secure method before any approved removal.
+
 ## Normal Workflow
 
 Use this default workflow unless the user gives a different instruction:

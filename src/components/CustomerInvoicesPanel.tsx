@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import SwedishDateInput from '@/components/SwedishDateInput'
+import { parseSvDateToIso } from '@/lib/dateUi'
 import {
   bookCustomerInvoiceYearEndReceivable,
   createCustomerInvoice,
@@ -316,7 +317,11 @@ export default function CustomerInvoicesPanel({
   }
 
   async function handlePayment(invoice: CustomerInvoice) {
-    const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
+    const paymentDate = parseSvDateToIso(paymentDates[invoice.id] ?? '')
+    if (!paymentDate) {
+      setNotice({ type: 'error', text: 'Ange ett giltigt betalningsdatum innan du registrerar betalningen.' })
+      return
+    }
     const hasReceivable = hasAnyCustomerInvoiceYearEndBooking(invoice)
     setNotice(null)
     setBusyKey(`payment-${invoice.id}`)
@@ -328,6 +333,7 @@ export default function CustomerInvoicesPanel({
         await recordCustomerInvoicePayment(invoice.id, paymentDate, crypto.randomUUID())
       }
 
+      setPaymentDates(previous => ({ ...previous, [invoice.id]: '' }))
       await refreshAfterAction(
         hasReceivable
           ? `Betalningen för faktura ${invoice.invoiceNumber} är registrerad utan ny intäkt eller moms.`
@@ -521,7 +527,10 @@ export default function CustomerInvoicesPanel({
                 Obetalda fakturor vid årets slut
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
-                En faktura som fortfarande är obetald den 31 december bokförs som kundfordran vid bokslut. Då hamnar intäkt, moms och fordran på rätt år.
+                Kundfordran är pengar som kunden är skyldig företaget. Är fakturan obetald den 31 december bokför du den som kundfordran vid bokslut för det år fakturan hör till. Försäljningen och eventuell moms bokförs då tillsammans med fordran.
+              </p>
+              <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
+                Bokför först kundfordran. När kunden betalar efter årsskiftet registrerar du betalningen på det faktiska betalningsdatumet. Då regleras kundfordran utan ny försäljning eller moms. En momsfri faktura bokförs utan moms även vid bokslut.
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
                 {yearEndCandidates.length} fakturor återstår att bokföra som kundfordran vid bokslut {selectedYear}.
@@ -869,7 +878,7 @@ export default function CustomerInvoicesPanel({
               {filteredInvoices.map(invoice => {
                 const anyReceivableBooked = hasAnyCustomerInvoiceYearEndBooking(invoice)
                 const needsYearEndBooking = customerInvoiceNeedsYearEndBooking(invoice, selectedYear)
-                const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
+                const paymentDate = paymentDates[invoice.id] ?? ''
                 const expanded = expandedInvoiceId === invoice.id
                 const paymentLabel = customerInvoicePaymentLabel(invoice)
                 const yearEndLabel = customerInvoiceYearEndLabel(invoice, selectedYear)
@@ -1160,25 +1169,49 @@ export default function CustomerInvoicesPanel({
                           </div>
 
                           {invoice.paymentStatus === 'unpaid' && (
-                            <div className="flex gap-2">
-                              <SwedishDateInput
-                                value={paymentDate}
-                                ariaLabel="Betalningsdatum"
-                                onChange={value => setPaymentDates(prev => ({
-                                  ...prev,
-                                  [invoice.id]: value,
-                                }))}
-                                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => void handlePayment(invoice)}
-                                disabled={busyKey === `payment-${invoice.id}`}
-                                className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                              >
-                                {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
-                              </button>
-                            </div>
+                            <form
+                              aria-label={`Registrera betalning för faktura ${invoice.invoiceNumber}`}
+                              onSubmit={event => {
+                                event.preventDefault()
+                                // Validate the visible text too: the shared date input may still
+                                // hold its last valid ISO value while the user edits invalid text.
+                                if (!event.currentTarget.reportValidity()) return
+                                void handlePayment(invoice)
+                              }}
+                              className="flex min-w-0 flex-col gap-2"
+                            >
+                              <p className="text-[10px] font-bold text-gray-700">
+                                Hela fakturabeloppet bokförs vid betalning: {fmtCustomerInvoiceCurrency(invoice.grossAmount)}.
+                                {anyReceivableBooked
+                                  ? ' Betalningen reglerar den bokförda kundfordran. Ingen ny försäljning eller moms bokförs.'
+                                  : ' Ange den dag kunden betalade. Vid betalning efter årsskiftet ska kundfordran bokföras först.'}
+                              </p>
+                              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
+                                <div className="min-w-0 flex-1">
+                                  <label htmlFor={`payment-date-${invoice.id}`} className="mb-1 block text-[9px] font-black uppercase text-gray-500">
+                                    Betalningsdatum
+                                  </label>
+                                <SwedishDateInput
+                                  id={`payment-date-${invoice.id}`}
+                                  value={paymentDate}
+                                  ariaLabel="Betalningsdatum"
+                                  required
+                                  onChange={value => setPaymentDates(prev => ({
+                                    ...prev,
+                                    [invoice.id]: value,
+                                  }))}
+                                  className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                />
+                                </div>
+                                <button
+                                  type="submit"
+                                  disabled={busyKey === `payment-${invoice.id}`}
+                                  className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                                >
+                                  {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
+                                </button>
+                              </div>
+                            </form>
                           )}
 
                           {canUndoPayment && (

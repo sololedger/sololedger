@@ -944,3 +944,23 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 - 7B.4 close flow adds typed `closeVatPeriod(periodId)` over live `close_vat_period_atomic`, exposes close only for eligible open SoloLedger-managed periods, requires confirmation, avoids optimistic close, refreshes central bookkeeping, reloads `vat_periods`, and handles refresh-failure warnings.
 - KAN-12 app verification: `npm run typecheck` PASS; `npm run test:domain` PASS, 81/81; targeted ESLint introduced no new debt beyond existing baseline; `git diff --check` PASS with CRLF warnings only; `npm run build` PASS after approved network access for Next/Google Fonts.
 - Full close UI/E2E against an isolated staging/test environment remains pending. No destructive close test was run against ordinary/live user data.
+
+
+## KAN-87 — completed Production release (2026-10-17 closeout)
+
+- Final accepted Production commit: 172f3a138874e587122ba500c8791a2ab9ac3a45; sole parent 7467143e3221b012b3d0e49397e2b0c8d3b6f445. Main exact SHA rechecked at start of KAN-85/64/67/68 round.
+- KAN-87 Done / Pontus verified from Jira on 2026-10-17. Prior worktree checkpoint still says In Review; current Jira status supersedes that wording. No KAN-87 Jira mutation here.
+- Preserved KAN-87 post-release checkpoint records Production PASS, Vercel dpl_3qo6dpN7Dqb78BqqeNrj1fzJkMe1 READY, public HTTP/browser smoke and exact Production binding. Those are prior release receipts, not a deployment re-audit in this UI round.
+- Delivered readable Adobe transaction labels/search, positive refunds, neutral reclassifications and preserved originals. Review and detailed tests remain in docs/reviews/KAN-87-local-verification.md and Git history; no accounting semantics changed.
+- Production/Preview evidence remains in the preserved KAN-87 worktree and its referenced ignored evidence locations. Its uncommitted PROJECT_STATE.md is untouched.
+- Existing Staging PDF privacy finding remains separate: do not copy/reuse it as synthetic evidence. KAN-85/64/67/68 uses newly generated synthetic data only.
+- Superseded KAN-87 preparation/publication steps from inherited PROJECT_STATE are replaced by this completed navigation entry; no deployment or bookkeeping operation repeated.
+
+
+## KAN-63 old test worktree — accepted historical risk B (2026-10-17)
+
+- Pontus accepted class B and explicitly closed the investigation. No further investigation or restoration is needed now. No lost product code or other important work was demonstrated; possible ignored local-file loss remains an acknowledged historical uncertainty.
+- App automatic cleanup triggered after creating kan85-68-ui removed kan63-staging-base-test on 2026-10-17 11:25:44–45 CEST. The saved source snapshot refs/codex/snapshots/4188b821a228a469f229c8ec6a7dbd181b8743a9 exactly matches prior HEAD 13e6a0a8160f7ca2cfd65d204c9b4853562bfaf0/tree efbc659349569454d217f7502658dbee8d07e556.
+- Bounded checks covered exact parent directory, known app/snapshot logs, Git snapshot metadata and original-chat summaries. No verified inventory/backup of ignored contents or known unique ignored work/configuration/test material was identified; this is not proof that none existed.
+- Detailed evidence and previous STOP decisions remain in docs/reviews/KAN-85-64-67-68-local-verification.md, superseded by this explicit acceptance for checkpoint purposes. No cleanup/restore was performed during the investigation.
+- Permanent prevention rule now in AGENTS.md: explicit approval and tracked/untracked/ignored inventory before removal; do not trigger managed-worktree creation if automatic cleanup protection cannot be verified. App cleanup is NOT verified disabled; that environment limitation remains.

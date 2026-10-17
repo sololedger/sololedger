@@ -42,6 +42,7 @@ import {
   categoryRedirectsToFixedAssets,
   categoryUsesDomesticSalesVatPolicy,
   getTransactionCategoryUiGroup,
+  isOwnerDepositCategoryId,
 } from '@/lib/accountCategoryUi'
 import { shouldShowOrdinaryPurchaseInputVatPanel } from '@/lib/ordinaryPurchaseVatUi'
 
@@ -216,7 +217,16 @@ export default function TransactionForm({
       ? standardBookingAmountError(formData.amount)
       : null
 
+  const selectedCategoryIsOwnerDeposit =
+    showOrdinaryV1Fields && isOwnerDepositCategoryId(formData.type)
+  const ownerDepositVatInvalid =
+    !editingBooked && selectedCategoryIsOwnerDeposit && formData.vatRate !== 0
+
   function handleOrdinarySubmit(e: FormEvent<HTMLFormElement>) {
+    if (ownerDepositVatInvalid) {
+      e.preventDefault()
+      return
+    }
     if (!editingBooked && standardBookingAmountError(formData.amount)) {
       e.preventDefault()
       setOrdinaryAmountSubmitAttempted(true)
@@ -495,6 +505,7 @@ export default function TransactionForm({
       type: fav.type,
       amount: fav.amount.toString(),
       vatRate:
+        isOwnerDepositCategoryId(fav.type) ||
         isNotVatRegistered ||
         (
           favoriteUsesDomesticSalesVatPolicy &&
@@ -609,6 +620,7 @@ export default function TransactionForm({
                     )
 
                     const nextVatRate =
+                      isOwnerDepositCategoryId(e.target.value) ||
                       isNotVatRegistered ||
                       (
                         acc &&
@@ -731,45 +743,49 @@ export default function TransactionForm({
             {showOrdinaryV1Fields && (
               <>
                 {/* Fakturans moms */}
-                <div className="lg:col-span-1 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    Moms på fakturan
-                  </label>
+                {!selectedCategoryIsOwnerDeposit && (
+                  <div className="lg:col-span-1 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
+                      Moms på fakturan
+                    </label>
 
-                  <select
-                    value={formData.vatRate}
-                    onChange={e =>
-                      setFormData({
-                        ...formData,
-                        vatRate: Number(e.target.value),
-                      })
-                    }
-                    disabled={editingBooked || isYearLocked || ordinarySaleVatRateLocked}
-                    className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                      editingBooked || isYearLocked || ordinarySaleVatRateLocked
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-50 cursor-pointer'
-                    } ${isYearLocked ? 'opacity-40' : ''}`}
-                    title={
-                      isNotVatRegistered
-                        ? 'Företaget är markerat som inte momsregistrerat.'
-                        : selectedCategoryUsesDomesticSalesVatPolicy &&
-                          ordinarySalesVatPolicy.vatRateLocked
-                        ? ordinarySalesVatPolicy.notice
-                        : undefined
-                    }
-                  >
-                    <option value={25}>25%</option>
-                    <option value={12}>12%</option>
-                    <option value={6}>6%</option>
-                    <option value={0}>0%</option>
-                  </select>
-                </div>
+                    <select
+                      value={formData.vatRate}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          vatRate: Number(e.target.value),
+                        })
+                      }
+                      disabled={editingBooked || isYearLocked || ordinarySaleVatRateLocked}
+                      className={`p-3 rounded-xl outline-none font-bold text-xs ${
+                        editingBooked || isYearLocked || ordinarySaleVatRateLocked
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-50 cursor-pointer'
+                      } ${isYearLocked ? 'opacity-40' : ''}`}
+                      title={
+                        isNotVatRegistered
+                          ? 'Företaget är markerat som inte momsregistrerat.'
+                          : selectedCategoryUsesDomesticSalesVatPolicy &&
+                            ordinarySalesVatPolicy.vatRateLocked
+                          ? ordinarySalesVatPolicy.notice
+                          : undefined
+                      }
+                    >
+                      <option value={25}>25%</option>
+                      <option value={12}>12%</option>
+                      <option value={6}>6%</option>
+                      <option value={0}>0%</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Belopp */}
                 <div className="lg:col-span-2 flex flex-col gap-1">
                   <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    {selectedCategoryUsesDomesticSalesVatPolicy
+                    {selectedCategoryIsOwnerDeposit
+                      ? 'Belopp'
+                      : selectedCategoryUsesDomesticSalesVatPolicy
                       ? ordinarySalesVatPolicy.amountLabel
                       : isNotVatRegistered
                       ? 'Belopp'
@@ -798,6 +814,11 @@ export default function TransactionForm({
                     } ${isYearLocked ? 'opacity-40' : ''}`}
                     required={ordinaryV1AmountRequired}
                   />
+                  {ownerDepositVatInvalid && (
+                    <p role="alert" className="text-xs font-bold text-red-700">
+                      Egen insättning ska ha 0 % moms. Välj kategorin på nytt innan du bokför.
+                    </p>
+                  )}
                   {ordinaryAmountError && (
                     <p id="standard-booking-amount-error" role="alert" className="text-xs font-bold text-red-700">
                       {ordinaryAmountError}
