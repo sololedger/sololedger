@@ -153,10 +153,21 @@ export default function OverviewCards({
                   Moms behöver kontrolleras
                 </p>
               </div>
-            ) : (
-              <p className="text-3xl font-black tabular-nums leading-none">
-                {data.sakertUttag.toLocaleString('sv-SE')} kr
+            ) : !Number.isFinite(data.sakertUttag) ? (
+              <p className="text-2xl font-black leading-none">
+                Kontroll krävs
               </p>
+            ) : (
+              <div>
+                <p className="text-3xl font-black tabular-nums leading-none">
+                  {Math.max(0, data.sakertUttag).toLocaleString('sv-SE')} kr
+                </p>
+                {data.sakertUttag < 0 && (
+                  <p className="text-xs opacity-75 mt-2">
+                    Beräknat utrymme: {data.sakertUttag.toLocaleString('sv-SE')} kr
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
