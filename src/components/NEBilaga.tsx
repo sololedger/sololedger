@@ -416,6 +416,14 @@ export default function NEBilaga({
                 >
                   <span><strong className="text-gray-800">{code}</strong> {label}</span>
                   <span className="whitespace-nowrap">{fmt(Number(value ?? 0))}</span>
+                  {code === 'B14' && (
+                    <p className="basis-full mt-1 text-xs leading-relaxed font-medium not-italic text-gray-600">
+                      B14 visar verksamhetens bokförda skulder för skatt och moms vid årets slut.
+                      Utgående moms är moms på din försäljning som ska redovisas till Skatteverket och kan därför ingå här.
+                      Momsen är inte en försäljningsintäkt.
+                      En bokförd momsfordran visas i B8 Övriga fordringar.
+                    </p>
+                  )}
                 </div>
               ))}
 
