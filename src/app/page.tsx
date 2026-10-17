@@ -558,6 +558,12 @@ export default function Home() {
         throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
       }
 
+      const neSmallBusinessSale = !editingId && !periodisera &&
+        kontoplan.find(k => k.id === formData.type)?.credit_account === '3010' &&
+        profile?.domestic_sales_vat_treatment === 'small_business_exempt'
+      if (neSmallBusinessSale && !window.confirm(
+        'Bekräfta att detta är vanlig svensk försäljning och att småföretagarundantaget gällde försäljningen på angivet datum. Beloppet kommer då att visas i NE R2.'
+      )) return
       let fileUrl = ''
       if (formData.file) {
         fileUrl = await handleFileUpload(formData.file)
@@ -596,6 +602,8 @@ export default function Home() {
           // Vanlig bokföring sker i ett enda atomärt RPC-anrop.
           // Frontend skapar inte längre först en "halv" transaction.
           await bookTransaction({
+            ne_sales_basis: neSmallBusinessSale ? 'small_business_exempt' : undefined,
+            ne_sales_basis_confirmed: neSmallBusinessSale,
             date: formData.date,
             description: formData.description,
             amount: bookingAmount,

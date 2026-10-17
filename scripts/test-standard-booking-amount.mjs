@@ -128,14 +128,15 @@ assert.ok(handlerNode,'submit handler found')
 const handlerCode=ts.transpileModule(handlerNode.getText(tree),{
  compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS},
 }).outputText
-async function submitPage({ amount,booked=false,periodized=false }) {
+async function submitPage({ amount,booked=false,periodized=false,smallBusiness=false,confirmed=true }) {
  const actions=[]
  const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,
  isYearLocked:false,submitInFlightRef:{current:false},editingId:booked?'old-booking':null,
- editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale'}],
+ editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale',credit_account:smallBusiness?'3010':'3001'}],
  formData:{date:'2026-02-01',description:'Metadata',amount,type:'sale',vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
  isSystemManagedTransaction:()=>false,categoryRedirectsToFixedAssets:()=>false,
- periodisera:periodized,periodMonth:'2027-01',profile:{},
+ periodisera:periodized,periodMonth:'2027-01',profile:smallBusiness?{domestic_sales_vat_treatment:'small_business_exempt'}:{},
+ window:{confirm:message=>{actions.push(['confirm',message]);return confirmed}},
  refreshFreeUsageCount:async()=>0,canCreateTransactions:()=>true,isYearClosed:async()=>false,
  alert:message=>actions.push(['alert',message]),
  handleFileUpload:async()=>{actions.push(['upload']);return 'fixture-file'},
@@ -170,3 +171,11 @@ assert.equal(metadataActions[0][0],'metadata')
 assert.equal(metadataActions[0][1].description,'Metadata')
 assert.ok(!('amount' in metadataActions[0][1]),'legacy amount preserved during booked metadata edit')
 console.log('KAN-72 service, raw amount, rendered UI and actual page submit tests passed.')
+
+const canceledNe=await submitPage({amount:'1000',smallBusiness:true,confirmed:false})
+assert.equal(canceledNe.length,1);assert.equal(canceledNe[0][0],'confirm','declined tax basis never uploads or books')
+const confirmedNe=await submitPage({amount:'1000',smallBusiness:true})
+assert.equal(confirmedNe[0][0],'confirm');assert.equal(confirmedNe[1][0],'upload')
+assert.equal(confirmedNe[2][0],'book');assert.equal(confirmedNe[2][1].ne_sales_basis,'small_business_exempt')
+assert.equal(confirmedNe[2][1].ne_sales_basis_confirmed,true)
+console.log('KAN-88 actual submit confirms historical applicability before upload and atomic booking.')

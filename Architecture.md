@@ -450,3 +450,13 @@ Misstänkta framtida cleanup-kandidater att utreda separat:
 - Låsta år och stängda/deklarerade momsperioder ska stoppa relevanta ändringar.
 - Complete-safe rapportläsning ska bevaras där ekonomiska belopp summeras.
 - Om fakta saknas och kan ändra moms-/bokföringsbehandling ska SoloLedger stoppa eller be om mer fakta.
+
+### NE R1/R2: separat klassificering (KAN-88, lokalt förberedd)
+
+`resultEngine.ts` behåller sin kontomappning. `getNEData` läser den nya RPC:n `get_ne_sales_summary` (årssaldon och NE-beslut i samma SQL-snapshot) och använder `neSalesClassification.ts` för att minska R1 och öka R2 lika mycket för uttryckligt klassificerade 3010-rader. Övriga NE-rutor, totalresultat, kumulativ balans och andra rapportkonsumenter förändras inte.
+
+`ne_sales_classifications` länkar journalrad, transaktion och användare till R1/R2, grund och sparat underlag. Vanliga bokningar fångar server-side bekräftat småföretagarundantag; kundfakturalänkar använder sparat momsunderlag. Rättelser/ångring ärver originalets beslut. Aktuell profil vid rapportläsning används aldrig för att flytta historik. Osäkra 3010-rader utan moms visas som preliminära; saknad migrations-RPC ger tydlig varning.
+
+`review_ne_legacy_sale` förbereder en ägarsäker granskad klassificering av en äldre rad, inklusive KAN-51:s historiska fakturalänk, utan ändring av journaler, transaktioner eller verifikationsnummer. Tabellens RLS ger endast egen läsning för klienten; skrivningar går via kontrollerade funktioner. Atomär användarradering och Edge-räknare omfattar den nya tabellen. NE-metadata tillförs inte SIE-formatet.
+
+Migration `20261017122027_kan88_ne_sales_classification.sql` är endast lokalt verifierad och **inte applicerad på Staging/Production**. Aktuell leveransstatus och releasegräns finns i PROJECT_STATE.md; detaljer/tester i docs/reviews/KAN-88-local-ne-classification.md.

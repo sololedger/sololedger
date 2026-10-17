@@ -1,7 +1,9 @@
 'use client'
 import { useState } from 'react'
+import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
 
 interface NEData {
+  neSalesClassification?: NeSalesClassificationSummary;
   R1: number;
   R2: number;
   R3: number;
@@ -135,6 +137,16 @@ export default function NEBilaga({
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
+
+        {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">R1/R2 behöver kontrolleras före deklaration</p>
+            <p>{neData.neSalesClassification?.available
+              ? `För ${neData.neSalesClassification.unresolvedCount} intäktsrader på 3010 saknas ett sparat NE-beslut. Beloppen ingår i resultatet, men fördelningen mellan R1 och R2 är preliminär.`
+              : 'Sparad NE-klassificering är inte tillgänglig. R1/R2 visas enligt kontokopplingen och är inte färdigverifierade.'}</p>
+            <p>Äldre försäljning kräver granskat underlag. Dagens momsprofil används inte för att klassificera historiken.</p>
+          </div>
+        )}
 
         {hasBalanceDifference && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">

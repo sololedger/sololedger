@@ -14,6 +14,7 @@ const TABLES = [
   'fixed_asset_acquisition_idempotency',
   'fixed_assets',
   'fixed_asset_acquisition_groups',
+  'ne_sales_classifications',
   'customer_invoice_bookings',
   'customer_invoices',
   'tax_account_movements',

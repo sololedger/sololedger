@@ -1,37 +1,48 @@
 # SoloLedger Project State
 
-Updated 2026-10-17: permanent product goal and working principles anchored after account switch and read-only KAN-88 investigation. Documentation-only local commit approved; no product implementation or push approved.
+Updated 2026-10-17: KAN-88 implemented and verified locally. Local checkpoint authorized; no hosted migration, push, deploy, Jira mutation or real invoice classification authorized.
 
-## Produktmål och aktuell leveransstatus
+## Produktmål och faktisk leveransstatus
 
-- Jessikas fungerande årsflöde är första prioritet. Permanenta mål och samtliga arbetsprinciper finns i [AGENTS.md](AGENTS.md), avsnitten Produktmål och Arbets- och prioriteringsprinciper; hänvisa till dem vid varje handoff.
-- Levererat enligt tidigare verifierad Production och Pontus acceptans: KAN-85/64/67/68 Done, release 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340. Detta är inte ett intyg om att alla framtida års-/deklarationsfall är färdigverifierade.
-- KAN-88: avgränsad skrivskyddad utredning genomförd; exakt fakturas R1/R2 är EJ FASTSTÄLLT eftersom undantagsorsak saknas och särskild NE-anvisning för deklarationen 2027 inte verifierats. Befintliga 81 resultatmotortester passerade; ingen rättning implementerad eller Jira-status ändrad.
-- Nästa steg: invänta ledarbeslut. Återanvänd befintlig evidens och begränsa eventuell fortsättning till det beslut som behövs för Jessikas användning.
+- Jessikas fungerande årsflöde är första prioritet. Permanenta produktmål och arbetsprinciper finns i AGENTS.md, Produktmål / Arbets- och prioriteringsprinciper. Hänvisa till dem vid handoff.
+- Senast verifierad/av Pontus accepterad Production: KAN-85/64/67/68 Done, release `2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340`. KAN-88 är ännu bara lokalt och inte levererat till användare.
+- KAN-88 har nu uttryckligt implementationsbeslut: vanlig svensk 3010-försäljning med belagt småföretagarundantag ska till NE R2. Ingen generell NE/K1-omgranskning eller ommappning av 3010.
+- Nästa steg: ledarbeslut om avgränsad Staging-publicering/migration. Jessikas två verkliga fakturor kräver ett separat godkännande och verifierat historiskt underlag innan klassificering.
 
-## Next session: use this existing checkout
+## Arbetskopia och Git
 
-- Open C:/Users/Familjedator/.codex/worktrees/kan85-68-ui/sololedger_multi_user (worktree kan85-68-ui), branch codex/KAN-85-64-67-68-ui. Reuse this directory; do not create/restore/remove another worktree for the account switch.
-- The original repository/common Git lives at C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user. That checkout is older local staging at 11d8306442320430557b37d1003c342857d10fc2 with dirty/untracked work; do not use its source or older PROJECT_STATE as the current release/handoff.
-- Read in the selected UI checkout: AGENTS.md, PROJECT_STATE.md, Architecture.md; then PROJECT_ARCHIVE.md sections for the UI release/account-switch inventory. Detailed evidence: docs/reviews/KAN-85-64-67-68-local-verification.md. Read Jira KAN-88/KAN-89 only for selection/context; wait for Pontus to choose the next implementation.
-- Start read-only: verify cwd, branch, status and HEAD/recent commits. Preserved account-switch checkpoint: 8ebad907cb144da97ccc87a9a79131570b16fb49, directly after Production 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340. This documentation update follows that checkpoint; use git log -1 for the new exact SHA. Both documentation checkpoints are local only. Recheck external state only when needed for the next decision.
-- Keep all existing worktrees and ignored local environment/auth/test material. No cleanup/reset/prune/archive/removal or new managed-worktree creation is authorized. The AGENTS worktree rule applies; automatic cleanup is NOT verified disabled.
+- Använd endast befintlig `C:/Users/Familjedator/.codex/worktrees/kan85-68-ui/sololedger_multi_user`.
+- Aktiv branch: `codex/KAN-88-ne-sales-classification`, skapad från lokala dokumentationscheckpointen `656580a23b4abd2dc776a6ff46878627afcd73ad`. Lokal KAN-88-checkpoint: använd `git log -1` för exakt SHA efter commit.
+- Bevarad kontobytes-handoff `8ebad907cb144da97ccc87a9a79131570b16fb49` finns i historiken, efter Production `2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340`. Båda äldre lokala dokumentationscommits följer med denna branch; ingen push har gjorts.
+- Desktop-repot/common Git är en äldre smutsig staging-arbetskopia. Använd inte dess källkod eller PROJECT_STATE som aktuell handoff. Inga andra arbetskopior har ändrats eller städats.
+- Checkpoint omfattar endast KAN-88-kod, ny migrationsfil, riktade tester och dokumentation. Ingen lockfil, auth-/miljöfil eller genererad fil ska ingå. Kontrollera status före nästa känsliga steg.
 
-## Current truth / queue
+## KAN-88: implementation och evidens
 
-- GitHub Production main / origin/main: 2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340, verified again for this handoff. Local refs/heads/main is older 0bc166de68f7989f6a3d1483c062f4b4b1570629, untouched; never assume it is current Production.
-- Prior verified Vercel Production dpl_HqcZejtMKu2z3SirE2dBeNfnGZmA READY/PROMOTED from exact main SHA. Canonical https://sololedger.vercel.app/ public smoke PASS, Production Supabase wbaxmuvudpnkvuliicuy; no Staging ref in checked client scripts. This handoff does not repeat deploy/DB checks.
-- KAN-85 Done; KAN-64 Done (verified existing behavior/no new product code); KAN-67 Done; KAN-68 Done. Pontus final acceptance supersedes the earlier In Review/To Do snapshots in historical evidence. No Jira status was changed during handoff.
-- KAN-88 To Do/unassigned: separate unresolved NE investigation, observed exempt 3010 -> R1; expected R1/R2 EJ FASTSTÄLLT. Do not implement a tax/accounting change by assumption.
-- KAN-89 To Do/unassigned: new category-visibility task for new bookings only, preserving historical categories/transactions, per-user isolation and safe favorite/default/legacy handling. Not implemented or selected for development yet.
-- Remote staging remains 5809094dd3ce808dba35986c65e772b842f0d0e1 with held KAN-62/65 history. It is not the next release base; no synchronization/push is approved. Updated isolated Preview dpl_5cresudSvQUDU9yVfiK5BKcRm24N remains previous accepted evidence.
+- Detaljer, ändrade filer, integrationsyta, tester, begränsningar och Staging-checklista: [docs/reviews/KAN-88-local-ne-classification.md](docs/reviews/KAN-88-local-ne-classification.md).
+- Ny **oapplicerad** migrationsfil: `supabase/migrations/20261017122027_kan88_ne_sales_classification.sql`. Separata beständiga NE-beslut per 3010-journalrad; ändrar inga historiska journaler/konton. Grund, underlag och ägare sparas.
+- Nya manuella bokningar kräver uttrycklig bekräftelse av vanlig svensk försäljning/undantag på angivet datum; servern kontrollerar profil, journal och moms. Relevanta fakturor använder sparat fakturaunderlag. Rättelser/ångring ärver originalets klassificering. Profilbyte flyttar inte gamla beslut.
+- Endast `getNEData` omfördelar R1/R2 med lika stort motbelopp. Resultatmotor, totalresultat, övriga NE-rutor, moms, balans och dashboard ändras inte. Osäkra 3010-rader utan moms och saknad migration visas med tydlig preliminärvarning.
+- `review_ne_legacy_sale` är en förberedd, ägarsäker enpostsväg med granskat underlag. Sparar bara NE-information, även för KAN-51:s historiska fakturalänk. Ingen massuppdatering, inget nytt VER/journal/transaktion. Nekar låst år, dubblett, import, rättelsekedja och motstridig moms. Ingen ny gransknings-UI ingår.
+- Jessikas två verkliga fakturor har inte lästs eller ändrats. Två syntetiska redan bokförda fakturor (inklusive historisk manuell länk) verifierades: alla transaktioner/journaler/fakturor/länkar/verifikationsnummer identiska före/efter; R1 −2000 / R2 +2000, alla andra NE-/resultat-/balansfält identiska.
+- Ny tabell har RLS egen läsning, nekade direkta klientskrivningar och privata helpers. Ordinarie atomär användarradering samt Edge dry-run/restkontroll och UI-räknare är uppdaterade och lokalt testade.
+- Live DB-definitioner lästes skrivskyddat före RPC-ändring. Två ersatta definitioner jämförda: endast avsedda NE-tillägg. Inga hosted Supabase-skrivningar.
+- Lokal rollback-DB/RPC + riktig NE-konsument/rendering PASS; domänsvit, submit-bekräftelse, admin-delete, DB-invariants, typecheck PASS. Alla säkra regressionsdelar PASS; public smoke 2/2 med webpack och syntetisk processlokal konfiguration. Build med webpack PASS med syntetisk byggkonfiguration.
+- Fokuserad lint PASS. Huvudvyns 13 lintfel + 1 varning verifierat identiska med HEAD; full lint inte grön. Ingen ny bred lintstädning. Tidigare Turbopack/worktree-begränsning kringgås med dokumenterad webpack-väg. Inga miljöfiler ändrade.
+- Hosted/write E2E, Staging och Production är inte verifierade för denna ändring. Klassificeringsmetadata ingår inte i enbart SIE-export. Redan klassificerade beslut kan inte skrivas över; mer komplicerad historik kräver separat beslut.
 
-## Preservation / local checkpoint / limits
+## Extern status och nästa säkra steg
 
-- Account-switch checkpoint 8ebad907 included PROJECT_STATE.md, PROJECT_ARCHIVE.md and docs/reviews/KAN-85-64-67-68-local-verification.md. Current approved documentation commit includes only AGENTS.md and PROJECT_STATE.md; no product/test/migration/env/auth/lockfile changes or push. Verify exact commit with git show --stat and git status.
-- Historical handoff inventoried 17 worktrees. Post-switch read-only check found 16 registered: Codex startup-cleanup removed kan63-staging-integration on 2026-10-17 around 13:12 Swedish time. Its branch and snapshot retain 30e82adf9d2868e0e1f1c028b433bc11aa9a7ff7; prior inventory was clean, no concrete lost unique work identified, ignored-file preservation uncertain. Other-worktree historical HEAD/status/file-metadata inventories remain in the archive receipt. Nine other worktrees have dirty/untracked work: Desktop staging; kan63-staging-migration-prep; kan71-production-release; kan72-staging-integration; kan74-sie-opening-guard; kan74-staging-release; kan84-adobe-oneoff; kan86-shared-attachments; kan87-history-presentation. Exact inventory is in PROJECT_ARCHIVE.md and the referenced local metadata receipt. Do not sweep their files into this branch.
-- Desktop retains modified PROJECT_STATE.md, untracked audit-packages/ and scripts/create-kan63-staging-user.mjs. Migration-prep retains two untracked KAN-62 migrations. Other workstreams retain code/tests/reviews/dirty handoffs; they are not lost merely because this selected checkout is clean.
-- Closed worktree-risk B and prevention rule remain documented in AGENTS.md/PROJECT_ARCHIVE.md. No known lost important work; possible ignored-file loss in removed kan63-staging-base-test remains historical uncertainty. Investigation closed by Pontus; no re-audit or restoration needed.
-- Ignored environment/auth/pgpass/test material stays in place and is NOT backed up by Git. No credential contents read/copied/hashed. Existing private Staging PDF must never be reused as synthetic evidence. Connector/login access for a different account is not verified; treat future tool/auth failure as access setup, never use Production as fallback.
-- Earlier local UI/domain/lifecycle evidence and known two component lint errors/Turbopack regression-wrapper limitation are retained in archived release evidence. Full lint/original wrapper were not green; no product/DB tests repeated for documentation-only handoff.
-- Retention completed: released/accepted UI work moved to archive navigation; all earlier detailed review/history preserved. No further product code, DB write, migration, deploy, GitHub push or Jira mutation in this handoff. Local checkpoint only; no clean-remote/full pushed handoff claim.
+- Senast verifierad GitHub main/Production `2423f4b3f090a7f2f7d0e1b19bdc83aeaaf64340`, Production Supabase `wbaxmuvudpnkvuliicuy`. Lokal refs/heads/main är äldre och får inte antas vara Production. Ingen extern release-/refuppdatering gjord i KAN-88.
+- Remote staging senast dokumenterad `5809094dd3ce808dba35986c65e772b842f0d0e1` med held KAN-62/65; inte godkänd releasebas. Staging Supabase `fzxqiqenqjzhlyxxpvhg`. Verifiera exakt bas vid separat publiceringsbeslut, utan att blanda in held arbete.
+- KAN-88 senast läst To Do/unassigned; ingen Jira-ändring gjord. KAN-89 To Do, inte valt för implementation. KAN-85/64/67/68 Done enligt Pontus acceptans. Jira är kö/status, inte bevis för implementation/regler.
+- Efter godkännande: granska/applicera bara den nya migrationsversionen via officiellt CLI-flöde, publicera motsvarande frontend + delete-user Edge, verifiera version/RLS och kör liten dedikerad Staging-checklista i granskningsrapporten. Ingen replay av historiska migrationer. Production och verklig historisk klassificering har separata godkännanden.
+- Stanna nu för ledarbeslut. Ingen push, deploy, hosted DB-skrivning, Jira-ändring eller klassificering av Jessikas data är godkänd.
+
+## Bevarande och äldre historik
+
+- Bevara alla befintliga arbetskopior, smutsiga filer och ignorerat lokalt material. Ingen cleanup/reset/prune/archive/restore/ny worktree är godkänd; automatisk cleanup är inte verifierat avstängd.
+- Tidigare 17 dokumenterade arbetskopior blev 16 efter Codex startup-cleanup av `kan63-staging-integration` omkring 13:12 svensk tid 2026-10-17. Branch/snapshot bevarar `30e82adf9d2868e0e1f1c028b433bc11aa9a7ff7`; ingen konkret förlust av unik kod belagd, ignorerade filer osäkra. Utredningen är avslutad; gör inte om den utan nytt skäl.
+- Nio andra arbetskopior har dokumenterat dirty/untracked arbete. Desktop har bland annat audit-packages/ och lokal användarskriptfil; migrationsprep har ocommittade KAN-62-filer. Exakt inventering och metadatareceipt finns i PROJECT_ARCHIVE.md; ändra inte dessa arbetskopior.
+- Ignorerade auth-/miljö-/pgpassfiler är inte Git-backup. Inga hemligheter eller privata fakturor har lästs/kopierats/hashats. Befintlig privat Staging-PDF får inte användas som testfixture.
+- Tidigare accepterad UI-/livscykelevidens: docs/reviews/KAN-85-64-67-68-local-verification.md och PROJECT_ARCHIVE.md. Återanvänd befintlig NE/K1-historik enligt produktprinciperna. Aktiv KAN-88 hålls här och i sin granskningsrapport; ingen förtida arkivering eller ny generell revision.

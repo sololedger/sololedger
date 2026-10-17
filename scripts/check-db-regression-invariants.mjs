@@ -7,6 +7,8 @@ const repairMigration =
 const customerInvoiceBookingDeleteContextMigration =
   '20261009220552_kan56_customer_invoice_booking_delete_context.sql'
 const receiptDeletionMigration = '20261015121000_kan74_sie_receipt_deletion.sql'
+const neMigration = '20261017122027_kan88_ne_sales_classification.sql'
+const neSource = readFileSync(join(migrationDir, neMigration), 'utf8')
 const receiptDeletion = readFileSync(join('supabase/migrations', receiptDeletionMigration), 'utf8')
 const edgeFunctionPath = 'supabase/functions/delete-user/index.ts'
 const adminDryRunPath = 'src/lib/adminDeleteDryRun.ts'
@@ -94,7 +96,7 @@ for (const name of [
   'delete_user_data_atomic',
   'prevent_customer_invoice_booking_mutation',
 ]) {
-  const expected = name === 'delete_user_data_atomic' ? receiptDeletionMigration : customerInvoiceBookingDeleteContextMigration
+  const expected = name === 'delete_user_data_atomic' ? neMigration : customerInvoiceBookingDeleteContextMigration
   if (latestCriticalDefinitions[name] !== expected) {
     fail(
       `${name} senaste definition finns i ${latestCriticalDefinitions[name]}, inte ${expected}`,
@@ -116,6 +118,10 @@ if (
   fail('KAN-55 purchase VAT deduction helper ar inte senaste definition')
 }
 
+assertIncludes(neSource, 'DELETE FROM public.ne_sales_classifications WHERE user_id = p_user_id', neMigration)
+assertIncludes(neSource, "'ne_sales_classifications', v_ne_sales_classifications", neMigration)
+assertIncludes(neSource, 'DELETE FROM public.sie_import_inputs WHERE user_id = p_user_id', neMigration)
+assertIncludes(neSource, 'public.delete_user_data_atomic_lifecycle_context', neMigration)
 assertIncludes(receiptDeletion, 'DELETE FROM public.sie_import_inputs WHERE user_id = p_user_id', receiptDeletionMigration)
 assertIncludes(receiptDeletion, "'sie_import_inputs', v_sie_import_inputs", receiptDeletionMigration)
 assertIncludes(receiptDeletion, "v_role = 'admin'", receiptDeletionMigration)

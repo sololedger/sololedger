@@ -1,6 +1,7 @@
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
+import { allocateNeSales, parseNeSalesSummary, unavailableNeSalesClassification } from './neSalesClassification'
 import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
 import type { VatV2BusinessFacts } from './vatBusinessFacts'
@@ -56,6 +57,8 @@ export async function getUserId() {
 }
 
 interface BookTransactionInput {
+  ne_sales_basis?: 'small_business_exempt'
+  ne_sales_basis_confirmed?: boolean
   date: string
   description: string
   amount: number
@@ -144,6 +147,8 @@ export async function bookTransaction(tx: BookTransactionInput) {
   // transaction + ver_nr + journal_entries skapas i samma PostgreSQL-transaktion.
   // Om något steg misslyckas rullas allt tillbaka.
   const payload = {
+    ne_sales_basis: tx.ne_sales_basis ?? null,
+    ne_sales_basis_confirmed: tx.ne_sales_basis_confirmed ?? false,
     date: tx.date,
     description: tx.description,
     amount,
@@ -1906,7 +1911,13 @@ export async function getCumulativeResultat(year: number) {
 }
 
 export async function getNEData(year: number) {
-  const balances = await getAccountBalances(year)
+  // One SQL snapshot gives both the annual balances and signed R1/R2 adjustment.
+  const { data: salesData, error: salesError } = await supabase.rpc('get_ne_sales_summary', { p_year: year })
+  const unavailable = salesError?.code === 'PGRST202' || salesError?.code === '42883'
+  if (salesError && !unavailable) throw salesError
+  const neSalesClassification = unavailable ? unavailableNeSalesClassification : parseNeSalesSummary(salesData)
+  if (!unavailable && !Array.isArray(salesData?.balances)) throw new Error('NE-kontosaldon saknas.')
+  const balances = unavailable ? await getAccountBalances(year) : normalizeAccountBalanceRows(salesData.balances as AccountBalanceRpcRow[])
   // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
   // kumulativt saldo istället för årets egna rörelse. Används inte för
   // något annat fält i denna funktion i detta steg.
@@ -1969,8 +1980,10 @@ export async function getNEData(year: number) {
   const bank = neBalanceRows.B9
   const B13_forutbetalda = Math.round(Math.max(0, balanceSheetBalances['1790'] || 0) * 100) / 100
 
+  const neIncomeRows = allocateNeSales({ R1, R2 }, neSalesClassification)
   return {
-    R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
+    R1: neIncomeRows.R1, R2: neIncomeRows.R2, R3, R4, R5, R6, R7, R8, R9, R10,
+    neSalesClassification,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
     R11, R12, R13, R14, R15, R16, R17,
