@@ -19,6 +19,7 @@ const TABLES = [
   'customer_invoices',
   'tax_account_movements',
   'tax_account_events',
+  'standard_booking_idempotency',
   'vat_v2_booking_idempotency',
   'vat_audit_snapshots',
   'vat_periods',

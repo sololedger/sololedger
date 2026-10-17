@@ -4,12 +4,14 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { bindPageHandlers, createBookingStorage, createBookingLocks } from './standard-booking-page-harness.mjs'
 const require = createRequire(import.meta.url)
 // Execute the real service with a controlled Supabase boundary; no network/data writes.
 const calls = []
+let bookingProtocol = 1
 const supabase = {
  auth: { getUser: async () => ({ data: { user: { id: 'kan72-test' } }, error: null }) },
- rpc: async (name, args) => { calls.push({ name, args }); return { data: { success: true, transaction_id: 'test', ver_nr: 1 }, error: null } },
+ rpc: async (name, args) => { if(name==='get_standard_booking_protocol')return {data:bookingProtocol,error:null}; calls.push({ name, args }); return { data: { success: true, transaction_id: '00000000-0080-4000-8000-000000000004', ver_nr: 1, idempotent_replay: false, reversal_transaction_id: '00000000-0080-4000-8000-000000000005', reversal_ver_nr: 2, periodization_group_id: '00000000-0080-4000-8000-000000000006' }, error: null } },
 }
 const cache = new Map()
 function load(file) {
@@ -34,6 +36,18 @@ function load(file) {
  return testModule.exports
 }
 const service = load('src/lib/accountingService.ts')
+for (const unsupported of [null,0,2,'1']) {
+ bookingProtocol=unsupported
+ for(const method of ['bookTransaction','bookPeriodizedTransaction']) {
+  calls.length=0
+  await assert.rejects(service[method]({amount:1250,date:'2026-10-01',future_date:'2027-01-01',description:'test',type:'sale'}),/Ingen ny bokning skickades/)
+  assert.equal(calls.length,0,'old or unknown DB protocol must never receive a booking')
+ }
+ calls.length=0
+ await assert.rejects(service.bookStandardBookingAttempt({userId:'kan72-test',kind:'ordinary',payload:{amount:1250}}),/Ingen ny bokning skickades/)
+ assert.equal(calls.length,0)
+}
+bookingProtocol=1
 const invalid = [-1250,0,-0.01,0.001,1.001,NaN,Infinity,-Infinity,10000000000000,0.1+0.2]
 for (const method of ['bookTransaction','bookPeriodizedTransaction']) {
  for (const amount of invalid) {
@@ -116,18 +130,6 @@ for (const raw of ['.50','.01','1e2','1E-2']) {
 const metadataHtml=renderToStaticMarkup(React.createElement(Form,{...props,editingBooked:true,editingId:'old-booking'}))
 assert.doesNotMatch(metadataHtml,/standard-booking-amount-error/,'booked metadata ignores legacy amount')
 // Execute the actual page submit handler with controlled dependencies.
-const pageSource=readFileSync('src/app/page.tsx','utf8')
-const tree=ts.createSourceFile('page.tsx',pageSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX)
-let handlerNode
-function visit(node) {
- if (ts.isFunctionDeclaration(node) && node.name?.text==='handleAddTransaction') handlerNode=node
- ts.forEachChild(node,visit)
-}
-visit(tree)
-assert.ok(handlerNode,'submit handler found')
-const handlerCode=ts.transpileModule(handlerNode.getText(tree),{
- compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS},
-}).outputText
 async function submitPage({ amount,booked=false,periodized=false,smallBusiness=false,confirmed=true,hidden=false,ready=true,category="sale" }) {
  const actions=[]
  const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,newBookingCategoryError:load("src/lib/bookingCategoryVisibility.ts").newBookingCategoryError,kontoplanLoaded:ready,kontoplanLoading:false,kontoplanError:null,
@@ -136,17 +138,19 @@ async function submitPage({ amount,booked=false,periodized=false,smallBusiness=f
  formData:{date:'2026-02-01',description:'Metadata',amount,type:category,vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
  isSystemManagedTransaction:()=>false,categoryRedirectsToFixedAssets:()=>false,
  periodisera:periodized,periodMonth:'2027-01',profile:smallBusiness?{domestic_sales_vat_treatment:'small_business_exempt'}:{},
- window:{confirm:message=>{actions.push(['confirm',message]);return confirmed}},
+ user:{id:'kan72-test'},bookingOwnerLoaded:'kan72-test',bookingStorageError:null,retainedBookingAttachment:null,
+ uploadedOrdinaryFile:{current:null},crypto:{randomUUID:()=> '00000000-0080-4000-8000-000000000003'},
+ navigator:{locks:createBookingLocks()},
+ window:{localStorage:createBookingStorage(),confirm:message=>{actions.push(['confirm',message]);return confirmed}},
  refreshFreeUsageCount:async()=>0,canCreateTransactions:()=>true,isYearClosed:async()=>false,
- alert:message=>actions.push(['alert',message]),
- handleFileUpload:async()=>{actions.push(['upload']);return 'fixture-file'},
- bookTransaction:async payload=>actions.push(['book',payload]),
- bookPeriodizedTransaction:async payload=>actions.push(['periodize',payload]),
+ alert:message=>{if(!message.startsWith('Bokningen är bekräftad'))actions.push(['alert',message])},
+ handleFileUpload:async()=>{actions.push(['upload']);return 'kan72-test/fixture.pdf'},
+ bookStandardBookingAttempt:async attempt=>{actions.push([attempt.kind==='ordinary'?'book':'periodize',attempt.payload]);return {ver_nr:1,idempotent_replay:false}},
+ refreshDataWithStatus:async()=>({ok:true}),
  updateTransaction:async(id,payload)=>actions.push(['metadata',payload]),refreshData:async()=>{},
  }
- for(const name of ['setUploading','setEditingId','setEditingBooked','setLastSubmitted','setFormData','setPeriodisera','setShowLimitPaywall','setActiveTab']) context[name]=()=>{}
- vm.createContext(context)
- vm.runInContext(handlerCode,context)
+ for(const name of ['setUploading','setEditingId','setEditingBooked','setLastSubmitted','setFormData','setPeriodisera','setPeriodMonth','setShowLimitPaywall','setActiveTab','setPendingBooking','setRetainedBookingAttachment']) context[name]=()=>{}
+ bindPageHandlers(context)
  await context.handleAddTransaction({preventDefault(){}})
  return actions
 }

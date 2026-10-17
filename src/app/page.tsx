@@ -1,11 +1,12 @@
 'use client'
 import { parseStandardBookingAmount } from '@/lib/standardBookingAmount'
+import { readStandardBookingAttempt, saveStandardBookingAttempt, clearStandardBookingAttempt, StandardBookingSubmissionError, type StandardBookingAttempt, type StandardBookingReceipt } from '@/lib/standardBookingAttempt'
 
 export const dynamic = 'force-dynamic'
 
 import { useCallback, useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { bookTransaction, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, bookPeriodizedTransaction, isYearClosed, closeYear, updateTransaction, getCustomerInvoices } from '@/lib/accountingService'
+import { bookStandardBookingAttempt, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, isYearClosed, closeYear, updateTransaction, getCustomerInvoices } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { encodeCP437 } from '@/lib/cp437'
 import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
@@ -158,6 +159,28 @@ export default function Home() {
     useRef<VatV2RuntimeBookingIdempotencyState>(
       clearVatV2RuntimeBookingIdempotency()
     )
+  const [pendingBooking, setPendingBooking] = useState<StandardBookingAttempt | null>(null)
+  const [bookingStorageError, setBookingStorageError] = useState<string | null>(null)
+  const [bookingOwnerLoaded, setBookingOwnerLoaded] = useState<string | null>(null)
+  const [retainedBookingAttachment, setRetainedBookingAttachment] = useState<{ userId: string; path: string } | null>(null)
+  const uploadedOrdinaryFile = useRef<{ userId: string; file: File; path: string } | null>(null)
+  useEffect(() => {
+    function readPending() {
+      setPendingBooking(null)
+      setBookingStorageError(null)
+      setBookingOwnerLoaded(null)
+      if (!user?.id) return
+      try {
+        setPendingBooking(readStandardBookingAttempt(window.localStorage, user.id))
+        setBookingOwnerLoaded(user.id)
+      } catch (error) {
+        setBookingStorageError(error instanceof Error ? error.message : 'Bokningsförsöket kunde inte läsas säkert.')
+      }
+    }
+    readPending()
+    window.addEventListener('storage', readPending)
+    return () => window.removeEventListener('storage', readPending)
+  }, [user?.id])
   const [showSieImport, setShowSieImport] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
@@ -497,145 +520,142 @@ export default function Home() {
     }
   }
 
-  async function handleAddTransaction(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (isYearLocked) return
-
-    if (submitInFlightRef.current) return
-    if (editingId) {
-      const editingTx = transactions.find(tx => tx.id === editingId)
-      if (isSystemManagedTransaction(editingTx)) {
-        alert(`${describeSystemManagedTransaction(editingTx)} är systemverifikationer och kan inte ändras.`)
-        return
-      }
-    } else if (!formData.type) {
-      alert('Välj kategori innan du bokför.')
-      return
+  async function finishStandardBooking(attempt: StandardBookingAttempt, result: StandardBookingReceipt) {
+    // Booking is confirmed. Every subsequent failure is a display/local-storage issue.
+    let notice = (result.idempotent_replay ? 'Bokningen var redan genomförd' : 'Bokningen är bekräftad') +
+      ' som VER-' + result.ver_nr + (result.reversal_ver_nr ? ' och VER-' + result.reversal_ver_nr : '') + '.'
+    try {
+      clearStandardBookingAttempt(window.localStorage, attempt)
+      setPendingBooking(null)
+    } catch {
+      notice += ' Bokningskvittot kunde inte avslutas lokalt. Återuppta samma försök efter omladdning.'
     }
-
-    if (!editingId) {
-      const categoryError = newBookingCategoryError(kontoplan, formData.type,
-        kontoplanLoaded && !kontoplanLoading && !kontoplanError)
-      if (categoryError) { alert(categoryError); return }
-      const selectedCategory = kontoplan.find(k => k.id === formData.type)
-      if (selectedCategory && categoryRedirectsToFixedAssets(selectedCategory)) {
-        alert('Utrustning bokförs under Inventarier. Gå till Inventarier så hjälper SoloLedger dig att bokföra köpet rätt, oavsett belopp.')
-        setActiveTab('inventarier')
-        return
-      }
+    setLastSubmitted({ type: attempt.payload.type, amount: String(attempt.payload.amount), vatRate: attempt.payload.vat_rate })
+    setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0], description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
+    setPeriodisera(false)
+    setRetainedBookingAttachment(null)
+    uploadedOrdinaryFile.current = null
+    try {
+      const status = await refreshDataWithStatus()
+      await refreshFreeUsageCount()
+      if (!status.ok) notice += ' Uppdatera sidan för att läsa aktuella siffror.'
+    } catch {
+      notice += ' Uppdatera sidan för att läsa aktuella siffror.'
     }
+    alert(notice)
+  }
 
-    // Booked metadata edits preserve their original economic fields.
-    let bookingAmount = 0
-    if (!editingBooked) {
-      try {
-        bookingAmount = parseStandardBookingAmount(formData.amount)
-      } catch (error) {
-        alert(error instanceof Error ? error.message : 'Ogiltigt belopp.')
-        return
-      }
-    }
-
+  async function runStandardBooking(recover: boolean) {
+    if (!user?.id || submitInFlightRef.current) return
+    // Same-browser tabs cannot both create an attempt from stale empty storage.
+    if (!navigator.locks) { alert('Webbläsaren saknar stöd för säker bokningsåterhämtning. Använd en uppdaterad webbläsare.'); return }
+    const owner = user.id
     submitInFlightRef.current = true
     setUploading(true)
-
     try {
-      if (!editingId) {
-        const currentUsage = await refreshFreeUsageCount()
-        // En vanlig bokning skapar 1 VER. En periodisering skapar 2 riktiga VER
-        // (ursprungsverifikation + framtida vändningsverifikation).
-        const verificationsToCreate = periodisera ? 2 : 1
-        const allowed = canCreateTransactions(
-          profile ?? { subscription_type: 'free', subscription_end: null },
-          currentUsage,
-          verificationsToCreate
-        )
-
-        if (!allowed) {
-          setShowLimitPaywall(true)
-          return
-        }
-      }
-      const targetYear = parseInt(formData.date.slice(0, 4))
-      const isTargetYearClosed = await isYearClosed(targetYear)
-      if (isTargetYearClosed) {
-        throw new Error(`Räkenskapsår ${targetYear} är låst för ändringar.`)
-      }
-
-      const neSmallBusinessSale = !editingId && !periodisera &&
-        kontoplan.find(k => k.id === formData.type)?.credit_account === '3010' &&
-        profile?.domestic_sales_vat_treatment === 'small_business_exempt'
-      if (neSmallBusinessSale && !window.confirm(
-        'Bekräfta att detta är vanlig svensk försäljning och att småföretagarundantaget gällde försäljningen på angivet datum. Beloppet kommer då att visas i NE R2.'
-      )) return
-      let fileUrl = ''
-      if (formData.file) {
-        fileUrl = await handleFileUpload(formData.file)
-      }
-
-      if (editingId) {
-        const updatePayload: any = {
-          date: formData.date,
-          description: formData.description
-        }
-        if (!editingBooked) {
-          updatePayload.amount = bookingAmount
-          updatePayload.type = formData.type
-          updatePayload.vat_rate = formData.vatRate
-        }
-        if (fileUrl) {
-          updatePayload.file_url = fileUrl
-        }
-        await updateTransaction(editingId, updatePayload)
-        setEditingId(null)
-        setEditingBooked(false)
-      } else {
-        if (periodisera) {
-          const futureDate = `${periodMonth}-01`
-          await bookPeriodizedTransaction({
-            date: formData.date,
-            future_date: futureDate,
-            description: formData.description,
-            amount: bookingAmount,
-            type: formData.type,
-            vat_rate: formData.vatRate,
-            input_vat_deduction_entitlement: formData.inputVatDeduction,
-            file_url: fileUrl || null,
-          })
+      await navigator.locks.request('sololedger.standardBooking.' + owner, { ifAvailable: true }, async lock => {
+        if (!lock) { alert('Ett bokningsförsök hanteras i en annan flik. Vänta tills det är klart.'); return }
+        let attempt = readStandardBookingAttempt(window.localStorage, owner)
+        if (attempt) {
+          setPendingBooking(attempt)
+          if (!recover) { alert('Återuppta det sparade bokningsförsöket först.'); return }
         } else {
-          // Vanlig bokföring sker i ett enda atomärt RPC-anrop.
-          // Frontend skapar inte längre först en "halv" transaction.
-          await bookTransaction({
-            ne_sales_basis: neSmallBusinessSale ? 'small_business_exempt' : undefined,
-            ne_sales_basis_confirmed: neSmallBusinessSale,
-            date: formData.date,
-            description: formData.description,
-            amount: bookingAmount,
-            type: formData.type,
-            vat_rate: formData.vatRate,
-            input_vat_deduction_entitlement: formData.inputVatDeduction,
-            file_url: fileUrl || null,
-          })
+          if (recover) { setPendingBooking(null); return }
+          if (bookingOwnerLoaded !== owner || bookingStorageError) throw new Error('Bokningslagringen är inte klar. Ladda om sidan.')
+          if (isYearLocked) throw new Error('Räkenskapsåret är låst för ändringar.')
+          const categoryError = newBookingCategoryError(kontoplan, formData.type,
+            kontoplanLoaded && !kontoplanLoading && !kontoplanError)
+          if (categoryError) throw new Error(categoryError)
+          const category = kontoplan.find(k => k.id === formData.type)
+          if (category && categoryRedirectsToFixedAssets(category)) {
+            setActiveTab('inventarier')
+            throw new Error('Utrustning bokförs under Inventarier. Gå till Inventarier så hjälper SoloLedger dig att bokföra köpet rätt, oavsett belopp.')
+          }
+          const amount = parseStandardBookingAmount(formData.amount)
+          const usage = await refreshFreeUsageCount()
+          if (!canCreateTransactions(profile ?? { subscription_type: 'free', subscription_end: null }, usage, periodisera ? 2 : 1)) {
+            setShowLimitPaywall(true); return
+          }
+          if (await isYearClosed(Number(formData.date.slice(0,4)))) throw new Error('Räkenskapsåret är låst för ändringar.')
+          const neSmallBusinessSale = !periodisera && category?.credit_account === '3010' &&
+            profile?.domestic_sales_vat_treatment === 'small_business_exempt'
+          if (neSmallBusinessSale && !window.confirm('Bekräfta att detta är vanlig svensk försäljning och att småföretagarundantaget gällde försäljningen på angivet datum. Beloppet kommer då att visas i NE R2.')) return
+          let fileUrl: string | null = retainedBookingAttachment && retainedBookingAttachment.userId === owner ? retainedBookingAttachment.path : null
+          if (formData.file) {
+            const cached = uploadedOrdinaryFile.current
+            fileUrl = cached && cached.userId === owner && cached.file === formData.file ? cached.path : await handleFileUpload(formData.file)
+            uploadedOrdinaryFile.current = { userId: owner, file: formData.file, path: fileUrl }
+          }
+          attempt = {
+            version: 1, userId: owner, kind: periodisera ? 'periodized' : 'ordinary',
+            payload: {
+              idempotency_key: crypto.randomUUID(), date: formData.date,
+              description: formData.description, amount, type: formData.type,
+              vat_rate: formData.vatRate, input_vat_deduction_entitlement: formData.inputVatDeduction,
+              file_url: fileUrl,
+              ...(periodisera ? { future_date: periodMonth + '-01' } : {
+                ne_sales_basis: neSmallBusinessSale ? 'small_business_exempt' as const : null,
+                ne_sales_basis_confirmed: neSmallBusinessSale,
+              }),
+            },
+          }
+          saveStandardBookingAttempt(window.localStorage, attempt)
+          setPendingBooking(attempt)
         }
-      }
+        let result: StandardBookingReceipt
+        try {
+          result = await bookStandardBookingAttempt(attempt)
+        } catch (error) {
+          if (error instanceof StandardBookingSubmissionError && error.confirmedRejection) {
+            // Only an explicit DB rejection after locked receipt lookup releases the attempt.
+            clearStandardBookingAttempt(window.localStorage, attempt)
+            setPendingBooking(null)
+            const p = attempt.payload
+            setRetainedBookingAttachment(p.file_url ? { userId: owner, path: p.file_url } : null)
+            setFormData(prev => ({ ...prev, date: p.date, description: p.description, amount: String(p.amount), type: p.type, vatRate: p.vat_rate, inputVatDeduction: p.input_vat_deduction_entitlement }))
+            setPeriodisera(attempt.kind === 'periodized')
+            if (p.future_date) setPeriodMonth(p.future_date.slice(0,7))
+          }
+          throw error
+        }
+        await finishStandardBooking(attempt, result)
+      })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Bokningen kunde inte bekräftas. Återuppta det sparade försöket.')
+    } finally {
+      submitInFlightRef.current = false
+      setUploading(false)
+    }
+  }
 
+  async function handleAddTransaction(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!editingId) { await runStandardBooking(false); return }
+    if (isYearLocked || submitInFlightRef.current) return
+    const editingTx = transactions.find(tx => tx.id === editingId)
+    if (isSystemManagedTransaction(editingTx)) {
+      alert(describeSystemManagedTransaction(editingTx) + ' är systemverifikationer och kan inte ändras.'); return
+    }
+    submitInFlightRef.current = true
+    setUploading(true)
+    try {
+      if (await isYearClosed(Number(formData.date.slice(0,4)))) throw new Error('Räkenskapsåret är låst för ändringar.')
+      const updatePayload: { date: string; description: string; amount?: number; type?: string; vat_rate?: number; file_url?: string } = { date: formData.date, description: formData.description }
+      if (!editingBooked) {
+        updatePayload.amount = parseStandardBookingAmount(formData.amount)
+        updatePayload.type = formData.type
+        updatePayload.vat_rate = formData.vatRate
+      }
+      if (formData.file) updatePayload.file_url = await handleFileUpload(formData.file)
+      await updateTransaction(editingId, updatePayload)
+      setEditingId(null); setEditingBooked(false)
       setLastSubmitted({ type: formData.type, amount: formData.amount, vatRate: formData.vatRate })
-      setFormData(prev => ({
-        ...prev,
-        date: new Date().toISOString().split('T')[0],
-        description: '',
-        amount: '',
-        type: '',
-        vatRate: 0,
-        inputVatDeduction: 'profile_default',
-        file: null
-      }))
+      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0], description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
       setPeriodisera(false)
-      await refreshData()
-      await refreshFreeUsageCount()
-    } catch (err: any) {
-      console.error('Fel vid bokföring:', err)
-      alert('Fel: ' + err.message)
+      try { await refreshData(); await refreshFreeUsageCount() }
+      catch { alert('Ändringen är sparad. Uppdatera sidan för att läsa aktuella siffror.') }
+    } catch (error) {
+      alert('Fel: ' + (error instanceof Error ? error.message : 'Ändringen kunde inte sparas.'))
     } finally {
       submitInFlightRef.current = false
       setUploading(false)
@@ -1177,6 +1197,19 @@ export default function Home() {
           )}
 
           <div id="transaction-form-section">
+            {bookingStorageError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{bookingStorageError}</p>}
+            {pendingBooking && pendingBooking.userId === user.id && (
+              <div role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                <p className="font-bold">Ett bokningsförsök behöver bekräftas</p>
+                <p>{pendingBooking.payload.description} · {pendingBooking.payload.date} · {pendingBooking.payload.amount} kr</p>
+                <p>Återuppta samma underlag för att kontrollera resultatet. En redan genomförd bokning skapas inte igen.</p>
+                <button type="button" disabled={uploading} onClick={() => runStandardBooking(true)} className="mt-3 rounded-xl bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-50">Återuppta bokningsförsöket</button>
+              </div>
+            )}
+            {!pendingBooking && retainedBookingAttachment?.userId === user.id && (
+              <p className="mb-3 text-sm text-gray-700">Bilagan från det avvisade försöket följer med nästa bokning. En ny vald fil ersätter den. <button type="button" onClick={() => setRetainedBookingAttachment(null)} className="underline">Ta bort sparad bilaga</button></p>
+            )}
+            <fieldset disabled={Boolean(pendingBooking || bookingStorageError || bookingOwnerLoaded !== user.id)} className="min-w-0">
             <TransactionForm
               userId={user.id}
               vatStatus={profile?.vat_status ?? 'unknown'}
@@ -1211,6 +1244,7 @@ export default function Home() {
               onOpenCustomerInvoices={() => setActiveTab('fakturor')}
               onOpenFixedAssets={() => setActiveTab('inventarier')}
             />
+            </fieldset>
           </div>
 
           {transactionHistoryError && (

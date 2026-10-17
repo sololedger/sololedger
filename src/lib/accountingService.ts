@@ -1,3 +1,4 @@
+import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBookingSubmissionError, type StandardBookingAttempt } from './standardBookingAttempt'
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
@@ -57,6 +58,7 @@ export async function getUserId() {
 }
 
 interface BookTransactionInput {
+  idempotency_key: string
   ne_sales_basis?: 'small_business_exempt'
   ne_sales_basis_confirmed?: boolean
   date: string
@@ -139,14 +141,31 @@ function normalizeAccountBalanceRows(
   return balances
 }
 
+export async function bookStandardBookingAttempt(attempt: StandardBookingAttempt) {
+  const userId = await getUserId()
+  if (userId !== attempt.userId) throw new Error('Bokningsförsöket tillhör en annan användare.')
+  await requireStandardBookingProtocol()
+  // Submit the saved payload verbatim: no current profile/account normalization on replay.
+  return submitStandardBookingAttempt(attempt, (name, args) => supabase.rpc(name, args))
+}
+
+async function requireStandardBookingProtocol() {
+  const { data, error } = await supabase.rpc('get_standard_booking_protocol')
+  if (error || data !== 1) {
+    throw new Error('Databasens skydd för bokningsförsök kunde inte verifieras. Ingen ny bokning skickades. Behåll det sparade försöket och försök igen senare.')
+  }
+}
+
 export async function bookTransaction(tx: BookTransactionInput) {
   const amount = parseStandardBookingAmount(tx.amount)
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  await requireStandardBookingProtocol()
 
   // Hela den vanliga bokningen sker nu atomärt i databasen:
   // transaction + ver_nr + journal_entries skapas i samma PostgreSQL-transaktion.
   // Om något steg misslyckas rullas allt tillbaka.
   const payload = {
+    idempotency_key: tx.idempotency_key,
     ne_sales_basis: tx.ne_sales_basis ?? null,
     ne_sales_basis_confirmed: tx.ne_sales_basis_confirmed ?? false,
     date: tx.date,
@@ -164,12 +183,10 @@ export async function bookTransaction(tx: BookTransactionInput) {
   })
 
   if (error) {
-    throw new Error('Bokföringen misslyckades och rullades tillbaka: ' + error.message)
+    throw new StandardBookingSubmissionError(false)
   }
 
-  if (!data?.success) {
-    throw new Error('Bokföringen misslyckades av okänd anledning.')
-  }
+  parseStandardBookingReceipt(data, 'ordinary')
 
   return {
     success: true,
@@ -1732,6 +1749,7 @@ export async function bookPeriodizedTransaction(
 ) {
   const amount = parseStandardBookingAmount(tx.amount)
   await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  await requireStandardBookingProtocol()
 
   // Hela periodiseringen sker nu atomärt i databasen:
   // båda transactions, båda verifikationsnumren och samtliga journalrader
@@ -1740,6 +1758,7 @@ export async function bookPeriodizedTransaction(
   const payload = {
     date: tx.date,
     future_date: tx.future_date,
+    idempotency_key: tx.idempotency_key,
     description: tx.description,
     amount,
     type: tx.type,
@@ -1754,12 +1773,10 @@ export async function bookPeriodizedTransaction(
   })
 
   if (error) {
-    throw new Error('Periodiseringen misslyckades och rullades tillbaka: ' + error.message)
+    throw new StandardBookingSubmissionError(false)
   }
 
-  if (!data?.success) {
-    throw new Error('Periodiseringen misslyckades av okänd anledning.')
-  }
+  parseStandardBookingReceipt(data, 'periodized')
 
   return {
     success: true,

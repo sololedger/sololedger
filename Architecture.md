@@ -1,5 +1,13 @@
 # SoloLedger - Arkitektur
 
+## KAN-80: beständiga bokningsförsök (endast lokal kandidat)
+
+`page.tsx` sparar ett ägarbundet, oförändrat vanligt/periodiserat bokningsförsök i localStorage före RPC. Bilagans privata Storage-referens följer med det sparade underlaget. Web Locks hindrar att två flikar samtidigt skapar försök från samma tomma lokala läge. Återupptagningsknappen skickar det sparade underlaget före föränderliga klientspärrar; osäkra försök får inte ersättas. `standardBookingAttempt.ts` hanterar lagring, kvitto och skillnaden mellan bekräftad avvisning och osäkert svar.
+
+`accountingService.ts` verifierar först `get_standard_booking_protocol() = 1`, så en ny klient inte bokar mot en äldre databas som ignorerar nyckeln. De befintliga RPC-signaturerna kräver UUID-nyckel även för äldre öppna appflikar. `standard_booking_idempotency` har primärnyckel `(user_id, idempotency_key)`, privat RLS/ACL och sparar exakt JSONB-underlag, bokningstyp och resultat i samma transaktion som bokningen. Gemensamt transaktionslås per ägare/nyckel, följt av kvittoläsning, föregår befintliga bokningsspärrar. Ändrat underlag avvisas. Endast en uttrycklig DB-avvisning efter kvittokontrollen frigör ett misslyckat försök; andra fel behåller det. Befintlig bokföringskärna och transaktionskällor bevaras.
+
+`delete_user_data_atomic` raderar kvitton före journal/transaktioner; Edge-funktionens dry-run och efterkontroll samt adminetiketter omfattar tabellen. Migration `20261017190000_kan80_standard_booking_idempotency.sql` och tillhörande kod är inte publicerade. Verifiering, releaseordning och begränsningar finns i `docs/reviews/KAN-80-local-verification.md` och aktuell `PROJECT_STATE.md`.
+
 Det här dokumentet är en karta över SoloLedgers nuvarande kod och datamodell. Det beskriver vad som faktiskt finns i repot och hur huvudflödena hänger ihop.
 
 SoloLedger är en svensk bokföringsapp för enskild firma utan anställda. Grundprincipen är att bokföring, moms, NE, SIE och historik ska vara kontrollerbara och isolerade per användare. När appen saknar tillräcklig information ska den stoppa eller be om mer fakta i stället för att gissa.
