@@ -1,8 +1,11 @@
 'use client'
 import { useState } from 'react'
 import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
+import type { ResultWarning } from '@/lib/resultEngine'
 
 interface NEData {
+  warnings?: ResultWarning[];
+  unresolvedResultEffect?: number;
   neSalesClassification?: NeSalesClassificationSummary;
   R1: number;
   R2: number;
@@ -99,6 +102,7 @@ export default function NEBilaga({
   const [showAllNERows, setShowAllNERows] = useState(false)
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
+  const warnings = neData.warnings ?? []
   const R17 = neData.R17 ?? 0
   const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
   const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
@@ -138,6 +142,19 @@ export default function NEBilaga({
           NE-Bilaga Specifikation
         </h2>
 
+        {warnings.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">NE-underlaget är inte komplett</p>
+            <p>Beloppen ingår i det bokförda resultatet, men följande konton saknar en säker NE-klassificering.</p>
+            <ul className="my-2 list-disc space-y-1 pl-5">
+              {warnings.map(warning => (
+                <li key={warning.accountNumber + '-' + warning.code}>{warning.message}</li>
+              ))}
+            </ul>
+            <p>Resultatpåverkan som ännu saknar NE-ruta: {fmt(neData.unresolvedResultEffect)}</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
         {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-bold">R1/R2 behöver kontrolleras före deklaration</p>
