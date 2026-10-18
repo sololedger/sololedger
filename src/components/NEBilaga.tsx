@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
 import type { ResultWarning } from '@/lib/resultEngine'
+import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
 
 interface NEData {
+  accountCoverage?: NeAccountCoverage[];
   warnings?: ResultWarning[];
   unresolvedResultEffect?: number;
   neSalesClassification?: NeSalesClassificationSummary;
@@ -103,6 +105,8 @@ export default function NEBilaga({
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
   const warnings = neData.warnings ?? []
+  const accountCoverage = neData.accountCoverage ?? []
+  const accountsToReview = accountCoverage.filter(row => row.status === 'review')
   const R17 = neData.R17 ?? 0
   const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
   const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
@@ -148,12 +152,49 @@ export default function NEBilaga({
             <p>Beloppen ingår i det bokförda resultatet, men följande konton saknar en säker NE-klassificering.</p>
             <ul className="my-2 list-disc space-y-1 pl-5">
               {warnings.map(warning => (
-                <li key={warning.accountNumber + '-' + warning.code}>{warning.message}</li>
+                <li key={warning.accountNumber + '-' + warning.code}>{warning.message} Saldo: {fmt(warning.balance)}.</li>
               ))}
             </ul>
             <p>Resultatpåverkan som ännu saknar NE-ruta: {fmt(neData.unresolvedResultEffect)}</p>
             <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
           </div>
+        )}
+        {accountsToReview.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Konton behöver granskas före deklaration</p>
+            <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {accountsToReview.map(row => (
+                <li key={row.accountNumber}>
+                  <span className="font-bold">Konto {row.accountNumber}: {fmt(row.balance)}</span>
+                  {' — '}{row.reason}
+                </li>
+              ))}
+            </ul>
+            <p>Saldo visas som debet minus kredit: resultatkonton för valt år, balanskonton till årets slut.</p>
+            <p className="mt-2">Varningen betyder inte alltid att bokföringen är fel. Ändra inte bokföringen enbart för att få bort varningen. Ta hjälp av en redovisningskunnig om du är osäker.</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {neData.accountCoverage && (
+          <details className="mb-6 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 break-words">
+            <summary className="cursor-pointer font-bold">Kontotäckning ({accountCoverage.length} konton med saldo)</summary>
+            <p className="my-2">Visar befintliga kontokopplingar och undantag. Detta är ingen fullständig kontroll av skattejusteringar eller av att kontona används rätt. Sparade R1/R2-beslut och varningar gäller fortfarande.</p>
+            {(['review', 'mapped', 'excluded'] as const).map(status => (
+              <div key={status} className="mt-3">
+                <p className="font-bold">{status === 'review' ? 'Behöver granskning' : status === 'mapped' ? 'Kopplade enligt befintliga regler' : 'Uttryckligen undantagna'}</p>
+                <ul className="mt-1 space-y-2">
+                  {accountCoverage.filter(row => row.status === status).map(row => (
+                    <li key={row.accountNumber}>
+                      <span className="font-bold">{row.accountNumber}: {fmt(row.balance)} — {row.handling}</span>
+                      <p>{row.reason}</p>
+                    </li>
+                  ))}
+                </ul>
+                {!accountCoverage.some(row => row.status === status) && <p>Inga konton.</p>}
+              </div>
+            ))}
+          </details>
         )}
         {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
@@ -443,11 +484,11 @@ export default function NEBilaga({
 
             <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
               !hasBalanceDifference
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                ? accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
                 : 'bg-red-50 border-red-200 text-red-600'
             }`}>
               {!hasBalanceDifference
-                ? '✓ Balansräkningen balanserar'
+                ? accountsToReview.length > 0 ? `Balansdifferens ${fmt(balansDiff)} — konton behöver granskas` : '✓ Balansräkningen balanserar'
                 : `⚠ Balansdifferens ${fmt(balansDiff)}`}
             </div>
           </div>

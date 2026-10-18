@@ -40,6 +40,7 @@ import {
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
 import { calculateNeBalanceRows } from './neBalance'
+import { collectNeAccountCoverage } from './neAccountCoverage'
 import type {
   FixedAsset,
   FixedAssetAcquisitionInput,
@@ -2001,6 +2002,7 @@ export async function getNEData(year: number) {
   return {
     R1: neIncomeRows.R1, R2: neIncomeRows.R2, R3, R4, R5, R6, R7, R8, R9, R10,
     neSalesClassification,
+    accountCoverage: collectNeAccountCoverage(balances, balanceSheetBalances, neSalesClassification),
     warnings, unresolvedResultEffect,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
