@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { decodeSieBuffer, parseSieFile, MAX_SIE_FILE_BYTES } from '@/lib/sieParser'
 import type { SieParseResult } from '@/lib/sieParser'
+import { collectSieNeChartReviews } from '@/lib/neChartReview'
 import { importSieBatch, SieImportError } from '@/lib/sieImport'
 import type { ImportSieBatchResult } from '@/lib/sieImport'
 import { canCreateTransactions, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
@@ -139,6 +140,7 @@ export default function SieImportModal({
   }
 
   const hasBlockingErrors = (parseResult?.errors.length ?? 0) > 0
+  const neChartReviews = parseResult ? collectSieNeChartReviews(parseResult) : []
 
   if (!isOpen) return null
 
@@ -237,7 +239,18 @@ export default function SieImportModal({
                 />
               )}
 
-              {parseResult.errors.length === 0 && parseResult.warnings.length === 0 && (
+              {neChartReviews.length > 0 && (
+                <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+                  <p className="font-bold">NE-fördelningen behöver granskas efter import</p>
+                  <p className="mt-2">Filen använder konton som kan ha olika betydelse i BAS K1 och vanlig BAS. Kontonummer, kontonamn eller en momssats på 0 % räcker inte för att säkert avgöra rätt NE-ruta.</p>
+                  <ul className="my-2 list-disc space-y-2 pl-5">
+                    {neChartReviews.map(row => <li key={row.accountNumber}><span className="font-bold">Konto {row.accountNumber}: </span>{row.reason}</li>)}
+                  </ul>
+                  <p>Importen ändrar inte konton eller belopp för att lösa detta. Granska fördelningen mellan NE-rutorna före deklaration.</p>
+                </div>
+              )}
+
+              {parseResult.errors.length === 0 && parseResult.warnings.length === 0 && decodeWarnings.length === 0 && neChartReviews.length === 0 && (
                 <p className="text-sm text-emerald-600 font-bold">
                   ✓ Filen ser bra ut — inga fel eller varningar.
                 </p>

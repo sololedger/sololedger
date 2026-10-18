@@ -4,6 +4,7 @@ import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
 import type { ResultWarning } from '@/lib/resultEngine'
 import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
 import type { NeTaxReview } from '@/lib/neTaxAdjustments'
+import { getNeChartReviewReason } from '@/lib/neChartReview'
 
 interface NEData {
   accountCoverage?: NeAccountCoverage[];
@@ -110,6 +111,7 @@ export default function NEBilaga({
   const taxReviews = neData.taxReviews ?? []
   const accountCoverage = neData.accountCoverage ?? []
   const accountsToReview = accountCoverage.filter(row => row.status === 'review')
+  const hasChartConflicts = accountsToReview.some(row => getNeChartReviewReason(row.accountNumber) !== null)
   const R17 = neData.R17 ?? 0
   const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
   const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
@@ -175,6 +177,9 @@ export default function NEBilaga({
         {accountsToReview.length > 0 && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
             <p className="font-bold">Konton behöver granskas före deklaration</p>
+            {hasChartConflicts && (
+              <p className="mt-2 font-bold">Fördelningen mellan NE-rutorna är preliminär eftersom konton kan ha olika betydelse i BAS K1 och vanlig BAS. Visade belopp är oförändrade.</p>
+            )}
             <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
             <ul className="my-2 list-disc space-y-2 pl-5">
               {accountsToReview.map(row => (

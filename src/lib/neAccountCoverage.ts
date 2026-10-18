@@ -1,6 +1,7 @@
 import { calculateNeBalanceRows, type BalanceMap } from './neBalance'
 import { calculateBusinessResult, classifyResultAccount } from './resultEngine'
 import { getNeTaxReviewReason } from './neTaxAdjustments'
+import { getNeChartReviewReason } from './neChartReview'
 import type { NeSalesClassificationSummary } from './neSalesClassification'
 
 export interface NeAccountCoverage {
@@ -55,6 +56,12 @@ export function collectNeAccountCoverage(
         row.handling += accountNumber === '8314' ? ' och avdrag i R14' : ' och återläggning i R13'
         row.reason = 'Skattejusteras enligt BAS-kontots uttryckliga innebörd. Kontrollera att endast den ej avdragsgilla kostnaden respektive skattefria intäkten har bokförts på kontot.'
       }
+    }
+    const chartReason = getNeChartReviewReason(accountNumber)
+    if (chartReason) {
+      row.status = 'review'
+      row.handling += ' (preliminär fördelning)'
+      row.reason = chartReason
     }
     rows.push(row)
   }
