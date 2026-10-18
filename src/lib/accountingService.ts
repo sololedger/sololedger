@@ -1855,12 +1855,12 @@ function computeResultat(balances: Record<string, number>) {
   // R15 = intäkter som inte bokförts men ska tas upp
   // R16 = kostnader som inte bokförts men ska dras av
   //
-  // SoloLedger har i nuläget automatisk mappning för R13 via konto 6992.
-  // R14–R16 är fortsatt 0 tills särskilt stöd finns.
+  // Endast uttryckligt verifierade BAS-underkonton justeras automatiskt.
+  // Osäkra fördelningar och personalrelaterade konton följer med för granskning.
   const R11 = bokfRes
   const R12 = R11
   const R13 = ejAvdr
-  const R14 = 0
+  const R14 = result.skattefriaIntakter
   const R15 = 0
   const R16 = 0
   const R17 = result.skattemassigtResultat
@@ -1888,6 +1888,7 @@ function computeResultat(balances: Record<string, number>) {
 
     // Bevara klassificeringsvarningar och olöst resultatpåverkan för NE-vyn.
     warnings: result.warnings,
+    taxReviews: result.taxReviews,
     unresolvedResultEffect: result.unresolvedResultEffect,
     reconciliationDifference: result.reconciliationDifference,
   }
@@ -1941,7 +1942,7 @@ export async function getNEData(year: number) {
   // något annat fält i denna funktion i detta steg.
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
-  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17, warnings, unresolvedResultEffect } = computeResultat(balances)
+  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17, warnings, taxReviews, unresolvedResultEffect } = computeResultat(balances)
 
   // B10 är kumulativt och ska följa K1:s eget-kapital-konton för
   // enskild näringsverksamhet. BAS K1 placerar 2010, 2011, 2012, 2013,
@@ -2003,7 +2004,7 @@ export async function getNEData(year: number) {
     R1: neIncomeRows.R1, R2: neIncomeRows.R2, R3, R4, R5, R6, R7, R8, R9, R10,
     neSalesClassification,
     accountCoverage: collectNeAccountCoverage(balances, balanceSheetBalances, neSalesClassification),
-    warnings, unresolvedResultEffect,
+    warnings, taxReviews, unresolvedResultEffect,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
     R11, R12, R13, R14, R15, R16, R17,

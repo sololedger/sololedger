@@ -8,6 +8,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 SoloLedger is a Swedish bookkeeping application for enskild firma without employees.
 
+Do not develop payroll, employer contributions, employee benefits, or personnel administration. Personnel-related accounts found in SIE imports or existing bookkeeping must remain auditable and receive an understandable review notice when their treatment is outside the supported scope. Do not infer their tax treatment or introduce personnel booking flows merely to handle those accounts.
+
 Correct bookkeeping, auditability, user isolation, and data integrity always come before speed. If something is uncertain, stop and verify before changing it.
 
 Core principle: **Osäker → SoloLedger gissar inte.**
@@ -253,6 +255,34 @@ When changing DB behavior:
 - Preserve the principle that booked accounting history should be corrected through auditable bookkeeping mechanisms rather than casual mutation or deletion.
 - Preserve user isolation, RLS/grant boundaries, and server-side identity checks around accounting data.
 - When working with VAT, SIE, NE, year closing, corrections, periodization, account balances, or report calculations, verify the current implementation and the live database behavior before making changes.
+
+## Accounting Integration Impact Check
+
+Before implementing changes that affect bookkeeping, VAT, invoices, payments,
+receivables, corrections, reversals, year closing, or report calculations,
+Codex must map the affected accounting integration surface before coding.
+
+At minimum, verify whether the change affects:
+
+- journal entries, transaction sources, metadata, and RPC write paths
+- VAT report aggregation, VAT periods, closing/declaring, and VAT dashboard data
+- NE report/result/balance calculations and year-end behavior
+- dashboard cards, safe withdrawal, balances, and economic key figures
+- payments, customer receivables, settlements, and year-crossing flows
+- corrections, reversals, undo paths, SIE import/export, and locked periods
+- existing tests and necessary new regression tests
+
+New transaction sources or bookkeeping source values must be explicitly
+classified for every relevant report and calculation path. Unknown or new
+sources must not silently fall back to legacy/manual behavior unless that
+classification has been inspected, justified, and tested.
+
+For high-risk accounting changes, the verification plan must include a small
+end-to-end checklist before Staging and before Production: create or identify a
+representative transaction, verify the journal, VAT report, NE/report impact,
+dashboard impact, payment/receivable state, and any correction/year-end behavior
+that is in scope. For low-risk UI-only changes, state why this checklist is not
+applicable instead of running unnecessary E2E.
 
 ## Security Boundaries
 

@@ -11,6 +11,8 @@ export interface DashboardData {
   kostnader: number
   bokfortResultat: number
   ejAvdragsgillt: number
+  skattefriaIntakter?: number
+  taxReviewRequired?: boolean
   skattemassigVinst: number
   utgaendeMoms: number
   ingaendeMoms: number
@@ -89,7 +91,8 @@ export function calculateDashboard(
       ? Math.round(skattemassigVinst * (taxRate / 100) * 100) / 100
       : 0
 
-  const sakertUttag = manualReviewRequired
+  const taxReviewRequired = businessResult.taxReviews.length > 0
+  const sakertUttag = manualReviewRequired || taxReviewRequired
     ? 0
     : Math.round(
         (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
@@ -101,6 +104,8 @@ export function calculateDashboard(
     kostnader,
     bokfortResultat,
     ejAvdragsgillt,
+    skattefriaIntakter: businessResult.skattefriaIntakter,
+    taxReviewRequired,
     skattemassigVinst,
     utgaendeMoms,
     ingaendeMoms,

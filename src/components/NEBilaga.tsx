@@ -3,10 +3,12 @@ import { useState } from 'react'
 import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
 import type { ResultWarning } from '@/lib/resultEngine'
 import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
+import type { NeTaxReview } from '@/lib/neTaxAdjustments'
 
 interface NEData {
   accountCoverage?: NeAccountCoverage[];
   warnings?: ResultWarning[];
+  taxReviews?: NeTaxReview[];
   unresolvedResultEffect?: number;
   neSalesClassification?: NeSalesClassificationSummary;
   R1: number;
@@ -105,6 +107,7 @@ export default function NEBilaga({
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
   const warnings = neData.warnings ?? []
+  const taxReviews = neData.taxReviews ?? []
   const accountCoverage = neData.accountCoverage ?? []
   const accountsToReview = accountCoverage.filter(row => row.status === 'review')
   const R17 = neData.R17 ?? 0
@@ -146,6 +149,16 @@ export default function NEBilaga({
           NE-Bilaga Specifikation
         </h2>
 
+        {taxReviews.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Skattejusteringar behöver granskas</p>
+            <p>R13, R14 och R17 är preliminära. Ingen skattejustering har gissats för följande konton.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {taxReviews.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}, saldo {fmt(row.balance)}: {row.reason}</li>)}
+            </ul>
+            <p className="font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
         {warnings.length > 0 && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-bold">NE-underlaget är inte komplett</p>
@@ -318,7 +331,7 @@ export default function NEBilaga({
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span className="flex items-center flex-wrap">
                 R13 Ej avdragsgilla kostnader
-                <Tooltip text="Bokförda kostnader som inte ska dras av skattemässigt, t.ex. konto 6992." />
+                <Tooltip text="Återläggning av bokförda ej avdragsgilla kostnader på 6072, 6982 och 6992. Avdragsgilla delar och momsavdrag bedöms separat." />
               </span>
               <span className="whitespace-nowrap">{fmt(neData.R13)}</span>
             </div>
@@ -344,6 +357,7 @@ export default function NEBilaga({
                 <Tooltip text="R17 är resultatet efter skattemässiga justeringar: R12 + R13 − R14 + R15 − R16." />
               </span>
               <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{fmt(R17)}</span>
+              {taxReviews.length > 0 && <p className="w-full text-sm text-amber-950">Preliminärt – skattejusteringar behöver granskas före deklaration.</p>}
             </div>
           </div>
 

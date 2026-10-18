@@ -1,0 +1,30 @@
+# KAN-91 – avgränsade skattejusteringar i NE
+
+## Regelgrund och gränser (kontrollerad 2026-10-18)
+
+- [Skatteverkets NE-anvisningar](https://www.skatteverket.se/foretag/inkomstdeklaration/enskildnaringsverksamhet/hurdufyllerinebilagan/skattemassigajusteringar.4.361dc8c15312eff6fd2c7d1.html): kostnader som ingår i R5–R10 men inte får dras av återläggs i R13. Skattefria bokförda intäkter från R1–R4 dras av i R14. R17 = R12 + R13 − R14 + R15 − R16.
+- [Skatteverkets avdragslexikon för enskild firma](https://www.skatteverket.se/foretagorganisationer/inkomstdeklaration/avdragforetag.4.3684199413c956649b550c8.html): medlemsavgifter saknar avdragsrätt medan separat serviceavgift normalt kan vara avdragsgill. Måltider vid representation saknar inkomstskattemässigt avdrag; enklare förtäring och andra representationsutgifter har egna villkor och beloppsgränser. Momsavdrag är en separat bedömning och ändras inte här.
+- [BAS K1 2018](https://www.bas.se/wp-content/uploads/2017/06/Kontoplan_K1_2018.pdf), den K1-plan som BAS fortfarande länkar som aktuell: 6072 till R6 samt NE sida 2; gruppkonto 6070 respektive 6980 ger inte tillräcklig uppdelning för skattejustering.
+- [BAS 2026, kontotabell](https://www.bas.se/wp-content/uploads/2026/04/BAS_kontoplan_2026_v2.pdf), s. 5–6, 13–14, 25, 27, 31 och 36: 6072 Representation, ej avdragsgill; 6982 Föreningsavgifter, ej avdragsgilla; 6992 Övriga externa kostnader, ej avdragsgilla; 7632 Personalrepresentation, ej avdragsgill; 8314 Skattefria ränteintäkter. Den allmänna BAS-planen verifierar kontonas innebörd, inte en generell K1-mappning.
+
+Automatik förutsätter att de uttryckliga underkontona används enligt BAS och redan innehåller den separerade delen. Kontonummer kan inte bevisa att en faktisk faktura bokförts korrekt. Ingen ny fakturabedömning, schablon eller momsberäkning införs. Kontotäckningen upplyser om denna gräns. Felbokade/blandade belopp på ett uttryckligt underkonto kan inte upptäckas med endast aggregerade kontosaldon; granska då underlagen. Ingen ny manuell NE-justeringslagring införs.
+
+## Beteende
+
+- R13 = signerade saldon på exakt 6072 + 6982 + 6992. R14 = minus det signerade saldot på exakt 8314. Kreditvändning/debetvändning minskar tidigare justering; ingen absolutbeloppshantering eller klippning. Inga historiska journalrader ändras.
+- Ospecificerade 607x/698x (utom de uttryckliga underkontona 1/2) kräver granskning. Ingen fördelning gissas. 6071 och 6981 får ingen ny skattejustering.
+- Personalrelaterade resultatkonton 70xx–76xx, inklusive 7632, kräver granskning. Även BAS 1382, 161x, 27xx, 282x och 291x–295x markeras för granskning; balanskonton kontrolleras kumulativt även när årets rörelse är noll. Befintliga bokförda resultat-/R-rader bevaras; ingen R13/R14-justering antas för dem. Detta är detektion av data utanför produktens målgrupp, inte stöd för löner, arbetsgivaravgifter, personalförmåner eller personaladministration. Inhyrda externa tjänster i 68xx behandlas inte som egna anställda.
+- NE visar granskningsbesked och preliminärt R17 för dessa fall, även om olika konton tar ut varandra. Kontotäckningen markerar dem för granskning. Översiktens skattereserv visas som preliminär; säkert uttag visar Kontroll krävs. Varken bokning eller årslås får någon ny spärr.
+
+## Integrationsyta och säkerhet
+
+- Gemensam ren resultatmotor används av NE och dashboard. Bokfört resultat och R1–R12 bevaras. B10 använder fortsatt kumulativt **bokfört** resultat; skattejusteringar påverkar inte kapital/balans. KAN-88:s sparade R1/R2-beslut ändras inte. KAN-77:s varningar och KAN-90:s övriga täckningskontroll bevaras.
+- Live Production lästes med `pg_get_functiondef` för get_ne_sales_summary, get_period_account_balances och get_cumulative_account_balances. Underlaget är användaravgränsade journal-/transaktionssaldon med debet minus kredit; årssaldon använder transaktionsdatum. RPC:erna ändras inte. Inga användarrader lästes som testdata.
+- Inga nya transaktionskällor, skrivvägar eller RPC-anrop. Momsrapport, betalningar/fordringar, låsta perioder, rättelse-/undo- och SIE-skrivvägar ändras inte. Deras signerade journalrader behandlas som tidigare; endast de verifierade skattejusteringarna ändras. KAN-62/65-grenar, Staging och inventarielogik lämnas orörda.
+- Ingen migration, extern dataskrivning eller deployment behövs för implementationen. Inga miljö-/authfiler kopieras. Ny produktkopia på codex/KAN-91-ne-tax-adjustments från Production 688cc57d; beroenden återanvänds via lokal kataloglänk. Desktop-kopians dokumentändringar och sex ospårade filer bevaras.
+
+## Verifiering och acceptans
+
+- `scripts/test-ne-tax-adjustments.mjs` ingår i domän-/regressionskedjan. Testar verklig motor, NE-service och vyer med syntetisk transport: exakta konton, blandade gruppkonton, personal, kreditvändning, full/partiell rättelse, år och SIE-parser, R17-formel och dashboard. Jämför 15 994 opåverkade konto-/teckenfall mot Production-motorn. Transporten tillåter bara befintliga rapportläsningar.
+- Befintliga KAN-77/88/90-, balans-, dashboard- och säkra regressionstester ska vara gröna före In Review. Faktiskt resultat: riktat KAN-91-test 18 fall PASS, KAN-90:s 21 fall och 8 000 kontotillstånd samt desktop/mobil PASS; typkontroll och fokuserad lint PASS. Säkra regressionen passerade domän-/historik-/UI-delarna fram till public smoke. Turbopack misslyckas på den lokala beroendelänken; ett avgränsat Webpack-omförsök startade servern men testköraren stannade före teststart och avbröts. De två återstående offline-testerna (kategori-UI och vanlig bokning desktop/mobil) PASS separat. Hela regressionen kan därför inte betecknas grön, och Jira stannar In Progress. Ingen ny full repo-lint, produktionsbuild eller hosted/write-E2E körd.
+- Före Staging och Production: använd syntetiska exempel med 6072/6982/8314 och ett granskningsfall 7632/6070. Kontrollera oförändrad journal, R6/R4/R11, rätt R13/R14/R17, oförändrad moms/balans/fordran samt motsvarande dashboardeffekt. Kontrollera rättelse över årsskifte och att årslåsets befintliga villkor gäller. Hosted verifiering och publicering kräver separat godkännande; använd inte Jessikas data.

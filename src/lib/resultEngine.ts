@@ -15,6 +15,8 @@
  * Den här filen kopplas INTE till produktionsflödet förrän den är testad.
  */
 
+import { calculateNeTaxAdjustments, type NeTaxReview } from './neTaxAdjustments.ts'
+
 export type BalanceMap = Record<string, number>
 
 export type NeRow =
@@ -67,7 +69,7 @@ export interface ResultEngineResult {
   neRows: Record<NeRow, number>
 
   /**
-   * 6992 är bokförd kostnad i R6 men ska läggas tillbaka
+   * 6072, 6982 och 6992 är bokförda kostnader i R6 men ska läggas tillbaka
    * skattemässigt.
    *
    * Värdet behåller tecknet.
@@ -75,6 +77,8 @@ export interface ResultEngineResult {
    * Kredit saldo => negativ korrigering.
    */
   ejAvdragsgillt: number
+  skattefriaIntakter: number
+  taxReviews: NeTaxReview[]
   skattemassigtResultat: number
 
   /**
@@ -542,17 +546,11 @@ export function calculateBusinessResult(
     bokfortResultat -
     (knownNeResult + unresolvedResultEffect)
 
-  /**
-   * 6992 ligger redan i R6 och påverkar bokfört resultat som kostnad.
-   * Vid skattemässig beräkning ska saldot läggas tillbaka.
-   *
-   * Ingen Math.abs():
-   * en kreditkorrigering måste kunna minska återläggningen.
-   */
-  const ejAvdragsgillt = Number(balances['6992'] || 0)
+  const tax = calculateNeTaxAdjustments(balances)
+  const ejAvdragsgillt = tax.R13
 
   const skattemassigtResultat =
-    bokfortResultat + ejAvdragsgillt
+    round(bokfortResultat) + ejAvdragsgillt - tax.R14
 
   return {
     intakter: round(intakter),
@@ -573,6 +571,8 @@ export function calculateBusinessResult(
     },
 
     ejAvdragsgillt: round(ejAvdragsgillt),
+    skattefriaIntakter: tax.R14,
+    taxReviews: tax.reviews,
     skattemassigtResultat: round(skattemassigtResultat),
 
     unresolvedResultEffect: round(unresolvedResultEffect),

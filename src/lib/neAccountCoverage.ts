@@ -1,5 +1,6 @@
 import { calculateNeBalanceRows, type BalanceMap } from './neBalance'
 import { calculateBusinessResult, classifyResultAccount } from './resultEngine'
+import { getNeTaxReviewReason } from './neTaxAdjustments'
 import type { NeSalesClassificationSummary } from './neSalesClassification'
 
 export interface NeAccountCoverage {
@@ -46,6 +47,14 @@ export function collectNeAccountCoverage(
         row.status = 'review'
         row.reason = 'R1/R2-underlaget behöver granskas. Dagens momsprofil ersätter inte sparade historiska beslut.'
       }
+      const taxReason = getNeTaxReviewReason(accountNumber)
+      if (taxReason) {
+        row.status = 'review'
+        row.reason = taxReason
+      } else if (['6072', '6982', '6992', '8314'].includes(accountNumber)) {
+        row.handling += accountNumber === '8314' ? ' och avdrag i R14' : ' och återläggning i R13'
+        row.reason = 'Skattejusteras enligt BAS-kontots uttryckliga innebörd. Kontrollera att endast den ej avdragsgilla kostnaden respektive skattefria intäkten har bokförts på kontot.'
+      }
     }
     rows.push(row)
   }
@@ -78,6 +87,11 @@ export function collectNeAccountCoverage(
           row.reason = 'Saldot går åt motsatt håll mot den här tillgångs- eller skuldgruppen. Det kan vara korrekt, till exempel vid en bokförd värdeminskning, men beloppet kan döljas när konton räknas ihop. Kontrollera bokningarna för kontot före deklaration.'
         }
       }
+    }
+    const scopeReason = getNeTaxReviewReason(accountNumber)
+    if (scopeReason) {
+      row.status = 'review'
+      row.reason = scopeReason
     }
     if (!Number.isFinite(balance)) {
       row.status = 'review'

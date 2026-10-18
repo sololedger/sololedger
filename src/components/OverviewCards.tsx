@@ -90,6 +90,7 @@ export default function OverviewCards({
             <p className="text-xl font-black tabular-nums text-orange-500">
               −{data.skattReserv.toLocaleString('sv-SE')} kr
             </p>
+            {data.taxReviewRequired && <p className="text-xs text-amber-800">Preliminärt – skatteunderlaget behöver granskas</p>}
 
             <p className="text-xs text-orange-300 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa beräkning ↗
@@ -152,6 +153,11 @@ export default function OverviewCards({
                 <p className="text-[10px] font-bold opacity-75 mt-2">
                   Moms behöver kontrolleras
                 </p>
+              </div>
+            ) : data.taxReviewRequired ? (
+              <div>
+                <p className="text-2xl font-black leading-none">Kontroll krävs</p>
+                <p className="text-xs font-bold mt-2">Skatteunderlaget behöver granskas i NE-bilagan</p>
               </div>
             ) : !Number.isFinite(data.sakertUttag) ? (
               <p className="text-2xl font-black leading-none">
@@ -317,6 +323,7 @@ export default function OverviewCards({
                 </p>
 
                 <div className="space-y-3">
+                  {data.taxReviewRequired && <p role="alert" className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-950">Skatteberäkningen är preliminär. Granska kontona i NE-bilagan innan du använder beloppet som grund för uttag.</p>}
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">
                       Bokförda intäkter
@@ -344,14 +351,21 @@ export default function OverviewCards({
                     </span>
                   </div>
 
-                  {data.ejAvdragsgillt > 0 && (
+                  {data.ejAvdragsgillt !== 0 && (
                     <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
                       <span className="text-xs font-black text-orange-500 uppercase">
-                        + Ej avdragsgilla (6992)
+                        Ej avdragsgilla (R13)
                       </span>
                       <span className="font-black text-orange-500">
-                        +{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
+                        {data.ejAvdragsgillt > 0 ? '+' : ''}{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
                       </span>
+                    </div>
+                  )}
+
+                  {(data.skattefriaIntakter ?? 0) !== 0 && (
+                    <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
+                      <span className="text-xs font-black text-orange-500 uppercase">Skattefria intäkter (R14)</span>
+                      <span className="font-black text-orange-500">{(-(data.skattefriaIntakter ?? 0)).toLocaleString('sv-SE')} kr</span>
                     </div>
                   )}
 
