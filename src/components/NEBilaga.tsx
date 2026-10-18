@@ -7,6 +7,7 @@ import type { NeTaxReview } from '@/lib/neTaxAdjustments'
 import { getNeChartReviewReason } from '@/lib/neChartReview'
 
 interface NEData {
+  equityReviewRequired?: boolean;
   accountCoverage?: NeAccountCoverage[];
   warnings?: ResultWarning[];
   taxReviews?: NeTaxReview[];
@@ -150,6 +151,13 @@ export default function NEBilaga({
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
+
+        {neData.equityReviewRequired && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Kontrollera bokslutsverifikationerna</p>
+            <p>B10 tar hänsyn till bokförda resultatöverföringar på 8990–8999 så att eget kapital inte räknas dubbelt. R-raderna har inte räknats om. Om ett annat system också har nollställt intäkts- och kostnadskontona behöver årets resultat stämmas av mot det systemets bokslut före deklaration. SoloLedger återskapar inte saknade resultatbelopp automatiskt.</p>
+          </div>
+        )}
 
         {taxReviews.length > 0 && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
@@ -417,19 +425,19 @@ export default function NEBilaga({
                 <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 text-sm font-black italic">
                   <span className="flex items-center flex-wrap">
                     B10 Eget kapital
-                    <Tooltip text="Eget kapital = kapital vid årets början + ackumulerat resultat + egna insättningar − egna uttag/skatteavräkning." />
+                    <Tooltip text="Eget kapital = kapital på 2010/2019 + ackumulerat resultat efter bokförda resultatöverföringar + egna insättningar − egna uttag/skatteavräkning. Balanskonton förs vidare automatiskt mellan år; ingen extra IB-bokning behövs." />
                   </span>
                   <span className="text-emerald-600 whitespace-nowrap">{fmt(neData.B10_total)}</span>
                 </div>
 
                 <div className="mt-3 space-y-1.5 text-[9px] font-black uppercase tracking-tighter opacity-70">
                   <div className="flex flex-wrap justify-between gap-x-3 italic">
-                    <span>IB kapital (2010/2019):</span>
+                    <span>Kapital på 2010/2019:</span>
                     <span>{fmt(neData.IB_kapital)}</span>
                   </div>
 
                   <div className="flex flex-wrap justify-between gap-x-3 italic">
-                    <span>Ackumulerat resultat:</span>
+                    <span>Resultat efter överföringar:</span>
                     <span>{fmt((neData.B10_total ?? 0) - (neData.IB_kapital ?? 0) - (neData.insattningar ?? 0) + (neData.uttag ?? 0))}</span>
                   </div>
 

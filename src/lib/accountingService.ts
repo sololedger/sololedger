@@ -2,6 +2,7 @@ import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBook
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
+import { calculateNeEquityResult } from './neEquity'
 import { allocateNeSales, parseNeSalesSummary, unavailableNeSalesClassification } from './neSalesClassification'
 import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
@@ -1911,6 +1912,8 @@ function computeResultat(balances: Record<string, number>) {
  * R1-R8-nedbrytningen också går att inspektera isolerat vid verifiering -
  * kostar inget extra eftersom computeResultat() redan räknar ut alla
  * fälten tillsammans.
+ * KAN-93: resultAfterTransfers används bara för B10 och inkluderar nettot
+ * av tekniska 899x-konton. bokfRes och samtliga R-rader behåller sin betydelse.
  *
  * Själva summeringen sker server-side via read-only RPC så klienten inte
  * behöver ladda alla journalrader när datamängden växer.
@@ -1924,9 +1927,9 @@ export async function getCumulativeResultat(year: number) {
 
   if (error) throw error
 
-  return computeResultat(
-    normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
-  )
+  const balances = normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
+  const result = computeResultat(balances)
+  return { ...result, ...calculateNeEquityResult(balances, result.bokfRes) }
 }
 
 export async function getNEData(year: number) {
@@ -1950,9 +1953,10 @@ export async function getNEData(year: number) {
   // ("Övriga egna insättningar"), som i nuvarande BAS också tillhör
   // eget-kapitalgruppen.
   //
-  // Vi behåller den redan verifierade carry-forward-modellen:
-  //   kapital/start + kumulativt bokfört resultat + insättningar - uttag.
-  // Skillnaden här är att alla relevanta K1-konton nu fångas upp.
+  // Carry-forward utan nya journalrader:
+  //   kapital + kumulativt resultat efter överföringar + insättningar - uttag.
+  // KAN-93: 899x nettas endast i B10, så ett redan överfört resultat på
+  // 2019/2010 inte räknas en gång till. Äkta ingående kapital bevaras.
   //
   // Viktigt: vi klipper inte längre uttag/insättningar till >= 0. En kredit
   // på ett uttagskonto eller en debet på ett insättningskonto kan vara en
@@ -1989,7 +1993,7 @@ export async function getNEData(year: number) {
   const uttag = Math.round(kumulativaUttag * 100) / 100
   const insattningar = Math.round(kumulativaInsattningar * 100) / 100
   const B10_total = Math.round(
-    (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
+    (IB_kapital + cumulativeResult.resultAfterTransfers + insattningar - uttag) * 100
   ) / 100
 
   const neBalanceRows = calculateNeBalanceRows(balanceSheetBalances, B10_total)
@@ -2009,6 +2013,9 @@ export async function getNEData(year: number) {
     ejAvdragsgillt: ejAvdr,
     R11, R12, R13, R14, R15, R16, R17,
     IB_kapital, insattningar, uttag,
+    // Account totals cannot establish whether external closing journals also
+    // zeroed the income/expense accounts. Explain that limit without guessing R rows.
+    ...(cumulativeResult.technicalResultBalance !== 0 ? { equityReviewRequired: true } : {}),
     bank,
     ...neBalanceRows,
     B13_forutbetalda,
