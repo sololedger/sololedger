@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import AccountingDataBoundary from './AccountingDataBoundary'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import SwedishDateInput from '@/components/SwedishDateInput'
 import { parseSvDateToIso } from '@/lib/dateUi'
@@ -113,7 +114,9 @@ export default function CustomerInvoicesPanel({
     initialForm({ vatStatus, domesticSalesVatTreatment })
   )
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const invoiceLoadSequence = useRef(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
@@ -129,9 +132,14 @@ export default function CustomerInvoicesPanel({
   })
 
   const loadInvoices = useCallback(async (options?: { clearNoticeOnSuccess?: boolean }) => {
+    const sequence = ++invoiceLoadSequence.current
+    const isCurrent = () => invoiceLoadSequence.current === sequence
     setLoading(true)
+    setLoadError(null)
+    setInvoices([])
     try {
       const rows = await getCustomerInvoices(selectedYear)
+      if (!isCurrent()) return
       setInvoices(rows)
       setNotice(current =>
         options?.clearNoticeOnSuccess
@@ -141,12 +149,14 @@ export default function CustomerInvoicesPanel({
             : null
       )
     } catch (error) {
+      if (!isCurrent()) return
+      setLoadError(`Kunde inte hämta fakturor för ${selectedYear}. Inga belopp visas. Försök igen.`)
       setNotice({
         type: 'error',
         text: error instanceof Error ? error.message : 'Kunde inte hämta fakturor.',
       })
     } finally {
-      setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
   }, [selectedYear])
 
@@ -471,6 +481,7 @@ export default function CustomerInvoicesPanel({
   }
 
   return (
+    <AccountingDataBoundary ready={!loading && !loadError} error={loadError} year={selectedYear} onRetry={() => void loadInvoices()}>
     <section
       data-testid="customer-invoices-panel"
       className="mb-6 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
@@ -1293,5 +1304,6 @@ export default function CustomerInvoicesPanel({
         </div>
       )}
     </section>
+    </AccountingDataBoundary>
   )
 }

@@ -1,22 +1,41 @@
 # SoloLedger Project State
 
-Uppdaterad 2026-10-19. **KAN-75 Staging PASS; Jira In Review / Pontus. Production-readiness PASS; ingen Production-release godkänd.**
+Uppdaterad 2026-10-19. **KAN-78: lokal implementation verifierad; In Review / Pontus. Ingen publicering.**
 
-## Aktuell kandidat – KAN-75
+## Aktuellt uppdrag och arbetsbas
 
-- Arbetskopia: C:/Users/Familjedator/.codex/visualizations/2026/10/19/01a152d9-62de-7ea2-9732-a94d48e22508/kan75-source. Gren **codex/KAN-75-year-close-concurrency**, HEAD/bas **ca6f5ca7b38cdbb1fa494ead73e2bf6e618591ea**. Origin är en lokal KAN-94-kopia, inte GitHub. Inga commits eller pushar för KAN-75.
-- Exakt sex ocommittade kandidatfiler: **Architecture.md**, **PROJECT_STATE.md**, **package.json**, **docs/reviews/KAN-75-year-close-concurrency.md**, **scripts/test-year-close-concurrency.mjs**, **supabase/migrations/20261019120000_kan75_year_close_concurrency.sql**. Inga src-ändringar eller ändrade historiska migrationer/beroenden.
-- Gemensam transaktionsbunden låsgrind per användare, först i 25 befintliga ingångar: delat för skrivningar, exklusivt för årslås/radering. Befintliga lås/idempotens/årsgates bevarade. Två nödvändiga fakturagates kompletterade. Ingen NE-/resultat-/SIE-regeländring eller KAN-96-implementation; ingen ny beständig tabell.
-- Migration **20261019120000_kan75_year_close_concurrency.sql** applicerad endast på Supabase Staging **fzxqiqenqjzhlyxxpvhg** med officiell CLI **2.120.0**. Ledger **52**, de 51 gamla posterna oförändrade. SHA-256 **832f9ff82cdf518cb0d57af448a0ba915070234296ddcb071bee90fc570fccb8**. TLS, sessionskontinuitet samt timeout/reset 5000/120000ms verifierade med psql och CLI:s egna läsande SQL-prob.
-- Ursprungligt race reproducerat lokalt före fix. **30/30 lokalt + 30/30 separata Staging-sessioner PASS**, **7/7 Auth/HTTP-servicekontroller PASS**, valda befintliga regressioner och fokuserad lint PASS, publik Playwright **2/2 PASS**. KAN-95:s treårstest återanvänt, inte omkört. Full orelaterad svit/build/typecheck inte körda enligt scope.
-- Hosted slutkontroll: 85 originalfunktioner redovisade, exakt 25 grindinfogningar + två fakturagates. Övriga kroppar/ACL, tabellgrants, RLS, triggers och constraints oförändrade. Privilegierad administrativ SQL förblir en separat förtroendegräns.
-- Syntetiska testkonton, deras identifierare, credentials, testresultat och CLI/prober finns endast i lokal ignorerad konfiguration/bevis utanför releasekandidaten. Kontona är nu fyllda; fresh-user-sviten får inte återköras på dem. Befintligt E2E-/KAN-95-konto orört. Ignorerad node_modules-junction återanvänds; lokal publik smoke krävde ett webpack-omförsök efter Turbopack-junction-fel, utan produktkonfigurationsändring.
-- Jira **KAN-75 In Review / Pontus**, kommentar **11660**. Acceptansförslag: syntetiskt konto, bokning/journal/NE i öppet 2027; äldre flik kvar, lås 2027 i annan flik, nytt 2027-försök ska avvisas utan journal. Millisekundssamtidighet är automatiskt verifierad.
-- Production-readiness **PASS**: 25/25 färska Production-preimages/egenskaper/ACL matchar kandidaten/Staging. Production ledger 49; dry-run i separat 50-filsurval visar endast KAN-75 utan de två KAN-62-versionerna. Extra riktad lokal CLI-atomaritetskontroll PASS; inga samtidighets-/fullsviter omkörda. Dokumentationen renodlad till KAN-75 utan faktiska testkontoidentifierare/credentials.
-- Nästa säkra steg: godkänn commit av exakt sex filer enligt lokalt readiness/release-manifest.json; därefter explicit Production-godkännande för den faktiska SHA:n, enbart KAN-75, databasstyrd skrivpaus/dränering, exakt grantåterställning och main/Vercel-release. Inga Production-skrivningar eller deployments godkända i readiness-fasen. Production kräver paus av nya skrivningar, dränering av gamla transaktioner, färska preimage-/ledgerkontroller samt ett separat CLI-urval utan KAN-62:s två Staging-only-migrationer.
+- Gren **codex/KAN-78-accounting-load-safety** i **audit-packages/KAN-78-source** under Desktop-repot. Separat Git-worktree från ren verifierad releasekopia.
+- GitHub-main färskläst: **e7f1442921338bc3983a96ae75a4aaeca4bc8bcd**. Arbetsbasen är exakt denna commit; Desktop-staging, lokal main och dess gamla origin/main har inte använts som produktbas.
+- Worktreens origin är fortfarande den tidigare lokala KAN-75-bundlen, **inte GitHub**. Pusha inte till den. Inga remotes/branchhistoriker har skrivits om.
+- Desktop-repots tidigare ändring i AGENTS.md, ospårade auditpaket och create-kan63-staging-user.mjs är orörda och ligger utanför kandidaten. Inga miljö-/authfiler eller auditpaket ska ingå i commit.
+- Jira: **KAN / Sololedger**, **KAN-78 / Bug**. **In Review / Pontus Åkerhage**, live uppdaterat efter slutlig säker regression.
 
-## Orelaterat arbete och global handoff
+## Implementerat
 
-- Globalt projektläge, tidigare Production-releaser och bevarade lokala ändringar finns i den gemensamma Desktop-kopians PROJECT_STATE.md / PROJECT_ARCHIVE.md: C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user. KAN-75-kandidaten tar inte med dess orelaterade arbetsändringar.
-- KAN-62/65 fortsatt hold; befintliga grenar/SQL/konfiguration lämnas orörda. KAN-96 och importerade nollningsfall ingår inte här. Ingen automatisk synk av den äldre pausade GitHub staging-grenen med main.
-- Production och Jessikas bokföring har inte ändrats inom KAN-75. Rapport: docs/reviews/KAN-75-year-close-concurrency.md. Råbevis ligger i task-katalogen ovanför denna arbetskopia och ingår inte i commit.
+- Ekonomisk snapshot med användar-/årskontext, en gemensam initial-/refreshladdning och sekvensskydd. Tidigare belopp maskeras direkt vid kontextbyte, laddning och fel.
+- Dashboard inklusive detaljer/historik och NE renderas först efter lyckad laddning. Svenska fel och Försök igen; ett läsfel visas inte som ett tomt år eller nollresultat.
+- Tekniska momsunderlagsfel propagerar; befintliga bokföringsmässiga granskningsfall behåller sina regler.
+- Fakturor/inventarier har egna fellägen/återförsök, laddningssekvenser och användar-/årsnycklar. Momsperioder töms direkt vid årsbyte; gamla period-/rapport-/avräkningssvar ogiltigförklaras även vid A→B→A.
+- Inga journaler, bokföringsformler, transaktionskällor, RPC:er, migrationer, RLS eller andra DB-objekt ändrade. KAN-95/96 är separata.
+- Detaljerad fil-/funktionslista, integrationskontroll, testbevis och acceptanssteg: **docs/reviews/KAN-78-accounting-load-safety.md**. Architecture.md har en avgränsad laddningsuppdatering.
+
+## Verifiering och begränsningar
+
+- Originalfelet reproducerat mot e7f1442 med syntetiskt NE-fel: 2027 visade fortfarande 2026-beloppet 126.
+- Ny Chromium-svit: **16 kontrollgrupper PASS**, riktig hook/dashboard/NE, inga nätanrop. Riktiga separata panel-loaders: **4 kontrollgrupper PASS**.
+- Testar lyckade år, injicerade läsfel, saknat NE-underlag, återförsök, snabba A→B→A-byten, överlappande refresh, användarbyte, utloggning, tomt år och StrictMode.
+- Riktad momsöversikt **22 assertioner PASS**; momsperiod-/avräkningsregressioner PASS. TypeScript PASS; **slutlig byggkontroll PASS** med webpack.
+- **Full slutlig säker regression PASS**, inklusive domänsvit, historik-/UI-sviter, publik smoke **2/2** och faktisk Home/TransactionForm-bokningsåterhämtning desktop/mobil.
+- Full lint **FAIL: 82 fel/7 varningar** jämfört med basens **86 fel/8 varningar**. Ingen ökning per fil/regel/allvarlighetsgrad; nya filer och riktade test-/momsfiler har separat lint PASS. Orelaterade lintfel åtgärdas inte inom KAN-78.
+- Befintliga testhinder rättade avgränsat: NE-baseline söker komponenter i rätt katalog; bokningsbrowser-testets lyckade loader-fixture har nya statusfält och riktig visningsgräns. Moms-historiktest kräver nu tekniskt fel i stället för nollfallback.
+- Tester/build använder syntetiska processvärden och befintlig Chromium-cache. Inga hemligheter eller miljöfiler har lästs/kopierats/ändrats. Build krävde nätåtkomst för befintliga Google Fonts.
+- Ingen hostad Staging-/Production-/skriv-E2E, inga riktiga användardata. Vid läsfel döljs hela dashboard-/NE-innehållet inklusive dashboardformuläret tills återförsök lyckas. Pontus visuell acceptans återstår.
+
+- Separat kontobytesobservation: useAuth:s profil-loader saknar ägarmarkör. Inte Production-reproducerat eller ändrat inom KAN-78; ingen relevant Jira-dubblett hittad och inget annat ärende ändrat. Full Auth-/företagsbytesacceptans återstår utöver verifierad hook-kontext.
+
+## Nästa säkra steg och checkpoint
+
+1. Beställd **lokal** KAN-78-checkpoint omfattar enbart kandidatens kod, tester och dokumentation; faktisk SHA i `git log -1`. Ingen push.
+2. Ledargranskning och Pontus test enligt granskningsrapporten. Staging-push, deploy och all live DB-ändring kräver separat uttryckligt godkännande.
+
+Den gamla KAN-75-readiness-statusen i denna arbetsbas är ersatt; kompakt hänvisning finns i PROJECT_ARCHIVE.md. Globalt övrigt projektläge finns i Desktop-repots separata handoffstate och har inte återverifierats live i KAN-78. Ingen generell produkt-, flerårs- eller deklarationsacceptans påstås.

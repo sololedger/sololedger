@@ -6,6 +6,12 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-75 – superseded readiness checkpoint (2026-10-19)
+
+- The KAN-75 readiness-era PROJECT_STATE.md inherited by the KAN-78 worktree is superseded. A fresh GitHub main read for KAN-78 confirms released commit e7f1442921338bc3983a96ae75a4aaeca4bc8bcd.
+- The Desktop handoff records KAN-75 Production PASS / Jira Done and preserves the full release evidence. KAN-78 does not repeat that release or modify its evidence, database state, or concurrency implementation. Existing KAN-75 review material remains historical.
+- Current KAN-78 implementation/verification belongs in PROJECT_STATE.md and docs/reviews/KAN-78-accounting-load-safety.md. Other open workstreams and the deliberate Staging differences are not accepted or changed by KAN-78.
+
 ### KAN-48 Fakturor Search And Filtering Release
 
 - KAN-48 reached Production release on 2026-10-11 at commit

@@ -242,6 +242,7 @@ export default function Momsrapport({
     contextKey: null,
     direction: null,
   })
+  const periodLoadSequence = useRef(0)
   const [year, setYear]                     = useState(currentYear)
   const [availableYears, setAvailableYears] = useState<number[]>([currentYear])
   const [vatPeriods, setVatPeriods]         = useState<VatPeriod[]>([])
@@ -436,6 +437,8 @@ export default function Momsrapport({
     const shouldEnsure = options.ensure ?? true
     const preserveReport = options.preserveReport ?? false
     const preservePeriodsOnError = options.preservePeriodsOnError ?? false
+    const sequence = ++periodLoadSequence.current
+    const isCurrent = () => sequence === periodLoadSequence.current
     setPeriodsLoading(true)
     setPeriodError(null)
     if (!preserveReport) {
@@ -481,6 +484,7 @@ export default function Momsrapport({
       }
 
       const periods = await getVatPeriods(yearStart, yearEnd)
+      if (!isCurrent()) return null
       setVatPeriods(periods)
       setSelectedPeriodId(current => {
         const targetPeriodId = preferredPeriodId ?? current
@@ -506,6 +510,7 @@ export default function Momsrapport({
 
       return periods
     } catch (err) {
+      if (!isCurrent()) return null
       if (!preservePeriodsOnError) {
         setVatPeriods([])
         setSelectedPeriodId('')
@@ -513,7 +518,7 @@ export default function Momsrapport({
       setPeriodError(err instanceof Error ? err.message : String(err))
       return null
     } finally {
-      setPeriodsLoading(false)
+      if (isCurrent()) setPeriodsLoading(false)
     }
   }, [
     canEnsurePeriods,
@@ -1305,6 +1310,18 @@ export default function Momsrapport({
   }, [selectedPeriodContextKey, taxAccountMovementReadModel.direction])
 
   function handleYearChange(nextYear: number) {
+    reportRequestSeqRef.current += 1
+    settlementRequestSeqRef.current += 1
+    movementRequestSeqRef.current += 1
+    selectionContextRef.current = { periodId: '', contextKey: null }
+    setLoading(false)
+    setSettlementLoading(false)
+    setMovementLoading(false)
+    periodLoadSequence.current += 1
+    setVatPeriods([])
+    setSelectedPeriodId('')
+    setPeriodsLoading(true)
+    setPeriodError(null)
     setFetched(false)
     setVatReport(null)
     setReportPeriodId(null)
@@ -1330,6 +1347,13 @@ export default function Momsrapport({
   }
 
   function handlePeriodChange(nextPeriodId: string) {
+    reportRequestSeqRef.current += 1
+    settlementRequestSeqRef.current += 1
+    movementRequestSeqRef.current += 1
+    selectionContextRef.current = { periodId: '', contextKey: null }
+    setLoading(false)
+    setSettlementLoading(false)
+    setMovementLoading(false)
     setFetched(false)
     setVatReport(null)
     setReportPeriodId(null)
@@ -2015,7 +2039,8 @@ export default function Momsrapport({
 
         {periodError && (
           <p className="mt-4 text-[10px] font-bold text-red-500">
-            {periodError}
+            Kunde inte hämta momsperioderna för {year}. {periodError}
+            <button type="button" onClick={() => void loadVatPeriods()} className="ml-3 underline">Försök igen</button>
           </p>
         )}
 

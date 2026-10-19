@@ -113,6 +113,8 @@ export default function FixedAssetsPanel({
   onOpenPaymentAccountSettings,
   onBookkeepingChanged,
 }: FixedAssetsPanelProps) {
+  const panelLoadSequence = useRef(0)
+  const [panelLoadError, setPanelLoadError] = useState<string | null>(null)
   const [taxRules, setTaxRules] = useState<FixedAssetTaxRuleParameters | null>(null)
   const [assets, setAssets] = useState<FixedAsset[]>([])
   const [depreciationRuns, setDepreciationRuns] = useState<FixedAssetDepreciationRun[]>([])
@@ -150,6 +152,9 @@ export default function FixedAssetsPanel({
   }, [selectedYear])
 
   const loadPanel = useCallback(async () => {
+    const sequence = ++panelLoadSequence.current
+    const isCurrent = () => panelLoadSequence.current === sequence
+    setPanelLoadError(null)
     setLoading(true)
     setError(null)
     setUnsupportedYear(null)
@@ -160,16 +165,19 @@ export default function FixedAssetsPanel({
         getFixedAssets(selectedYear),
         getFixedAssetDepreciationRuns(selectedYear),
       ])
+      if (!isCurrent()) return
       setTaxRules(rules)
       setAssets(assetRows)
       setDepreciationRuns(runRows)
     } catch (err) {
+      if (!isCurrent()) return
+      setPanelLoadError(`Kunde inte hämta inventarieuppgifter för ${selectedYear}. Inga belopp visas. Försök igen.`)
       setTaxRules(null)
       setUnsupportedYear(
         err instanceof Error ? err.message : 'Skatteregeln för året saknas.'
       )
     } finally {
-      setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
   }, [selectedYear])
 
@@ -463,6 +471,10 @@ export default function FixedAssetsPanel({
         Hämtar inventarieregistret...
       </div>
     )
+  }
+
+  if (panelLoadError) {
+    return <div role="alert" className="rounded-2xl border bg-white p-6">{panelLoadError}<button type="button" onClick={() => void loadPanel()} className="ml-3 underline">Försök igen</button></div>
   }
 
   if (unsupportedYear || !taxRules) {

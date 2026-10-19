@@ -10,7 +10,7 @@ const owner='00000000-0080-4000-8000-000000000001'
 const profile={role:'admin',subscription_type:'paid',vat_status:'registered',domestic_sales_vat_treatment:'taxable',vat_period_type:'quarter',vat_management_from:'2026-01-01',foreign_purchase_reporting:'required',default_deduction_entitlement:'full'}
 const mock={
  useAuth:`export const useAuth=()=>({user:{id:'${owner}'},profile:${JSON.stringify(profile)},authLoading:false});`,
- useAccountingData:`export const useAccountingData=()=>({transactions:[],balances:{},balanceSheetBalances:{},journalMap:{},neData:{},momsBreakdown:{},transactionHistoryComplete:true,kontoplan:[{id:'expense',name:'Syntetisk programvara',debit_account:'5420',credit_account:'1930',default_vat_rate:25,hidden_from_new_booking:localStorage.getItem('testGate')==='closed'}],kontoplanLoaded:true,kontoplanLoading:false,isYearLocked:localStorage.getItem('testGate')==='closed',refreshData:async()=>{},refreshDataWithStatus:async()=>({ok:localStorage.getItem('testRefresh')!=='fail'})});`,
+ useAccountingData:`export const useAccountingData=()=>({accountingDataReady:true,accountingDataError:null,retryAccountingData:async()=>{},transactions:[],balances:{},balanceSheetBalances:{},journalMap:{},neData:{},momsBreakdown:{},transactionHistoryComplete:true,kontoplan:[{id:'expense',name:'Syntetisk programvara',debit_account:'5420',credit_account:'1930',default_vat_rate:25,hidden_from_new_booking:localStorage.getItem('testGate')==='closed'}],kontoplanLoaded:true,kontoplanLoading:false,isYearLocked:localStorage.getItem('testGate')==='closed',refreshData:async()=>{},refreshDataWithStatus:async()=>({ok:localStorage.getItem('testRefresh')!=='fail'})});`,
  usePaymentAccountRoleConfiguration:`export const usePaymentAccountRoleConfiguration=()=>({configuredRoles:[],loaded:true,loading:false,error:null,reload:async()=>{}});`,
  subscriptionLimits:`export const FREE_TRANSACTION_LIMIT=15; export const getFreeTransactionUsage=async()=>0;export const canCreateTransactions=()=>true;`,
  accountingService:`import {submitStandardBookingAttempt} from './src/lib/standardBookingAttempt.ts';
@@ -29,7 +29,7 @@ const bundle=await build({stdin:{contents:"import React from 'react';import{crea
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
-  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&leaf!=='TransactionForm')return {path:'component-'+leaf,namespace:'kan80'}
+  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
  b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})

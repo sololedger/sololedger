@@ -33,6 +33,7 @@ import AdminPanel from '@/components/AdminPanel'
 import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
 import { newBookingCategoryError } from '@/lib/bookingCategoryVisibility'
+import AccountingDataBoundary from '@/components/AccountingDataBoundary'
 import { useAccountingData } from '@/hooks/useAccountingData'
 import { profileToCompanyVatProfile } from '@/lib/vatProfileAdapter'
 import { getTransactionHistoryViewState } from '@/lib/transactionHistoryState'
@@ -89,6 +90,7 @@ export default function Home() {
   const [selectedYear, setSelectedYear] = useState(2025)
 
   const {
+    accountingDataReady, accountingDataError, retryAccountingData,
     transactions,
     balances,
     balanceSheetBalances,
@@ -750,7 +752,7 @@ export default function Home() {
     setLastSubmitted(null)
   }
 
-  const data = calculateDashboard(balances, taxRate, momsBreakdown)
+  const data = calculateDashboard(balances, taxRate, momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
   // Steg 2 av carry-forward-arbetet: ENDAST Bank-kortet ska visa kumulativt
   // saldo (balanceSheetBalances, se getBalanceSheetBalances()) istället för
   // årets egna rörelse. Allt annat i "data" (bl.a. sakertUttag) kommer
@@ -1150,6 +1152,7 @@ export default function Home() {
   </div>
 </div>
 
+      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
           <OverviewCards
@@ -1292,6 +1295,7 @@ export default function Home() {
         <Kontoplan onAccountCreated={loadKontoplanOptions} />
       ) : activeTab === 'fakturor' ? (
         <CustomerInvoicesPanel
+          key={`${user.id}:${selectedYear}`}
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}
           vatStatus={profile?.vat_status ?? 'unknown'}
@@ -1304,6 +1308,7 @@ export default function Home() {
         />
       ) : activeTab === 'inventarier' ? (
         <FixedAssetsPanel
+          key={`${user.id}:${selectedYear}`}
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}
           companyVatProfileResult={companyVatProfileResult}
@@ -1323,6 +1328,7 @@ export default function Home() {
           fallback={<Paywall feature="Momsrapport" user={user} />}
         >
           <Momsrapport
+            key={user.id}
             profile={profile}
             onBookkeepingRefresh={refreshDataWithStatus}
             paymentAccountRolesLoading={paymentAccountRoles.loading}
@@ -1367,6 +1373,7 @@ export default function Home() {
           fallback={<Paywall feature="NE-Bilaga" user={user} />}
         >
           <NEBilaga
+            key={`${user.id}:${selectedYear}`}
             userId={user.id}
             neData={neData}
             selectedYear={selectedYear}
@@ -1376,6 +1383,7 @@ export default function Home() {
           />
         </SubscriptionGuard>
       )}
+      </AccountingDataBoundary>
     </Layout>
   )
 }

@@ -23,7 +23,7 @@ const bundle = await build({
   tsconfig: 'tsconfig.json', bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external',
   plugins: [{ name: 'offline-and-baseline', setup(b) {
     b.onResolve({ filter: /^before-/ }, args => ({ path: args.path, namespace: 'baseline' }))
-    b.onLoad({ filter: /.*/, namespace: 'baseline' }, args => ({ contents: baseline[args.path === 'before-service' ? 'accountingService.ts' : '../components/NEBilaga.tsx'], loader: 'tsx', resolveDir: path.resolve('src/lib') }))
+    b.onLoad({ filter: /.*/, namespace: 'baseline' }, args => ({ contents: baseline[args.path === 'before-service' ? 'accountingService.ts' : '../components/NEBilaga.tsx'], loader: 'tsx', resolveDir: path.resolve(args.path === 'before-service' ? 'src/lib' : 'src/components') }))
     b.onResolve({ filter: /supabaseClient$/ }, () => ({ path: 'offline', namespace: 'fixture' }))
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const supabase={rpc:(name,args)=>globalThis.__kan90Rpc(name,args)}' }))
   } }],

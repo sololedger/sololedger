@@ -285,7 +285,7 @@ Legacy-kategorin `avskrivning_inventarier` i `ACCOUNT_PRESETS` ska inte framstä
 ### `src/hooks`
 
 - `useAuth.ts` - Supabase Auth, profil, login/register/logout, password recovery och profiluppdatering.
-- `useAccountingData.ts` - årsspecifik laddning av transaktioner, journalmap, saldon, balanssaldon, NE, momsöversikt, kontoplan och årslås.
+- `useAccountingData.ts` - årsspecifik laddning av transaktioner, journalmap, saldon, balanssaldon, NE, momsöversikt, kontoplan och årslås. KAN-78 knyter den ekonomiska snapshoten till användare/år och publicerar den först när alla läsningar lyckats. Laddningssekvenser avvisar sena svar; `AccountingDataBoundary` döljer dashboard/NE vid laddning/fel och erbjuder återförsök. Självständiga ekonomivyer har egna laddningsskydd och kontextbundna komponentnycklar. Se `docs/reviews/KAN-78-accounting-load-safety.md`.
 
 ### `src/lib` - Bokföring Och Rapporter
 
