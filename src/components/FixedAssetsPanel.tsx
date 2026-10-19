@@ -26,6 +26,7 @@ import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 type PaymentSourceChoice = 'business_account' | 'owner_private'
 
 interface FixedAssetsPanelProps {
+  verifyProfile: () => Promise<string>
   selectedYear: number
   isYearLocked: boolean
   companyVatProfileResult: CompanyVatProfileAdapterResult
@@ -102,6 +103,7 @@ function fixedAssetVatDeductionNotice(
 }
 
 export default function FixedAssetsPanel({
+  verifyProfile,
   selectedYear,
   isYearLocked,
   companyVatProfileResult,
@@ -402,6 +404,7 @@ export default function FixedAssetsPanel({
         }
       }
 
+      await verifyProfile()
       const result = await bookFixedAssetAcquisition({
         ...acquisitionInput,
         idempotencyKey: acquisitionSubmissionRef.current.key,

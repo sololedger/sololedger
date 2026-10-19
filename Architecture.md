@@ -1,5 +1,12 @@
 # SoloLedger - Arkitektur
 
+## KAN-104: ägarbunden profil och skrivkontext (lokal kandidat)
+
+`useAuth` invalidierar profilen vid varje relevant auth-event/laddning och accepterar bara svar för aktuell ägare/generation. Saknad eller felaktig profilläsning blockerar UI och profilberoende skrivningar. `profileContext.ts` håller klientens aktuella generation; detta är ett klientskydd, inte en ersättning för RLS/RPC-validering.
+
+`profileWriteGuard.ts` verifierar sessionens token med Auth och binder samma Authorization till profil-/bokningsbegäran. Formulär och asynkrona förberedelser kontrollerar sin fångade kontext; Home-utkast återanvänds inte vid användarbyte. Standardbokning, periodisering, VAT V2, fakturaunderlag och inventarieanskaffning behåller befintliga ekonomiska regler. Ingen migration. Bas, tester och publiceringsspärr: `docs/reviews/KAN-104-profile-context.md` och `PROJECT_STATE.md`.
+
+
 ## KAN-80: beständiga bokningsförsök (endast lokal kandidat)
 
 `page.tsx` sparar ett ägarbundet, oförändrat vanligt/periodiserat bokningsförsök i localStorage före RPC. Bilagans privata Storage-referens följer med det sparade underlaget. Web Locks hindrar att två flikar samtidigt skapar försök från samma tomma lokala läge. Återupptagningsknappen skickar det sparade underlaget före föränderliga klientspärrar; osäkra försök får inte ersättas. `standardBookingAttempt.ts` hanterar lagring, kvitto och skillnaden mellan bekräftad avvisning och osäkert svar.

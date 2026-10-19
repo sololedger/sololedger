@@ -1,5 +1,14 @@
 # KAN-78 – slutgranskning och Staging-förberedelse
 
+**Senare hostad acceptans 2026-10-19:** exakt `67d314a` är publicerad som isolerad
+Preview. KAN-78:s riktade verkliga boknings-/moms-/isoleringsprov PASS på desktop
+och mobil. **Production BLOCKED av separat KAN-104**, nu hostat reproducerat med
+fel företagsprofil, beständigt övertagna momsinställningar och påverkan på nästa
+bokning. Både kvarliggande profil vid byte och sent A-svar efter färdig B-profil
+reproducerades. Ingen authfix eller produktändring gjordes. Se
+`docs/reviews/KAN-78-hosted-staging-acceptance.md` för exakta bevis och begränsningar.
+Tidigare gransknings-/publiceringsplan nedan är historik; den ersätter inte detta beslut.
+
 2026-10-19. **PASS för separat godkännande av isolerad Preview/Staging-publicering efter lokal rättning. Ingen publicering utförd eller godkänd här.**
 
 ## Ny lokal kandidat efter godkänd minimal rättning

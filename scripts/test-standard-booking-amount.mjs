@@ -10,8 +10,8 @@ const require = createRequire(import.meta.url)
 const calls = []
 let bookingProtocol = 1
 const supabase = {
- auth: { getUser: async () => ({ data: { user: { id: 'kan72-test' } }, error: null }) },
- rpc: async (name, args) => { if(name==='get_standard_booking_protocol')return {data:bookingProtocol,error:null}; calls.push({ name, args }); return { data: { success: true, transaction_id: '00000000-0080-4000-8000-000000000004', ver_nr: 1, idempotent_replay: false, reversal_transaction_id: '00000000-0080-4000-8000-000000000005', reversal_ver_nr: 2, periodization_group_id: '00000000-0080-4000-8000-000000000006' }, error: null } },
+ auth: { getSession: async () => ({data:{session:{access_token:'kan72-test'}},error:null}), getUser: async () => ({ data: { user: { id: 'kan72-test' } }, error: null }) },
+ rpc: (name,args) => {const response=(async () => { if(name==='get_standard_booking_protocol')return {data:bookingProtocol,error:null}; calls.push({ name, args }); return { data: { success: true, transaction_id: '00000000-0080-4000-8000-000000000004', ver_nr: 1, idempotent_replay: false, reversal_transaction_id: '00000000-0080-4000-8000-000000000005', reversal_ver_nr: 2, periodization_group_id: '00000000-0080-4000-8000-000000000006' }, error: null } })(); response.setHeader=()=>response;return response },
 }
 const cache = new Map()
 function load(file) {
@@ -35,6 +35,8 @@ function load(file) {
  vm.runInThisContext('(function(require,module,exports){'+code+'\n})',{ filename:file })(localRequire,testModule,testModule.exports)
  return testModule.exports
 }
+const context = load('src/lib/profileContext.ts')
+context.acceptProfileContext(context.beginProfileContext('kan72-test'),'kan72-test')
 const service = load('src/lib/accountingService.ts')
 for (const unsupported of [null,0,2,'1']) {
  bookingProtocol=unsupported
@@ -138,7 +140,7 @@ async function submitPage({ amount,booked=false,periodized=false,smallBusiness=f
  formData:{date:'2026-02-01',description:'Metadata',amount,type:category,vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
  isSystemManagedTransaction:()=>false,categoryRedirectsToFixedAssets:()=>false,
  periodisera:periodized,periodMonth:'2027-01',profile:smallBusiness?{domestic_sales_vat_treatment:'small_business_exempt'}:{},
- user:{id:'kan72-test'},bookingOwnerLoaded:'kan72-test',bookingStorageError:null,retainedBookingAttachment:null,
+ verifyProfile:async()=> 'synthetic-token',user:{id:'kan72-test'},bookingOwnerLoaded:'kan72-test',bookingStorageError:null,retainedBookingAttachment:null,
  uploadedOrdinaryFile:{current:null},crypto:{randomUUID:()=> '00000000-0080-4000-8000-000000000003'},
  navigator:{locks:createBookingLocks()},
  window:{localStorage:createBookingStorage(),confirm:message=>{actions.push(['confirm',message]);return confirmed}},

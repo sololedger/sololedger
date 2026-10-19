@@ -44,6 +44,7 @@ import {
 import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
 
 interface CustomerInvoicesPanelProps {
+  verifyProfile: () => Promise<string>
   selectedYear: number
   isYearLocked: boolean
   vatStatus: 'registered' | 'not_registered' | 'unknown'
@@ -102,6 +103,7 @@ function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
 }
 
 export default function CustomerInvoicesPanel({
+  verifyProfile,
   selectedYear,
   isYearLocked,
   vatStatus,
@@ -243,7 +245,9 @@ export default function CustomerInvoicesPanel({
         throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte registreras med svensk moms enligt Profil.')
       }
 
+      await verifyProfile()
       const attachmentUrl = await onUploadAttachment(form.attachment)
+      await verifyProfile()
       await createCustomerInvoice({
         invoiceNumber: form.invoiceNumber,
         customerName: form.customerName,
@@ -414,6 +418,7 @@ export default function CustomerInvoicesPanel({
         throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte uppdateras med svensk moms enligt Profil.')
       }
 
+      await verifyProfile()
       await updateCustomerInvoiceUnbooked({
         invoiceId: invoice.id,
         invoiceNumber: editForm.invoiceNumber,

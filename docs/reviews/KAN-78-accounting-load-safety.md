@@ -1,5 +1,14 @@
 # KAN-78 – ekonomidata vid läsfel och årsbyte
 
+**Hostad uppföljning 2026-10-19:** KAN-78:s verkliga Staging-bokning med tappat svar,
+idempotent återupptagning vid ekonomiskt läsfel, momsens års-/periodbyte och
+fel/återförsök PASS på desktop/mobil. Normalt A-utloggning/B-inloggning och RLS PASS.
+Separat KAN-104 är däremot hostat reproducerat: ett sent A-profilsvar visas för B,
+och en vanlig profilsparning kan föra över A:s momsinställningar till B och ändra
+efterföljande bokföring. **Production BLOCKED tills separat KAN-104 åtgärdats och
+omtestats.** Ingen produktkod ändrad här. Se
+`docs/reviews/KAN-78-hosted-staging-acceptance.md`.
+
 Datum: 2026-10-19. Lokal kandidat på `codex/KAN-78-accounting-load-safety`.
 Bas: GitHub-main `e7f1442921338bc3983a96ae75a4aaeca4bc8bcd`, verifierad med färsk `git ls-remote`.
 

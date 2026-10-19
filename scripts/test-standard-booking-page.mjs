@@ -7,7 +7,7 @@ const receipt={success:true,ver_nr:1,transaction_id:randomUUID(),idempotent_repl
 function page(storage=createBookingStorage(),locks=createBookingLocks()) {
  const notices=[],calls=[],file={name:'synthetic.pdf'}
  const c={console,Number,Error,Date,parseInt,crypto:{randomUUID},user:{id:owner},profile:{},
-  bookingOwnerLoaded:owner,bookingStorageError:null,retainedBookingAttachment:null,
+  verifyProfile:async()=>"synthetic-token",bookingOwnerLoaded:owner,bookingStorageError:null,retainedBookingAttachment:null,
   uploadedOrdinaryFile:{current:null},submitInFlightRef:{current:false},editingId:null,editingBooked:false,
   isYearLocked:false,kontoplanLoaded:true,kontoplanLoading:false,kontoplanError:null,
   kontoplan:[{id:'expense',hidden_from_new_booking:false,debit_account:'5420',credit_account:'1930'}],

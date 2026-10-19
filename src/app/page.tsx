@@ -69,12 +69,17 @@ import {
 } from '@/lib/accountCategoryUi'
 
 export default function Home() {
+  const auth = useAuth()
+  return <HomeSession key={auth.user?.id ?? "signed-out"} auth={auth} />
+}
+
+function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const {
     user, profile, authLoading, profileError, retryProfile,
     authNotice, dismissAuthNotice, resetPassword, updatePassword,
     passwordRecoveryMode, exitPasswordRecoveryMode,
-    handleAuth, handleLogout, setProfile,
-  } = useAuth()
+    handleAuth, handleLogout, setProfile, verifyProfile, profileContextKey,
+  } = auth
 
   const [isRegistering, setIsRegistering] = useState(false)
   const [showResetForm, setShowResetForm] = useState(false)
@@ -354,6 +359,8 @@ export default function Home() {
   ])
 
   async function handleFileUpload(file: File): Promise<string> {
+    if (!user) throw new Error("Ingen inloggad användare.")
+    await verifyProfile()
     const ALLOWED_TYPES: Record<string, string> = {
       'image/jpeg': 'jpg',
       'image/png':  'png',
@@ -407,6 +414,7 @@ export default function Home() {
     setUploading(true)
 
     try {
+      await verifyProfile()
       const currentUsage = await refreshFreeUsageCount()
       const allowed = canCreateTransactions(
         profile ?? { subscription_type: 'free', subscription_end: null },
@@ -463,6 +471,7 @@ export default function Home() {
         preparedIdempotency.state
       )
 
+      await verifyProfile()
       const result = await bookVatV2EuServiceReverseChargeTransaction({
         date: request.date,
         description: request.description,
@@ -557,6 +566,7 @@ export default function Home() {
     try {
       await navigator.locks.request('sololedger.standardBooking.' + owner, { ifAvailable: true }, async lock => {
         if (!lock) { alert('Ett bokningsförsök hanteras i en annan flik. Vänta tills det är klart.'); return }
+        await verifyProfile()
         let attempt = readStandardBookingAttempt(window.localStorage, owner)
         if (attempt) {
           setPendingBooking(attempt)
@@ -601,11 +611,13 @@ export default function Home() {
               }),
             },
           }
+          await verifyProfile()
           saveStandardBookingAttempt(window.localStorage, attempt)
           setPendingBooking(attempt)
         }
         let result: StandardBookingReceipt
         try {
+          await verifyProfile()
           result = await bookStandardBookingAttempt(attempt)
         } catch (error) {
           if (error instanceof StandardBookingSubmissionError && error.confirmedRejection) {
@@ -741,7 +753,7 @@ export default function Home() {
   }
 
   async function handleFavorite(name: string) {
-    if (!lastSubmitted) return
+    if (!lastSubmitted || !user) return
     await supabase.from('favorites').insert({
       user_id: user.id,
       name,
@@ -779,7 +791,7 @@ export default function Home() {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Laddar...</div>
   }
 
-  if (user && !profile) {
+  if (user && (!profile || profile.id !== user.id)) {
     if (profileError) {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -1297,6 +1309,7 @@ export default function Home() {
       ) : activeTab === 'fakturor' ? (
         <CustomerInvoicesPanel
           key={`${user.id}:${selectedYear}`}
+          verifyProfile={verifyProfile}
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}
           vatStatus={profile?.vat_status ?? 'unknown'}
@@ -1310,6 +1323,7 @@ export default function Home() {
       ) : activeTab === 'inventarier' ? (
         <FixedAssetsPanel
           key={`${user.id}:${selectedYear}`}
+          verifyProfile={verifyProfile}
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}
           companyVatProfileResult={companyVatProfileResult}
@@ -1347,6 +1361,8 @@ export default function Home() {
         <FAQ />
       ) : activeTab === 'profil' ? (
         <ProfileSettings 
+          key={`${user.id}:${profileContextKey}`}
+          verifyProfile={verifyProfile}
           user={user} 
           profile={profile} 
           onProfileUpdate={(updated) => setProfile(updated)} 

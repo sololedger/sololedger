@@ -1,3 +1,4 @@
+import { verifiedProfileRpc } from './profileWriteGuard'
 import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBookingSubmissionError, type StandardBookingAttempt } from './standardBookingAttempt'
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
@@ -144,11 +145,11 @@ function normalizeAccountBalanceRows(
 }
 
 export async function bookStandardBookingAttempt(attempt: StandardBookingAttempt) {
-  const userId = await getUserId()
+  const { userId, rpc } = await verifiedProfileRpc()
   if (userId !== attempt.userId) throw new Error('Bokningsförsöket tillhör en annan användare.')
   await requireStandardBookingProtocol()
   // Submit the saved payload verbatim: no current profile/account normalization on replay.
-  return submitStandardBookingAttempt(attempt, (name, args) => supabase.rpc(name, args))
+  return submitStandardBookingAttempt(attempt, (name, args) => rpc(name, args))
 }
 
 async function requireStandardBookingProtocol() {
@@ -160,7 +161,7 @@ async function requireStandardBookingProtocol() {
 
 export async function bookTransaction(tx: BookTransactionInput) {
   const amount = parseStandardBookingAmount(tx.amount)
-  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  const { rpc } = await verifiedProfileRpc()
   await requireStandardBookingProtocol()
 
   // Hela den vanliga bokningen sker nu atomärt i databasen:
@@ -180,7 +181,7 @@ export async function bookTransaction(tx: BookTransactionInput) {
     file_url: tx.file_url ?? null,
   }
 
-  const { data, error } = await supabase.rpc('book_transaction_atomic', {
+  const { data, error } = await rpc('book_transaction_atomic', {
     p_payload: payload,
   })
 
@@ -434,9 +435,9 @@ function mapCustomerInvoice(
 export async function createCustomerInvoice(
   input: CreateCustomerInvoiceInput
 ): Promise<CustomerInvoiceRpcResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('create_customer_invoice_atomic', {
+  const { data, error } = await rpc('create_customer_invoice_atomic', {
     p_payload: {
       invoice_number: input.invoiceNumber,
       customer_name: input.customerName,
@@ -462,9 +463,9 @@ export async function createCustomerInvoice(
 export async function updateCustomerInvoiceUnbooked(
   input: UpdateCustomerInvoiceInput
 ): Promise<CustomerInvoiceRpcResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('update_customer_invoice_unbooked_atomic', {
+  const { data, error } = await rpc('update_customer_invoice_unbooked_atomic', {
     p_invoice_id: input.invoiceId,
     p_payload: {
       invoice_number: input.invoiceNumber,
@@ -706,9 +707,9 @@ export async function getFixedAssetDepreciationRuns(
 export async function bookFixedAssetAcquisition(
   input: FixedAssetAcquisitionInput
 ): Promise<FixedAssetAcquisitionResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('book_fixed_asset_acquisition_atomic', {
+  const { data, error } = await rpc('book_fixed_asset_acquisition_atomic', {
     p_payload: {
       date: input.date,
       description: input.description,
@@ -914,7 +915,7 @@ export async function settleCustomerInvoiceReceivable(
 export async function bookVatV2EuServiceReverseChargeTransaction(
   input: BookVatV2EuServiceReverseChargeInput
 ): Promise<BookVatV2EuServiceReverseChargeResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
   const journalPlanResult = buildVatJournalPlan({
     treatment: input.treatment,
@@ -968,7 +969,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
 
   let response: Awaited<ReturnType<typeof supabase.rpc>>
   try {
-    response = await supabase.rpc(
+    response = await rpc(
       'book_vat_v2_eu_service_reverse_charge_atomic',
       { p_payload: payload }
     )
@@ -1750,7 +1751,7 @@ export async function bookPeriodizedTransaction(
   tx: BookPeriodizedTransactionInput
 ) {
   const amount = parseStandardBookingAmount(tx.amount)
-  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  const { rpc } = await verifiedProfileRpc()
   await requireStandardBookingProtocol()
 
   // Hela periodiseringen sker nu atomärt i databasen:
@@ -1770,7 +1771,7 @@ export async function bookPeriodizedTransaction(
     file_url: tx.file_url ?? null,
   }
 
-  const { data, error } = await supabase.rpc('book_periodized_transaction_atomic', {
+  const { data, error } = await rpc('book_periodized_transaction_atomic', {
     p_payload: payload,
   })
 
