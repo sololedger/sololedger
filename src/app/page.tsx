@@ -1152,6 +1152,15 @@ export default function Home() {
   </div>
 </div>
 
+      {activeTab === 'dashboard' && bookingOwnerLoaded === user.id && pendingBooking && pendingBooking.userId === user.id && (
+        <div role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <p className="font-bold">Ett bokningsförsök behöver bekräftas</p>
+          <p>{pendingBooking.payload.description} · {pendingBooking.payload.date} · {pendingBooking.payload.amount} kr</p>
+          <p>Återuppta samma underlag för att kontrollera resultatet. En redan genomförd bokning skapas inte igen.</p>
+          <button type="button" disabled={uploading} onClick={() => runStandardBooking(true)} className="mt-3 rounded-xl bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-50">Återuppta bokningsförsöket</button>
+        </div>
+      )}
+
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
@@ -1201,14 +1210,6 @@ export default function Home() {
 
           <div id="transaction-form-section">
             {bookingStorageError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-800">{bookingStorageError}</p>}
-            {pendingBooking && pendingBooking.userId === user.id && (
-              <div role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
-                <p className="font-bold">Ett bokningsförsök behöver bekräftas</p>
-                <p>{pendingBooking.payload.description} · {pendingBooking.payload.date} · {pendingBooking.payload.amount} kr</p>
-                <p>Återuppta samma underlag för att kontrollera resultatet. En redan genomförd bokning skapas inte igen.</p>
-                <button type="button" disabled={uploading} onClick={() => runStandardBooking(true)} className="mt-3 rounded-xl bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-50">Återuppta bokningsförsöket</button>
-              </div>
-            )}
             {!pendingBooking && retainedBookingAttachment?.userId === user.id && (
               <p className="mb-3 text-sm text-gray-700">Bilagan från det avvisade försöket följer med nästa bokning. En ny vald fil ersätter den. <button type="button" onClick={() => setRetainedBookingAttachment(null)} className="underline">Ta bort sparad bilaga</button></p>
             )}

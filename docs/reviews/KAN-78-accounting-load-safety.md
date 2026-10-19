@@ -3,6 +3,12 @@
 Datum: 2026-10-19. Lokal kandidat på `codex/KAN-78-accounting-load-safety`.
 Bas: GitHub-main `e7f1442921338bc3983a96ae75a4aaeca4bc8bcd`, verifierad med färsk `git ls-remote`.
 
+Main verifierades åter med lyckad `git ls-remote` 2026-10-19 efter nätverksstoppet:
+samma exakta SHA som kandidatens bas. Den nya lokala kandidaten innehåller även
+den godkända minimala återupptagningsrättningen ovanpå `0db6fe8`; exakt SHA finns
+i checkpointens `git log -1 --format=%H` och slutrapporten. Fullständig uppföljning:
+`docs/reviews/KAN-78-final-review-staging.md`.
+
 ## Grundorsak och reproduktion
 
 `useAccountingData` hade separata state för historik, årssaldon, kumulativa saldon,
@@ -26,7 +32,7 @@ Tidigare KAN-95-underlag och Jira KAN-95 har lästs. Dess flerårs-/SIE-resultat
 | --- | --- |
 | `src/hooks/useAccountingData.ts` | `useAccountingData`/`refreshDataInternal`: en gemensam publicering av historik, saldon, NE, momsöversikt och årslås. Identitets-/årskopplad snapshot, laddningssekvens, kontroll av verifierad användare före/efter läsning, maskering redan vid render och nytt `retryAccountingData`. Kontoplansladdningen har samma kontextskydd. Dubblerade initial-/refreshvägar har ersatts av samma väg. |
 | `src/components/AccountingDataBoundary.tsx` | Ny gemensam vygräns: laddning, begripligt svenskt fel och Försök igen. Barnens ekonomiska innehåll renderas först när data är klara. |
-| `src/app/page.tsx` | `Home`: dashboard, dess detaljvyer/historik och NE omfattas av gränsen. NE, fakturor och inventarier får användar-/årsbundna komponentnycklar; momsrapporten användarbunden nyckel eftersom den har eget årsval. Interna tomma beräkningsvärden får inte renderas som ekonomiskt resultat under laddning/fel. |
+| `src/app/page.tsx` | `Home`: dashboardens ekonomiska vyer, detaljvyer/historik, nya bokningsformulär och NE omfattas av gränsen. Återupptagningsrutan ligger utanför och kräver färdigläst ägarlagring samt matchande user.id. Samma manuella återupptagningsfunktion används oförändrad. NE, fakturor och inventarier får användar-/årsbundna komponentnycklar; momsrapporten användarbunden nyckel eftersom den har eget årsval. Interna tomma beräkningsvärden får inte renderas som ekonomiskt resultat under laddning/fel. |
 | `src/lib/dashboardVat.ts` | `getDashboardVatBreakdown` och `dashboardVatBreakdownFromReportResult`: tekniska läsfel/ogiltigt läst scope skickas vidare till felgränsen. Lyckat lästa men bokföringsmässigt blockerade underlag behåller sin befintliga granskningspresentation. |
 | `src/components/CustomerInvoicesPanel.tsx` | `loadInvoices`: tömmer tidigare visningsdata, skilda laddnings-/felläge och återförsök; sekvenskontroll skyddar mot överlappande svar. |
 | `src/components/FixedAssetsPanel.tsx` | `loadPanel`: sekvensskydd samt separat tekniskt fel med återförsök. Årets tidigare värden visas inte efter läsfel. |
@@ -51,7 +57,7 @@ Tidigare KAN-95-underlag och Jira KAN-95 har lästs. Dess flerårs-/SIE-resultat
 - `scripts/test-dashboard-vat.ts`: två nya regressioner för tekniska fel.
 - `scripts/test-sie-vat-periods.ts`: saknat/misslyckat historikläsanrop ska nu kasta laddningsfel; lyckat lästa historiska granskningsfall behåller tidigare assertioner.
 - `scripts/test-ne-account-coverage.mjs`: rättar befintligt fel i testets resolveDir för baseline-vyn, så dess relativa komponentimport kan hittas. Inga assertioner tas bort.
-- `scripts/test-standard-booking-browser.mjs`: lyckad loader-fixture får det nya statusgränssnittet och använder riktig AccountingDataBoundary. Befintliga boknings-/återhämtningsassertioner behålls.
+- `scripts/test-standard-booking-browser.mjs`: riktig Home/TransactionForm, AccountingDataBoundary, OverviewCards och NEBilaga. Två befintliga scenarier och två permanenta laddningsfelsregressioner för desktop/mobil. Verifierar ägarisolering, dolda gamla rapportbelopp, återförsök, samma payload/nyckel, en uppladdning, tvåflikslås och exakt ett syntetiskt kvitto. Inga befintliga assertioner tas bort. Ingår i säker regression.
 - `package.json`: kopplar in den nya sviten; inga beroenden eller lockfilsändringar.
 
 ## Verifiering
@@ -70,6 +76,7 @@ Tidigare KAN-95-underlag och Jira KAN-95 har lästs. Dess flerårs-/SIE-resultat
 | Separata vyers riktiga loaders, 4 kontrollgrupper | PASS |
 | Momsöversiktens riktade tester | PASS, 22 assertioner |
 | TypeScript | PASS |
+| Återupptagning, normal laddning och verkligt ready=false-läsfel | PASS, 4 browser-scenarier på desktop/mobil; annan användare ser inte försöket; inga gamla dashboard-/NE-belopp eller automatisk ombokning |
 | Byggkontroll, `npm run build -- --webpack` | PASS, syntetiska miljövärden; ingen publicering |
 | Säker regression | PASS, hela `npm run test:regression` på slutlig produktkod inklusive publik smoke 2/2 och bokningsåterhämtning desktop/mobil |
 | Lint för nya filer och berörda test-/momsfiler | PASS |
@@ -92,16 +99,17 @@ momsrapportens eget årsval samt snabb växling fram och tillbaka. Använd synte
 Backend/hostad Staging/Production och verkligt inloggat företagsbyte är inte E2E-testade
 inom detta uppdrag. De riktade racetesterna använder riktiga React-vyer med kontrollerade
 syntetiska svar; faktura-/inventarievyerna har kontextnycklar, riktade callbacktester och befintlig offline-regression.
-Vid laddningsfel blockeras hela dashboard-/NE-innehållet, inklusive dashboardens formulär,
-tills ny laddning lyckas. Ingen generell flerårs-/deklarationsacceptans påstås.
+Vid laddningsfel blockeras dashboardens ekonomiska vyer/nya bokningsformulär och NE
+tills ny laddning lyckas. Den ägarbundna återupptagningsrutan visar endast det redan
+sparade försökets eget underlag och kan användas trots läsfel. Ingen generell
+flerårs-/deklarationsacceptans påstås.
 
-Separat kodobservation vid granskning av kontobytesgränsen: `useAuth` hämtar även
-företagsprofilen asynkront, utan motsvarande ägarmarkör för profilsvaren. Denna
-profil-livscykel är inte samma loader som KAN-78:s ekonomiska snapshot. Dess beteende
-vid kontobyte i en kvarvarande session är inte verifierat här; normala utloggningen
-laddar om sidan. Ingen Production-incident påstås. Jira-sökning gav ingen relevant
-dubblett; inget annat ärende har skapats/ändrats och ingen separat authfix har lagts
-in. Fullständig företagsbytesacceptans måste även kontrollera detta innan den påstås.
+Separat `useAuth`-profilrace verifierades syntetiskt i slutgranskningen och hanteras
+enligt ledarbeslut i **KAN-104**. Samma fel finns i main; ingen authfix ingår i KAN-78.
+Återupptagningsrättningen använder user.id och den oförändrade verifierande
+servicekontrollen, inte profilens innehåll. Ingen Production-incident eller
+RLS-/RPC-behörighetsöverträdelse har påvisats. Fullständig profilbytesacceptans
+återstår separat. Inga andra Jira-ärenden ändras.
 
 Ingen Supabase-ändring, migration, Production-skrivtest, Vercel-deploy eller push.
 Jira **KAN-78 In Review / Pontus Åkerhage**, uppdaterad och verifierad 2026-10-19. Lokal commit är uttryckligen beställd i uppdraget. Nästa steg är ledargranskning och
