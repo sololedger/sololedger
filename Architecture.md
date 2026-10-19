@@ -35,6 +35,9 @@ Supabase
 
 Frontend samlar användarfakta och visar rapporter. Domänlogik i `src/lib` avgör behandling, bygger planer och skyddar UI-flöden. Databasen är den auktoritativa gränsen för bokföringsskrivningar, verifikationsnummer, låsta år, momsperioder, idempotens och användarisolering.
 
+KAN-75-kandidaten samordnar bokföringsskrivningar och årslås med den privata transaktionsbundna hjälparen `lock_accounting_year_boundary`: delat användarlås i skrivvägar, exklusivt vid årslås/radering, före befintliga advisory- och radlås. Låsstatus kontrolleras efter väntan under READ COMMITTED. Ingångar, verifiering och migrationsstatus finns i `docs/reviews/KAN-75-year-close-concurrency.md` och `PROJECT_STATE.md`; Staging PASS innebär inte att Production är migrerad.
+
+
 ## Huvudflöden
 
 ### Vanlig Bokföring

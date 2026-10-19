@@ -34,7 +34,8 @@
     "test:category-visibility": "node scripts/test-booking-category-visibility.ts && node scripts/test-category-visibility-ui.mjs",
     "test:kan89:db": "node scripts/run-kan89-local-db.mjs",
     "test:booking-idempotency": "node scripts/test-standard-booking-attempt.ts && node scripts/test-standard-booking-page.mjs && node scripts/test-standard-booking-browser.mjs",
-    "test:kan80:db": "node scripts/test-kan80-local-db.mjs"
+    "test:kan80:db": "node scripts/test-kan80-local-db.mjs",
+    "test:kan75:db": "node scripts/test-year-close-concurrency.mjs --local"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
