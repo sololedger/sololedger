@@ -1918,7 +1918,7 @@ function computeResultat(balances: Record<string, number>) {
  * Själva summeringen sker server-side via read-only RPC så klienten inte
  * behöver ladda alla journalrader när datamängden växer.
  */
-export async function getCumulativeResultat(year: number) {
+export async function getCumulativeResultat(year: number, includeReviewSources = false) {
   const endDate = `${year}-12-31`
 
   const { data, error } = await supabase.rpc('get_cumulative_account_balances', {
@@ -1929,10 +1929,10 @@ export async function getCumulativeResultat(year: number) {
 
   const balances = normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
   const result = computeResultat(balances)
-  return { ...result, ...calculateNeEquityResult(balances, result.bokfRes) }
+  return { ...result, ...calculateNeEquityResult(balances, result.bokfRes), ...(includeReviewSources ? { reviewBalances: balances } : {}) }
 }
 
-export async function getNEData(year: number) {
+export async function getNEData(year: number, includeReviewSources = false) {
   // One SQL snapshot gives both the annual balances and signed R1/R2 adjustment.
   const { data: salesData, error: salesError } = await supabase.rpc('get_ne_sales_summary', { p_year: year })
   const unavailable = salesError?.code === 'PGRST202' || salesError?.code === '42883'
@@ -1987,7 +1987,7 @@ export async function getNEData(year: number) {
       (balanceSheetBalances['2018'] || 0)
     )
 
-  const cumulativeResult = await getCumulativeResultat(year)
+  const cumulativeResult = await getCumulativeResultat(year, includeReviewSources)
 
   const IB_kapital = Math.round(kumulativtEgetKapitalStart * 100) / 100
   const uttag = Math.round(kumulativaUttag * 100) / 100
@@ -2019,5 +2019,6 @@ export async function getNEData(year: number) {
     bank,
     ...neBalanceRows,
     B13_forutbetalda,
+    ...(includeReviewSources ? { reviewSources: { annual: balances, cumulative: cumulativeResult.reviewBalances! } } : {}),
   }
 }

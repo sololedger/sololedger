@@ -21,11 +21,12 @@ export function collectNeAccountCoverage(
   annual: BalanceMap,
   cumulative: BalanceMap,
   sales: NeSalesClassificationSummary,
+  options: { includeZeroBalances?: boolean } = {},
 ): NeAccountCoverage[] {
   const rows: NeAccountCoverage[] = []
   const resultWarnings = calculateBusinessResult(annual).warnings
   for (const [accountNumber, balance] of Object.entries(annual)) {
-    if (!/^[3-8]\d{3}$/.test(accountNumber) || balance === 0) continue
+    if (!/^[3-8]\d{3}$/.test(accountNumber) || (balance === 0 && !options.includeZeroBalances)) continue
     const row: NeAccountCoverage = {
       accountNumber, balance, period: 'annual', status: 'review',
       handling: 'Ingen säker NE-ruta', reason: '',
@@ -67,7 +68,7 @@ export function collectNeAccountCoverage(
   }
 
   for (const [accountNumber, balance] of Object.entries(cumulative)) {
-    if (!/^[12]\d{3}$/.test(accountNumber) || balance === 0) continue
+    if (!/^[12]\d{3}$/.test(accountNumber) || (balance === 0 && !options.includeZeroBalances)) continue
     const row: NeAccountCoverage = {
       accountNumber, balance, period: 'cumulative', status: 'review',
       handling: 'Ingen säker NE-ruta', reason: 'SoloLedger kan ännu inte placera kontots saldo i en NE-ruta. Kontrollera vad bokningarna gäller och ta hjälp med rätt ruta före deklaration.',

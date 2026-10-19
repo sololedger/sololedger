@@ -1367,6 +1367,7 @@ export default function Home() {
           fallback={<Paywall feature="NE-Bilaga" user={user} />}
         >
           <NEBilaga
+            userId={user.id}
             neData={neData}
             selectedYear={selectedYear}
             isYearLocked={isYearLocked}

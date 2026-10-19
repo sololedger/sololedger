@@ -5,6 +5,7 @@ import type { ResultWarning } from '@/lib/resultEngine'
 import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
 import type { NeTaxReview } from '@/lib/neTaxAdjustments'
 import { getNeChartReviewReason } from '@/lib/neChartReview'
+import NEUnderlagReview from './NEUnderlagReview'
 
 interface NEData {
   equityReviewRequired?: boolean;
@@ -58,6 +59,7 @@ interface NEData {
 }
 
 interface NEBilagaProps {
+  userId?: string;
   neData: NEData | null;
   selectedYear: number;
   isYearLocked: boolean;
@@ -99,6 +101,7 @@ function Tooltip({ text }: { text: string }) {
 }
 
 export default function NEBilaga({
+  userId,
   neData,
   selectedYear,
   isYearLocked,
@@ -151,6 +154,8 @@ export default function NEBilaga({
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
+
+        {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
 
         {neData.equityReviewRequired && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
