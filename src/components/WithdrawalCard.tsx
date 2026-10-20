@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useWithdrawal } from '@/hooks/useWithdrawal'
 import { toOre } from '@/lib/withdrawalModel'
 import { stableWithdrawalValue, withdrawalAnnualRate, type WithdrawalFact } from '@/lib/withdrawalAssessment'
@@ -44,10 +44,19 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
   const [notice, setNotice] = useState('')
   const [editSignature, setEditSignature] = useState<string | null>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
   const panel = useRef<HTMLHeadingElement>(null)
   const error = useRef<HTMLParagraphElement>(null)
   const id = useId()
-  useEffect(() => { if (open) panel.current?.focus() }, [open, task])
+  useEffect(() => {
+    if (!open) return
+    const element = dialog.current
+    element?.showModal()
+    panel.current?.focus()
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { element?.close(); document.body.style.overflow = previousOverflow }
+  }, [open])
   useEffect(() => { if (notice) error.current?.focus() }, [notice])
   const loaded = model.data
   function choose(next: string, forYear = year) {
@@ -103,7 +112,7 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
         ? [...a.facts.filter(f => f.key !== key && f.key !== rateKey), { key, value }, { key: rateKey, value: { rate: value.rate } }]
         : [...a.facts.filter(f => f.key !== key), { key, value }]
       await model.save(facts)
-      setNotice(''); setOpen(false); button.current?.focus()
+      setNotice(''); closeDetails()
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Uppgiften kunde inte sparas.') }
   }
   const tone = !model.loading && !model.error && loaded?.assessment.result.status === 'calculated'
@@ -111,14 +120,37 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
     : model.error || loaded?.assessment.result.status === 'incomplete'
       ? 'border-amber-300 bg-amber-50 text-amber-950'
       : 'border-slate-200 bg-slate-50 text-slate-950'
+  const available = loaded && !model.loading && !model.error
+  function closeDetails() { dialog.current?.close(); setOpen(false); button.current?.focus() }
+  function containFocus(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== 'Tab') return
+    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], summary, [tabindex]')]
+      .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length > 0)
+    const first = controls[0], last = controls.at(-1)
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) {
+      event.preventDefault(); last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first?.focus()
+    }
+  }
+  const loadStatus = model.loading ? <p role="status">Laddar uttagsunderlag…</p> : model.error ? <div role="alert"><p className="font-semibold">Uttagsunderlaget kunde inte hämtas</p><p>{model.error}</p><button type="button" onClick={() => void model.reload()} className="underline min-h-11">Försök igen</button></div> : null
   return <section className={`rounded-2xl border p-4 min-w-0 ${tone}`} aria-label="Uttagsutrymme">
-    {(model.loading || model.error || !loaded) && <h3 className="font-bold">Säkert uttag</h3>}
-    {model.loading ? <p role="status">Laddar uttagsunderlag…</p> : model.error ? <div role="alert"><p className="font-semibold">Uttagsunderlaget kunde inte hämtas</p><p>{model.error}</p><button type="button" onClick={() => void model.reload()} className="underline min-h-11">Försök igen</button></div> : loaded && <WithdrawalSummary result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} taxRates={loaded.assessment.taxRates} />}
-    {loaded && <>
-      {loaded.assessment.result.status === 'incomplete' && <div>{onOpenVat && loaded.assessment.result.issues.some(i => i.includes('Momsunderlaget')) && <button type="button" onClick={onOpenVat} className="underline min-h-11">Öppna momsrapporten</button>}{onOpenNe && loaded.assessment.result.issues.some(i => i.includes('NE-underlaget')) && <button type="button" onClick={onOpenNe} className="underline min-h-11">Öppna NE-underlaget</button>}</div>}
-      <button ref={button} type="button" aria-expanded={open} aria-controls={id} className="underline font-bold min-h-11 mt-2" onClick={() => { if (!open) startReview(); setOpen(!open) }}> {open ? 'Stäng underlaget' : loaded.assessment.result.status === 'incomplete' ? 'Visa hur jag gör' : 'Visa underlag eller ändra uppgift'}</button>
-      {open && <div id={id} className="border-t border-current/20 mt-2 pt-4">
-        <h4 ref={panel} tabIndex={-1} className="font-bold">Kontrollera en uppgift</h4>
+    {available ? <WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} /> : <><h3 className="font-bold">Säkert uttag</h3>{!open && loadStatus}</>}
+    <button ref={button} type="button" disabled={!available} aria-haspopup="dialog" aria-expanded={open} aria-controls={id} className="underline font-semibold min-h-11 mt-1 disabled:opacity-50" onClick={() => { startReview(); setOpen(true) }}>Visa beräkning och underlag</button>
+    {open && <dialog ref={dialog} id={id} onKeyDown={containFocus} aria-labelledby={id + '-title'} onCancel={e => { e.preventDefault(); closeDetails() }} onClose={() => { setOpen(false); button.current?.focus() }}
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[85dvh] rounded-3xl bg-white text-slate-950 shadow-2xl p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
+        <h2 ref={panel} id={id + '-title'} tabIndex={-1} className="font-bold text-lg">Säkert uttag · beräkning och underlag</h2>
+        <button type="button" onClick={closeDetails} aria-label="Stäng underlaget" className="shrink-0 rounded-full px-3 min-h-11 hover:bg-slate-100">Stäng ×</button>
+      </div>
+      <div className="p-5 sm:p-6 space-y-4">
+      {loadStatus}
+      {available && <>
+      <WithdrawalSummary result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} taxRates={loaded.assessment.taxRates} />
+      {loaded.assessment.result.issues.length > 0 && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm"><p className="font-semibold">Kontroll krävs</p><ul className="list-disc pl-5">{loaded.assessment.result.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div>}
+      {loaded.assessment.result.status === 'incomplete' && <div>{onOpenVat && loaded.assessment.result.issues.some(i => i.includes('Momsunderlaget')) && <button type="button" onClick={() => { closeDetails(); onOpenVat() }} className="underline min-h-11">Öppna momsrapporten</button>}{onOpenNe && loaded.assessment.result.issues.some(i => i.includes('NE-underlaget')) && <button type="button" onClick={() => { closeDetails(); onOpenNe() }} className="underline min-h-11">Öppna NE-underlaget</button>}</div>}
+      <div className="border-t border-slate-200 pt-4">
+        <h4 className="font-bold">Kontrollera en uppgift</h4>
         <p className="text-sm">Uppgifterna sparas daterat för din firma. Bokföringen ändras inte. Tidigare kontroller återanvänds när underlaget tillåter det.</p>
         {loaded.assessment.facts.length > 0 && <details className="text-sm my-2"><summary>Sparade kontroller och bedömningar</summary><ul>{loaded.assessment.facts.map(f => <li key={f.key}>{f.key.startsWith('income:') ? `Skatteuppgift ${f.key.slice(7)}` : f.key.startsWith('rate:') ? `Skatteuppskattning ${f.key.slice(5)}` : ({coverage:'Tidigare åtaganden',tax_account:'Skattekonto',other:'Andra betalningar',bank:'Bank',buffer:'Buffert'} as Record<string,string>)[f.key]} · {f.observed_on ?? loaded.snapshot.revision?.as_of_date} · {f.source === 'user_estimate' ? 'din uppskattning' : 'din uppgift/kontroll'}</li>)}</ul></details>}
         <label className="block my-3">Vad vill du kontrollera?<select value={task} onChange={e => choose(e.target.value)} className="block w-full border rounded p-2 bg-white">
@@ -136,7 +168,9 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
           <button className="rounded bg-emerald-800 text-white px-4 py-3 disabled:opacity-50" disabled={model.saving}> {model.saving ? 'Sparar…' : 'Spara kontrollen'}</button>
           <p className="text-xs">Sparat ursprung: din kontroll eller bedömning. Ny version skapas när du ändrar en uppgift.</p>
         </form>}
-      </div>}
-    </>}
+      </div>
+      </>}
+      </div>
+    </dialog>}
   </section>
 }

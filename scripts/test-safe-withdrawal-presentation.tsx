@@ -31,7 +31,7 @@ for (const state of ['loading','error','incomplete'] as const) {
   const card=renderToStaticMarkup(<WithdrawalCardContent model={model} asOf={seed.as_of} />)
   assert.match(card,/<h3[^>]*>Säkert uttag<\/h3>/)
   assert.doesNotMatch(card,/bg-emerald-50|text-emerald-950|class="text-2xl/)
-  if(state==='incomplete')assert.match(card,/Visa hur jag gör/)
+  if(state==='incomplete')assert.match(card,/Visa beräkning och underlag/)
 }
 console.log('PASS KAN-97 rendered amounts, negative deficit, critical missing facts and no legacy fallback')
 })().catch(error=>{console.error(error);process.exitCode=1})
