@@ -11,6 +11,82 @@ const browser=await chromium.launch({headless:true})
 const artifacts = `coverage/kan97-modal-${Date.now()}`
 await mkdir(artifacts,{recursive:true})
 try {
+ // Use the real html overflow rule and a scrollable page; an isolated short
+ // card cannot expose scroll chaining at a dialog boundary.
+ for (const width of [1280,390]) {
+  const context=await browser.newContext({viewport:{width,height:700},hasTouch:width===390,isMobile:width===390})
+  const page=await context.newPage()
+  await page.clock.setFixedTime(new Date('2026-10-20T12:00:00Z'))
+  await page.route('**/*',route=>route.abort())
+  await page.setContent('<html lang="sv"><meta name="viewport" content="width=device-width, initial-scale=1"><div style="height:320px"></div><div id="root"></div><div style="height:2400px"></div></html>')
+  await page.addStyleTag({content:css});await page.addScriptTag({content:bundle.outputFiles[0].text})
+  await page.waitForFunction(()=>window.withdrawalHarness?.pending().length===1)
+  await page.evaluate(()=>{window.withdrawalHarness.finish(0);document.body.style.overflow='auto'})
+  const opener=page.getByRole('button',{name:'Visa beräkning och underlag'})
+  await expect(opener).toBeEnabled()
+  await page.evaluate(()=>window.scrollTo(0,250))
+  const styles=()=>page.evaluate(()=>({body:['overflow','position','top','left','width'].map(k=>document.body.style[k]),root:['overflow','overscrollBehavior'].map(k=>document.documentElement.style[k])}))
+  const previousStyles=await styles()
+  const before=await page.evaluate(()=>({x:scrollX,y:scrollY,top:document.getElementById('root').getBoundingClientRect().top}))
+  assert(before.y>0,'background must start scrolled')
+  await opener.click()
+  const dialog=page.getByRole('dialog')
+  await page.getByLabel('Vad vill du kontrollera?').selectOption('income')
+  assert(await dialog.evaluate(el=>el.scrollHeight>el.clientHeight),'long modal must scroll')
+  const background=()=>page.evaluate(()=>document.getElementById('root').getBoundingClientRect().top)
+  const frozen=await background()
+  assert.equal(frozen,before.top,'opening does not move the background')
+  async function gesture(delta) {
+    const box=await dialog.boundingBox()
+    const x=box.x+box.width/2,y=box.y+box.height/2
+    if(width===390) {
+      const cdp=await context.newCDPSession(page)
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]})
+      for(let step=1;step<=5;step++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-Math.sign(delta)*step*25}]})
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]})
+      await cdp.detach()
+    } else {await page.mouse.move(x,y);await page.mouse.wheel(0,delta)}
+    // Allow native scrolling/inertia to settle before comparing positions.
+    await page.waitForTimeout(300)
+  }
+  await dialog.evaluate(el=>el.scrollTop=0)
+  await gesture(180)
+  assert(await dialog.evaluate(el=>el.scrollTop>0),'gesture scrolls inside modal')
+  for(const edge of ['bottom','top']) {
+    await dialog.evaluate((el,edge)=>el.scrollTop=edge==='bottom'?el.scrollHeight:0,edge)
+    for(let n=0;n<3;n++)await gesture(edge==='bottom'?500:-500)
+    // Small consecutive wheel deltas approximate a trackpad's scroll stream.
+    const box=await dialog.boundingBox()
+    await page.mouse.move(box.x+box.width/2,box.y+box.height/2)
+    for(let n=0;n<12;n++)await page.mouse.wheel(0,edge==='bottom'?8:-8)
+    await page.waitForTimeout(200)
+    assert.equal(await background(),frozen,`background remains fixed at modal ${edge} (${width})`)
+    await page.screenshot({path:`${artifacts}/scroll-${edge}-${width}.png`})
+  }
+  // Wheel gestures over the backdrop must also leave the page still.
+  await page.mouse.move(2,350);await page.mouse.wheel(0,500);await page.waitForTimeout(200)
+  assert.equal(await background(),frozen,'backdrop cannot scroll page')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(opener).toBeFocused()
+  assert.deepEqual(await page.evaluate(()=>({x:scrollX,y:scrollY})),{x:before.x,y:before.y},'Escape restores scroll position')
+  for(const close of ['button','owner']) {
+    await opener.click()
+    if(close==='button')await page.getByRole('button',{name:'Stäng underlaget'}).click()
+    else await page.evaluate(()=>window.withdrawalHarness.setOwner('synthetic-b'))
+    await expect(dialog).toHaveCount(0)
+    assert.deepEqual(await page.evaluate(()=>({x:scrollX,y:scrollY})),{x:before.x,y:before.y},`${close} restores scroll position`)
+  }
+  assert.equal(await page.evaluate(()=>document.body.style.overflow),'auto','previous body overflow restored')
+  assert.equal(await page.evaluate(()=>document.body.style.position),'','body position restored')
+  assert.deepEqual(await styles(),previousStyles,'all previous inline scroll styles restored')
+  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).overflowY),'scroll','original root overflow restored')
+  // The page becomes scrollable again after cleanup.
+  await page.mouse.move(2,350);await page.mouse.wheel(0,250)
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(before.y)
+  console.log(`PASS modal scroll ${width}: ${width===390?'emulated touch':'wheel'}, both edges, backdrop, Escape/button/unmount restoration`)
+  await context.close()
+ }
  for(const width of [1280,390]) {
   const page=await browser.newPage({viewport:{width,height:1000}})
   const errors=[];page.on('pageerror',e=>errors.push(e.message))
@@ -147,5 +223,5 @@ try {
   console.log(`PASS KAN-97 browser ${width}: real card/hook, save/reuse, year filter, error/retry, A→B→A, keyboard, focus/scroll, 6500, SIE/legacy blocks, open-modal refresh/error/owner/date and layout`)
   await page.close()
  }
- await writeFile(`${artifacts}/browser-result.json`,JSON.stringify({status:'PASS',widths:[1280,390],network:'all aborted',scope:'synthetic mocks, real React hook/card; no DB acceptance'},null,2))
+ await writeFile(`${artifacts}/browser-result.json`,JSON.stringify({status:'PASS',widths:[1280,390],scroll:['long modal and scrollable background','wheel and small continuous wheel deltas','Chromium emulated touch','top/bottom/backdrop','Escape/close/owner-unmount restores position and styles','background scroll resumes after close'],network:'all aborted',scope:'synthetic mocks, real React hook/card; no DB acceptance'},null,2))
 } finally {await browser.close()}
