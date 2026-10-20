@@ -1,15 +1,23 @@
 import { calculateBusinessResult } from './resultEngine.ts'
 import { calculateVatReportFromLoadedRows, type LoadedVatReportRows } from './vatReportService.ts'
 import { assertOre, calculateWithdrawal, toOre, validWithdrawalDate, type WithdrawalPart } from './withdrawalModel.ts'
+import { validateWithdrawalInvoices, type WithdrawalInvoice, type WithdrawalInvoiceBooking } from './withdrawalInvoiceValidation.ts'
 
-export interface WithdrawalTransaction { id: string; user_id: string; date: string; source: string | null; booked: boolean }
-export interface WithdrawalJournal { id: string; user_id: string; transaction_id: string; date: string; account_number: string; debit: number | string; credit: number | string }
+export interface WithdrawalTransaction {
+  id: string; user_id: string; date: string; source: string | null; booked: boolean
+  amount?: number | string; type?: string; vat_rate?: number | string | null
+  is_correction?: boolean; corrects_ver_nr?: number | null; is_periodized?: boolean
+  is_periodized_reversal?: boolean; import_batch_id?: string | null; periodization_group_id?: string | null
+}
+export interface WithdrawalJournal { id: string; user_id: string; transaction_id: string; date: string; account_number: string; debit: number | string; credit: number | string; ver_nr?: number }
 export interface WithdrawalEvent { id: string; user_id: string; transaction_id: string; vat_period_id: string; event_date: string; event_kind: 'vat_debit' | 'vat_credit'; amount: number | string }
 export interface WithdrawalMovement { id: string; user_id: string; transaction_id: string; vat_period_id: string | null; movement_date: string; movement_kind: string; amount: number | string }
 export interface WithdrawalFact { key: string; value: Record<string, unknown>; source?: string; observed_on?: string }
 export interface WithdrawalRevision { id: string; user_id: string; as_of_date: string; recorded_at: string; facts: WithdrawalFact[] }
 export interface WithdrawalSnapshot {
-  protocol: 1; user_id: string; as_of: string; signature: string
+  protocol: 3; user_id: string; as_of: string; signature: string
+  invoices: WithdrawalInvoice[]; invoice_bookings: WithdrawalInvoiceBooking[]
+  invoice_journal: WithdrawalJournal[]
   transactions: WithdrawalTransaction[]; journal: WithdrawalJournal[]
   periods: NonNullable<LoadedVatReportRows['vatPeriods']>
   snapshots: LoadedVatReportRows['vatV2Snapshots']
@@ -49,17 +57,18 @@ export function withdrawalFinancialRows(s: WithdrawalSnapshot, date: string): st
   })
 }
 export function validateWithdrawalSnapshot(s: WithdrawalSnapshot, owner: string, asOf: string) {
-  if (s.protocol !== 1 || s.user_id !== owner || s.as_of !== asOf || !s.signature || !s.financial_signature || !validWithdrawalDate(asOf)) throw new Error('Uttagsunderlaget tillhör fel sammanhang.')
-  for (const rows of [s.transactions, s.journal, s.periods, s.snapshots, s.events, s.movements, s.roles]) {
+  if (!s || s.protocol !== 3 || s.user_id !== owner || s.as_of !== asOf || !s.signature || !s.financial_signature || !validWithdrawalDate(asOf)) throw new Error('Uttagsunderlaget saknar aktuellt fakturastöd eller tillhör fel sammanhang.')
+  for (const rows of [s.transactions, s.journal, s.periods, s.snapshots, s.events, s.movements, s.roles, s.invoices, s.invoice_bookings, s.invoice_journal]) {
     if (!Array.isArray(rows) || rows.some(r => r.user_id !== owner)) throw new Error('Uttagsunderlaget är ofullständigt eller tillhör en annan användare.')
   }
   if (s.revision && s.revision.user_id !== owner) throw new Error('Avstämningen tillhör en annan användare.')
-  for (const rows of [s.periods, s.events, s.movements]) {
+  for (const rows of [s.periods, s.events, s.movements, s.invoices, s.invoice_bookings]) {
     if (new Set(rows.map(r => r.id)).size !== rows.length) throw new Error('Dubblerade skattehändelser eller perioder.')
   }
   const ids = new Set(s.transactions.map(t => t.id))
   if (ids.size !== s.transactions.length || new Set(s.journal.map(j => j.id)).size !== s.journal.length) throw new Error('Dubblerat uttagsunderlag.')
   if (s.journal.some(j => !ids.has(j.transaction_id) || !validWithdrawalDate(j.date) || j.date > asOf)) throw new Error('Journalunderlaget är ofullständigt.')
+  if (new Set(s.invoice_journal.map(j => j.id)).size !== s.invoice_journal.length || s.invoice_journal.some(j => !ids.has(j.transaction_id) || !validWithdrawalDate(j.date))) throw new Error('Fakturans fullständiga journalbevis är ofullständigt eller dubblerat.')
   if (s.events.some(e => !ids.has(e.transaction_id) || !s.periods.some(p => p.id === e.vat_period_id)) || s.movements.some(m => !ids.has(m.transaction_id))) throw new Error('Skattehändelsernas underlag är ofullständigt.')
   for (const j of s.journal) { toOre(j.debit); toOre(j.credit) }
 }
@@ -72,6 +81,8 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
     facts.set(f.key, f.value)
   }
   const issues: string[] = []
+  const invoiceValidation = validateWithdrawalInvoices(s)
+  issues.push(...invoiceValidation.issues)
   const parts: WithdrawalPart[] = []
   const allBalances: Record<string, number> = {}
   const transactionTotals = new Map<string, number>()
@@ -79,7 +90,7 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
   const years = new Map<number, Record<string, number>>()
   const txById = new Map(s.transactions.map(t => [t.id, t]))
   const supported = new Set(['manual', 'vat_v2', 'vat_closing', 'vat_settlement', 'tax_account_movement'])
-  if (s.transactions.some(t => t.source !== null && !supported.has(t.source))) issues.push('Underlaget innehåller bokföring utanför den verifierade manuella uttagsberäkningen. Kontrollera historiken.')
+  if (s.transactions.some(t => t.source !== null && !supported.has(t.source) && !invoiceValidation.verifiedTransactionIds.has(t.id))) issues.push('Underlaget innehåller bokföring utanför den verifierade uttagsberäkningen. Kontrollera historiken.')
   for (const j of s.journal) {
     const rows = transactionRows.get(j.transaction_id) ?? []
     rows.push(j)

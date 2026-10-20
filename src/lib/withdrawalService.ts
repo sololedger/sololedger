@@ -17,6 +17,7 @@ export async function loadWithdrawal(owner: string, asOf: string) {
 export async function saveWithdrawal(owner: string, snapshot: WithdrawalSnapshot, facts: WithdrawalFact[]) {
   const { userId, rpc } = await verifiedProfileRpc()
   if (userId !== owner || snapshot.user_id !== owner) throw new Error('Inloggningen har ändrats.')
+  validateWithdrawalSnapshot(snapshot, owner, snapshot.as_of)
   // Validate the same prospective assessment the caller will see. Critical
   // accounting conflicts are not erased by saving advisory information.
   buildWithdrawalAssessment({ ...snapshot, revision: { id: '', user_id: owner, as_of_date: snapshot.as_of, recorded_at: '', facts } })
