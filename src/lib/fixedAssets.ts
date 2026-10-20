@@ -1,7 +1,6 @@
 import type { PaymentAccountRole } from './paymentAccountRoles'
 
 export type FixedAssetVatDeductionEntitlement = 'full' | 'none'
-export type FixedAssetVatRate = 0 | 6 | 12 | 25
 export type FixedAssetUsefulLifeAnswer =
   | 'max_three_years'
   | 'more_than_three_years_or_unknown'
@@ -32,8 +31,8 @@ export interface FixedAssetTaxRuleParameters {
 }
 
 export interface FixedAssetDecisionInput {
-  grossAmount: number
-  vatRate: FixedAssetVatRate
+  taxableBaseAmount: number
+  supplierVatAmount: number
   vatDeductionEntitlement: FixedAssetVatDeductionEntitlement
   thresholdBasisAmount?: number | null
   usefulLifeAnswer?: FixedAssetUsefulLifeAnswer | null
@@ -45,10 +44,6 @@ export type FixedAssetDecision =
       decisionType: FixedAssetDecisionType
       assetStatus: Exclude<FixedAssetStatus, 'retired'>
       requiresUsefulLifeAnswer: false
-      grossAmount: number
-      vatRate: FixedAssetVatRate
-      taxableBaseAmount: number
-      supplierVatAmount: number
       thresholdBasisAmount: number
       deductibleVatAmount: number
       nonDeductibleVatAmount: number
@@ -59,10 +54,6 @@ export type FixedAssetDecision =
   | {
       status: 'needs_useful_life'
       requiresUsefulLifeAnswer: true
-      grossAmount: number
-      vatRate: FixedAssetVatRate
-      taxableBaseAmount: number
-      supplierVatAmount: number
       thresholdBasisAmount: number
       deductibleVatAmount: number
       nonDeductibleVatAmount: number
@@ -182,38 +173,6 @@ function asAmount(value: number, field: string) {
   return roundAmount(value)
 }
 
-export function isFixedAssetVatRate(value: number): value is FixedAssetVatRate {
-  return value === 0 || value === 6 || value === 12 || value === 25
-}
-
-export function calculateFixedAssetInvoiceAmounts(input: {
-  grossAmount: number
-  vatRate: number
-}) {
-  const grossAmount = asAmount(input.grossAmount, 'Belopp inklusive moms')
-
-  if (grossAmount <= 0) {
-    throw new Error('Belopp inklusive moms måste vara större än 0.')
-  }
-
-  if (!isFixedAssetVatRate(input.vatRate)) {
-    throw new Error('Momssatsen måste vara 0, 6, 12 eller 25 procent.')
-  }
-
-  const taxableBaseAmount =
-    input.vatRate === 0
-      ? grossAmount
-      : roundAmount(grossAmount / (1 + input.vatRate / 100))
-  const supplierVatAmount = roundAmount(grossAmount - taxableBaseAmount)
-
-  return {
-    grossAmount,
-    vatRate: input.vatRate,
-    taxableBaseAmount,
-    supplierVatAmount,
-  }
-}
-
 export function validateFixedAssetTaxRules(
   parameters: FixedAssetTaxRuleParameters
 ) {
@@ -236,27 +195,23 @@ export function calculateFixedAssetDecision(
 ): FixedAssetDecision {
   validateFixedAssetTaxRules(taxRules)
 
-  const {
-    grossAmount,
-    vatRate,
-    taxableBaseAmount,
-    supplierVatAmount,
-  } = calculateFixedAssetInvoiceAmounts(input)
+  const taxableBaseAmount = asAmount(input.taxableBaseAmount, 'Belopp exklusive moms')
+  const supplierVatAmount = asAmount(input.supplierVatAmount, 'Momsbelopp')
+  const thresholdBasisAmount = asAmount(
+    input.thresholdBasisAmount ?? taxableBaseAmount,
+    'Belopp för gränsbedömning'
+  )
+
+  if (thresholdBasisAmount < taxableBaseAmount) {
+    throw new Error('Gränsbeloppet kan inte vara lägre än inköpsbeloppet exklusive moms.')
+  }
+
   const deductibleVatAmount =
     input.vatDeductionEntitlement === 'full' ? supplierVatAmount : 0
   const nonDeductibleVatAmount =
     input.vatDeductionEntitlement === 'none' ? supplierVatAmount : 0
+  const totalPaidAmount = roundAmount(taxableBaseAmount + supplierVatAmount)
   const accountingCostAmount = roundAmount(taxableBaseAmount + nonDeductibleVatAmount)
-  const thresholdBasisAmount = asAmount(
-    input.thresholdBasisAmount ?? accountingCostAmount,
-    'Belopp för gränsbedömning'
-  )
-
-  if (thresholdBasisAmount < accountingCostAmount) {
-    throw new Error('Gränsbeloppet kan inte vara lägre än anskaffningsvärdet.')
-  }
-
-  const totalPaidAmount = grossAmount
 
   if (thresholdBasisAmount < taxRules.halfPriceBaseAmount) {
     return {
@@ -264,10 +219,6 @@ export function calculateFixedAssetDecision(
       decisionType: 'immediate_expense_small_value',
       assetStatus: 'expensed',
       requiresUsefulLifeAnswer: false,
-      grossAmount,
-      vatRate,
-      taxableBaseAmount,
-      supplierVatAmount,
       thresholdBasisAmount,
       deductibleVatAmount,
       nonDeductibleVatAmount,
@@ -281,10 +232,6 @@ export function calculateFixedAssetDecision(
     return {
       status: 'needs_useful_life',
       requiresUsefulLifeAnswer: true,
-      grossAmount,
-      vatRate,
-      taxableBaseAmount,
-      supplierVatAmount,
       thresholdBasisAmount,
       deductibleVatAmount,
       nonDeductibleVatAmount,
@@ -298,10 +245,6 @@ export function calculateFixedAssetDecision(
       decisionType: 'immediate_expense_short_life',
       assetStatus: 'expensed',
       requiresUsefulLifeAnswer: false,
-      grossAmount,
-      vatRate,
-      taxableBaseAmount,
-      supplierVatAmount,
       thresholdBasisAmount,
       deductibleVatAmount,
       nonDeductibleVatAmount,
@@ -316,10 +259,6 @@ export function calculateFixedAssetDecision(
     decisionType: 'capitalized',
     assetStatus: 'active',
     requiresUsefulLifeAnswer: false,
-    grossAmount,
-    vatRate,
-    taxableBaseAmount,
-    supplierVatAmount,
     thresholdBasisAmount,
     deductibleVatAmount,
     nonDeductibleVatAmount,

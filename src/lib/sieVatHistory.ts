@@ -1,7 +1,7 @@
 import type { LoadedVatReportRows } from './vatReportService.ts'
 
 export const HISTORICAL_SIE_VAT_REVIEW_MESSAGE =
-  'En tidigare återställning eller rättelse har osäker momshistorik. Beloppen visar aktuell journalavstämning. Historiska momsperioder och eventuella deklarationer kräver separat hantering; momsavslut och säkert uttag kan inte beräknas automatiskt.'
+  'En tidigare återställning eller rättelse har osäker momshistorik. Beloppen visar aktuell journalavstämning. Historiska momsperioder och eventuella deklarationer kräver separat hantering; momsavslut och uttagsutrymme kan inte beräknas automatiskt.'
 
 // The loader supplies the entire affected batch, including rows outside the
 // report/year. A full-year net of zero must not conceal a cross-period undo.

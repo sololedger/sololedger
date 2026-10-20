@@ -42,7 +42,9 @@ import {
   categoryRedirectsToFixedAssets,
   categoryUsesDomesticSalesVatPolicy,
   getTransactionCategoryUiGroup,
+  isOwnerDepositCategoryId,
 } from '@/lib/accountCategoryUi'
+import { newBookingCategoryError, visibleNewBookingCategories } from '@/lib/bookingCategoryVisibility'
 import { shouldShowOrdinaryPurchaseInputVatPanel } from '@/lib/ordinaryPurchaseVatUi'
 
 export interface FormData {
@@ -61,6 +63,7 @@ export type OrdinaryInputVatDeductionSelection =
   | 'full'
 
 interface KontoplanOption {
+  hidden_from_new_booking?: boolean
   id: string
   name: string
   default_vat_rate?: number | string | null
@@ -72,6 +75,7 @@ interface TransactionFormProps {
   formData: FormData
   setFormData: (data: FormData) => void
   kontoplan: KontoplanOption[]
+  kontoplanReady: boolean
   isYearLocked: boolean
   editingId: string | null
   editingBooked: boolean
@@ -155,6 +159,7 @@ export default function TransactionForm({
   formData,
   setFormData,
   kontoplan,
+  kontoplanReady,
   isYearLocked,
   editingId,
   editingBooked,
@@ -216,7 +221,25 @@ export default function TransactionForm({
       ? standardBookingAmountError(formData.amount)
       : null
 
+  const selectedCategoryIsOwnerDeposit =
+    showOrdinaryV1Fields && isOwnerDepositCategoryId(formData.type)
+  const ownerDepositVatInvalid =
+    !editingBooked && selectedCategoryIsOwnerDeposit && formData.vatRate !== 0
+
+  const categoryError = (id: string) => newBookingCategoryError(kontoplan, id, kontoplanReady)
+  const availableCategories = visibleNewBookingCategories(kontoplan, kontoplanReady)
+  const selectedCategoryError = !editingId && showOrdinaryV1Fields
+    ? categoryError(formData.type) : null
+
   function handleOrdinarySubmit(e: FormEvent<HTMLFormElement>) {
+    if (!editingId && categoryError(formData.type)) {
+      e.preventDefault()
+      return
+    }
+    if (ownerDepositVatInvalid) {
+      e.preventDefault()
+      return
+    }
     if (!editingBooked && standardBookingAmountError(formData.amount)) {
       e.preventDefault()
       setOrdinaryAmountSubmitAttempted(true)
@@ -485,6 +508,7 @@ export default function TransactionForm({
   }
 
   function handleFavoriteSelect(fav: Favorite) {
+    if (categoryError(fav.type)) return
     const favoriteCategory = kontoplan.find(k => k.id === fav.type)
     const favoriteUsesDomesticSalesVatPolicy = Boolean(
       favoriteCategory &&
@@ -495,6 +519,7 @@ export default function TransactionForm({
       type: fav.type,
       amount: fav.amount.toString(),
       vatRate:
+        isOwnerDepositCategoryId(fav.type) ||
         isNotVatRegistered ||
         (
           favoriteUsesDomesticSalesVatPolicy &&
@@ -531,9 +556,11 @@ export default function TransactionForm({
           userId={userId}
           onSelect={handleFavoriteSelect}
           refreshKey={favRefreshKey}
+          categoryError={categoryError}
         />
       )}
 
+      {selectedCategoryError && <p role="alert" className="mb-3 text-sm text-amber-800">{selectedCategoryError}</p>}
       <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : handleOrdinarySubmit}>
         {editingBooked ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">
@@ -609,6 +636,7 @@ export default function TransactionForm({
                     )
 
                     const nextVatRate =
+                      isOwnerDepositCategoryId(e.target.value) ||
                       isNotVatRegistered ||
                       (
                         acc &&
@@ -625,7 +653,8 @@ export default function TransactionForm({
                       inputVatDeduction: 'profile_default',
                     })
                   }}
-                  disabled={editingBooked || isYearLocked}
+                  disabled={editingBooked || isYearLocked || (!editingId && !kontoplanReady)}
+                  aria-label="Kategori"
                   required
                   className={`p-3 rounded-xl outline-none font-bold text-xs ${
                     editingBooked || isYearLocked
@@ -634,15 +663,16 @@ export default function TransactionForm({
                   } ${isYearLocked ? 'opacity-40' : ''}`}
                 >
                   {(() => {
-                    const income = kontoplan.filter(
+                    const choices = editingId ? kontoplan : availableCategories
+                    const income = choices.filter(
                       k => getTransactionCategoryUiGroup(k) === 'income'
                     )
 
-                    const special = kontoplan.filter(
+                    const special = choices.filter(
                       k => getTransactionCategoryUiGroup(k) === 'other'
                     )
 
-                    const costs = kontoplan.filter(
+                    const costs = choices.filter(
                       k => getTransactionCategoryUiGroup(k) === 'cost'
                     )
 
@@ -652,6 +682,9 @@ export default function TransactionForm({
                           Välj kategori...
                         </option>
 
+                        {!editingId && formData.type && selectedCategoryError && (
+                          <option value={formData.type} disabled>Vald kategori kan inte användas – välj en annan</option>
+                        )}
                         <optgroup label="── Intäkter ──">
                           {income.map(item => (
                             <option
@@ -731,45 +764,49 @@ export default function TransactionForm({
             {showOrdinaryV1Fields && (
               <>
                 {/* Fakturans moms */}
-                <div className="lg:col-span-1 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    Moms på fakturan
-                  </label>
+                {!selectedCategoryIsOwnerDeposit && (
+                  <div className="lg:col-span-1 flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
+                      Moms på fakturan
+                    </label>
 
-                  <select
-                    value={formData.vatRate}
-                    onChange={e =>
-                      setFormData({
-                        ...formData,
-                        vatRate: Number(e.target.value),
-                      })
-                    }
-                    disabled={editingBooked || isYearLocked || ordinarySaleVatRateLocked}
-                    className={`p-3 rounded-xl outline-none font-bold text-xs ${
-                      editingBooked || isYearLocked || ordinarySaleVatRateLocked
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-50 cursor-pointer'
-                    } ${isYearLocked ? 'opacity-40' : ''}`}
-                    title={
-                      isNotVatRegistered
-                        ? 'Företaget är markerat som inte momsregistrerat.'
-                        : selectedCategoryUsesDomesticSalesVatPolicy &&
-                          ordinarySalesVatPolicy.vatRateLocked
-                        ? ordinarySalesVatPolicy.notice
-                        : undefined
-                    }
-                  >
-                    <option value={25}>25%</option>
-                    <option value={12}>12%</option>
-                    <option value={6}>6%</option>
-                    <option value={0}>0%</option>
-                  </select>
-                </div>
+                    <select
+                      value={formData.vatRate}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          vatRate: Number(e.target.value),
+                        })
+                      }
+                      disabled={editingBooked || isYearLocked || ordinarySaleVatRateLocked}
+                      className={`p-3 rounded-xl outline-none font-bold text-xs ${
+                        editingBooked || isYearLocked || ordinarySaleVatRateLocked
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-50 cursor-pointer'
+                      } ${isYearLocked ? 'opacity-40' : ''}`}
+                      title={
+                        isNotVatRegistered
+                          ? 'Företaget är markerat som inte momsregistrerat.'
+                          : selectedCategoryUsesDomesticSalesVatPolicy &&
+                            ordinarySalesVatPolicy.vatRateLocked
+                          ? ordinarySalesVatPolicy.notice
+                          : undefined
+                      }
+                    >
+                      <option value={25}>25%</option>
+                      <option value={12}>12%</option>
+                      <option value={6}>6%</option>
+                      <option value={0}>0%</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Belopp */}
                 <div className="lg:col-span-2 flex flex-col gap-1">
                   <label className="text-[9px] font-black text-gray-500 uppercase ml-1">
-                    {selectedCategoryUsesDomesticSalesVatPolicy
+                    {selectedCategoryIsOwnerDeposit
+                      ? 'Belopp'
+                      : selectedCategoryUsesDomesticSalesVatPolicy
                       ? ordinarySalesVatPolicy.amountLabel
                       : isNotVatRegistered
                       ? 'Belopp'
@@ -798,6 +835,11 @@ export default function TransactionForm({
                     } ${isYearLocked ? 'opacity-40' : ''}`}
                     required={ordinaryV1AmountRequired}
                   />
+                  {ownerDepositVatInvalid && (
+                    <p role="alert" className="text-xs font-bold text-red-700">
+                      Egen insättning ska ha 0 % moms. Välj kategorin på nytt innan du bokför.
+                    </p>
+                  )}
                   {ordinaryAmountError && (
                     <p id="standard-booking-amount-error" role="alert" className="text-xs font-bold text-red-700">
                       {ordinaryAmountError}

@@ -7,6 +7,8 @@ const repairMigration =
 const customerInvoiceBookingDeleteContextMigration =
   '20261009220552_kan56_customer_invoice_booking_delete_context.sql'
 const receiptDeletionMigration = '20261015121000_kan74_sie_receipt_deletion.sql'
+const neMigration = '20261017122027_kan88_ne_sales_classification.sql'
+const neSource = readFileSync(join(migrationDir, neMigration), 'utf8')
 const receiptDeletion = readFileSync(join('supabase/migrations', receiptDeletionMigration), 'utf8')
 const edgeFunctionPath = 'supabase/functions/delete-user/index.ts'
 const adminDryRunPath = 'src/lib/adminDeleteDryRun.ts'
@@ -78,7 +80,6 @@ const latestCriticalDefinitions = {
 }
 
 for (const name of [
-  'close_year_atomic',
   'prevent_fixed_asset_event_mutation',
   'prevent_tax_account_event_mutation',
   'prevent_tax_account_movement_mutation',
@@ -91,15 +92,49 @@ for (const name of [
 }
 
 for (const name of [
-  'delete_user_data_atomic',
   'prevent_customer_invoice_booking_mutation',
 ]) {
-  const expected = name === 'delete_user_data_atomic' ? receiptDeletionMigration : customerInvoiceBookingDeleteContextMigration
+  const expected = name === 'delete_user_data_atomic' ? neMigration : customerInvoiceBookingDeleteContextMigration
   if (latestCriticalDefinitions[name] !== expected) {
     fail(
       `${name} senaste definition finns i ${latestCriticalDefinitions[name]}, inte ${expected}`,
     )
   }
+}
+
+// Inspect the actual last complete body, rather than checking an old file's
+// contents after a newer definition has superseded it. KAN-75 additionally
+// transforms exact guarded preimages; that dynamic SQL still needs PG testing.
+function latestBody(name) {
+  const file = latestCriticalDefinitions[name]
+  if (!file) { fail(`Missing definition: ${name}`); return '' }
+  const source = read(join(migrationDir, file))
+  const match = source.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?AS (\\$[a-zA-Z_]*\\$)([\\s\\S]*?)\\1\\s*;`))
+  if (!match) { fail(`Cannot inspect complete body: ${name} in ${file}`); return '' }
+  return match[2]
+}
+const currentDelete = latestBody('delete_user_data_atomic')
+for (const needle of [
+  'PERFORM public.lock_accounting_year_boundary(p_user_id, true)',
+  "IF v_role = 'admin'", 'public.delete_user_data_atomic_lifecycle_context',
+  'backend_pid', 'pg_backend_pid()', 'DELETE FROM public.profiles WHERE id = p_user_id',
+  'EXCEPTION',
+]) assertIncludes(currentDelete, needle, 'current delete_user_data_atomic')
+for (const table of ['withdrawal_assessment_facts', 'withdrawal_assessment_revisions', 'ne_sales_classifications', 'sie_import_inputs', 'journal_entries', 'transactions']) {
+  assertIncludes(currentDelete, `DELETE FROM public.${table} WHERE user_id = p_user_id`, 'current delete_user_data_atomic')
+  assertIncludes(currentDelete, `GET DIAGNOSTICS v_${table} = ROW_COUNT`, 'current delete_user_data_atomic')
+  assertIncludes(currentDelete, `'${table}', v_${table}`, 'current delete_user_data_atomic')
+}
+for (const [child, parent] of [['withdrawal_assessment_facts', 'withdrawal_assessment_revisions'], ['withdrawal_assessment_revisions', 'profiles'], ['journal_entries', 'transactions']]) {
+  if (currentDelete.indexOf(`DELETE FROM public.${child}`) >= currentDelete.indexOf(`DELETE FROM public.${parent}`)) fail(`delete order: ${child} must precede ${parent}`)
+}
+const currentClose = latestBody('close_year_atomic')
+for (const needle of ['v_user_id := auth.uid()', 'IF v_user_id IS NULL', 'FOR UPDATE', 'public.closed_years', 'public.vat_periods', 'public.customer_invoices', 'public.fixed_assets', 'AS cumulative_result', "WHERE account_class IN ('3', '4', '5', '6', '7', '8')", 'INSERT INTO public.closed_years']) {
+  assertIncludes(currentClose, needle, 'current close_year_atomic')
+}
+const boundary = read(join(migrationDir, '20261019120000_kan75_year_close_concurrency.sql'))
+for (const needle of ["('public.close_year_atomic(integer)'", "('public.delete_user_data_atomic(uuid)'", "IF md5(replace(v_original", 'r.preimage_md5', 'public.lock_accounting_year_boundary', 'r.exclusive_gate', 'EXECUTE v_definition']) {
+  assertIncludes(boundary, needle, 'KAN-75 guarded lock transformation')
 }
 
 if (
@@ -116,6 +151,10 @@ if (
   fail('KAN-55 purchase VAT deduction helper ar inte senaste definition')
 }
 
+assertIncludes(neSource, 'DELETE FROM public.ne_sales_classifications WHERE user_id = p_user_id', neMigration)
+assertIncludes(neSource, "'ne_sales_classifications', v_ne_sales_classifications", neMigration)
+assertIncludes(neSource, 'DELETE FROM public.sie_import_inputs WHERE user_id = p_user_id', neMigration)
+assertIncludes(neSource, 'public.delete_user_data_atomic_lifecycle_context', neMigration)
 assertIncludes(receiptDeletion, 'DELETE FROM public.sie_import_inputs WHERE user_id = p_user_id', receiptDeletionMigration)
 assertIncludes(receiptDeletion, "'sie_import_inputs', v_sie_import_inputs", receiptDeletionMigration)
 assertIncludes(receiptDeletion, "v_role = 'admin'", receiptDeletionMigration)
@@ -193,6 +232,8 @@ assertIncludes(
 )
 
 const dryRunKeys = [
+  'withdrawal_assessment_facts',
+  'withdrawal_assessment_revisions',
   'profiles',
   'fixed_asset_depreciation_runs',
   'fixed_asset_events',

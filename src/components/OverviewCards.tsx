@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { DashboardData } from '@/lib/calculations'
 import { buildBankAccountHistory, type BankHistoryEntry } from '@/lib/bankAccountHistory'
 
@@ -19,9 +19,11 @@ interface OverviewJournalEntry {
   ver_nr?: number | null
 }
 
-interface OverviewCardsProps {
+export interface OverviewCardsProps {
+  withdrawal?: ReactNode
+  taxControl?: ReactNode
   data: DashboardData
-  taxRate: number
+  taxRate: number | null
   selectedYear: number
   transactions: OverviewTransaction[]
   journalMap: Record<string, OverviewJournalEntry[] | undefined>
@@ -31,6 +33,8 @@ interface OverviewCardsProps {
 
 export default function OverviewCards({
   data,
+  withdrawal,
+  taxControl,
   taxRate,
   selectedYear,
   transactions,
@@ -58,7 +62,7 @@ export default function OverviewCards({
           Översikt
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 
           {/* Bank */}
           <button
@@ -79,22 +83,26 @@ export default function OverviewCards({
           </button>
 
           {/* Skatt */}
+          <div className="p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white min-w-0">
           <button
             onClick={() => setActiveModal('skatt')}
-            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-orange-200 hover:shadow-md transition-all text-left"
+            className="group w-full text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
-              Skatt · {taxRate}%
+              Årets skatteexempel · {selectedYear}{taxRate !== null && ` · ${taxRate}%`}
             </p>
 
             <p className="text-xl font-black tabular-nums text-orange-500">
-              −{data.skattReserv.toLocaleString('sv-SE')} kr
+              {taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
             </p>
+            {data.taxReviewRequired && <p className="text-xs text-amber-800">Preliminärt – skatteunderlaget behöver granskas</p>}
 
             <p className="text-xs text-orange-300 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Visa beräkning ↗
             </p>
           </button>
+          {taxControl}
+          </div>
 
           {/* Moms */}
           <button
@@ -138,26 +146,8 @@ export default function OverviewCards({
             </p>
           </button>
 
-          {/* Säkert uttag — accent-kort */}
-          <div className="col-span-2 md:col-span-1 p-5 sm:p-6 rounded-[1.75rem] bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg flex flex-col justify-between">
-            <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">
-              Säkert uttag
-            </p>
-
-            {data.momsManualReviewRequired ? (
-              <div>
-                <p className="text-2xl font-black leading-none">
-                  Kontroll krävs
-                </p>
-                <p className="text-[10px] font-bold opacity-75 mt-2">
-                  Moms behöver kontrolleras
-                </p>
-              </div>
-            ) : (
-              <p className="text-3xl font-black tabular-nums leading-none">
-                {data.sakertUttag.toLocaleString('sv-SE')} kr
-              </p>
-            )}
+          <div className="col-span-2 md:col-span-4 min-w-0">
+            {withdrawal ?? <p role="status">{data.taxReviewRequired ? 'Skatteunderlaget behöver granskas i NE-bilagan' : data.momsManualReviewRequired ? 'Moms behöver kontrolleras' : 'Viktig uppgift saknas. Ladda uttagsunderlaget.'}</p>}
           </div>
 
         </div>
@@ -298,14 +288,15 @@ export default function OverviewCards({
             {activeModal === 'skatt' && (
               <>
                 <h2 className="text-xl font-black uppercase italic tracking-tighter text-orange-500 mb-1">
-                  Skattreservat
+                  Skatteexempel · {selectedYear}
                 </h2>
 
                 <p className="text-[10px] text-gray-400 uppercase font-black mb-6">
-                  Hur skatten beräknas
+                  Årets skatteexempel använder samma årsprocent som Säkert uttag. Uttagskortet räknar flera år och tar även hänsyn till sparade skattebeslut och skattekontot.
                 </p>
 
                 <div className="space-y-3">
+                  {data.taxReviewRequired && <p role="alert" className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-950">Skatteberäkningen är preliminär. Granska kontona i NE-bilagan innan du använder beloppet som grund för uttag.</p>}
                   <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50 rounded-2xl px-5 py-3">
                     <span className="text-xs font-black text-gray-500 uppercase">
                       Bokförda intäkter
@@ -333,14 +324,21 @@ export default function OverviewCards({
                     </span>
                   </div>
 
-                  {data.ejAvdragsgillt > 0 && (
+                  {data.ejAvdragsgillt !== 0 && (
                     <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
                       <span className="text-xs font-black text-orange-500 uppercase">
-                        + Ej avdragsgilla (6992)
+                        Ej avdragsgilla (R13)
                       </span>
                       <span className="font-black text-orange-500">
-                        +{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
+                        {data.ejAvdragsgillt > 0 ? '+' : ''}{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
                       </span>
+                    </div>
+                  )}
+
+                  {(data.skattefriaIntakter ?? 0) !== 0 && (
+                    <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
+                      <span className="text-xs font-black text-orange-500 uppercase">Skattefria intäkter (R14)</span>
+                      <span className="font-black text-orange-500">{(-(data.skattefriaIntakter ?? 0)).toLocaleString('sv-SE')} kr</span>
                     </div>
                   )}
 
@@ -356,11 +354,11 @@ export default function OverviewCards({
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
-                    {data.skattemassigVinst.toLocaleString('sv-SE')} kr × {taxRate}%
+                    {taxRate === null ? 'Årsprocenten kunde inte hämtas' : `${data.skattemassigVinst.toLocaleString('sv-SE')} kr × ${taxRate}%`}
                   </span>
 
                   <span className="text-2xl font-black text-orange-500">
-                    −{data.skattReserv.toLocaleString('sv-SE')} kr
+                    {taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
                   </span>
                 </div>
               </>

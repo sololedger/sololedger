@@ -43,7 +43,7 @@ test.describe('KAN-46 staging write acceptance', () => {
 
     let invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: originalInvoiceNumber }).first()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
-    await expect(invoiceCard).toContainText('Inte med i bokslutet')
+    await expect(invoiceCard).toContainText(`Behöver kundfordran vid bokslut ${year}`)
     await invoiceCard.getByRole('button').first().click()
 
     await invoiceCard.getByRole('button', { name: 'Redigera faktura' }).click()
@@ -67,17 +67,17 @@ test.describe('KAN-46 staging write acceptance', () => {
     invoiceCard = page.getByTestId('customer-invoice-card').filter({ hasText: invoiceNumber }).first()
     await expect(invoiceCard).toContainText('E2E svensk decemberkund korrigerad', { timeout: 20_000 })
     await expect(invoiceCard).toContainText('3 750 kr')
-    await expect(invoiceCard).toContainText(/behöver tas med i bokslutet/i)
+    await expect(invoiceCard).toContainText(/behöver kundfordran vid bokslut/i)
 
     await page.getByRole('button', { name: 'NE-Bilaga' }).click()
     await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeDisabled()
 
     await page.getByRole('button', { name: 'Fakturor' }).click()
-    await panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' }).click()
+    await panel.getByRole('button', { name: 'Bokför kundfordran', exact: true }).first().click()
     await expect(invoiceCard).toContainText('Obetald', { timeout: 20_000 })
-    await expect(invoiceCard).toContainText('Med i bokslutet')
+    await expect(invoiceCard).toContainText(`Kundfordran vid bokslut ${year}`)
     await invoiceCard.getByRole('button', { name: 'Visa detaljer' }).click()
-    await expect(invoiceCard).toContainText(`31/12/${year}: togs med i bokslutet`)
+    await expect(invoiceCard).toContainText(`31/12/${year}: kundfordran vid bokslut`)
 
     const invoice = await expectInvoiceByNumber(supabase, invoiceNumber)
     const receivableTxId = await expectBookingTransaction(
@@ -132,7 +132,7 @@ test.describe('KAN-46 staging write acceptance', () => {
     await selectYear(page, year + 1)
     await page.getByRole('button', { name: 'Fakturor' }).click()
     await expect(panel).not.toContainText(`fakturor återstår för bokslut ${year + 1}`)
-    await expect(panel.getByRole('button', { name: 'Ta med fakturorna i bokslutet' })).toHaveCount(0)
+    await expect(panel.getByRole('button', { name: 'Bokför kundfordran', exact: true })).toHaveCount(0)
   })
 
   test('supports edit-before-booking and same-year payment undo server invariants', async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import CategoryVisibilityControl from './CategoryVisibilityControl'
 import { supabase } from '@/lib/supabaseClient'
 import {
   getBasAccountHelp,
@@ -22,6 +23,7 @@ interface AccountForm {
 }
 
 interface AccountRow extends AccountForm {
+  hidden_from_new_booking?: boolean
   user_id?: string
 }
 
@@ -49,6 +51,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [kontoplan, setKontoplan] = useState<AccountRow[]>([])
   const [newAccount, setNewAccount] = useState<AccountForm>(EMPTY_ACCOUNT)
   const [saving, setSaving] = useState(false)
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
+  const [visibilityError, setVisibilityError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showManualForm, setShowManualForm] = useState(false)
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
@@ -215,6 +219,30 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     }
   }
 
+  async function toggleVisibility(acc: AccountRow) {
+    if (visibilitySaving || typeof acc.hidden_from_new_booking !== 'boolean') return
+    setVisibilitySaving(true)
+    setVisibilityError(null)
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) throw new Error('Hittade ingen inloggad användare.')
+      const { data, error } = await supabase.from('accounts')
+        .update({ hidden_from_new_booking: !acc.hidden_from_new_booking })
+        .eq('id', acc.id).eq('user_id', user.id)
+        .select('id, hidden_from_new_booking').single()
+      if (error || !data || typeof data.hidden_from_new_booking !== 'boolean') {
+        throw new Error('Synligheten kunde inte sparas. Läs in kontoplanen igen och försök på nytt.')
+      }
+      setKontoplan(current => current.map(item => item.id === acc.id
+        ? { ...item, hidden_from_new_booking: data.hidden_from_new_booking } : item))
+      await onAccountCreated?.()
+    } catch (error: unknown) {
+      setVisibilityError(error instanceof Error ? error.message : 'Synligheten kunde inte sparas.')
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
+
   async function handleDelete(id: string) {
     try {
       const {
@@ -288,6 +316,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   return (
     <div className="space-y-8">
+      <p className="text-sm text-gray-600">Dölj kategorier som du inte vill välja vid ny bokföring. Historik och rapporter bevaras. Du kan alltid välja Visa igen.</p>
+      {visibilityError && <p role="alert" className="text-sm text-red-700">{visibilityError}</p>}
       <div className="bg-white p-4 sm:p-8 rounded-[2.5rem] border shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div>
@@ -890,7 +920,9 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 </td>
 
                 <td className="p-6 text-right pr-8">
-                  <div className="inline-flex items-center gap-2">
+                  <div className="inline-flex flex-wrap items-center gap-2">
+                    <CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking}
+                      disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} />
                     <button
                       onClick={() => startEdit(acc)}
                       className="text-gray-300 hover:text-emerald-600 font-bold transition-colors text-sm"
@@ -962,6 +994,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 </div>
               </div>
 
+              <div className="mb-3">
+                <CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking}
+                  disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} />
+              </div>
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
                   <span>{acc.debit_account}</span>

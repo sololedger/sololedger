@@ -1,0 +1,104 @@
+{
+  "issue": "KAN-80",
+  "base": "af0378ae0935518346360e3492c38175e2c270d2",
+  "branch": "codex/KAN-80-booking-idempotency",
+  "status": "local verified candidate; unstaged/uncommitted; no push or deployment",
+  "hashNormalization": "UTF-8 text, CRLF normalized to LF; manifest excludes its own hash",
+  "files": [
+    {
+      "path": "Architecture.md",
+      "utf8LfBytes": 30283,
+      "sha256": "9806ede2b9a8da44dd39f861559fc77b54920b8f4cbd8045b8dfd34a9f6d057c"
+    },
+    {
+      "path": "PROJECT_STATE.md",
+      "utf8LfBytes": 5615,
+      "sha256": "61b4e50b41879f897c33e1648f78512f4ee29ece27070bf3c71eda753017d676"
+    },
+    {
+      "path": "docs/reviews/KAN-80-local-verification.md",
+      "utf8LfBytes": 13070,
+      "sha256": "703ec701c8ed9ecd7eb58abe2da10536deee4e2d932f0aa6e2262784a33cfd26"
+    },
+    {
+      "path": "package.json",
+      "utf8LfBytes": 5117,
+      "sha256": "6b436e900c47bc6f75c3af0989411c6380a8097a4cd21e095f3535e503c67c5c"
+    },
+    {
+      "path": "scripts/check-kan80-lint.mjs",
+      "utf8LfBytes": 1445,
+      "sha256": "0ef1352112092c57e192c6cdbc90ab598a5ad42490ed79d92a443f54e1c304ef"
+    },
+    {
+      "path": "scripts/run-kan80-local-db.mjs",
+      "utf8LfBytes": 3121,
+      "sha256": "85733ecceb61a6ad7c9a22cbe1ec46536eb265dff75cf7f282c6eefe2131f1d4"
+    },
+    {
+      "path": "scripts/standard-booking-page-harness.mjs",
+      "utf8LfBytes": 1592,
+      "sha256": "b2f3b11851593db80262c064765d7e22603d6d67f8177cc3a8d7fc0b643388d4"
+    },
+    {
+      "path": "scripts/test-admin-delete-dry-run.ts",
+      "utf8LfBytes": 5112,
+      "sha256": "93c0479550deaa3f708b16ef41b2ef53b740d73200d8ff8e32edc9cfcbb6516e"
+    },
+    {
+      "path": "scripts/test-kan80-local-db.mjs",
+      "utf8LfBytes": 16777,
+      "sha256": "be04ac8583c0ac6d07dd09722621e0efb82174203ba80a838542675bc43765fa"
+    },
+    {
+      "path": "scripts/test-standard-booking-amount.mjs",
+      "utf8LfBytes": 12651,
+      "sha256": "b8c21db4cd2e1b71d1b16e1fed83ef8dfd1a66224cd566168a28d3feaf815e1f"
+    },
+    {
+      "path": "scripts/test-standard-booking-attempt.ts",
+      "utf8LfBytes": 3429,
+      "sha256": "3391ce8dba92d9b7e0044f125d717fcaa5649d7aa43543e61525585541dc8bea"
+    },
+    {
+      "path": "scripts/test-standard-booking-browser.mjs",
+      "utf8LfBytes": 8398,
+      "sha256": "0c3c8ed617221049647623057de9a7a0fe7ab5ca3b4d2ff2479ec308119c3bd2"
+    },
+    {
+      "path": "scripts/test-standard-booking-page.mjs",
+      "utf8LfBytes": 5847,
+      "sha256": "d7eaa046f95d6f4cfc07d453a7a50ab1e45e791968a587e9ed4acc11389844bf"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "utf8LfBytes": 57563,
+      "sha256": "9a290634953df57cb2998ab4e92496fadb7047487703810af60a79bf7c4e73d0"
+    },
+    {
+      "path": "src/lib/accountingService.ts",
+      "utf8LfBytes": 65812,
+      "sha256": "8659f950645e1fdaae1813430dc14c4d7013e309f26d2ba3e793073dea9f0a81"
+    },
+    {
+      "path": "src/lib/adminDeleteDryRun.ts",
+      "utf8LfBytes": 2402,
+      "sha256": "3e9c99384a5865970cbdc9f91dad8624b33a7f46dfb226334f362d39b444ef48"
+    },
+    {
+      "path": "src/lib/standardBookingAttempt.ts",
+      "utf8LfBytes": 5768,
+      "sha256": "1fb584d3b99e0cb7453cb6049258399397067da62e8b309d10144780ba16a4db"
+    },
+    {
+      "path": "supabase/functions/delete-user/index.ts",
+      "utf8LfBytes": 9807,
+      "sha256": "0ef746bff15274342b63d847f294538a439fa5d685cc0c703816a024d2a4d1f9"
+    },
+    {
+      "path": "supabase/migrations/20261017190000_kan80_standard_booking_idempotency.sql",
+      "utf8LfBytes": 35879,
+      "sha256": "29a54a1db0169dfde9d65fb557711fae3e3e59028d5cbf57b27a2795fbaea191"
+    }
+  ]
+}

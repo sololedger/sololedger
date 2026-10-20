@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import type { User } from '@supabase/supabase-js'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { beginProfileContext, isCurrentProfileContext, acceptProfileContext, requireProfileContext, type ProfileTicket } from '@/lib/profileContext'
+import { verifyProfileWrite } from '@/lib/profileWriteGuard'
 import { supabase } from '@/lib/supabaseClient'
 import type {
   DeductionEntitlement,
@@ -9,6 +12,7 @@ import type {
 } from '@/lib/vatDomain'
 
 export type AuthProfile = {
+  id: string
   subscription_type: string
   subscription_end: string | null
   company_name: string | null
@@ -45,100 +49,70 @@ function translateAuthError(message: string): string {
   return map[message] || message
 }
 
-// Hämtar profilen med en timeout. Används både för det initiala,
-// snabba försöket och för det bakgrundsförsök som görs om det första
-// tar för lång tid.
+const profileColumns = 'id, subscription_type, subscription_end, company_name, org_nr, vat_number, vat_status, vat_period_type, vat_management_from, domestic_sales_vat_treatment, foreign_purchase_reporting, default_deduction_entitlement, role, email'
 async function fetchProfileWithTimeout(userId: string, timeoutMs: number) {
-  const { data } = await Promise.race([
-    supabase
-      .from('profiles')
-      .select('subscription_type, subscription_end, company_name, org_nr, vat_number, vat_status, vat_period_type, vat_management_from, domestic_sales_vat_treatment, foreign_purchase_reporting, default_deduction_entitlement, role, email')
-      .eq('id', userId)
-      .maybeSingle(),
-    new Promise<any>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), timeoutMs)
-    )
-  ]) as any
-  return data
+  const abort = new AbortController()
+  const timer = setTimeout(() => abort.abort(), timeoutMs)
+  try {
+    const { data, error } = await supabase.from('profiles').select(profileColumns)
+      .eq('id', userId).abortSignal(abort.signal).single()
+    if (error) throw error
+    if (!data || data.id !== userId || profileColumns.split(', ').some(column => !(column in data))) throw new Error('Profilens ägare kunde inte verifieras.')
+    return data as NonNullable<AuthProfile>
+  } finally { clearTimeout(timer) }
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<AuthProfile>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [profileError, setProfileError] = useState(false)
   const [authNotice, setAuthNotice] = useState<AuthNotice>(null)
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false)
 
-  useEffect(() => {
-    let isMounted = true
-    let hasTriggered = false
-
-    const fallbackTimer = setTimeout(() => {
-      if (isMounted && !hasTriggered) {
-        setAuthLoading(false)
-      }
-    }, 2000)
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!isMounted) return
-        hasTriggered = true
-        clearTimeout(fallbackTimer)
-
-        // Supabase skickar detta event specifikt när sessionen kommer
-        // från en klickad återställningslänk. Vi flaggar det så att
-        // page.tsx kan visa en "Sätt nytt lösenord"-skärm direkt,
-        // istället för att tyst släppa in användaren i vanliga appen.
-        if (_event === 'PASSWORD_RECOVERY') {
-          setPasswordRecoveryMode(true)
-        }
-
-        const currentUser = session?.user ?? null
-        setUser((prev: any) => prev?.id === currentUser?.id ? prev : currentUser)
-
-        if (currentUser) {
-          setProfileError(false)
-          const applyProfile = (data: AuthProfile) => {
-            if (!isMounted) return
-            setProfile((prev: AuthProfile) =>
-              JSON.stringify(prev) === JSON.stringify(data) ? prev : data
-            )
-          }
-
-          try {
-            // Snabbt första försök — hinner det inte inom 3s går vi vidare
-            // och gör ett bakgrundsförsök med mer tålamod (istället för
-            // att blockera sidan längre än nödvändigt).
-            const data = await fetchProfileWithTimeout(currentUser.id, 3000)
-            applyProfile(data)
-          } catch (err) {
-            fetchProfileWithTimeout(currentUser.id, 8000)
-              .then(applyProfile)
-              .catch((bgErr) => {
-                // Båda försöken misslyckades. Vi GISSAR INTE på en
-                // prenumerationsstatus (kan felaktigt visa en betalande
-                // kund som gratisanvändare) — istället visar UI:t ett
-                // tydligt felläge med möjlighet att försöka igen.
-                console.error('Fel vid profilhämtning:', bgErr)
-                if (isMounted) setProfileError(true)
-              })
-          }
-        } else {
-          setProfile(null)
-        }
-
-        if (isMounted) setAuthLoading(false)
-      }
-    )
-
-    return () => {
-      isMounted = false
-      hasTriggered = true
-      clearTimeout(fallbackTimer)
-      subscription.unsubscribe()
+  const ticketRef = useRef<ProfileTicket | null>(null)
+  const [profileTicket, setProfileTicket] = useState<ProfileTicket | null>(null)
+  const mounted = useRef(false)
+  const loadProfile = useCallback(async (ticket: ProfileTicket) => {
+    if (!ticket.userId) return
+    try {
+      const data = await fetchProfileWithTimeout(ticket.userId, 8000)
+      if (!mounted.current || !acceptProfileContext(ticket, data.id)) return
+      setProfile(data)
+      setProfileError(false)
+    } catch (error) {
+      if (!mounted.current || !isCurrentProfileContext(ticket)) return
+      console.error('Fel vid profilhämtning:', error)
+      setProfile(null)
+      setProfileError(true)
     }
   }, [])
+  useEffect(() => {
+    mounted.current = true
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted.current) return
+      const currentUser = session?.user ?? null
+      const previousOwner = ticketRef.current?.userId
+      // Invalidate before React renders or any pending reply runs.
+      const ticket = beginProfileContext(currentUser?.id ?? null)
+      ticketRef.current = ticket
+      setProfileTicket(ticket)
+      setProfile(null)
+      setProfileError(false)
+      setUser(currentUser)
+      setAuthLoading(false)
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecoveryMode(true)
+      else if (!currentUser || previousOwner !== currentUser.id) setPasswordRecoveryMode(false)
+      // Do not await Supabase work inside its auth callback/lock.
+      if (currentUser) void loadProfile(ticket)
+    })
+    return () => {
+      mounted.current = false
+      beginProfileContext(null)
+      ticketRef.current = null
+      subscription.unsubscribe()
+    }
+  }, [loadProfile])
 
   const handleAuth = useCallback(async (e: React.FormEvent, credentials: AuthCredentials) => {
     e.preventDefault()
@@ -159,8 +133,8 @@ export function useAuth() {
         })
         if (error) throw error
       }
-    } catch (err: any) {
-      setAuthNotice({ type: 'error', text: translateAuthError(err.message) })
+    } catch (err: unknown) {
+      setAuthNotice({ type: 'error', text: translateAuthError(err instanceof Error ? err.message : 'Autentiseringen kunde inte slutföras.') })
     } finally {
       setAuthLoading(false)
     }
@@ -184,8 +158,8 @@ export function useAuth() {
         type: 'success',
         text: 'Vi har skickat en återställningslänk. Kolla din inkorg (och skräpposten).',
       })
-    } catch (err: any) {
-      setAuthNotice({ type: 'error', text: translateAuthError(err.message) })
+    } catch (err: unknown) {
+      setAuthNotice({ type: 'error', text: translateAuthError(err instanceof Error ? err.message : 'Autentiseringen kunde inte slutföras.') })
     }
   }, [])
 
@@ -197,8 +171,8 @@ export function useAuth() {
       const { error } = await supabase.auth.updateUser({ password: newPassword })
       if (error) throw error
       return { success: true as const }
-    } catch (err: any) {
-      return { success: false as const, error: translateAuthError(err.message) }
+    } catch (err: unknown) {
+      return { success: false as const, error: translateAuthError(err instanceof Error ? err.message : 'Autentiseringen kunde inte slutföras.') }
     }
   }, [])
 
@@ -206,8 +180,10 @@ export function useAuth() {
   const exitPasswordRecoveryMode = useCallback(() => setPasswordRecoveryMode(false), [])
 
   const handleLogout = useCallback(async () => {
+    ticketRef.current = beginProfileContext(null)
+    setProfile(null)
+    setUser(null)
     try {
-      localStorage.removeItem('taxRate')
       await supabase.auth.signOut()
     } catch (err) {
       console.error('Utloggning misslyckades:', err)
@@ -219,28 +195,34 @@ export function useAuth() {
   }, [])
 
   const retryProfile = useCallback(async () => {
-    if (!user?.id) return
+    const owner = ticketRef.current?.userId
+    if (!owner) return
+    const ticket = beginProfileContext(owner)
+    ticketRef.current = ticket
+    setProfileTicket(ticket)
+    setProfile(null)
     setProfileError(false)
-    try {
-      const data = await fetchProfileWithTimeout(user.id, 5000)
-      setProfile((prev: AuthProfile) =>
-        JSON.stringify(prev) === JSON.stringify(data) ? prev : data
-      )
-    } catch (err) {
-      console.error('Fel vid profilhämtning (manuellt försök):', err)
-      setProfileError(true)
-    }
-  }, [user])
-
+    await loadProfile(ticket)
+  }, [loadProfile])
+  const renderedTicket = profileTicket
+  const verifyProfile = useCallback(async () => {
+    if (!renderedTicket) throw new Error('Profilen är inte laddad.')
+    requireProfileContext(renderedTicket)
+    return verifyProfileWrite(renderedTicket)
+  }, [renderedTicket])
   const updateProfile = useCallback((updated: AuthProfile) => {
-    setProfile(updated)
-  }, [])
+    if (!updated || !renderedTicket || !isCurrentProfileContext(renderedTicket) || updated.id !== renderedTicket.userId) return
+    // Trust a fresh read of persisted values, never the submitted form draft.
+    void retryProfile()
+  }, [renderedTicket, retryProfile])
 
   return {
     user,
     profile,
     authLoading,
     profileError,
+    profileContextKey: renderedTicket?.sequence ?? 0,
+    verifyProfile,
     retryProfile,
     authNotice,
     dismissAuthNotice,

@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import AccountingDataBoundary from './AccountingDataBoundary'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import SwedishDateInput from '@/components/SwedishDateInput'
+import { parseSvDateToIso } from '@/lib/dateUi'
 import {
   bookCustomerInvoiceYearEndReceivable,
   createCustomerInvoice,
@@ -42,6 +44,7 @@ import {
 import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
 
 interface CustomerInvoicesPanelProps {
+  verifyProfile: () => Promise<string>
   selectedYear: number
   isYearLocked: boolean
   vatStatus: 'registered' | 'not_registered' | 'unknown'
@@ -100,6 +103,7 @@ function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
 }
 
 export default function CustomerInvoicesPanel({
+  verifyProfile,
   selectedYear,
   isYearLocked,
   vatStatus,
@@ -112,7 +116,9 @@ export default function CustomerInvoicesPanel({
     initialForm({ vatStatus, domesticSalesVatTreatment })
   )
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const invoiceLoadSequence = useRef(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
@@ -128,9 +134,14 @@ export default function CustomerInvoicesPanel({
   })
 
   const loadInvoices = useCallback(async (options?: { clearNoticeOnSuccess?: boolean }) => {
+    const sequence = ++invoiceLoadSequence.current
+    const isCurrent = () => invoiceLoadSequence.current === sequence
     setLoading(true)
+    setLoadError(null)
+    setInvoices([])
     try {
       const rows = await getCustomerInvoices(selectedYear)
+      if (!isCurrent()) return
       setInvoices(rows)
       setNotice(current =>
         options?.clearNoticeOnSuccess
@@ -140,12 +151,14 @@ export default function CustomerInvoicesPanel({
             : null
       )
     } catch (error) {
+      if (!isCurrent()) return
+      setLoadError(`Kunde inte hämta fakturor för ${selectedYear}. Inga belopp visas. Försök igen.`)
       setNotice({
         type: 'error',
         text: error instanceof Error ? error.message : 'Kunde inte hämta fakturor.',
       })
     } finally {
-      setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
   }, [selectedYear])
 
@@ -232,7 +245,9 @@ export default function CustomerInvoicesPanel({
         throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte registreras med svensk moms enligt Profil.')
       }
 
+      await verifyProfile()
       const attachmentUrl = await onUploadAttachment(form.attachment)
+      await verifyProfile()
       await createCustomerInvoice({
         invoiceNumber: form.invoiceNumber,
         customerName: form.customerName,
@@ -316,7 +331,11 @@ export default function CustomerInvoicesPanel({
   }
 
   async function handlePayment(invoice: CustomerInvoice) {
-    const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
+    const paymentDate = parseSvDateToIso(paymentDates[invoice.id] ?? '')
+    if (!paymentDate) {
+      setNotice({ type: 'error', text: 'Ange ett giltigt betalningsdatum innan du registrerar betalningen.' })
+      return
+    }
     const hasReceivable = hasAnyCustomerInvoiceYearEndBooking(invoice)
     setNotice(null)
     setBusyKey(`payment-${invoice.id}`)
@@ -328,6 +347,7 @@ export default function CustomerInvoicesPanel({
         await recordCustomerInvoicePayment(invoice.id, paymentDate, crypto.randomUUID())
       }
 
+      setPaymentDates(previous => ({ ...previous, [invoice.id]: '' }))
       await refreshAfterAction(
         hasReceivable
           ? `Betalningen för faktura ${invoice.invoiceNumber} är registrerad utan ny intäkt eller moms.`
@@ -398,6 +418,7 @@ export default function CustomerInvoicesPanel({
         throw new Error(vatPolicy.taxableBlocker ?? 'Kundfakturan kan inte uppdateras med svensk moms enligt Profil.')
       }
 
+      await verifyProfile()
       await updateCustomerInvoiceUnbooked({
         invoiceId: invoice.id,
         invoiceNumber: editForm.invoiceNumber,
@@ -465,6 +486,7 @@ export default function CustomerInvoicesPanel({
   }
 
   return (
+    <AccountingDataBoundary ready={!loading && !loadError} error={loadError} year={selectedYear} onRetry={() => void loadInvoices()}>
     <section
       data-testid="customer-invoices-panel"
       className="mb-6 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
@@ -521,7 +543,10 @@ export default function CustomerInvoicesPanel({
                 Obetalda fakturor vid årets slut
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
-                En faktura som fortfarande är obetald den 31 december bokförs som kundfordran vid bokslut. Då hamnar intäkt, moms och fordran på rätt år.
+                Kundfordran är pengar som kunden är skyldig företaget. Är fakturan obetald den 31 december bokför du den som kundfordran vid bokslut för det år fakturan hör till. Försäljningen och eventuell moms bokförs då tillsammans med fordran.
+              </p>
+              <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
+                Bokför först kundfordran. När kunden betalar efter årsskiftet registrerar du betalningen på det faktiska betalningsdatumet. Då regleras kundfordran utan ny försäljning eller moms. En momsfri faktura bokförs utan moms även vid bokslut.
               </p>
               <p className="mt-1 text-[10px] font-bold leading-relaxed text-amber-800">
                 {yearEndCandidates.length} fakturor återstår att bokföra som kundfordran vid bokslut {selectedYear}.
@@ -869,7 +894,7 @@ export default function CustomerInvoicesPanel({
               {filteredInvoices.map(invoice => {
                 const anyReceivableBooked = hasAnyCustomerInvoiceYearEndBooking(invoice)
                 const needsYearEndBooking = customerInvoiceNeedsYearEndBooking(invoice, selectedYear)
-                const paymentDate = paymentDates[invoice.id] || `${selectedYear + 1}-01-15`
+                const paymentDate = paymentDates[invoice.id] ?? ''
                 const expanded = expandedInvoiceId === invoice.id
                 const paymentLabel = customerInvoicePaymentLabel(invoice)
                 const yearEndLabel = customerInvoiceYearEndLabel(invoice, selectedYear)
@@ -925,18 +950,23 @@ export default function CustomerInvoicesPanel({
 
                     {expanded && (
                       <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
-                        <div className="mb-3 flex flex-col gap-1 border-b border-emerald-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-xs font-black text-gray-900">
+                        <div data-testid="customer-invoice-details-header" className="mb-3 flex flex-col gap-3 border-b border-emerald-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="break-words text-xs font-black text-gray-900">
                               {invoice.invoiceNumber} · {invoice.customerName}
                             </p>
                             <p className="mt-0.5 text-[10px] font-bold text-gray-500">
-                              {fmtCustomerInvoiceCurrency(invoice.grossAmount)} · {paymentLabel} · {yearEndLabel}
+                              {paymentLabel} · {yearEndLabel}
                             </p>
                           </div>
-                          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">
-                            Detaljer för vald faktura
-                          </p>
+                          <div className="self-start rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:shrink-0">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                              Fakturabelopp
+                            </p>
+                            <p className="text-lg font-black tabular-nums text-gray-900">
+                              {fmtCustomerInvoiceCurrency(invoice.grossAmount)}
+                            </p>
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500">
@@ -1160,25 +1190,49 @@ export default function CustomerInvoicesPanel({
                           </div>
 
                           {invoice.paymentStatus === 'unpaid' && (
-                            <div className="flex gap-2">
-                              <SwedishDateInput
-                                value={paymentDate}
-                                ariaLabel="Betalningsdatum"
-                                onChange={value => setPaymentDates(prev => ({
-                                  ...prev,
-                                  [invoice.id]: value,
-                                }))}
-                                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => void handlePayment(invoice)}
-                                disabled={busyKey === `payment-${invoice.id}`}
-                                className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                              >
-                                {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
-                              </button>
-                            </div>
+                            <form
+                              aria-label={`Registrera betalning för faktura ${invoice.invoiceNumber}`}
+                              onSubmit={event => {
+                                event.preventDefault()
+                                // Validate the visible text too: the shared date input may still
+                                // hold its last valid ISO value while the user edits invalid text.
+                                if (!event.currentTarget.reportValidity()) return
+                                void handlePayment(invoice)
+                              }}
+                              className="flex min-w-0 flex-col gap-2"
+                            >
+                              <p className="text-[10px] font-bold text-gray-700">
+                                Hela fakturabeloppet bokförs vid betalning: {fmtCustomerInvoiceCurrency(invoice.grossAmount)}.
+                                {anyReceivableBooked
+                                  ? ' Betalningen reglerar den bokförda kundfordran. Ingen ny försäljning eller moms bokförs.'
+                                  : ' Ange den dag kunden betalade. Vid betalning efter årsskiftet ska kundfordran bokföras först.'}
+                              </p>
+                              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
+                                <div className="min-w-0 flex-1">
+                                  <label htmlFor={`payment-date-${invoice.id}`} className="mb-1 block text-[9px] font-black uppercase text-gray-500">
+                                    Betalningsdatum
+                                  </label>
+                                <SwedishDateInput
+                                  id={`payment-date-${invoice.id}`}
+                                  value={paymentDate}
+                                  ariaLabel="Betalningsdatum"
+                                  required
+                                  onChange={value => setPaymentDates(prev => ({
+                                    ...prev,
+                                    [invoice.id]: value,
+                                  }))}
+                                  className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 outline-none focus:border-emerald-300"
+                                />
+                                </div>
+                                <button
+                                  type="submit"
+                                  disabled={busyKey === `payment-${invoice.id}`}
+                                  className="h-9 rounded-xl bg-emerald-600 px-3 text-[9px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                                >
+                                  {busyKey === `payment-${invoice.id}` ? 'Registrerar...' : 'Registrera betalning'}
+                                </button>
+                              </div>
+                            </form>
                           )}
 
                           {canUndoPayment && (
@@ -1255,5 +1309,6 @@ export default function CustomerInvoicesPanel({
         </div>
       )}
     </section>
+    </AccountingDataBoundary>
   )
 }

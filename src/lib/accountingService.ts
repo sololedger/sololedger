@@ -1,6 +1,10 @@
+import { verifiedProfileRpc } from './profileWriteGuard'
+import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBookingSubmissionError, type StandardBookingAttempt } from './standardBookingAttempt'
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
 import { calculateBusinessResult } from './resultEngine'
+import { calculateNeEquityResult } from './neEquity'
+import { allocateNeSales, parseNeSalesSummary, unavailableNeSalesClassification } from './neSalesClassification'
 import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
 import type { VatV2BusinessFacts } from './vatBusinessFacts'
@@ -38,6 +42,7 @@ import {
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
 import { calculateNeBalanceRows } from './neBalance'
+import { collectNeAccountCoverage } from './neAccountCoverage'
 import type {
   FixedAsset,
   FixedAssetAcquisitionInput,
@@ -56,6 +61,9 @@ export async function getUserId() {
 }
 
 interface BookTransactionInput {
+  idempotency_key: string
+  ne_sales_basis?: 'small_business_exempt'
+  ne_sales_basis_confirmed?: boolean
   date: string
   description: string
   amount: number
@@ -136,14 +144,33 @@ function normalizeAccountBalanceRows(
   return balances
 }
 
+export async function bookStandardBookingAttempt(attempt: StandardBookingAttempt) {
+  const { userId, rpc } = await verifiedProfileRpc()
+  if (userId !== attempt.userId) throw new Error('Bokningsförsöket tillhör en annan användare.')
+  await requireStandardBookingProtocol()
+  // Submit the saved payload verbatim: no current profile/account normalization on replay.
+  return submitStandardBookingAttempt(attempt, (name, args) => rpc(name, args))
+}
+
+async function requireStandardBookingProtocol() {
+  const { data, error } = await supabase.rpc('get_standard_booking_protocol')
+  if (error || data !== 1) {
+    throw new Error('Databasens skydd för bokningsförsök kunde inte verifieras. Ingen ny bokning skickades. Behåll det sparade försöket och försök igen senare.')
+  }
+}
+
 export async function bookTransaction(tx: BookTransactionInput) {
   const amount = parseStandardBookingAmount(tx.amount)
-  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  const { rpc } = await verifiedProfileRpc()
+  await requireStandardBookingProtocol()
 
   // Hela den vanliga bokningen sker nu atomärt i databasen:
   // transaction + ver_nr + journal_entries skapas i samma PostgreSQL-transaktion.
   // Om något steg misslyckas rullas allt tillbaka.
   const payload = {
+    idempotency_key: tx.idempotency_key,
+    ne_sales_basis: tx.ne_sales_basis ?? null,
+    ne_sales_basis_confirmed: tx.ne_sales_basis_confirmed ?? false,
     date: tx.date,
     description: tx.description,
     amount,
@@ -154,17 +181,15 @@ export async function bookTransaction(tx: BookTransactionInput) {
     file_url: tx.file_url ?? null,
   }
 
-  const { data, error } = await supabase.rpc('book_transaction_atomic', {
+  const { data, error } = await rpc('book_transaction_atomic', {
     p_payload: payload,
   })
 
   if (error) {
-    throw new Error('Bokföringen misslyckades och rullades tillbaka: ' + error.message)
+    throw new StandardBookingSubmissionError(false)
   }
 
-  if (!data?.success) {
-    throw new Error('Bokföringen misslyckades av okänd anledning.')
-  }
+  parseStandardBookingReceipt(data, 'ordinary')
 
   return {
     success: true,
@@ -410,9 +435,9 @@ function mapCustomerInvoice(
 export async function createCustomerInvoice(
   input: CreateCustomerInvoiceInput
 ): Promise<CustomerInvoiceRpcResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('create_customer_invoice_atomic', {
+  const { data, error } = await rpc('create_customer_invoice_atomic', {
     p_payload: {
       invoice_number: input.invoiceNumber,
       customer_name: input.customerName,
@@ -438,9 +463,9 @@ export async function createCustomerInvoice(
 export async function updateCustomerInvoiceUnbooked(
   input: UpdateCustomerInvoiceInput
 ): Promise<CustomerInvoiceRpcResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('update_customer_invoice_unbooked_atomic', {
+  const { data, error } = await rpc('update_customer_invoice_unbooked_atomic', {
     p_invoice_id: input.invoiceId,
     p_payload: {
       invoice_number: input.invoiceNumber,
@@ -682,9 +707,9 @@ export async function getFixedAssetDepreciationRuns(
 export async function bookFixedAssetAcquisition(
   input: FixedAssetAcquisitionInput
 ): Promise<FixedAssetAcquisitionResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
-  const { data, error } = await supabase.rpc('book_fixed_asset_acquisition_atomic', {
+  const { data, error } = await rpc('book_fixed_asset_acquisition_atomic', {
     p_payload: {
       date: input.date,
       description: input.description,
@@ -692,8 +717,8 @@ export async function bookFixedAssetAcquisition(
       idempotency_key: input.idempotencyKey,
       payment_account_role: input.paymentAccountRole,
       vat_deduction_entitlement: input.vatDeductionEntitlement,
-      gross_amount: input.grossAmount,
-      vat_rate: input.vatRate,
+      taxable_base_amount: input.taxableBaseAmount,
+      supplier_vat_amount: input.supplierVatAmount,
       connection_assessment: input.connectionAssessment,
       acquisition_group_id: input.acquisitionGroupId ?? null,
       acquisition_group_name: input.acquisitionGroupName ?? null,
@@ -890,7 +915,7 @@ export async function settleCustomerInvoiceReceivable(
 export async function bookVatV2EuServiceReverseChargeTransaction(
   input: BookVatV2EuServiceReverseChargeInput
 ): Promise<BookVatV2EuServiceReverseChargeResult> {
-  await getUserId()
+  const { rpc } = await verifiedProfileRpc()
 
   const journalPlanResult = buildVatJournalPlan({
     treatment: input.treatment,
@@ -944,7 +969,7 @@ export async function bookVatV2EuServiceReverseChargeTransaction(
 
   let response: Awaited<ReturnType<typeof supabase.rpc>>
   try {
-    response = await supabase.rpc(
+    response = await rpc(
       'book_vat_v2_eu_service_reverse_charge_atomic',
       { p_payload: payload }
     )
@@ -1726,7 +1751,8 @@ export async function bookPeriodizedTransaction(
   tx: BookPeriodizedTransactionInput
 ) {
   const amount = parseStandardBookingAmount(tx.amount)
-  await getUserId() // säkerställer giltig inloggning innan RPC-anropet
+  const { rpc } = await verifiedProfileRpc()
+  await requireStandardBookingProtocol()
 
   // Hela periodiseringen sker nu atomärt i databasen:
   // båda transactions, båda verifikationsnumren och samtliga journalrader
@@ -1735,6 +1761,7 @@ export async function bookPeriodizedTransaction(
   const payload = {
     date: tx.date,
     future_date: tx.future_date,
+    idempotency_key: tx.idempotency_key,
     description: tx.description,
     amount,
     type: tx.type,
@@ -1744,17 +1771,15 @@ export async function bookPeriodizedTransaction(
     file_url: tx.file_url ?? null,
   }
 
-  const { data, error } = await supabase.rpc('book_periodized_transaction_atomic', {
+  const { data, error } = await rpc('book_periodized_transaction_atomic', {
     p_payload: payload,
   })
 
   if (error) {
-    throw new Error('Periodiseringen misslyckades och rullades tillbaka: ' + error.message)
+    throw new StandardBookingSubmissionError(false)
   }
 
-  if (!data?.success) {
-    throw new Error('Periodiseringen misslyckades av okänd anledning.')
-  }
+  parseStandardBookingReceipt(data, 'periodized')
 
   return {
     success: true,
@@ -1832,12 +1857,12 @@ function computeResultat(balances: Record<string, number>) {
   // R15 = intäkter som inte bokförts men ska tas upp
   // R16 = kostnader som inte bokförts men ska dras av
   //
-  // SoloLedger har i nuläget automatisk mappning för R13 via konto 6992.
-  // R14–R16 är fortsatt 0 tills särskilt stöd finns.
+  // Endast uttryckligt verifierade BAS-underkonton justeras automatiskt.
+  // Osäkra fördelningar och personalrelaterade konton följer med för granskning.
   const R11 = bokfRes
   const R12 = R11
   const R13 = ejAvdr
-  const R14 = 0
+  const R14 = result.skattefriaIntakter
   const R15 = 0
   const R16 = 0
   const R17 = result.skattemassigtResultat
@@ -1863,8 +1888,9 @@ function computeResultat(balances: Record<string, number>) {
     R16,
     R17,
 
-    // Behålls internt för kommande varnings-/avstämningssteg.
+    // Bevara klassificeringsvarningar och olöst resultatpåverkan för NE-vyn.
     warnings: result.warnings,
+    taxReviews: result.taxReviews,
     unresolvedResultEffect: result.unresolvedResultEffect,
     reconciliationDifference: result.reconciliationDifference,
   }
@@ -1887,11 +1913,13 @@ function computeResultat(balances: Record<string, number>) {
  * R1-R8-nedbrytningen också går att inspektera isolerat vid verifiering -
  * kostar inget extra eftersom computeResultat() redan räknar ut alla
  * fälten tillsammans.
+ * KAN-93: resultAfterTransfers används bara för B10 och inkluderar nettot
+ * av tekniska 899x-konton. bokfRes och samtliga R-rader behåller sin betydelse.
  *
  * Själva summeringen sker server-side via read-only RPC så klienten inte
  * behöver ladda alla journalrader när datamängden växer.
  */
-export async function getCumulativeResultat(year: number) {
+export async function getCumulativeResultat(year: number, includeReviewSources = false) {
   const endDate = `${year}-12-31`
 
   const { data, error } = await supabase.rpc('get_cumulative_account_balances', {
@@ -1900,19 +1928,25 @@ export async function getCumulativeResultat(year: number) {
 
   if (error) throw error
 
-  return computeResultat(
-    normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
-  )
+  const balances = normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
+  const result = computeResultat(balances)
+  return { ...result, ...calculateNeEquityResult(balances, result.bokfRes), ...(includeReviewSources ? { reviewBalances: balances } : {}) }
 }
 
-export async function getNEData(year: number) {
-  const balances = await getAccountBalances(year)
+export async function getNEData(year: number, includeReviewSources = false) {
+  // One SQL snapshot gives both the annual balances and signed R1/R2 adjustment.
+  const { data: salesData, error: salesError } = await supabase.rpc('get_ne_sales_summary', { p_year: year })
+  const unavailable = salesError?.code === 'PGRST202' || salesError?.code === '42883'
+  if (salesError && !unavailable) throw salesError
+  const neSalesClassification = unavailable ? unavailableNeSalesClassification : parseNeSalesSummary(salesData)
+  if (!unavailable && !Array.isArray(salesData?.balances)) throw new Error('NE-kontosaldon saknas.')
+  const balances = unavailable ? await getAccountBalances(year) : normalizeAccountBalanceRows(salesData.balances as AccountBalanceRpcRow[])
   // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
   // kumulativt saldo istället för årets egna rörelse. Används inte för
   // något annat fält i denna funktion i detta steg.
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
-  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17 } = computeResultat(balances)
+  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17, warnings, taxReviews, unresolvedResultEffect } = computeResultat(balances)
 
   // B10 är kumulativt och ska följa K1:s eget-kapital-konton för
   // enskild näringsverksamhet. BAS K1 placerar 2010, 2011, 2012, 2013,
@@ -1920,9 +1954,10 @@ export async function getNEData(year: number) {
   // ("Övriga egna insättningar"), som i nuvarande BAS också tillhör
   // eget-kapitalgruppen.
   //
-  // Vi behåller den redan verifierade carry-forward-modellen:
-  //   kapital/start + kumulativt bokfört resultat + insättningar - uttag.
-  // Skillnaden här är att alla relevanta K1-konton nu fångas upp.
+  // Carry-forward utan nya journalrader:
+  //   kapital + kumulativt resultat efter överföringar + insättningar - uttag.
+  // KAN-93: 899x nettas endast i B10, så ett redan överfört resultat på
+  // 2019/2010 inte räknas en gång till. Äkta ingående kapital bevaras.
   //
   // Viktigt: vi klipper inte längre uttag/insättningar till >= 0. En kredit
   // på ett uttagskonto eller en debet på ett insättningskonto kan vara en
@@ -1953,13 +1988,13 @@ export async function getNEData(year: number) {
       (balanceSheetBalances['2018'] || 0)
     )
 
-  const cumulativeResult = await getCumulativeResultat(year)
+  const cumulativeResult = await getCumulativeResultat(year, includeReviewSources)
 
   const IB_kapital = Math.round(kumulativtEgetKapitalStart * 100) / 100
   const uttag = Math.round(kumulativaUttag * 100) / 100
   const insattningar = Math.round(kumulativaInsattningar * 100) / 100
   const B10_total = Math.round(
-    (IB_kapital + cumulativeResult.bokfRes + insattningar - uttag) * 100
+    (IB_kapital + cumulativeResult.resultAfterTransfers + insattningar - uttag) * 100
   ) / 100
 
   const neBalanceRows = calculateNeBalanceRows(balanceSheetBalances, B10_total)
@@ -1969,14 +2004,22 @@ export async function getNEData(year: number) {
   const bank = neBalanceRows.B9
   const B13_forutbetalda = Math.round(Math.max(0, balanceSheetBalances['1790'] || 0) * 100) / 100
 
+  const neIncomeRows = allocateNeSales({ R1, R2 }, neSalesClassification)
   return {
-    R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
+    R1: neIncomeRows.R1, R2: neIncomeRows.R2, R3, R4, R5, R6, R7, R8, R9, R10,
+    neSalesClassification,
+    accountCoverage: collectNeAccountCoverage(balances, balanceSheetBalances, neSalesClassification),
+    warnings, taxReviews, unresolvedResultEffect,
     bokfortResultat: bokfRes,
     ejAvdragsgillt: ejAvdr,
     R11, R12, R13, R14, R15, R16, R17,
     IB_kapital, insattningar, uttag,
+    // Account totals cannot establish whether external closing journals also
+    // zeroed the income/expense accounts. Explain that limit without guessing R rows.
+    ...(cumulativeResult.technicalResultBalance !== 0 ? { equityReviewRequired: true } : {}),
     bank,
     ...neBalanceRows,
     B13_forutbetalda,
+    ...(includeReviewSources ? { reviewSources: { annual: balances, cumulative: cumulativeResult.reviewBalances! } } : {}),
   }
 }

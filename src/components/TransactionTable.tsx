@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
   getTransactionSourceUiPolicy,
@@ -9,6 +9,14 @@ import {
 } from '@/lib/transactionSourceUi'
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
+import AttachmentTransactionGroup from './AttachmentTransactionGroup'
+import TransactionPresentation from './TransactionPresentation'
+import { buildHistoryPresentations } from '@/lib/transactionHistoryPresentation'
+import {
+  attachmentGroupingPauseReason,
+  groupTransactionsByAttachment,
+  type AttachmentDisplayItem,
+} from '@/lib/transactionAttachmentGroups'
 import {
   DEFAULT_TRANSACTION_HISTORY_FILTERS,
   TRANSACTION_HISTORY_CATEGORY_OPTIONS,
@@ -32,21 +40,6 @@ interface TransactionTableProps {
   onFavorite: (tx: any) => void
 }
 
-type FixedAssetReclassificationTraceLink = {
-  assetName?: string | null
-  amount?: number | string | null
-  eventDate?: string | null
-  originalVerNr?: number | string | null
-  reclassificationVerNr?: number | string | null
-}
-
-type TransactionWithFixedAssetTrace = {
-  fixed_asset_trace?: {
-    reclassifiedBy?: FixedAssetReclassificationTraceLink[] | null
-    reclassifies?: FixedAssetReclassificationTraceLink[] | null
-  } | null
-}
-
 export default function TransactionTable({
   transactions,
   journalMap,
@@ -62,6 +55,22 @@ export default function TransactionTable({
   // 50 tekniska KORRVER räknas alltså som en rad tills den fälls ut.
   const [visibleCount, setVisibleCount] = useState(50)
   const [expandedUndoBatches, setExpandedUndoBatches] = useState<Set<string>>(new Set())
+  const [groupAttachments, setGroupAttachments] = useState(false)
+  const groupingControlId = useId()
+  const [groupJumpRequest, setGroupJumpRequest] = useState(0)
+  const firstGroupTargets = useRef<{ desktop: HTMLElement | null; mobile: HTMLElement | null }>({
+    desktop: null, mobile: null,
+  })
+
+  // Run after React has revealed the required page and attached both layout refs.
+  // Only an explicit jump request moves focus/scroll; filters and data never do.
+  useEffect(() => {
+    if (groupJumpRequest === 0) return
+    const target = Object.values(firstGroupTargets.current).find(element => element?.getClientRects().length)
+    target?.focus({ preventScroll: true })
+    target?.scrollIntoView({ block: 'start' })
+  }, [groupJumpRequest])
+  const [expandedAttachments, setExpandedAttachments] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<TransactionHistoryFilterState>({
     ...DEFAULT_TRANSACTION_HISTORY_FILTERS,
   })
@@ -115,6 +124,7 @@ export default function TransactionTable({
     return match?.[1]?.trim() || 'SIE-import'
   }
 
+  const presentations = buildHistoryPresentations(transactions, journalMap)
   const enriched = transactions.map((tx, originalIndex) => {
     const journal = journalMap[tx.id] || []
     const isCorrection = tx.is_correction === true
@@ -266,6 +276,7 @@ export default function TransactionTable({
 
     return {
       tx,
+      presentation: presentations.get(tx.id),
       journal: sortedJournal,
       isCorrection,
       verNr,
@@ -303,6 +314,19 @@ export default function TransactionTable({
   })
 
   const filtersActive = hasActiveTransactionHistoryFilters(filters)
+  const groupingPauseReason = attachmentGroupingPauseReason(filters)
+  const attachmentItems = groupTransactionsByAttachment(
+    filteredEnriched, groupAttachments && !groupingPauseReason,
+  )
+
+  function toggleAttachmentGroup(key: string) {
+    setExpandedAttachments(previous => {
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // Gruppindelning för AUTOMATISKA rättelser efter "Ångra SIE-import".
   // Vanliga KORRVER flyttas inte: de ligger kvar i datum-/VER-ordning så
@@ -317,13 +341,18 @@ export default function TransactionTable({
   }
 
   type DisplayItem =
-    | { kind: 'transaction'; item: (typeof enriched)[number] }
+    | AttachmentDisplayItem<(typeof enriched)[number]>
     | { kind: 'sieUndoGroup'; batchId: string; items: typeof filteredEnriched }
 
   const displayItems: DisplayItem[] = []
   const emittedUndoBatches = new Set<string>()
 
-  for (const item of filteredEnriched) {
+  for (const attachmentItem of attachmentItems) {
+    if (attachmentItem.kind === 'attachmentGroup') {
+      displayItems.push(attachmentItem)
+      continue
+    }
+    const item = attachmentItem.item
     if (item.isSieUndo && item.tx.import_batch_id) {
       const batchId = String(item.tx.import_batch_id)
       if (emittedUndoBatches.has(batchId)) continue
@@ -336,6 +365,18 @@ export default function TransactionTable({
     } else {
       displayItems.push({ kind: 'transaction', item })
     }
+  }
+
+  const attachmentGroups = displayItems.filter(item => item.kind === 'attachmentGroup')
+  const groupedVerificationCount = attachmentGroups.reduce((count, group) => count + group.items.length, 0)
+  const firstAttachmentGroup = attachmentGroups[0]
+  const firstGroupIndex = displayItems.findIndex(item => item.kind === 'attachmentGroup')
+
+  function jumpToFirstGroup() {
+    if (firstGroupIndex < 0) return
+    // Reveal complete visual pages, keeping every preceding row in its original order.
+    setVisibleCount(previous => Math.max(previous, Math.ceil((firstGroupIndex + 1) / 50) * 50))
+    setGroupJumpRequest(previous => previous + 1)
   }
 
   if (transactions.length === 0) {
@@ -353,80 +394,55 @@ export default function TransactionTable({
   const clearFilters = () => {
     setFilters({ ...DEFAULT_TRANSACTION_HISTORY_FILTERS })
   }
-  const focusVerification = (verNr: number | string | null | undefined) => {
-    if (verNr == null || verNr === '') return
-    setFilters(prev => ({ ...prev, search: `VER-${verNr}` }))
-  }
-  const traceAmount = (amount: unknown) =>
-    Number(amount || 0).toLocaleString('sv-SE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
 
-  function ReclassificationTraceNote({
-    tx,
-    compact = false,
-  }: {
-    tx: TransactionWithFixedAssetTrace
-    compact?: boolean
-  }) {
-    const trace = tx.fixed_asset_trace || {}
-    const reclassifiedBy: FixedAssetReclassificationTraceLink[] = Array.isArray(trace.reclassifiedBy)
-      ? trace.reclassifiedBy
-      : []
-    const reclassifies: FixedAssetReclassificationTraceLink[] = Array.isArray(trace.reclassifies)
-      ? trace.reclassifies
-      : []
-    if (reclassifiedBy.length === 0 && reclassifies.length === 0) return null
-
-    return (
-      <div className={`${compact ? 'mb-2' : 'mt-2'} space-y-1`}>
-        {reclassifiedBy.map((link, index) => (
-          <div
-            key={`reclassified-by-${link.assetName ?? 'asset'}-${link.reclassificationVerNr ?? index}`}
-            className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[10px] font-bold text-emerald-800"
-          >
-            <span>
-              Omklassificerad {link.eventDate || 'okänt datum'}: {link.assetName || 'Inventarie'} {traceAmount(link.amount)} kr via {link.reclassificationVerNr != null ? `VER-${link.reclassificationVerNr}` : 'en senare verifikation'}. Ursprunglig kontering är oförändrad.
-            </span>
-            {link.reclassificationVerNr != null && (
-              <button
-                type="button"
-                onClick={() => focusVerification(link.reclassificationVerNr)}
-                className="ml-2 font-black text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
-              >
-                Visa VER-{link.reclassificationVerNr}
-              </button>
-            )}
-          </div>
-        ))}
-
-        {reclassifies.map((link, index) => (
-          <div
-            key={`reclassifies-${link.assetName ?? 'asset'}-${link.originalVerNr ?? index}`}
-            className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[10px] font-bold text-emerald-800"
-          >
-            <span>
-              Omklassificerar {link.assetName || 'inventarie'} från {link.originalVerNr != null ? `VER-${link.originalVerNr}` : 'ursprunglig verifikation'} med {traceAmount(link.amount)} kr.
-            </span>
-            {link.originalVerNr != null && (
-              <button
-                type="button"
-                onClick={() => focusVerification(link.originalVerNr)}
-                className="ml-2 font-black text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
-              >
-                Visa VER-{link.originalVerNr}
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    )
-  }
+  const renderAttachmentGroup = (group: Extract<DisplayItem, { kind: 'attachmentGroup' }>, layout: 'desktop' | 'mobile') => (
+    <AttachmentTransactionGroup group={group} expanded={expandedAttachments.has(group.key)}
+      focusTargetRef={group.key === firstAttachmentGroup?.key ? element => { firstGroupTargets.current[layout] = element } : undefined}
+      onToggle={() => toggleAttachmentGroup(group.key)} onOpenAttachment={handleOpenAttachment}
+      isYearLocked={isYearLocked} onEdit={onEdit} onDelete={onDelete} />
+  )
 
   return (
     <>
       <div className="mb-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <div className="min-w-0">
+            <p id={groupingControlId} className="text-sm font-bold text-gray-800">Gruppera gemensamma underlag</p>
+            <p id={groupingControlId + '-help'} className="mt-1 text-xs text-gray-600">
+              Visa verifikationer med samma bilaga tillsammans i hopfällbara grupper.
+            </p>
+          </div>
+          <button type="button" role="switch" aria-checked={groupAttachments}
+            aria-labelledby={groupingControlId} aria-describedby={groupingControlId + '-help'}
+            onClick={() => { setGroupAttachments(previous => !previous); setVisibleCount(50) }}
+            className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+            <span aria-hidden="true" className={
+              'flex h-6 w-11 items-center rounded-full p-0.5 ' + (groupAttachments ? 'justify-end bg-emerald-700' : 'justify-start bg-gray-500')
+            }>
+              <span className="h-5 w-5 rounded-full bg-white shadow-sm" />
+            </span>
+            <span aria-hidden="true">{groupAttachments ? 'På' : 'Av'}</span>
+          </button>
+        </div>
+        {groupAttachments && groupingPauseReason && (
+          <p role="status" className="text-xs text-gray-500">{groupingPauseReason}</p>
+        )}
+        {groupAttachments && !groupingPauseReason && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-600">
+            <p role="status">
+              {attachmentGroups.length > 0
+                ? attachmentGroups.length + ' ' + (attachmentGroups.length === 1 ? 'grupp hittad' : 'grupper hittade') + ' · ' + groupedVerificationCount + ' verifikationer'
+                : 'Inga grupper hittades inom ' + selectedYear + '.'}
+            </p>
+            {attachmentGroups.length > 0 && (
+              <button type="button" onClick={jumpToFirstGroup}
+                className="min-h-11 rounded-xl border border-gray-300 bg-white px-3 py-2 font-bold text-emerald-800 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+                Hoppa till första gruppen
+              </button>
+            )}
+            <p>{transactions.length} verifikationer · Grupper inom {selectedYear}</p>
+          </div>
+        )}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <label className="relative w-full md:max-w-md">
             <span className="sr-only">Sök transaktionshistorik</span>
@@ -533,6 +549,9 @@ export default function TransactionTable({
 
           <tbody className="divide-y divide-gray-100">
             {visibleItems.map((displayItem) => {
+              if (displayItem.kind === 'attachmentGroup') {
+                return <tr key={displayItem.key}><td colSpan={5} className="p-4">{renderAttachmentGroup(displayItem, 'desktop')}</td></tr>
+              }
               if (displayItem.kind === 'sieUndoGroup') {
                 const { batchId, items } = displayItem
                 const first = items[0]
@@ -665,6 +684,7 @@ export default function TransactionTable({
                 badgeClass,
               } = displayItem.item
 
+              const presentation = displayItem.item.presentation
               return (
                 <tr key={tx.id} className={`group transition-all duration-150 ${rowClass}`}>
                   <td className="p-8 font-bold text-gray-400 text-sm">
@@ -759,21 +779,19 @@ export default function TransactionTable({
                       )}
                     </div>
 
-                    <p className={`font-bold ${
+                    {presentation ? <TransactionPresentation presentation={presentation} original={tx.description} /> : <p className={`font-bold ${
                       isCorrection
                         ? 'text-amber-700 text-xs pl-4 border-l-2 border-amber-200'
                         : textClass
                     }`}>
                       {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
-                    </p>
+                    </p>}
 
                     {isCorrection && tx.corrects_ver_nr != null && (
                       <p className="text-[9px] text-amber-500/80 font-bold mt-1 pl-4">
                         Rättar VER-{tx.corrects_ver_nr}
                       </p>
                     )}
-
-                    <ReclassificationTraceNote tx={tx} />
 
                     {tx.file_url && !isNeutralized && !isVatClosing && (
                       <button
@@ -785,8 +803,8 @@ export default function TransactionTable({
                     )}
                   </td>
 
-                  <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${amountClass}`}>
-                    {isVatClosing ? (
+                  <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${presentation?.amountClass ?? amountClass}`}>
+                    {presentation?.amountLabel ? presentation.amountLabel : isVatClosing ? (
                       <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">
                         Systembokning
                       </span>
@@ -871,6 +889,9 @@ export default function TransactionTable({
       {/* ══════════════════════ MOBIL ══════════════════════ */}
       <div className="md:hidden flex flex-col gap-3">
         {visibleItems.map((displayItem) => {
+          if (displayItem.kind === 'attachmentGroup') {
+            return <div key={displayItem.key}>{renderAttachmentGroup(displayItem, 'mobile')}</div>
+          }
           if (displayItem.kind === 'sieUndoGroup') {
             const { batchId, items } = displayItem
             const first = items[0]
@@ -970,6 +991,7 @@ export default function TransactionTable({
             badgeClass,
           } = displayItem.item
 
+          const presentation = displayItem.item.presentation
           return (
             <div
               key={tx.id}
@@ -1012,7 +1034,9 @@ export default function TransactionTable({
                   )}
                 </div>
 
-                {isVatClosing ? (
+                {presentation?.amountLabel ? (
+                  <p className={`font-black text-lg text-right whitespace-nowrap ${presentation.amountClass}`}>{presentation.amountLabel}</p>
+                ) : isVatClosing ? (
                   <p className="font-black text-[10px] uppercase tracking-wide text-violet-500 text-right">
                     Systembokning
                   </p>
@@ -1089,21 +1113,19 @@ export default function TransactionTable({
                 )}
               </div>
 
-              <p className={`font-bold text-sm mb-2 ${
+              {presentation ? <TransactionPresentation presentation={presentation} original={tx.description} /> : <p className={`font-bold text-sm mb-2 ${
                 isCorrection
                   ? 'text-amber-700 text-xs pl-3 border-l-2 border-amber-200'
                   : textClass
               }`}>
                 {isCorrection ? tx.description.replace('↩ ', '') : tx.description}
-              </p>
+              </p>}
 
               {isCorrection && tx.corrects_ver_nr != null && (
                 <p className="text-[9px] text-amber-500/80 font-bold mb-2 pl-3">
                   Rättar VER-{tx.corrects_ver_nr}
                 </p>
               )}
-
-              <ReclassificationTraceNote tx={tx} compact />
 
               {tx.file_url && !isNeutralized && !isVatClosing && (
                 <button

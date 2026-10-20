@@ -1,7 +1,19 @@
 'use client'
 import { useState } from 'react'
+import type { NeSalesClassificationSummary } from '@/lib/neSalesClassification'
+import type { ResultWarning } from '@/lib/resultEngine'
+import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
+import type { NeTaxReview } from '@/lib/neTaxAdjustments'
+import { getNeChartReviewReason } from '@/lib/neChartReview'
+import NEUnderlagReview from './NEUnderlagReview'
 
 interface NEData {
+  equityReviewRequired?: boolean;
+  accountCoverage?: NeAccountCoverage[];
+  warnings?: ResultWarning[];
+  taxReviews?: NeTaxReview[];
+  unresolvedResultEffect?: number;
+  neSalesClassification?: NeSalesClassificationSummary;
   R1: number;
   R2: number;
   R3: number;
@@ -47,6 +59,7 @@ interface NEData {
 }
 
 interface NEBilagaProps {
+  userId?: string;
   neData: NEData | null;
   selectedYear: number;
   isYearLocked: boolean;
@@ -88,6 +101,7 @@ function Tooltip({ text }: { text: string }) {
 }
 
 export default function NEBilaga({
+  userId,
   neData,
   selectedYear,
   isYearLocked,
@@ -97,6 +111,11 @@ export default function NEBilaga({
   const [showAllNERows, setShowAllNERows] = useState(false)
   if (!neData) return <div className="p-12 text-gray-400 italic">Hämtar data från huvudboken...</div>
 
+  const warnings = neData.warnings ?? []
+  const taxReviews = neData.taxReviews ?? []
+  const accountCoverage = neData.accountCoverage ?? []
+  const accountsToReview = accountCoverage.filter(row => row.status === 'review')
+  const hasChartConflicts = accountsToReview.some(row => getNeChartReviewReason(row.accountNumber) !== null)
   const R17 = neData.R17 ?? 0
   const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
   const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
@@ -135,6 +154,88 @@ export default function NEBilaga({
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
+
+        {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
+
+        {neData.equityReviewRequired && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Kontrollera bokslutsverifikationerna</p>
+            <p>B10 tar hänsyn till bokförda resultatöverföringar på 8990–8999 så att eget kapital inte räknas dubbelt. R-raderna har inte räknats om. Om ett annat system också har nollställt intäkts- och kostnadskontona behöver årets resultat stämmas av mot det systemets bokslut före deklaration. SoloLedger återskapar inte saknade resultatbelopp automatiskt.</p>
+          </div>
+        )}
+
+        {taxReviews.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Skattejusteringar behöver granskas</p>
+            <p>R13, R14 och R17 är preliminära. Ingen skattejustering har gissats för följande konton.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {taxReviews.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}, saldo {fmt(row.balance)}: {row.reason}</li>)}
+            </ul>
+            <p className="font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {warnings.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">NE-underlaget är inte komplett</p>
+            <p>Beloppen ingår i det bokförda resultatet, men följande konton saknar en säker NE-klassificering.</p>
+            <ul className="my-2 list-disc space-y-1 pl-5">
+              {warnings.map(warning => (
+                <li key={warning.accountNumber + '-' + warning.code}>{warning.message} Saldo: {fmt(warning.balance)}.</li>
+              ))}
+            </ul>
+            <p>Resultatpåverkan som ännu saknar NE-ruta: {fmt(neData.unresolvedResultEffect)}</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {accountsToReview.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Konton behöver granskas före deklaration</p>
+            {hasChartConflicts && (
+              <p className="mt-2 font-bold">Fördelningen mellan NE-rutorna är preliminär eftersom konton kan ha olika betydelse i BAS K1 och vanlig BAS. Visade belopp är oförändrade.</p>
+            )}
+            <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {accountsToReview.map(row => (
+                <li key={row.accountNumber}>
+                  <span className="font-bold">Konto {row.accountNumber}: {fmt(row.balance)}</span>
+                  {' — '}{row.reason}
+                </li>
+              ))}
+            </ul>
+            <p>Saldo visas som debet minus kredit: resultatkonton för valt år, balanskonton till årets slut.</p>
+            <p className="mt-2">Varningen betyder inte alltid att bokföringen är fel. Ändra inte bokföringen enbart för att få bort varningen. Ta hjälp av en redovisningskunnig om du är osäker.</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {neData.accountCoverage && (
+          <details className="mb-6 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 break-words">
+            <summary className="cursor-pointer font-bold">Kontotäckning ({accountCoverage.length} konton med saldo)</summary>
+            <p className="my-2">Visar befintliga kontokopplingar och undantag. Detta är ingen fullständig kontroll av skattejusteringar eller av att kontona används rätt. Sparade R1/R2-beslut och varningar gäller fortfarande.</p>
+            {(['review', 'mapped', 'excluded'] as const).map(status => (
+              <div key={status} className="mt-3">
+                <p className="font-bold">{status === 'review' ? 'Behöver granskning' : status === 'mapped' ? 'Kopplade enligt befintliga regler' : 'Uttryckligen undantagna'}</p>
+                <ul className="mt-1 space-y-2">
+                  {accountCoverage.filter(row => row.status === status).map(row => (
+                    <li key={row.accountNumber}>
+                      <span className="font-bold">{row.accountNumber}: {fmt(row.balance)} — {row.handling}</span>
+                      <p>{row.reason}</p>
+                    </li>
+                  ))}
+                </ul>
+                {!accountCoverage.some(row => row.status === status) && <p>Inga konton.</p>}
+              </div>
+            ))}
+          </details>
+        )}
+        {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">R1/R2 behöver kontrolleras före deklaration</p>
+            <p>{neData.neSalesClassification?.available
+              ? `För ${neData.neSalesClassification.unresolvedCount} intäktsrader på 3010 saknas ett sparat NE-beslut. Beloppen ingår i resultatet, men fördelningen mellan R1 och R2 är preliminär.`
+              : 'Sparad NE-klassificering är inte tillgänglig. R1/R2 visas enligt kontokopplingen och är inte färdigverifierade.'}</p>
+            <p>Äldre försäljning kräver granskat underlag. Dagens momsprofil används inte för att klassificera historiken.</p>
+          </div>
+        )}
 
         {hasBalanceDifference && (
           <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
@@ -248,7 +349,7 @@ export default function NEBilaga({
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
               <span className="flex items-center flex-wrap">
                 R13 Ej avdragsgilla kostnader
-                <Tooltip text="Bokförda kostnader som inte ska dras av skattemässigt, t.ex. konto 6992." />
+                <Tooltip text="Återläggning av bokförda ej avdragsgilla kostnader på 6072, 6982 och 6992. Avdragsgilla delar och momsavdrag bedöms separat." />
               </span>
               <span className="whitespace-nowrap">{fmt(neData.R13)}</span>
             </div>
@@ -274,6 +375,7 @@ export default function NEBilaga({
                 <Tooltip text="R17 är resultatet efter skattemässiga justeringar: R12 + R13 − R14 + R15 − R16." />
               </span>
               <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{fmt(R17)}</span>
+              {taxReviews.length > 0 && <p className="w-full text-sm text-amber-950">Preliminärt – skattejusteringar behöver granskas före deklaration.</p>}
             </div>
           </div>
 
@@ -328,19 +430,19 @@ export default function NEBilaga({
                 <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 text-sm font-black italic">
                   <span className="flex items-center flex-wrap">
                     B10 Eget kapital
-                    <Tooltip text="Eget kapital = kapital vid årets början + ackumulerat resultat + egna insättningar − egna uttag/skatteavräkning." />
+                    <Tooltip text="Eget kapital = kapital på 2010/2019 + ackumulerat resultat efter bokförda resultatöverföringar + egna insättningar − egna uttag/skatteavräkning. Balanskonton förs vidare automatiskt mellan år; ingen extra IB-bokning behövs." />
                   </span>
                   <span className="text-emerald-600 whitespace-nowrap">{fmt(neData.B10_total)}</span>
                 </div>
 
                 <div className="mt-3 space-y-1.5 text-[9px] font-black uppercase tracking-tighter opacity-70">
                   <div className="flex flex-wrap justify-between gap-x-3 italic">
-                    <span>IB kapital (2010/2019):</span>
+                    <span>Kapital på 2010/2019:</span>
                     <span>{fmt(neData.IB_kapital)}</span>
                   </div>
 
                   <div className="flex flex-wrap justify-between gap-x-3 italic">
-                    <span>Ackumulerat resultat:</span>
+                    <span>Resultat efter överföringar:</span>
                     <span>{fmt((neData.B10_total ?? 0) - (neData.IB_kapital ?? 0) - (neData.insattningar ?? 0) + (neData.uttag ?? 0))}</span>
                   </div>
 
@@ -387,6 +489,14 @@ export default function NEBilaga({
                 >
                   <span><strong className="text-gray-800">{code}</strong> {label}</span>
                   <span className="whitespace-nowrap">{fmt(Number(value ?? 0))}</span>
+                  {code === 'B14' && (
+                    <p className="basis-full mt-1 text-xs leading-relaxed font-medium not-italic text-gray-600">
+                      B14 visar verksamhetens bokförda skulder för skatt och moms vid årets slut.
+                      Utgående moms är moms på din försäljning som ska redovisas till Skatteverket och kan därför ingå här.
+                      Momsen är inte en försäljningsintäkt.
+                      En bokförd momsfordran visas i B8 Övriga fordringar.
+                    </p>
+                  )}
                 </div>
               ))}
 
@@ -406,11 +516,11 @@ export default function NEBilaga({
 
             <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
               !hasBalanceDifference
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                ? accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
                 : 'bg-red-50 border-red-200 text-red-600'
             }`}>
               {!hasBalanceDifference
-                ? '✓ Balansräkningen balanserar'
+                ? accountsToReview.length > 0 ? `Balansdifferens ${fmt(balansDiff)} — konton behöver granskas` : '✓ Balansräkningen balanserar'
                 : `⚠ Balansdifferens ${fmt(balansDiff)}`}
             </div>
           </div>

@@ -4,12 +4,14 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { bindPageHandlers, createBookingStorage, createBookingLocks } from './standard-booking-page-harness.mjs'
 const require = createRequire(import.meta.url)
 // Execute the real service with a controlled Supabase boundary; no network/data writes.
 const calls = []
+let bookingProtocol = 1
 const supabase = {
- auth: { getUser: async () => ({ data: { user: { id: 'kan72-test' } }, error: null }) },
- rpc: async (name, args) => { calls.push({ name, args }); return { data: { success: true, transaction_id: 'test', ver_nr: 1 }, error: null } },
+ auth: { getSession: async () => ({data:{session:{access_token:'kan72-test'}},error:null}), getUser: async () => ({ data: { user: { id: 'kan72-test' } }, error: null }) },
+ rpc: (name,args) => {const response=(async () => { if(name==='get_standard_booking_protocol')return {data:bookingProtocol,error:null}; calls.push({ name, args }); return { data: { success: true, transaction_id: '00000000-0080-4000-8000-000000000004', ver_nr: 1, idempotent_replay: false, reversal_transaction_id: '00000000-0080-4000-8000-000000000005', reversal_ver_nr: 2, periodization_group_id: '00000000-0080-4000-8000-000000000006' }, error: null } })(); response.setHeader=()=>response;return response },
 }
 const cache = new Map()
 function load(file) {
@@ -33,7 +35,21 @@ function load(file) {
  vm.runInThisContext('(function(require,module,exports){'+code+'\n})',{ filename:file })(localRequire,testModule,testModule.exports)
  return testModule.exports
 }
+const context = load('src/lib/profileContext.ts')
+context.acceptProfileContext(context.beginProfileContext('kan72-test'),'kan72-test')
 const service = load('src/lib/accountingService.ts')
+for (const unsupported of [null,0,2,'1']) {
+ bookingProtocol=unsupported
+ for(const method of ['bookTransaction','bookPeriodizedTransaction']) {
+  calls.length=0
+  await assert.rejects(service[method]({amount:1250,date:'2026-10-01',future_date:'2027-01-01',description:'test',type:'sale'}),/Ingen ny bokning skickades/)
+  assert.equal(calls.length,0,'old or unknown DB protocol must never receive a booking')
+ }
+ calls.length=0
+ await assert.rejects(service.bookStandardBookingAttempt({userId:'kan72-test',kind:'ordinary',payload:{amount:1250}}),/Ingen ny bokning skickades/)
+ assert.equal(calls.length,0)
+}
+bookingProtocol=1
 const invalid = [-1250,0,-0.01,0.001,1.001,NaN,Infinity,-Infinity,10000000000000,0.1+0.2]
 for (const method of ['bookTransaction','bookPeriodizedTransaction']) {
  for (const amount of invalid) {
@@ -116,36 +132,27 @@ for (const raw of ['.50','.01','1e2','1E-2']) {
 const metadataHtml=renderToStaticMarkup(React.createElement(Form,{...props,editingBooked:true,editingId:'old-booking'}))
 assert.doesNotMatch(metadataHtml,/standard-booking-amount-error/,'booked metadata ignores legacy amount')
 // Execute the actual page submit handler with controlled dependencies.
-const pageSource=readFileSync('src/app/page.tsx','utf8')
-const tree=ts.createSourceFile('page.tsx',pageSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX)
-let handlerNode
-function visit(node) {
- if (ts.isFunctionDeclaration(node) && node.name?.text==='handleAddTransaction') handlerNode=node
- ts.forEachChild(node,visit)
-}
-visit(tree)
-assert.ok(handlerNode,'submit handler found')
-const handlerCode=ts.transpileModule(handlerNode.getText(tree),{
- compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS},
-}).outputText
-async function submitPage({ amount,booked=false,periodized=false }) {
+async function submitPage({ amount,booked=false,periodized=false,smallBusiness=false,confirmed=true,hidden=false,ready=true,category="sale" }) {
  const actions=[]
- const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,
+ const context={console,Number,Error,parseInt,Date,parseStandardBookingAmount,newBookingCategoryError:load("src/lib/bookingCategoryVisibility.ts").newBookingCategoryError,kontoplanLoaded:ready,kontoplanLoading:false,kontoplanError:null,
  isYearLocked:false,submitInFlightRef:{current:false},editingId:booked?'old-booking':null,
- editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale'}],
- formData:{date:'2026-02-01',description:'Metadata',amount,type:'sale',vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
+ editingBooked:booked,transactions:[{id:'old-booking'}],kontoplan:[{id:'sale',hidden_from_new_booking:hidden,credit_account:smallBusiness?'3010':'3001'}],
+ formData:{date:'2026-02-01',description:'Metadata',amount,type:category,vatRate:25,inputVatDeduction:'profile_default',file:booked?null:{}},
  isSystemManagedTransaction:()=>false,categoryRedirectsToFixedAssets:()=>false,
- periodisera:periodized,periodMonth:'2027-01',profile:{},
+ periodisera:periodized,periodMonth:'2027-01',profile:smallBusiness?{domestic_sales_vat_treatment:'small_business_exempt'}:{},
+ verifyProfile:async()=> 'synthetic-token',user:{id:'kan72-test'},bookingOwnerLoaded:'kan72-test',bookingStorageError:null,retainedBookingAttachment:null,
+ uploadedOrdinaryFile:{current:null},crypto:{randomUUID:()=> '00000000-0080-4000-8000-000000000003'},
+ navigator:{locks:createBookingLocks()},
+ window:{localStorage:createBookingStorage(),confirm:message=>{actions.push(['confirm',message]);return confirmed}},
  refreshFreeUsageCount:async()=>0,canCreateTransactions:()=>true,isYearClosed:async()=>false,
- alert:message=>actions.push(['alert',message]),
- handleFileUpload:async()=>{actions.push(['upload']);return 'fixture-file'},
- bookTransaction:async payload=>actions.push(['book',payload]),
- bookPeriodizedTransaction:async payload=>actions.push(['periodize',payload]),
+ alert:message=>{if(!message.startsWith('Bokningen är bekräftad'))actions.push(['alert',message])},
+ handleFileUpload:async()=>{actions.push(['upload']);return 'kan72-test/fixture.pdf'},
+ bookStandardBookingAttempt:async attempt=>{actions.push([attempt.kind==='ordinary'?'book':'periodize',attempt.payload]);return {ver_nr:1,idempotent_replay:false}},
+ refreshDataWithStatus:async()=>({ok:true}),
  updateTransaction:async(id,payload)=>actions.push(['metadata',payload]),refreshData:async()=>{},
  }
- for(const name of ['setUploading','setEditingId','setEditingBooked','setLastSubmitted','setFormData','setPeriodisera','setShowLimitPaywall','setActiveTab']) context[name]=()=>{}
- vm.createContext(context)
- vm.runInContext(handlerCode,context)
+ for(const name of ['setUploading','setEditingId','setEditingBooked','setLastSubmitted','setFormData','setPeriodisera','setPeriodMonth','setShowLimitPaywall','setActiveTab','setPendingBooking','setRetainedBookingAttachment']) context[name]=()=>{}
+ bindPageHandlers(context)
  await context.handleAddTransaction({preventDefault(){}})
  return actions
 }
@@ -170,3 +177,21 @@ assert.equal(metadataActions[0][0],'metadata')
 assert.equal(metadataActions[0][1].description,'Metadata')
 assert.ok(!('amount' in metadataActions[0][1]),'legacy amount preserved during booked metadata edit')
 console.log('KAN-72 service, raw amount, rendered UI and actual page submit tests passed.')
+
+const canceledNe=await submitPage({amount:'1000',smallBusiness:true,confirmed:false})
+assert.equal(canceledNe.length,1);assert.equal(canceledNe[0][0],'confirm','declined tax basis never uploads or books')
+const confirmedNe=await submitPage({amount:'1000',smallBusiness:true})
+assert.equal(confirmedNe[0][0],'confirm');assert.equal(confirmedNe[1][0],'upload')
+assert.equal(confirmedNe[2][0],'book');assert.equal(confirmedNe[2][1].ne_sales_basis,'small_business_exempt')
+assert.equal(confirmedNe[2][1].ne_sales_basis_confirmed,true)
+console.log('KAN-88 actual submit confirms historical applicability before upload and atomic booking.')
+
+for(const periodized of [false,true]) {
+ for(const state of [{hidden:true},{category:'unknown'},{ready:false}]) {
+  const actions=await submitPage({amount:'1250',periodized,...state});
+  assert.equal(actions.length,1,'invalid category blocks before uploads and booking');
+  assert.equal(actions[0][0],'alert');
+ }
+}
+assert.equal((await submitPage({amount:'-1250',booked:true,hidden:true}))[0][0],'metadata','hidden historical metadata remains editable');
+console.log('PASS KAN-89 actual page handler: hidden, unknown and loading blocked for ordinary/periodized; historical metadata retained');

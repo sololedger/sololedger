@@ -8,9 +8,29 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 SoloLedger is a Swedish bookkeeping application for enskild firma without employees.
 
+Do not develop payroll, employer contributions, employee benefits, or personnel administration. Personnel-related accounts found in SIE imports or existing bookkeeping must remain auditable and receive an understandable review notice when their treatment is outside the supported scope. Do not infer their tax treatment or introduce personnel booking flows merely to handle those accounts.
+
 Correct bookkeeping, auditability, user isolation, and data integrity always come before speed. If something is uncertain, stop and verify before changing it.
 
 Core principle: **Osäker → SoloLedger gissar inte.**
+
+## Produktmål
+
+SoloLedgers främsta mål är att Jessika ska kunna använda programmet för sin enskilda firma år efter år: enkel löpande bokföring, fakturor, momsavstämning, förenklat årsbokslut och korrekta, begripliga belopp att manuellt föra över till deklarationen hos Skatteverket. Elektronisk deklarationsinlämning är inte ett krav.
+
+Programmet ska vara tillförlitligt och kunna användas av andra företagare på sikt, men framtida kommersialisering får inte skapa onödig komplexitet eller försena en fungerande produkt för Jessika.
+
+## Arbets- och prioriteringsprinciper
+
+1. Prioritera verkliga användarbehov, bekräftade fel och konkreta risker för bokföring, moms och deklaration.
+2. Återanvänd tidigare granskningar, tester, beslut och Jira-historik. Gör inte om redan genomförda kontroller utan tydlig anledning.
+3. Skilj bekräftade fel från misstankar, syntetiska testfall och teoretiska begränsningar.
+4. Föreslå inte omfattande granskningar utan ett konkret beslut de ska möjliggöra, tydlig avgränsning och proportionerlig arbetsinsats.
+5. Förklara tekniska frågor på begriplig svenska: vad problemet är, om det påverkar Jessika, vilken risk som finns och vad som behöver göras.
+6. Sträva efter att färdigställa användbara arbetsflöden och avsluta ärenden. Undvik att skapa nya arbetsområden för varje hypotetiskt specialfall.
+7. Behåll höga kvalitetskrav på bokföring, moms och deklaration. Konkreta allvarliga risker får aldrig ignoreras för att spara tid.
+8. Vid varje sessionshandoff ska produktmålet, dessa prioriteringsprinciper och aktuell faktisk leveransstatus framgå eller hänvisas till tydligt.
+9. Respektera att produktägaren inte är programmerare. Presentera beslut och resultat på en nivå som gör att han förstår vad som görs och varför.
 
 ## Communication With Pontus
 
@@ -43,6 +63,14 @@ Core principle: **Osäker → SoloLedger gissar inte.**
 - Never delete or modify real user data as test data.
 - Prefer known fixtures, disposable test data, or rollback-safe verification for database testing.
 - If production data or live DB state must be inspected, keep the action read-only unless the user has explicitly approved a write.
+
+## Worktree Preservation
+
+- Do not automatically or manually delete/archive/remove any SoloLedger worktree without explicit Pontus approval for that exact worktree and a prior inventory of tracked changes, staged changes, untracked files and ignored local files. Check whether unique work, environment configuration, test fixtures or evidence needs to be preserved before removal.
+- Inspect only filenames/metadata for secret-bearing environment/auth/credential files; never read, display, copy or hash credential contents. Do not assume that a clean git status or a saved Git snapshot preserves ignored files.
+- Creating a managed worktree can trigger the app's automatic cleanup of another worktree. Before creating another managed worktree, verify a reliable automatic-cleanup protection/control. If it cannot be verified, do not trigger creation that may remove existing worktrees; reuse a suitable existing checkout and obtain a leader decision for any alternative.
+- Environment limitation: repository instructions do not disable the app's cleanup policy. No reliable setting/tool that disables automatic cleanup has been verified in this environment. Keep this limitation explicit until an actual control is verified; never describe the cleanup risk as solved merely because this rule was written.
+- Manual cleanup, app archive/removal, restore and configuration changes remain separate, explicitly approved actions. Preserve ignored local material through a reviewed secure method before any approved removal.
 
 ## Normal Workflow
 
@@ -227,6 +255,34 @@ When changing DB behavior:
 - Preserve the principle that booked accounting history should be corrected through auditable bookkeeping mechanisms rather than casual mutation or deletion.
 - Preserve user isolation, RLS/grant boundaries, and server-side identity checks around accounting data.
 - When working with VAT, SIE, NE, year closing, corrections, periodization, account balances, or report calculations, verify the current implementation and the live database behavior before making changes.
+
+## Accounting Integration Impact Check
+
+Before implementing changes that affect bookkeeping, VAT, invoices, payments,
+receivables, corrections, reversals, year closing, or report calculations,
+Codex must map the affected accounting integration surface before coding.
+
+At minimum, verify whether the change affects:
+
+- journal entries, transaction sources, metadata, and RPC write paths
+- VAT report aggregation, VAT periods, closing/declaring, and VAT dashboard data
+- NE report/result/balance calculations and year-end behavior
+- dashboard cards, safe withdrawal, balances, and economic key figures
+- payments, customer receivables, settlements, and year-crossing flows
+- corrections, reversals, undo paths, SIE import/export, and locked periods
+- existing tests and necessary new regression tests
+
+New transaction sources or bookkeeping source values must be explicitly
+classified for every relevant report and calculation path. Unknown or new
+sources must not silently fall back to legacy/manual behavior unless that
+classification has been inspected, justified, and tested.
+
+For high-risk accounting changes, the verification plan must include a small
+end-to-end checklist before Staging and before Production: create or identify a
+representative transaction, verify the journal, VAT report, NE/report impact,
+dashboard impact, payment/receivable state, and any correction/year-end behavior
+that is in scope. For low-risk UI-only changes, state why this checklist is not
+applicable instead of running unnecessary E2E.
 
 ## Security Boundaries
 

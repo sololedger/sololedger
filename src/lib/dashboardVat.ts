@@ -8,13 +8,17 @@ import { buildVatReportPresentation, vatReportBlockedMessage } from './vatReport
 import { HISTORICAL_SIE_VAT_REVIEW_MESSAGE } from './sieVatHistory.ts'
 
 const DASHBOARD_VAT_BLOCKED_MESSAGE =
-  'Momsöversikten kan inte beräknas säkert. Kontrollera momsrapporten innan säkert uttag används.'
+  'Momsöversikten kan inte beräknas säkert. Kontrollera momsrapporten innan uttagsutrymme används.'
 const VAT_CLOSING_RECONCILIATION_MESSAGE =
-  'Journalavstämningen kan inte stämmas av mot ett lagrat momsavslut. Historiska momsperioder kräver separat kontroll innan säkert uttag kan beräknas.'
+  'Journalavstämningen kan inte stämmas av mot ett lagrat momsavslut. Historiska momsperioder kräver separat kontroll innan uttagsutrymme kan beräknas.'
 
 export function dashboardVatBreakdownFromReportResult(
   result: VatReportServiceResult
 ): MomsBreakdown {
+  if (result.status === 'blocked' && result.errors.some(error => error.code !== 'aggregation_blocked')) {
+    throw new Error('Kunde inte hämta momsunderlaget.')
+  }
+
   if (result.status === 'ready' &&
     (result.report.historicalReviewRequired || result.report.closingReconciliationRequired)) {
     return {
@@ -57,30 +61,15 @@ export async function getDashboardVatBreakdown(
   startDate: string,
   endDate: string
 ): Promise<MomsBreakdown> {
-  try {
-    const accountingService = await import('./accountingService.ts')
-    const supabaseModule = await import('./supabaseClient.ts') as unknown as {
-      supabase: VatReportSupabaseClient
-    }
-    const userId = await accountingService.getUserId()
-    const result = await getVatReportForPeriodFromDb(
-      supabaseModule.supabase,
-      userId,
-      startDate,
-      endDate
-    )
-
-    return dashboardVatBreakdownFromReportResult(result)
-  } catch (err) {
-    return {
-      utgaendeMoms: 0,
-      ingaendeMoms: 0,
-      momsNetto: 0,
-      manualReviewRequired: true,
-      manualReviewMessage:
-        err instanceof Error
-          ? `${DASHBOARD_VAT_BLOCKED_MESSAGE} (${err.message})`
-          : DASHBOARD_VAT_BLOCKED_MESSAGE,
-    }
+  // Technical read failures must reach the caller's loading/error boundary.
+  // Accounting review/blocked outcomes remain a separate, successful read above.
+  const accountingService = await import('./accountingService.ts')
+  const supabaseModule = await import('./supabaseClient.ts') as unknown as {
+    supabase: VatReportSupabaseClient
   }
+  const userId = await accountingService.getUserId()
+  const result = await getVatReportForPeriodFromDb(
+    supabaseModule.supabase, userId, startDate, endDate
+  )
+  return dashboardVatBreakdownFromReportResult(result)
 }

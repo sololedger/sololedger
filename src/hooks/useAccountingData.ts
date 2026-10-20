@@ -1,24 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { getAccountBalances, getBalanceSheetBalances, getNEData, isYearClosed } from '@/lib/accountingService'
+import { getAccountBalances, getBalanceSheetBalances, getNEData, getUserId, isYearClosed } from '@/lib/accountingService'
 import { setupDefaultAccounts } from '@/lib/setupDefaultAccounts'
 import { getDashboardVatBreakdown } from '@/lib/dashboardVat'
 import {
   loadCompleteTransactionHistory,
-  transactionHistoryErrorMessage,
   type TransactionHistorySupabaseClient,
 } from '@/lib/transactionHistoryLoader'
-import {
-  beginTransactionHistoryLoad,
-  completeTransactionHistoryLoad,
-  createInitialTransactionHistoryState,
-  failTransactionHistoryLoad,
-  getVisibleTransactionHistory,
-  isCurrentTransactionHistoryLoad,
-  isTransactionHistoryCompleteForYear,
-  isTransactionHistoryLoadingForYear,
-  transactionHistoryErrorForYear,
-} from '@/lib/transactionHistoryState'
 
 // Sorterar transaktioner: nyaste datum överst, och vid samma datum
 // nyaste ver_nr överst (annars saknas sekundärsortering helt och
@@ -40,106 +28,43 @@ export type AccountingRefreshResult =
 
 // Äger laddning av: transactions, balances, neData, journalMap, kontoplan, isYearLocked.
 export function useAccountingData(user: any, selectedYear: number, subscriptionType: string | undefined) {
-  const [dataLoading, setDataLoading] = useState(false)
-  const [isYearLocked, setIsYearLocked] = useState(false)
-  const [storedTransactions, setStoredTransactions] = useState<any[]>([])
-  const [balances, setBalances] = useState<any>({})
-  const [balanceSheetBalances, setBalanceSheetBalances] = useState<any>({})
-  const [neData, setNeData] = useState<any>(null)
-  const [storedJournalMap, setStoredJournalMap] = useState<any>({})
-  const [transactionHistoryState, setTransactionHistoryState] = useState(createInitialTransactionHistoryState)
+  const userId = user?.id ?? null
+  // A fresh scope object also distinguishes A -> B -> A. Rendering masks old data
+  // immediately; the layout effect invalidates replies before the browser paints.
+  const scope = useMemo(() => ({ userId, year: selectedYear }), [userId, selectedYear])
+  const scopeRef = useRef(scope)
+  useLayoutEffect(() => { scopeRef.current = scope }, [scope])
+  const loadSequence = useRef(0)
+  const kontoplanLoadSeqRef = useRef(0)
+  type Snapshot = {
+    scope: typeof scope
+    status: 'loading' | 'ready' | 'error'
+    error: string | null
+    data: {
+      transactions: any[]
+      journalMap: any
+      balances: Awaited<ReturnType<typeof getAccountBalances>>
+      balanceSheetBalances: Awaited<ReturnType<typeof getBalanceSheetBalances>>
+      neData: Awaited<ReturnType<typeof getNEData>>
+      momsBreakdown: Awaited<ReturnType<typeof getDashboardVatBreakdown>>
+    } | null
+  }
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
+  const [isYearLocked, setIsYearLocked] = useState(true)
   const [kontoplan, setKontoplan] = useState<any[]>([])
+  const [kontoplanScope, setKontoplanScope] = useState<typeof scope | null>(null)
   const [kontoplanLoading, setKontoplanLoading] = useState(false)
   const [kontoplanLoaded, setKontoplanLoaded] = useState(false)
   const [kontoplanError, setKontoplanError] = useState<string | null>(null)
-  const [momsBreakdown, setMomsBreakdown] = useState({ utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
-
-  // Håller alltid det SENAST valda året, oavsett hur gammal closure ett
-  // pågående async-anrop (load() eller refreshData()) bär med sig. Sätts
-  // vid varje render - en vanlig variabel/closure hade istället frusit
-  // vid det ögonblick funktionen skapades, vilket är precis det som
-  // orsakade stale-data-buggen (år 2028:s svar skrev över 2027:s state).
-  const latestYearRef = useRef(selectedYear)
-  latestYearRef.current = selectedYear
-  const kontoplanLoadSeqRef = useRef(0)
-  const transactionHistoryLoadSeqRef = useRef(0)
-
-  const transactionHistoryComplete = isTransactionHistoryCompleteForYear(transactionHistoryState, selectedYear)
-  const transactionHistoryLoading = isTransactionHistoryLoadingForYear(transactionHistoryState, selectedYear)
-  const transactionHistoryError = transactionHistoryErrorForYear(transactionHistoryState, selectedYear)
-  const {
-    transactions,
-    journalMap,
-  } = getVisibleTransactionHistory({
-    state: transactionHistoryState,
-    selectedYear,
-    transactions: storedTransactions,
-    journalMap: storedJournalMap,
-    emptyJournalMap: {},
-  })
-
-  function transactionHistoryLoadIsCurrent(marker: { year: number; sequence: number }) {
-    return isCurrentTransactionHistoryLoad({
-      marker,
-      latestYear: latestYearRef.current,
-      latestSequence: transactionHistoryLoadSeqRef.current,
-    })
-  }
-
-  function startTransactionHistoryLoad(year: number) {
-    const { marker, state } = beginTransactionHistoryLoad(transactionHistoryLoadSeqRef.current, year)
-    transactionHistoryLoadSeqRef.current = marker.sequence
-    setTransactionHistoryState(state)
-    return marker
-  }
-
-  async function loadTransactionHistoryForYear(
-    year: number,
-    startDate: string,
-    endDate: string,
-    marker = startTransactionHistoryLoad(year)
-  ): Promise<AccountingRefreshResult> {
-    try {
-      const historyData = await loadCompleteTransactionHistory({
-        client: supabase as unknown as TransactionHistorySupabaseClient,
-        userId: user.id,
-        startDate,
-        endDate,
-      })
-
-      if (!transactionHistoryLoadIsCurrent(marker)) {
-        return { ok: false, reason: 'stale_year' }
-      }
-
-      setStoredTransactions(sortTransactionsByDateAndVer(historyData.transactions, historyData.journalMap))
-      setStoredJournalMap(historyData.journalMap)
-      setTransactionHistoryState(completeTransactionHistoryLoad(marker))
-      return { ok: true }
-    } catch (err) {
-      if (!transactionHistoryLoadIsCurrent(marker)) {
-        return { ok: false, reason: 'stale_year' }
-      }
-
-      setStoredTransactions([])
-      setStoredJournalMap({})
-      setTransactionHistoryState(failTransactionHistoryLoad(marker, transactionHistoryErrorMessage(err)))
-      return { ok: false, reason: 'error', error: err }
-    }
-  }
-
-  async function loadSupportingAccountingData(year: number, startDate: string, endDate: string) {
-    const [balanceData, balanceSheetData, neRes, momsRes] = await Promise.all([
-      getAccountBalances(year),
-      getBalanceSheetBalances(year),
-      getNEData(year),
-      getDashboardVatBreakdown(startDate, endDate)
-    ])
-
-    return { balanceData, balanceSheetData, neRes, momsRes }
-  }
+  const currentSnapshot = snapshot?.scope === scope ? snapshot : null
+  const accountingDataReady = Boolean(userId && currentSnapshot?.status === 'ready')
+  const accountingDataError = currentSnapshot?.status === 'error' ? currentSnapshot.error : null
+  const dataLoading = Boolean(userId && !accountingDataReady && !accountingDataError)
+  const visible = accountingDataReady ? currentSnapshot!.data : null
 
   async function loadKontoplanOptionsInternal(): Promise<AccountingRefreshResult> {
-    const userId = user?.id
+    if (scopeRef.current !== scope) return { ok: false, reason: 'stale_load' }
+    const userId = scope.userId
     const loadSeq = ++kontoplanLoadSeqRef.current
     if (!userId) {
       setKontoplan([])
@@ -149,16 +74,18 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
       return { ok: false, reason: 'stale_load' }
     }
 
+    setKontoplanScope(scope)
+    setKontoplan([])
     setKontoplanLoading(true)
     setKontoplanLoaded(false)
     setKontoplanError(null)
 
-    const isCurrentLoad = () => loadSeq === kontoplanLoadSeqRef.current
+    const isCurrentLoad = () => loadSeq === kontoplanLoadSeqRef.current && scopeRef.current === scope
 
     try {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, name, default_vat_rate, debit_account, credit_account')
+        .select('id, name, default_vat_rate, debit_account, credit_account, hidden_from_new_booking')
         .eq('user_id', userId)
         .order('name')
       if (error) throw error
@@ -176,6 +103,7 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
         if (!aIsZ && bIsZ) return -1
         return a.name.localeCompare(b.name, 'sv')
       })
+      setKontoplanScope(scope)
       setKontoplan(sorted)
       setKontoplanLoaded(true)
       return { ok: true }
@@ -197,192 +125,85 @@ export function useAccountingData(user: any, selectedYear: number, subscriptionT
     await loadKontoplanOptionsInternal()
   }
 
-  async function refreshDataInternal(): Promise<AccountingRefreshResult> {
-    // Vilket år detta anrop startades för - jämförs mot latestYearRef.current
-    // strax innan vi skriver till state, så ett gammalt anrop (t.ex. för
-    // 2028) aldrig kan skriva över nyare state efter att användaren redan
-    // bytt till ett annat år (t.ex. 2027).
-    const startedYear = selectedYear
+  async function refreshDataInternal(initialize = false): Promise<AccountingRefreshResult> {
+    if (!userId || scopeRef.current !== scope) return { ok: false, reason: 'stale_load' }
+    const sequence = ++loadSequence.current
+    const isCurrent = () => scopeRef.current === scope && loadSequence.current === sequence
+    setSnapshot({ scope, status: 'loading', error: null, data: null })
+    setIsYearLocked(true)
     try {
+      if (await getUserId() !== userId) throw new Error('Inloggningen har ändrats.')
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+      if (initialize) {
+        const { data, error } = await supabase.from('accounts').select('id').eq('user_id', userId).limit(1)
+        if (error) throw error
+        if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+        if (!data?.length) await setupDefaultAccounts(userId)
+      }
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
       const startDate = `${selectedYear}-01-01`
       const endDate = `${selectedYear}-12-31`
-      const supportingDataPromise = loadSupportingAccountingData(selectedYear, startDate, endDate)
-        .then(data => ({ ok: true as const, data }))
-        .catch(error => ({ ok: false as const, error }))
-
-      const historyResult = await loadTransactionHistoryForYear(startedYear, startDate, endDate)
-      if (!historyResult.ok) return historyResult
-
-      // Skriv bara till state om det året vi hämtade för fortfarande är
-      // det aktuella valda året.
-      if (startedYear !== latestYearRef.current) {
-        return { ok: false, reason: 'stale_year' }
+      // Publish one complete result; history success must not hide a failed NE/balance read.
+      const [history, balances, balanceSheetBalances, neData, momsBreakdown, locked] = await Promise.all([
+        loadCompleteTransactionHistory({
+          client: supabase as unknown as TransactionHistorySupabaseClient, userId, startDate, endDate,
+        }),
+        getAccountBalances(selectedYear), getBalanceSheetBalances(selectedYear),
+        getNEData(selectedYear), getDashboardVatBreakdown(startDate, endDate), isYearClosed(selectedYear),
+      ])
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+      if (await getUserId() !== userId) throw new Error('Inloggningen har ändrats.')
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+      if (!balances || !balanceSheetBalances || !neData || !momsBreakdown) {
+        throw new Error('Bokföringsunderlaget saknas.')
       }
-
-      const supportingDataResult = await supportingDataPromise
-      if (startedYear !== latestYearRef.current) {
-        return { ok: false, reason: 'stale_year' }
-      }
-      if (!supportingDataResult.ok) {
-        console.error('Fel vid laddning av övrig bokföringsdata:', supportingDataResult.error)
-        return { ok: false, reason: 'error', error: supportingDataResult.error }
-      }
-
-      const { balanceData, balanceSheetData, neRes, momsRes } = supportingDataResult.data
-      setBalances(balanceData || {})
-      setBalanceSheetBalances(balanceSheetData || {})
-      setNeData(neRes)
-      setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
-
-      // Uppdaterar även kontoplanen globalt vid refresh
-      const kontoplanResult = await loadKontoplanOptionsInternal()
-      if (!kontoplanResult.ok) return kontoplanResult
-
-      return { ok: true }
+      setIsYearLocked(locked)
+      setSnapshot({ scope, status: 'ready', error: null, data: {
+        transactions: sortTransactionsByDateAndVer(history.transactions, history.journalMap),
+        journalMap: history.journalMap, balances, balanceSheetBalances, neData, momsBreakdown,
+      } })
+      const accountsResult = await loadKontoplanOptionsInternal()
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+      return accountsResult
     } catch (err) {
-      console.error('Fel vid laddning av data:', err)
-      if (startedYear !== latestYearRef.current) {
-        return { ok: false, reason: 'stale_year' }
-      }
+      if (!isCurrent()) return { ok: false, reason: 'stale_load' }
+      console.error('Fel vid laddning av bokföringsdata:', err)
+      setSnapshot({ scope, status: 'error', data: null,
+        error: `Kunde inte hämta ekonomiska uppgifter för ${selectedYear}. Inga belopp visas. Försök igen.` })
       return { ok: false, reason: 'error', error: err }
     }
   }
 
-  async function refreshData() {
-    await refreshDataInternal()
-  }
+  async function refreshData() { await refreshDataInternal() }
+  async function refreshDataWithStatus() { return refreshDataInternal() }
+  async function retryAccountingData() { await refreshDataInternal(true) }
 
-  async function refreshDataWithStatus() {
-    return refreshDataInternal()
-  }
-
-  // Ladda data när user eller år ändras
   useEffect(() => {
-    if (!user) {
-      kontoplanLoadSeqRef.current += 1
-      transactionHistoryLoadSeqRef.current += 1
-      setStoredTransactions([])
-      setStoredJournalMap({})
-      setTransactionHistoryState(createInitialTransactionHistoryState())
-      setKontoplan([])
-      setKontoplanLoaded(false)
-      setKontoplanLoading(false)
-      setKontoplanError(null)
-      return
-    }
-    let cancelled = false
-    setDataLoading(true)
-    setKontoplanLoaded(false)
-    setKontoplanError(null)
-
-    async function load() {
-      if (!user?.id) return
-      // Samma princip som i refreshData(): vilket år detta load()-anrop
-      // startades för. Läggs till utöver det befintliga cancelled-skyddet
-      // nedan, inte istället för det.
-      const startedYear = selectedYear
-      const historyMarker = startTransactionHistoryLoad(startedYear)
-      try {
-        const { data, error } = await supabase
-          .from('accounts')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1)
-
-        if (error) throw error
-
-        if (!data || data.length === 0) {
-          await setupDefaultAccounts(user.id)
-        }
-
-        if (cancelled) return
-
-        const startDate = `${selectedYear}-01-01`
-        const endDate   = `${selectedYear}-12-31`
-        const supportingDataPromise = loadSupportingAccountingData(selectedYear, startDate, endDate)
-          .then(data => ({ ok: true as const, data }))
-          .catch(error => ({ ok: false as const, error }))
-
-        const historyResult = await loadTransactionHistoryForYear(startedYear, startDate, endDate, historyMarker)
-        if (!historyResult.ok) return
-
-        if (cancelled) return
-
-        // Extra lager utöver cancelled: skriv bara om det här fortfarande
-        // är det senast valda året.
-        if (startedYear !== latestYearRef.current) return
-
-        const supportingDataResult = await supportingDataPromise
-        if (cancelled || startedYear !== latestYearRef.current) return
-        if (!supportingDataResult.ok) {
-          console.error('Fel vid laddning av övrig bokföringsdata:', supportingDataResult.error)
-        } else {
-          const { balanceData, balanceSheetData, neRes, momsRes } = supportingDataResult.data
-          setBalances(balanceData || {})
-          setBalanceSheetBalances(balanceSheetData || {})
-          setNeData(neRes)
-          setMomsBreakdown(momsRes || { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
-        }
-        const kontoplanResult = await loadKontoplanOptionsInternal()
-        if (!kontoplanResult.ok) return
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Fel vid laddning av data:', err)
-          if (transactionHistoryLoadIsCurrent(historyMarker)) {
-            setStoredTransactions([])
-            setStoredJournalMap({})
-            setTransactionHistoryState(failTransactionHistoryLoad(historyMarker, transactionHistoryErrorMessage(err)))
-          }
-        }
-      } finally {
-        // Endast den aktuella laddningen får släcka loading-state.
-        if (!cancelled && startedYear === latestYearRef.current) {
-          setDataLoading(false)
-        }
-      }
-    }
-
-    load()
+    if (userId) void refreshDataInternal(true)
     return () => {
-      cancelled = true
+      loadSequence.current += 1
       kontoplanLoadSeqRef.current += 1
-      transactionHistoryLoadSeqRef.current += 1
     }
-  }, [user, selectedYear, subscriptionType])
-
-  // Kontrollera om räkenskapsåret är låst
-  useEffect(() => {
-    async function checkYearLock() {
-      if (!user) return
-      try {
-        const locked = await isYearClosed(selectedYear)
-        setIsYearLocked(locked)
-      } catch (err) {
-        console.error(err)
-        setIsYearLocked(false)
-      }
-    }
-    checkYearLock()
-  }, [selectedYear, user])
+    // Reload for identity/year/subscription changes, not every new user object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, selectedYear, subscriptionType])
 
   return {
-    transactions,
-    balances,
-    balanceSheetBalances,
-    neData,
-    journalMap,
-    transactionHistoryError,
-    transactionHistoryLoading,
-    transactionHistoryComplete,
-    kontoplan,
-    kontoplanLoading,
-    kontoplanLoaded,
-    kontoplanError,
-    dataLoading,
-    isYearLocked, setIsYearLocked,
-    refreshData,
-    refreshDataWithStatus,
-    loadKontoplanOptions,
-    momsBreakdown,
+    transactions: visible?.transactions ?? [],
+    balances: visible?.balances ?? {},
+    balanceSheetBalances: visible?.balanceSheetBalances ?? {},
+    neData: visible?.neData ?? null,
+    journalMap: visible?.journalMap ?? {},
+    momsBreakdown: visible?.momsBreakdown ?? null,
+    transactionHistoryError: accountingDataError,
+    transactionHistoryLoading: dataLoading,
+    transactionHistoryComplete: accountingDataReady,
+    kontoplan: kontoplanScope === scope ? kontoplan : [],
+    kontoplanLoading: kontoplanScope !== scope || kontoplanLoading,
+    kontoplanLoaded: kontoplanScope === scope && kontoplanLoaded,
+    kontoplanError: kontoplanScope === scope ? kontoplanError : null,
+    dataLoading, accountingDataReady, accountingDataError, retryAccountingData,
+    isYearLocked: accountingDataReady ? isYearLocked : true, setIsYearLocked,
+    refreshData, refreshDataWithStatus, loadKontoplanOptions,
   }
 }

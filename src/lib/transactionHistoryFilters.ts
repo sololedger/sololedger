@@ -41,6 +41,7 @@ export interface TransactionHistoryJournalLike {
 }
 
 export interface TransactionHistoryFilterItem {
+  presentation?: { title: string; searchTerms: readonly string[] }
   tx: {
     id?: string | null
     date?: string | null
@@ -55,22 +56,6 @@ export interface TransactionHistoryFilterItem {
     is_correction?: boolean | null
     corrects_ver_nr?: string | number | null
     import_batch_id?: string | null
-    fixed_asset_trace?: {
-      reclassifiedBy?: Array<{
-        assetName?: string | null
-        amount?: number | string | null
-        eventDate?: string | null
-        originalVerNr?: number | string | null
-        reclassificationVerNr?: number | string | null
-      }>
-      reclassifies?: Array<{
-        assetName?: string | null
-        amount?: number | string | null
-        eventDate?: string | null
-        originalVerNr?: number | string | null
-        reclassificationVerNr?: number | string | null
-      }>
-    } | null
   }
   journal: TransactionHistoryJournalLike[]
   verNr?: string | number | null
@@ -211,6 +196,8 @@ function searchCorpus(
     date.match(/^\d{4}-\d{2}-\d{2}$/) ? date.slice(0, 7) : '',
     date.match(/^\d{4}/)?.[0] ?? '',
     item.tx.description ?? '',
+    item.presentation?.title ?? '',
+    ...(item.presentation?.searchTerms ?? []),
     item.tx.type ?? '',
     item.tx.source ?? '',
     item.tx.customer_invoice_id ?? '',
@@ -226,26 +213,6 @@ function searchCorpus(
   }
   if (item.tx.source_ver_series || item.tx.source_ver_number) {
     values.push(`${item.tx.source_ver_series ?? ''}${item.tx.source_ver_number ?? ''}`)
-  }
-  for (const link of item.tx.fixed_asset_trace?.reclassifiedBy ?? []) {
-    values.push(
-      'inventarie omklassificerad',
-      link.assetName ?? '',
-      link.eventDate ?? '',
-      `VER-${link.reclassificationVerNr ?? ''}`,
-      String(link.reclassificationVerNr ?? ''),
-      String(link.amount ?? '')
-    )
-  }
-  for (const link of item.tx.fixed_asset_trace?.reclassifies ?? []) {
-    values.push(
-      'inventarie omklassning',
-      link.assetName ?? '',
-      link.eventDate ?? '',
-      `VER-${link.originalVerNr ?? ''}`,
-      String(link.originalVerNr ?? ''),
-      String(link.amount ?? '')
-    )
   }
 
   for (const row of item.journal) {

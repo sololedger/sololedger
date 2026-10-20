@@ -31,6 +31,7 @@ const legacyKeys: AdminDeleteDryRunCountKey[] = [
 ]
 
 const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
+  'ne_sales_classifications',
   'fixed_asset_depreciation_runs',
   'fixed_asset_events',
   'fixed_asset_acquisition_idempotency',
@@ -40,6 +41,7 @@ const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
   'customer_invoices',
   'tax_account_movements',
   'tax_account_events',
+  'standard_booking_idempotency',
   'vat_v2_booking_idempotency',
   'vat_audit_snapshots',
   'vat_periods',
@@ -63,6 +65,7 @@ for (const key of ADMIN_DELETE_DRY_RUN_COUNT_KEYS) {
 }
 
 const normalizedLifecycle = normalizeAdminDeleteDryRunCounts({
+  ne_sales_classifications: 17,
   fixed_asset_depreciation_runs: 12,
   fixed_asset_events: 13,
   fixed_asset_acquisition_idempotency: 14,
@@ -106,6 +109,7 @@ assertEqual(
   16,
   'Fixed asset acquisition group count is preserved'
 )
+assertEqual(normalizedLifecycle.ne_sales_classifications, 17, 'NE classification count preserved')
 assertEqual(normalizedLifecycle.customer_invoice_bookings, 10, 'Customer invoice booking count is preserved')
 assertEqual(normalizedLifecycle.customer_invoices, 11, 'Customer invoice count is preserved')
 assertEqual(normalizedLifecycle.tax_account_movements, 1, 'Movement count is preserved')

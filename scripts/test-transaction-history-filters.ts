@@ -687,44 +687,12 @@ const sourceCategoryItems: TransactionHistoryFilterItem[] = [
     isSystemManaged: true,
   },
   {
-    tx: {
-      id: 'tx-fixed-asset-source',
-      date: '2026-08-06',
-      description: 'Inventarie',
-      source: 'fixed_asset',
-      fixed_asset_trace: {
-        reclassifiedBy: [
-          {
-            assetName: 'TEST – Datormus',
-            amount: 1000,
-            eventDate: '2026-10-10',
-            originalVerNr: 151,
-            reclassificationVerNr: 152,
-          },
-        ],
-      },
-    },
+    tx: { id: 'tx-fixed-asset-source', date: '2026-08-06', description: 'Inventarie', source: 'fixed_asset' },
     journal: [{ id: 'je-fixed-asset-source', account_number: '1220', debit: 1, credit: 0, ver_nr: 49 }],
     verNr: 49,
   },
   {
-    tx: {
-      id: 'tx-fixed-asset-reclass-source',
-      date: '2026-08-07',
-      description: 'Inventarieomklassning',
-      source: 'fixed_asset_reclassification',
-      fixed_asset_trace: {
-        reclassifies: [
-          {
-            assetName: 'TEST – Datormus',
-            amount: 1000,
-            eventDate: '2026-10-10',
-            originalVerNr: 151,
-            reclassificationVerNr: 152,
-          },
-        ],
-      },
-    },
+    tx: { id: 'tx-fixed-asset-reclass-source', date: '2026-08-07', description: 'Inventarieomklassning', source: 'fixed_asset_reclassification' },
     journal: [{ id: 'je-fixed-asset-reclass-source', account_number: '1220', debit: 1, credit: 0, ver_nr: 50 }],
     verNr: 50,
   },
@@ -764,21 +732,6 @@ assertDeepEqual(
   ids(applyTo(sourceCategoryItems, { category: 'fixed_assets' })),
   ['tx-fixed-asset-depreciation-source', 'tx-fixed-asset-reclass-source', 'tx-fixed-asset-source'],
   'fixed asset category includes acquisition, reclassification, and depreciation source rows'
-)
-assertDeepEqual(
-  ids(applyTo(sourceCategoryItems, { search: 'VER-152' })),
-  ['tx-fixed-asset-source'],
-  'search finds an original fixed-asset purchase through the later reclassification VER number'
-)
-assertDeepEqual(
-  ids(applyTo(sourceCategoryItems, { search: 'VER-151' })),
-  ['tx-fixed-asset-reclass-source'],
-  'search finds a reclassification transaction through the original VER number'
-)
-assertEqual(
-  new Set(ids(applyTo(sourceCategoryItems, { category: 'fixed_assets' }))).size,
-  ids(applyTo(sourceCategoryItems, { category: 'fixed_assets' })).length,
-  'fixed asset category does not duplicate transactions when trace metadata exists'
 )
 assertDeepEqual(
   ids(applyTo(sourceCategoryItems, { search: 'moms', category: 'vat_tax' })),

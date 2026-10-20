@@ -178,7 +178,7 @@ for (const [start, end] of [['2026-04-01', '2026-06-30'], ['2026-07-01', '2026-0
 for (const response of [{ data: null, error: null }, { data: false, error: new Error('unavailable') }]) {
   const result = await getVatReportForPeriodFromDb({ ...dbFor(manualLegacy), rpc: async () => response } as never, userId, '2026-04-01', '2026-06-30')
   assert.equal(result.status, 'blocked', 'missing/failed authoritative history check fails closed')
-  assert.equal(dashboardVatBreakdownFromReportResult(result).manualReviewRequired, true)
+  assert.throws(() => dashboardVatBreakdownFromReportResult(result), /Kunde inte hämta momsunderlaget/, 'KAN-78: failed history read is a load error, never zero VAT')
 }
 for (const [rows, year, count] of [[crossPeriod, 2026, 2], [fixture('2025-05-15'), 2025, 1], [fixture('2025-05-15'), 2026, 1]] as const) {
   const text = await exportSIEForUserFromDb(dbFor(rows) as never, userId, year, async () => ({}))

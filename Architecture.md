@@ -1,5 +1,20 @@
 # SoloLedger - Arkitektur
 
+## KAN-104: ägarbunden profil och skrivkontext (lokal kandidat)
+
+`useAuth` invalidierar profilen vid varje relevant auth-event/laddning och accepterar bara svar för aktuell ägare/generation. Saknad eller felaktig profilläsning blockerar UI och profilberoende skrivningar. `profileContext.ts` håller klientens aktuella generation; detta är ett klientskydd, inte en ersättning för RLS/RPC-validering.
+
+`profileWriteGuard.ts` verifierar sessionens token med Auth och binder samma Authorization till profil-/bokningsbegäran. Formulär och asynkrona förberedelser kontrollerar sin fångade kontext; Home-utkast återanvänds inte vid användarbyte. Standardbokning, periodisering, VAT V2, fakturaunderlag och inventarieanskaffning behåller befintliga ekonomiska regler. Ingen migration. Bas, tester och publiceringsspärr: `docs/reviews/KAN-104-profile-context.md` och `PROJECT_STATE.md`.
+
+
+## KAN-80: beständiga bokningsförsök (endast lokal kandidat)
+
+`page.tsx` sparar ett ägarbundet, oförändrat vanligt/periodiserat bokningsförsök i localStorage före RPC. Bilagans privata Storage-referens följer med det sparade underlaget. Web Locks hindrar att två flikar samtidigt skapar försök från samma tomma lokala läge. Återupptagningsknappen skickar det sparade underlaget före föränderliga klientspärrar; osäkra försök får inte ersättas. `standardBookingAttempt.ts` hanterar lagring, kvitto och skillnaden mellan bekräftad avvisning och osäkert svar.
+
+`accountingService.ts` verifierar först `get_standard_booking_protocol() = 1`, så en ny klient inte bokar mot en äldre databas som ignorerar nyckeln. De befintliga RPC-signaturerna kräver UUID-nyckel även för äldre öppna appflikar. `standard_booking_idempotency` har primärnyckel `(user_id, idempotency_key)`, privat RLS/ACL och sparar exakt JSONB-underlag, bokningstyp och resultat i samma transaktion som bokningen. Gemensamt transaktionslås per ägare/nyckel, följt av kvittoläsning, föregår befintliga bokningsspärrar. Ändrat underlag avvisas. Endast en uttrycklig DB-avvisning efter kvittokontrollen frigör ett misslyckat försök; andra fel behåller det. Befintlig bokföringskärna och transaktionskällor bevaras.
+
+`delete_user_data_atomic` raderar kvitton före journal/transaktioner; Edge-funktionens dry-run och efterkontroll samt adminetiketter omfattar tabellen. Migration `20261017190000_kan80_standard_booking_idempotency.sql` och tillhörande kod är inte publicerade. Verifiering, releaseordning och begränsningar finns i `docs/reviews/KAN-80-local-verification.md` och aktuell `PROJECT_STATE.md`.
+
 Det här dokumentet är en karta över SoloLedgers nuvarande kod och datamodell. Det beskriver vad som faktiskt finns i repot och hur huvudflödena hänger ihop.
 
 SoloLedger är en svensk bokföringsapp för enskild firma utan anställda. Grundprincipen är att bokföring, moms, NE, SIE och historik ska vara kontrollerbara och isolerade per användare. När appen saknar tillräcklig information ska den stoppa eller be om mer fakta i stället för att gissa.
@@ -26,6 +41,9 @@ Supabase
 ```
 
 Frontend samlar användarfakta och visar rapporter. Domänlogik i `src/lib` avgör behandling, bygger planer och skyddar UI-flöden. Databasen är den auktoritativa gränsen för bokföringsskrivningar, verifikationsnummer, låsta år, momsperioder, idempotens och användarisolering.
+
+KAN-75-kandidaten samordnar bokföringsskrivningar och årslås med den privata transaktionsbundna hjälparen `lock_accounting_year_boundary`: delat användarlås i skrivvägar, exklusivt vid årslås/radering, före befintliga advisory- och radlås. Låsstatus kontrolleras efter väntan under READ COMMITTED. Ingångar, verifiering och migrationsstatus finns i `docs/reviews/KAN-75-year-close-concurrency.md` och `PROJECT_STATE.md`; Staging PASS innebär inte att Production är migrerad.
+
 
 ## Huvudflöden
 
@@ -268,12 +286,13 @@ Legacy-kategorin `avskrivning_inventarier` i `ACCOUNT_PRESETS` ska inte framstä
 - `SubscribeButton.tsx` - startar Stripe Checkout.
 - `SubscriptionGuard.tsx` - UI-gate för prenumerationsfunktioner.
 - `TransactionForm.tsx` - vanlig bokning och VAT V2-faktainsamling; hanterar kategori, moms, bilaga, periodisering och payment-role-konfiguration.
-- `TransactionTable.tsx` - historik, journalrader, källbadges, KORRVER, SIE-undo-grupper och systemtransaktionsskydd.
+- `TransactionTable.tsx` - historik, journalrader, källbadges, KORRVER, SIE-undo-grupper och systemtransaktionsskydd. KAN-86 lägger till valbar gruppering efter exakt gemensam bilagereferens via `transactionAttachmentGroups.ts` och delad dator-/mobilvy i `AttachmentTransactionGroup.tsx`; endast presentation inom valt år, utan ekonomisk gruppsumma. Sökning/filter och belopps-/VER-sortering pausar den nya grupperingen.
+- KAN-87: `transactionHistoryPresentation.ts` ger separat visningsmetadata för ett komplett verifierat KAN-84-paket. Ägare, exakt privat bilagereferens, generatorformat, kategorier/källor, datum, VER och journaler samt fyra original kontrolleras tillsammans; osäkerhet ger originalvisning. Ingen verklig användar-/batch-/filidentitet finns i koden. `TransactionPresentation.tsx` visar kortnamn, rättelsebadge/förklaring och utfällbar full originaltext i dator/mobil/bilagegrupp. Separata beloppsetiketter visar återbetalning positivt och omklassificering neutralt utan ändrad intäktsklassning eller KORRVER-status. `transactionHistoryFilters.ts` söker även i visningsnamn/sökord; original, VER och konton finns kvar. Hjälparen används inte i bokföring, rapporter eller export. Begränsning och verifiering: `docs/reviews/KAN-87-local-verification.md`.
 
 ### `src/hooks`
 
 - `useAuth.ts` - Supabase Auth, profil, login/register/logout, password recovery och profiluppdatering.
-- `useAccountingData.ts` - årsspecifik laddning av transaktioner, journalmap, saldon, balanssaldon, NE, momsöversikt, kontoplan och årslås.
+- `useAccountingData.ts` - årsspecifik laddning av transaktioner, journalmap, saldon, balanssaldon, NE, momsöversikt, kontoplan och årslås. KAN-78 knyter den ekonomiska snapshoten till användare/år och publicerar den först när alla läsningar lyckats. Laddningssekvenser avvisar sena svar; `AccountingDataBoundary` döljer dashboardens ekonomiska vyer/nya bokningsformulär och NE vid laddning/fel och erbjuder återförsök. Återupptagning av sparat bokningsförsök ligger utanför gränsen, med matchande användar-ID och färdigläst ägarlagring; befintlig idempotent bokningsfunktion används. Självständiga ekonomivyer har egna laddningsskydd och kontextbundna komponentnycklar. Se `docs/reviews/KAN-78-accounting-load-safety.md`.
 
 ### `src/lib` - Bokföring Och Rapporter
 
@@ -449,3 +468,13 @@ Misstänkta framtida cleanup-kandidater att utreda separat:
 - Låsta år och stängda/deklarerade momsperioder ska stoppa relevanta ändringar.
 - Complete-safe rapportläsning ska bevaras där ekonomiska belopp summeras.
 - Om fakta saknas och kan ändra moms-/bokföringsbehandling ska SoloLedger stoppa eller be om mer fakta.
+
+### NE R1/R2: separat klassificering (KAN-88, lokalt förberedd)
+
+`resultEngine.ts` behåller sin kontomappning. `getNEData` läser den nya RPC:n `get_ne_sales_summary` (årssaldon och NE-beslut i samma SQL-snapshot) och använder `neSalesClassification.ts` för att minska R1 och öka R2 lika mycket för uttryckligt klassificerade 3010-rader. Övriga NE-rutor, totalresultat, kumulativ balans och andra rapportkonsumenter förändras inte.
+
+`ne_sales_classifications` länkar journalrad, transaktion och användare till R1/R2, grund och sparat underlag. Vanliga bokningar fångar server-side bekräftat småföretagarundantag; kundfakturalänkar använder sparat momsunderlag. Rättelser/ångring ärver originalets beslut. Aktuell profil vid rapportläsning används aldrig för att flytta historik. Osäkra 3010-rader utan moms visas som preliminära; saknad migrations-RPC ger tydlig varning.
+
+`review_ne_legacy_sale` förbereder en ägarsäker granskad klassificering av en äldre rad, inklusive KAN-51:s historiska fakturalänk, utan ändring av journaler, transaktioner eller verifikationsnummer. Tabellens RLS ger endast egen läsning för klienten; skrivningar går via kontrollerade funktioner. Atomär användarradering och Edge-räknare omfattar den nya tabellen. NE-metadata tillförs inte SIE-formatet.
+
+Migration `20261017122027_kan88_ne_sales_classification.sql` är endast lokalt verifierad och **inte applicerad på Staging/Production**. Aktuell leveransstatus och releasegräns finns i PROJECT_STATE.md; detaljer/tester i docs/reviews/KAN-88-local-ne-classification.md.

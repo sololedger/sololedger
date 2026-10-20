@@ -14,9 +14,10 @@ interface Props {
   userId: string
   onSelect: (fav: Favorite) => void
   refreshKey: number
+  categoryError: (id: string) => string | null
 }
 
-export default function FavoriteChips({ userId, onSelect, refreshKey }: Props) {
+export default function FavoriteChips({ userId, onSelect, refreshKey, categoryError }: Props) {
   const [favorites, setFavorites] = useState<Favorite[]>([])
 
   useEffect(() => {
@@ -47,12 +48,18 @@ export default function FavoriteChips({ userId, onSelect, refreshKey }: Props) {
       {favorites.map(fav => (
         <div
           key={fav.id}
-          onClick={() => onSelect(fav)}
           className="group flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-700 rounded-xl px-3 py-1.5 cursor-pointer transition-all"
         >
-          <span className="text-[11px] font-black truncate max-w-[38vw] sm:max-w-[160px]">{fav.name}</span>
-          <span className="text-[10px] text-emerald-400 font-bold shrink-0">{fav.amount.toLocaleString()} kr</span>
+          <div className="min-w-0">
+            <button type="button" disabled={Boolean(categoryError(fav.type))}
+              onClick={() => onSelect(fav)} className="text-left disabled:opacity-60">
+              <span className="text-[11px] font-black truncate max-w-[38vw] sm:max-w-[160px]">{fav.name}</span>{' '}
+              <span className="text-[10px] font-bold">{fav.amount.toLocaleString()} kr</span>
+            </button>
+            {categoryError(fav.type) && <p className="max-w-xs text-xs">{categoryError(fav.type)}</p>}
+          </div>
           <button
+            type="button"
             onClick={(e) => handleDelete(fav.id, e)}
             className="text-emerald-200 hover:text-red-400 font-black text-xs transition-colors ml-1 shrink-0"
             title="Ta bort favorit"

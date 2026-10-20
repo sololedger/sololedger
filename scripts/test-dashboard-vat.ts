@@ -265,6 +265,14 @@ assertEqual(
   'CASE F blocked VAT -> safe withdrawal not presented as spendable'
 )
 
+for (const code of ['query_failed', 'invalid_loaded_scope'] as const) {
+  let threw = false
+  try {
+    dashboardVatBreakdownFromReportResult({ status: 'blocked', report: null, errors: [{ code, message: 'Injected technical failure' }] })
+  } catch { threw = true }
+  assertEqual(threw, true, `KAN-78 ${code} must propagate as a load failure, never zero VAT`)
+}
+
 console.log('\n-----------------------------------')
 console.log(`Passed tests: ${passed}`)
 console.log(`Failed tests: ${failed}`)

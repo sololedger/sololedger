@@ -24,6 +24,7 @@ type PersistedDefaultDeductionEntitlement = Exclude<DeductionEntitlement, 'parti
 interface Props {
   user: any
   profile: any
+  verifyProfile: () => Promise<string>
   onProfileUpdate: (updated: any) => void
   onUpdatePassword: (newPassword: string) => Promise<{ success: true } | { success: false; error: string }>
   onBookkeepingChanged?: () => Promise<void> | void
@@ -58,6 +59,7 @@ export default function ProfileSettings({
   user,
   profile,
   onProfileUpdate,
+  verifyProfile,
   onUpdatePassword,
   onBookkeepingChanged,
   kontoplan,
@@ -126,8 +128,8 @@ export default function ProfileSettings({
 
   // 🌟 Synka lokala states när profildatan har landat från Supabase
   useEffect(() => {
-    if (profile?.company_name) setCompanyName(profile.company_name)
-    if (profile?.org_nr) setOrgNr(profile.org_nr)
+    setCompanyName(profile?.company_name || '')
+    setOrgNr(profile?.org_nr || '')
     setVatNumber(profile?.vat_number || '')
     setVatStatus(profile?.vat_status || 'unknown')
     setVatPeriodType(profile?.vat_period_type || '')
@@ -248,7 +250,7 @@ export default function ProfileSettings({
 
   async function handleSave(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!user?.id) return
+    if (!user?.id || profile?.id !== user.id) return
     if (vatStatus === 'registered' && (!vatPeriodType || !vatManagementFrom)) {
       alert('Välj hur ofta företaget redovisar moms och från vilket datum SoloLedger ska hantera momsen.')
       return
@@ -285,7 +287,8 @@ export default function ProfileSettings({
     }
 
     try {
-      const { error } = await supabase
+      const token = await verifyProfile()
+      const { data, error } = await supabase
         .from('profiles')
         .update({
           company_name: companyName,
@@ -295,8 +298,13 @@ export default function ProfileSettings({
           ...vatV2ProfileSettings,
         })
         .eq('id', user.id)
+        .select('id')
+        .single()
+        .setHeader('Authorization', `Bearer ${token}`)
 
       if (error) throw error
+      if (data?.id !== user.id) throw new Error('Profilen kunde inte sparas för rätt användare.')
+      await verifyProfile()
 
       onProfileUpdate({
         ...profile,
