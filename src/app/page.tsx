@@ -92,6 +92,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
 
   const [activeTab, setActiveTab] = useState('dashboard')
   // SSR-säkert: statiskt värde vid server-render
+  const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
 
   const {
@@ -1069,7 +1070,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       </div>
     </div>
 
-    <div className="flex flex-wrap items-center gap-2.5 xl:justify-end">
+    <div role="group" aria-label="Ekonomikontroller" className="flex flex-wrap items-center gap-2.5 xl:justify-end">
       {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) && (
         <div className="h-10 flex items-center gap-2 bg-white px-3 rounded-xl border border-gray-200 shadow-sm">
           <span className="text-[10px] font-black uppercase text-gray-400 italic">
@@ -1105,6 +1106,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           >
             Exportera SIE
           </button>
+          <div ref={setTaxControlTarget} className="min-w-0 max-w-full" />
         </>
       )}
 
@@ -1125,7 +1127,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       {activeTab === 'dashboard' ? (
         <>
           <DashboardOverview
-            owner={user.id} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
+            owner={user.id} taxControlTarget={taxControlTarget} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
             momsBreakdown={momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }}
             onOpenVat={() => setActiveTab('moms')} onOpenNe={() => setActiveTab('ne')}
             selectedYear={selectedYear}

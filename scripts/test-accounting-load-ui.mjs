@@ -102,7 +102,7 @@ try {
   const source = await readFile('src/app/page.tsx', 'utf8')
   assert.match(source, /<AccountingDataBoundary[\s\S]*<DashboardOverview[\s\S]*<NEBilaga[\s\S]*<\/AccountingDataBoundary>/)
   const dashboard = await readFile('src/components/DashboardOverview.tsx', 'utf8')
-  assert.match(dashboard, /return <OverviewCards/)
+  assert.match(dashboard, /<OverviewCards\b/)
   assert.match(source, /<DashboardOverview\s+owner=\{user.id\}/)
   for (const component of ['CustomerInvoicesPanel', 'FixedAssetsPanel', 'NEBilaga']) {
     assert.match(source, new RegExp(`<${component}\\s+key=\\{\x60\\$\\{user.id\\}:\\$\\{selectedYear\\}\x60\\}`))
