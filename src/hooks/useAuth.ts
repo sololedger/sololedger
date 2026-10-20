@@ -184,7 +184,6 @@ export function useAuth() {
     setProfile(null)
     setUser(null)
     try {
-      localStorage.removeItem('taxRate')
       await supabase.auth.signOut()
     } catch (err) {
       console.error('Utloggning misslyckades:', err)

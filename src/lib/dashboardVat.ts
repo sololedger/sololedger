@@ -8,9 +8,9 @@ import { buildVatReportPresentation, vatReportBlockedMessage } from './vatReport
 import { HISTORICAL_SIE_VAT_REVIEW_MESSAGE } from './sieVatHistory.ts'
 
 const DASHBOARD_VAT_BLOCKED_MESSAGE =
-  'Momsöversikten kan inte beräknas säkert. Kontrollera momsrapporten innan säkert uttag används.'
+  'Momsöversikten kan inte beräknas säkert. Kontrollera momsrapporten innan uttagsutrymme används.'
 const VAT_CLOSING_RECONCILIATION_MESSAGE =
-  'Journalavstämningen kan inte stämmas av mot ett lagrat momsavslut. Historiska momsperioder kräver separat kontroll innan säkert uttag kan beräknas.'
+  'Journalavstämningen kan inte stämmas av mot ett lagrat momsavslut. Historiska momsperioder kräver separat kontroll innan uttagsutrymme kan beräknas.'
 
 export function dashboardVatBreakdownFromReportResult(
   result: VatReportServiceResult

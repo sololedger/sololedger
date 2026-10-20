@@ -127,7 +127,7 @@ export default function FAQ() {
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>
-                    <span><b>Momsöversikten:</b> Det vita momskortet på förstasidan visar alltid hela årets ackumulerade moms. Det stora gröna kortet <Tag>Säkert uttag</Tag> tar hänsyn till beräknad skatt och moms för att ge en försiktig uppskattning av hur mycket som kan tas ut.</span>
+                    <span><b>Momsöversikten:</b> Det vita momskortet på förstasidan visar alltid hela årets ackumulerade moms. Kortet <Tag>Uttagsutrymme</Tag> räknar separat på företagsbank, kvarstående moms och årsvisa skatteuppskattningar över flera år. Det visar vad som saknas när underlaget inte räcker. Skatteuppskattningen är ingen garanti för faktisk skatt eller framtida utgifter; sparade kontroller kan granskas direkt i kortet.</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-emerald-500 mt-0.5">▸</span>

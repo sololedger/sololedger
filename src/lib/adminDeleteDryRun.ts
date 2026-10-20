@@ -1,5 +1,7 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
   'profiles',
+  'withdrawal_assessment_facts',
+  'withdrawal_assessment_revisions',
   'fixed_asset_depreciation_runs',
   'fixed_asset_events',
   'fixed_asset_acquisition_idempotency',
@@ -36,6 +38,8 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   string
 > = {
   profiles: 'profil',
+  withdrawal_assessment_facts: 'uttagsuppgifter',
+  withdrawal_assessment_revisions: 'uttagsavstämningar',
   fixed_asset_depreciation_runs: 'inventarieavskrivningar',
   fixed_asset_events: 'inventariehändelser',
   fixed_asset_acquisition_idempotency: 'inventarie-idempotensposter',

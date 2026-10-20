@@ -415,7 +415,7 @@ export async function getVatReportForPeriodFromDb(
     })
     if (history.error || typeof history.data !== 'boolean') {
       return queryError(
-        'Momshistoriken kunde inte verifieras. Momsavslut och säkert uttag kräver en verifierad historik.',
+        'Momshistoriken kunde inte verifieras. Momsavslut och uttagsutrymme kräver en verifierad historik.',
         history.error
       )
     }

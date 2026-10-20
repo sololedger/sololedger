@@ -9,6 +9,7 @@ import tailwind from '@tailwindcss/postcss'
 const owner='00000000-0080-4000-8000-000000000001'
 const profile={role:'admin',subscription_type:'paid',vat_status:'registered',domestic_sales_vat_treatment:'taxable',vat_period_type:'quarter',vat_management_from:'2026-01-01',foreign_purchase_reporting:'required',default_deduction_entitlement:'full'}
 const mock={
+ withdrawalService:`export class WithdrawalConflictError extends Error{};export async function loadWithdrawal(){throw Error('Syntetiskt uttagsunderlag saknas i bokningstestet')};export async function saveWithdrawal(){throw Error('Uttagsskrivning är inte tillåten i bokningstestet')};`,
  useAuth:`export const useAuth=()=>({user:{id:localStorage.getItem('testAuthOwner')||'${owner}'},profile:{...${JSON.stringify(profile)},id:localStorage.getItem('testAuthOwner')||'${owner}'},authLoading:false,verifyProfile:async()=> 'synthetic-token'});`,
  useAccountingData:`export const useAccountingData=()=>({accountingDataReady:localStorage.getItem('testAccountingError')!=='yes',accountingDataError:localStorage.getItem('testAccountingError')==='yes'?'Kunde inte hämta ekonomiska uppgifter. Inga belopp visas.':null,retryAccountingData:async()=>{localStorage.removeItem('testAccountingError');window.location.reload()},transactions:[],balances:{'1930':987654321,'3010':-123456789},balanceSheetBalances:{'1930':987654321},journalMap:{},neData:{R11:123456789,R17:123456789,bank:987654321,B9:987654321,B10_total:987654321},momsBreakdown:{utgaendeMoms:0,ingaendeMoms:0,momsNetto:0},transactionHistoryComplete:true,kontoplan:[{id:'expense',name:'Syntetisk programvara',debit_account:'5420',credit_account:'1930',default_vat_rate:25,hidden_from_new_booking:localStorage.getItem('testGate')==='closed'}],kontoplanLoaded:true,kontoplanLoading:false,isYearLocked:localStorage.getItem('testGate')==='closed',refreshData:async()=>{},refreshDataWithStatus:async()=>({ok:localStorage.getItem('testRefresh')!=='fail'})});`,
  usePaymentAccountRoleConfiguration:`export const usePaymentAccountRoleConfiguration=()=>({configuredRoles:[],loaded:true,loading:false,error:null,reload:async()=>{}});`,
@@ -29,7 +30,7 @@ const bundle=await build({stdin:{contents:"import React from 'react';import{crea
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
-  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','OverviewCards','NEBilaga','SubscriptionGuard'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
+  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','SubscriptionGuard'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
  b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})

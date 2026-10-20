@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { bookStandardBookingAttempt, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, isYearClosed, closeYear, updateTransaction, getCustomerInvoices } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
 import { encodeCP437 } from '@/lib/cp437'
-import { calculateDashboard, getBankSaldo } from '@/lib/calculations'
+import { getBankSaldo } from '@/lib/calculations'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import Kontoplan from '@/components/Kontoplan'
@@ -18,7 +18,7 @@ import Momsrapport from '@/components/Momsrapport'
 import ProfileSettings from '@/components/ProfileSettings'
 import TransactionTable from '@/components/TransactionTable'
 import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
-import OverviewCards from '@/components/OverviewCards'
+import DashboardOverview from '@/components/DashboardOverview'
 import TransactionForm, {
   type OrdinaryInputVatDeductionSelection,
 } from '@/components/TransactionForm'
@@ -154,8 +154,6 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [showLimitPaywall, setShowLimitPaywall] = useState(false)
   const [freeUsageCount, setFreeUsageCount] = useState(0)
 
-  // SSR-säkert: alltid 45 vid server-render, synkas med localStorage i useEffect nedan
-  const [taxRate, setTaxRate] = useState(45)
 
   const [uploading, setUploading] = useState(false)
   // Synchronous guard: React-state hinner inte alltid disable:a knappen mellan
@@ -300,18 +298,6 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     }
   }, [showLimitPaywall])
 
-  // Läser sparad skattesats från localStorage EFTER hydration (aldrig under SSR)
-  useEffect(() => {
-    const saved = Number(localStorage.getItem('taxRate'))
-    if (!isNaN(saved) && saved >= 25 && saved <= 55) {
-      setTaxRate(saved)
-    }
-  }, [])
-
-  // Skriver tillbaka till localStorage när användaren justerar reglaget
-  useEffect(() => {
-    localStorage.setItem('taxRate', taxRate.toString())
-  }, [taxRate])
 
   async function handleExportSIE() {
     try {
@@ -764,23 +750,6 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     setLastSubmitted(null)
   }
 
-  const data = calculateDashboard(balances, taxRate, momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 })
-  // Steg 2 av carry-forward-arbetet: ENDAST Bank-kortet ska visa kumulativt
-  // saldo (balanceSheetBalances, se getBalanceSheetBalances()) istället för
-  // årets egna rörelse. Allt annat i "data" (bl.a. sakertUttag) kommer
-  // fortsatt från calculateDashboard() ovan och är medvetet oförändrat i
-  // detta steg - se separat beslut om när/hur sakertUttag ska följa med.
-  data.bankSaldo = getBankSaldo(balanceSheetBalances)
-  // Steg 2b: Säkert uttag räknas om med samma formel som calculateDashboard()
-  // redan använder (calculations.ts), men med det nu kumulativa
-  // data.bankSaldo istället för årets egna bankrörelse. skattReserv och
-  // momsNetto kommer fortfarande oförändrade från calculateDashboard().
-  data.sakertUttag = data.momsManualReviewRequired
-    ? 0
-    : Math.round(
-        (data.bankSaldo - data.skattReserv - (data.momsNetto > 0 ? data.momsNetto : 0)) * 100
-      ) / 100
-
 
   const hasActiveSubscription =
     (profile?.subscription_type === 'paid' || profile?.subscription_type === 'trial') &&
@@ -1139,27 +1108,6 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </>
       )}
 
-      {['dashboard', 'ne-bilaga', 'NE-Bilaga', 'ne'].includes(activeTab) && (
-        <div className="h-10 flex items-center gap-3 bg-white px-3 rounded-xl border border-gray-200 shadow-sm">
-          <span className="text-[10px] font-black uppercase text-gray-400 italic">
-            Skatt
-          </span>
-
-          <input
-            type="range"
-            min={25}
-            max={55}
-            step={1}
-            value={taxRate}
-            onChange={(e) => setTaxRate(Number(e.target.value))}
-            className="w-20 accent-emerald-500 cursor-pointer"
-          />
-
-          <span className="text-sm font-black text-emerald-600 w-8 tabular-nums text-right">
-            {taxRate}%
-          </span>
-        </div>
-      )}
     </div>
   </div>
 </div>
@@ -1176,9 +1124,10 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
-          <OverviewCards
-            data={data}
-            taxRate={taxRate}
+          <DashboardOverview
+            owner={user.id} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
+            momsBreakdown={momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }}
+            onOpenVat={() => setActiveTab('moms')} onOpenNe={() => setActiveTab('ne')}
             selectedYear={selectedYear}
             transactions={transactions}
             journalMap={journalMap}

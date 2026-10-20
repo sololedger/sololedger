@@ -20,6 +20,7 @@ export interface DashboardData {
   momsManualReviewRequired: boolean
   momsManualReviewMessage: string | null
   skattReserv: number
+  /** @deprecated Legacy regression compatibility only. Never display as withdrawal advice. */
   sakertUttag: number
 }
 
