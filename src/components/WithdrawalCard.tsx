@@ -51,11 +51,22 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
   useEffect(() => {
     if (!open) return
     const element = dialog.current
+    const root = document.documentElement, body = document.body
+    const { scrollX, scrollY } = window
+    const previousRoot = { overflow: root.style.overflow, overscrollBehavior: root.style.overscrollBehavior }
+    const previousBody = { overflow: body.style.overflow, position: body.style.position, top: body.style.top, left: body.style.left, width: body.style.width }
+    // html is the app's scroll container. Fix the body as well so touch
+    // gestures cannot move the background on mobile browsers.
+    Object.assign(root.style, { overflow: 'hidden', overscrollBehavior: 'none' })
+    Object.assign(body.style, { overflow: 'hidden', position: 'fixed', top: `${-scrollY}px`, left: `${-scrollX}px`, width: '100%' })
     element?.showModal()
-    panel.current?.focus()
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { element?.close(); document.body.style.overflow = previousOverflow }
+    panel.current?.focus({ preventScroll: true })
+    return () => {
+      element?.close()
+      Object.assign(root.style, previousRoot)
+      Object.assign(body.style, previousBody)
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: 'instant' })
+    }
   }, [open])
   useEffect(() => { if (notice) error.current?.focus() }, [notice])
   const loaded = model.data
@@ -121,7 +132,7 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
       ? 'border-amber-300 bg-slate-50 text-slate-950'
       : 'border-slate-200 bg-slate-50 text-slate-950'
   const available = loaded && !model.loading && !model.error
-  function closeDetails() { dialog.current?.close(); setOpen(false); button.current?.focus() }
+  function closeDetails() { dialog.current?.close(); setOpen(false); button.current?.focus({ preventScroll: true }) }
   function containFocus(event: KeyboardEvent<HTMLDialogElement>) {
     if (event.key !== 'Tab') return
     const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], summary, [tabindex]')]
@@ -137,8 +148,8 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
   return <section className={`rounded-[1.75rem] border p-5 sm:p-6 min-w-0 w-full flex flex-col justify-between ${tone}`} aria-label="Uttagsutrymme">
     {available ? <WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} /> : <><h3 className="font-bold">Säkert uttag</h3>{!open && loadStatus}</>}
     <button ref={button} type="button" disabled={!available} aria-haspopup="dialog" aria-expanded={open} aria-controls={id} className="underline text-xs font-bold min-h-11 mt-1 disabled:opacity-50" onClick={() => { startReview(); setOpen(true) }}>Visa beräkning och underlag</button>
-    {open && <dialog ref={dialog} id={id} onKeyDown={containFocus} aria-labelledby={id + '-title'} onCancel={e => { e.preventDefault(); closeDetails() }} onClose={() => { setOpen(false); button.current?.focus() }}
-      className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[85dvh] rounded-3xl bg-white text-slate-950 shadow-2xl p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm">
+    {open && <dialog ref={dialog} id={id} onKeyDown={containFocus} aria-labelledby={id + '-title'} onCancel={e => { e.preventDefault(); closeDetails() }} onClose={() => { setOpen(false); button.current?.focus({ preventScroll: true }) }}
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[85dvh] overflow-y-auto overscroll-contain rounded-3xl bg-white text-slate-950 shadow-2xl p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm">
       <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
         <h2 ref={panel} id={id + '-title'} tabIndex={-1} className="font-bold text-lg">Säkert uttag · beräkning och underlag</h2>
         <button type="button" onClick={closeDetails} aria-label="Stäng underlaget" className="shrink-0 rounded-full px-3 min-h-11 hover:bg-slate-100">Stäng ×</button>
