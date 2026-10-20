@@ -40,7 +40,7 @@ try {
     } }
   })
   await page.addScriptTag({ content: bundle.outputFiles[0].text })
-  await page.getByRole('heading', {name:'Uppskattat uttagsutrymme'}).waitFor()
+  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).waitFor()
   const year = await page.evaluate(() => window.annualYear)
   const slider = () => page.getByRole('slider', {name:`Uppskattad skatt och egenavgifter för ${year}`})
   const amount = () => page.locator('section[aria-label="Uttagsutrymme"] .text-2xl')
@@ -92,7 +92,7 @@ try {
   await expect(amount()).toHaveCount(0)
   await expect(page.getByRole('slider')).toHaveCount(0)
   await page.evaluate(()=>window.annualReads[0]({data:null,error:{code:'503'}}))
-  await page.getByRole('heading',{name:'Uttagsunderlaget kunde inte hämtas'}).waitFor()
+  await page.getByText('Uttagsunderlaget kunde inte hämtas',{exact:true}).waitFor()
   await expect(amount()).toHaveCount(0)
   await page.getByRole('button',{name:'Försök igen',exact:true}).click()
   await page.waitForFunction(()=>window.annualReads.length===2)
@@ -169,7 +169,7 @@ try {
     const manifestPath='coverage/kan97-ux-20261020/before-manifest.json'
     if (existsSync(manifestPath)) {
       const manifest=JSON.parse(readFileSync(manifestPath,'utf8'))
-      for (const file of ['src/components/NEBilaga.tsx','src/hooks/useAccountingData.ts','src/lib/accountingService.ts','src/lib/resultEngine.ts','src/lib/withdrawalAssessment.ts','src/hooks/useWithdrawal.ts','src/lib/withdrawalService.ts','supabase/migrations/20261019200000_kan97_withdrawal_assessments.sql']) {
+      for (const file of ['src/components/NEBilaga.tsx','src/hooks/useAccountingData.ts','src/lib/accountingService.ts','src/lib/resultEngine.ts','src/hooks/useWithdrawal.ts','supabase/migrations/20261019200000_kan97_withdrawal_assessments.sql']) {
         assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'),manifest[file],`${file} unchanged: NE, P1 core and DB boundaries preserved`)
       }
     }

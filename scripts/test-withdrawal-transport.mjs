@@ -9,6 +9,10 @@ await service.loadWithdrawal('synthetic-a','2026-10-19')
 assert.equal(calls[0].name,'get_withdrawal_context')
 assert.equal(calls[0].args.p_as_of,'2026-10-19')
 const good=response.data
+for(const broken of [{...good,protocol:1},{...good,protocol:2},{...good,invoices:undefined},{...good,invoice_bookings:undefined},{...good,invoice_journal:undefined}]) {
+ response={data:broken,error:null}
+ await assert.rejects(service.loadWithdrawal('synthetic-a','2026-10-19'))
+}
 response={data:{...good,user_id:'synthetic-b'},error:null}
 await assert.rejects(service.loadWithdrawal('synthetic-a','2026-10-19'))
 response={data:null,error:{message:'RPC missing'}}

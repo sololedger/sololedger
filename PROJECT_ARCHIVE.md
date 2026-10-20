@@ -1039,3 +1039,14 @@ Dirty files outside the selected UI checkout (preserve; not included in handoff 
 - kan86-shared-attachments: ` M PROJECT_STATE.md`.
 
 - kan87-history-presentation: ` M PROJECT_STATE.md`.
+
+
+### KAN-97 – ersatt verifierings-/releasechronologi inför kontobyte (2026-10-20)
+
+- Detta arkiverar endast ersatta delsteg, inte den aktiva KAN-97-uppgiften. Nuvarande release, kvarvarande hostad acceptans, faktura-/UI-uppgift och inventarieberoenden står i PROJECT_STATE.md och docs/reviews/KAN-97-INVOICE-INVENTORY-DEPENDENCIES.md.
+- Tidig kritisk granskning fann fyra P1; lokala test-first-rättningar följdes av isolerad PG17-verifiering, gemensam årsprocent och ny full checkpointregression/build. De tidiga smoke-/infrastrukturstoppen är historiska och ersätts av senare godkända slutkörningar, utan att gamla FAIL/BLOCKED räknas om till PASS. P1/DB/UX-rapporter och coverage-bevis bevaras på ursprungliga platser.
+- Äldre full lint 75 fel/6 varningar ersattes efter UX av 74 befintliga fel/6 varningar; ingen bred lintstädning. Tidigt test-results-bevarandeavsteg kvarstår redovisat i aktiv state och P1-rapport; originalråloggar påstås inte återställda.
+- Checkpoint 430842c → integrationscommit 504ee839 (staginghistorik bevarad, exakt checkpointträd) → tom identitetscommit 585c894. GitHub staging har fast-forwardats; ingen omskrivning/force-push. KAN-62/65:s pausade produktkod återinfördes inte.
+- Godkända Staging-installationer: C installerade endast migration 20261019200000, 52→53 versionsrader, och D1 publicerade enbart delete-user v5→v6 med JWT-skydd. Fulla definition-/inventarie-/bevarandebevis finns i ../KAN-97-staging-integration-20261020/KAN-97-STAGING-MIGRATION-C.md respektive KAN-97-STAGING-EDGE-D1.md. Hostad användarfunktionalitet var inte provad genom dessa installationskontroller.
+- Första manuella D2 dpl_EhqAia9ZTJnpcNaK7wVS5d3rNTYV blev BLOCKED på nolare-författarens behörighet, ingen app/acceptansadress. Inga teamrättigheter ändrades. Lokal rätt SoloLedger-identitet och en godkänd tom releasecommit gav senare ett nytt separat godkänt Preview-försök READY. Första försöket är inte retroaktivt PASS.
+- Detaljrapporter, releasekommandon, lokala diagnostikbegränsningar och exakta SHA/manifest finns bevarade under ../KAN-97-staging-integration-20261020/. Pre-retention PROJECT_STATE och filmanifest bevaras i account-handoff-20261020/ där. Inga befintliga bevis/filer raderades eller flyttades under handoffen.

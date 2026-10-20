@@ -1,6 +1,6 @@
 import { stableWithdrawalValue, withdrawalFinancialRows, type WithdrawalSnapshot, type WithdrawalFact } from '../../src/lib/withdrawalAssessment.ts'
 export function emptyWithdrawal(asOf = '2027-01-20'): WithdrawalSnapshot {
-  return { protocol: 1, user_id: 'synthetic-a', as_of: asOf, signature: 'snapshot', financial_signature: 'empty', anchor_financial_signature: null,
+  return { protocol: 3, invoices: [], invoice_bookings: [], invoice_journal: [], user_id: 'synthetic-a', as_of: asOf, signature: 'snapshot', financial_signature: 'empty', anchor_financial_signature: null,
     transactions: [], journal: [], periods: [], snapshots: [], events: [], movements: [], roles: [], revision: null }
 }
 export function addWithdrawalTx(s: WithdrawalSnapshot, id: string, date: string, source: string, lines: [string, number][]) {
@@ -12,7 +12,7 @@ export function addWithdrawalFact(s: WithdrawalSnapshot, key: string, value: Rec
   s.revision.facts = [...s.revision.facts.filter(f => f.key !== key), { key, value }]
 }
 export function sealWithdrawal(s: WithdrawalSnapshot) {
-  s.signature = stableWithdrawalValue({ asOf:s.as_of,transactions:s.transactions,journal:s.journal,periods:s.periods,snapshots:s.snapshots,events:s.events,movements:s.movements,roles:s.roles })
+  s.signature = stableWithdrawalValue({ asOf:s.as_of,transactions:s.transactions,journal:s.journal,periods:s.periods,snapshots:s.snapshots,events:s.events,movements:s.movements,roles:s.roles,invoices:s.invoices,invoice_bookings:s.invoice_bookings,invoice_journal:s.invoice_journal })
   s.financial_signature = withdrawalFinancialRows(s, s.as_of)
   const tax = s.revision?.facts.find(f => f.key === 'tax_account')?.value
   s.anchor_financial_signature = tax ? withdrawalFinancialRows(s, tax.date as string) : null

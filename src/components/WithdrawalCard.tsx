@@ -106,12 +106,18 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
       setNotice(''); setOpen(false); button.current?.focus()
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Uppgiften kunde inte sparas.') }
   }
-  return <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 min-w-0" aria-label="Uttagsutrymme">
-    {model.loading ? <p role="status">Laddar uttagsunderlag…</p> : model.error ? <div role="alert"><h3 className="font-bold">Uttagsunderlaget kunde inte hämtas</h3><p>{model.error}</p><button type="button" onClick={() => void model.reload()} className="underline min-h-11">Försök igen</button></div> : loaded && <WithdrawalSummary result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} taxRates={loaded.assessment.taxRates} />}
+  const tone = !model.loading && !model.error && loaded?.assessment.result.status === 'calculated'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+    : model.error || loaded?.assessment.result.status === 'incomplete'
+      ? 'border-amber-300 bg-amber-50 text-amber-950'
+      : 'border-slate-200 bg-slate-50 text-slate-950'
+  return <section className={`rounded-2xl border p-4 min-w-0 ${tone}`} aria-label="Uttagsutrymme">
+    {(model.loading || model.error || !loaded) && <h3 className="font-bold">Säkert uttag</h3>}
+    {model.loading ? <p role="status">Laddar uttagsunderlag…</p> : model.error ? <div role="alert"><p className="font-semibold">Uttagsunderlaget kunde inte hämtas</p><p>{model.error}</p><button type="button" onClick={() => void model.reload()} className="underline min-h-11">Försök igen</button></div> : loaded && <WithdrawalSummary result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} taxRates={loaded.assessment.taxRates} />}
     {loaded && <>
       {loaded.assessment.result.status === 'incomplete' && <div>{onOpenVat && loaded.assessment.result.issues.some(i => i.includes('Momsunderlaget')) && <button type="button" onClick={onOpenVat} className="underline min-h-11">Öppna momsrapporten</button>}{onOpenNe && loaded.assessment.result.issues.some(i => i.includes('NE-underlaget')) && <button type="button" onClick={onOpenNe} className="underline min-h-11">Öppna NE-underlaget</button>}</div>}
       <button ref={button} type="button" aria-expanded={open} aria-controls={id} className="underline font-bold min-h-11 mt-2" onClick={() => { if (!open) startReview(); setOpen(!open) }}> {open ? 'Stäng underlaget' : loaded.assessment.result.status === 'incomplete' ? 'Visa hur jag gör' : 'Visa underlag eller ändra uppgift'}</button>
-      {open && <div id={id} className="border-t border-emerald-300 mt-2 pt-4">
+      {open && <div id={id} className="border-t border-current/20 mt-2 pt-4">
         <h4 ref={panel} tabIndex={-1} className="font-bold">Kontrollera en uppgift</h4>
         <p className="text-sm">Uppgifterna sparas daterat för din firma. Bokföringen ändras inte. Tidigare kontroller återanvänds när underlaget tillåter det.</p>
         {loaded.assessment.facts.length > 0 && <details className="text-sm my-2"><summary>Sparade kontroller och bedömningar</summary><ul>{loaded.assessment.facts.map(f => <li key={f.key}>{f.key.startsWith('income:') ? `Skatteuppgift ${f.key.slice(7)}` : f.key.startsWith('rate:') ? `Skatteuppskattning ${f.key.slice(5)}` : ({coverage:'Tidigare åtaganden',tax_account:'Skattekonto',other:'Andra betalningar',bank:'Bank',buffer:'Buffert'} as Record<string,string>)[f.key]} · {f.observed_on ?? loaded.snapshot.revision?.as_of_date} · {f.source === 'user_estimate' ? 'din uppskattning' : 'din uppgift/kontroll'}</li>)}</ul></details>}
