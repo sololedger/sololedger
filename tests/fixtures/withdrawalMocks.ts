@@ -1,5 +1,7 @@
 import { buildWithdrawalAssessment, type WithdrawalFact } from '../../src/lib/withdrawalAssessment'
 import { addWithdrawalFact, addWithdrawalTx, emptyWithdrawal, sealWithdrawal } from './withdrawalFixtures'
+import { invoiceFixture, invoiceEvent, sealInvoice } from './withdrawalInvoiceFixtures'
+
 type Snapshot = ReturnType<typeof emptyWithdrawal>
 export class WithdrawalConflictError extends Error {}
 const snapshots = new Map<string,Snapshot>()
@@ -24,6 +26,21 @@ export async function saveWithdrawal(owner:string,snapshot:Snapshot,facts:Withdr
   snapshots.set(owner,sealWithdrawal(s))
 }
 export const withdrawalMock={
+  scenario:(owner:string,kind:string)=>{
+    const asOf=snapshots.get(owner)!.as_of
+    if(kind==='legacy-invoice') {
+      const s=invoiceFixture(25,asOf)
+      s.invoices[0].vat_policy_snapshot_status='missing'
+      invoiceEvent(s,'payment','payment_same_year','2026-06-01')
+      snapshots.set(owner,sealInvoice(s));return
+    }
+    const s=initial(owner,asOf)
+    for(const row of s.journal){row.debit=Number(row.debit)/10;row.credit=Number(row.credit)/10}
+    addWithdrawalFact(s,'coverage',{from:asOf,noEarlierObligations:true})
+    addWithdrawalFact(s,`rate:${asOf.slice(0,4)}`,{rate:35})
+    if(kind==='sie')s.transactions[0].source='sie_import'
+    snapshots.set(owner,sealWithdrawal(s))
+  },
   addSale:(owner:string)=>{const s=snapshots.get(owner)!;addWithdrawalTx(s,'later-sale',s.as_of,'manual',[['1930',1250],['3010',-1000],['2611',-250]]);sealWithdrawal(s)},
   pending:()=>requests.map((r,i)=>({owner:r.owner,index:i})), saves:()=>saves,
   finish:(i:number)=>{const r=requests[i];if(!r)throw Error('Missing request');const s=snapshots.get(r.owner)??initial(r.owner,r.asOf);r.resolve(ready(s))},

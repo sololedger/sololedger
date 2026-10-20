@@ -40,10 +40,10 @@ try {
     } }
   })
   await page.addScriptTag({ content: bundle.outputFiles[0].text })
-  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).waitFor()
+  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).first().waitFor()
   const year = await page.evaluate(() => window.annualYear)
   const slider = () => page.getByRole('slider', {name:`Uppskattad skatt och egenavgifter för ${year}`})
-  const amount = () => page.locator('section[aria-label="Uttagsutrymme"] .text-2xl')
+  const amount = () => page.locator('section[aria-label="Uttagsutrymme"] > div .text-2xl')
   const writes = () => page.evaluate(() => window.annualCalls.filter(c=>c.name==='save_withdrawal_assessment'))
   // First assertion reproduces the current mismatch before any product edit.
   await expect(page.getByText('Sparad årsprocent: 30 %', {exact:true})).toBeVisible({timeout:1500})
@@ -125,7 +125,7 @@ try {
     await expect(amount()).toHaveText(/85\s*000\s*kr/)
     assert.deepEqual(await page.evaluate(()=>window.annualSeed.revision.facts.filter(f=>f.key!==`rate:${window.annualYear}`)),factsBefore.filter(f=>f.key!==`rate:${year}`))
     // Reopen the income panel: the shared product UI has no second editable rate.
-    await page.getByRole('button',{name:'Visa underlag eller ändra uppgift'}).click()
+    await page.getByRole('button',{name:'Visa beräkning och underlag'}).click()
     await page.getByLabel('Vad vill du kontrollera?').selectOption('income')
     await page.getByLabel('Inkomstår',{exact:true}).fill(String(year))
     await expect(page.getByLabel('Uppskattad sammanlagd procent')).toHaveCount(0)
