@@ -2,7 +2,7 @@
 
 ## KAN-104: ägarbunden profil och skrivkontext (lokal kandidat)
 
-`useAuth` invalidierar profilen vid varje relevant auth-event/laddning och accepterar bara svar för aktuell ägare/generation. Saknad eller felaktig profilläsning blockerar UI och profilberoende skrivningar. `profileContext.ts` håller klientens aktuella generation; detta är ett klientskydd, inte en ersättning för RLS/RPC-validering.
+`useAuth` förnyar verifieringsgenerationen vid varje relevant auth-event/laddning och accepterar bara svar för aktuell ägare/generation. KAN-105 behåller samma ägares tidigare verifierade profil under en ny kontroll efter `SIGNED_IN`/`TOKEN_REFRESHED`, så att vanligt flikbyte inte monterar ned ekonomivyn eller öppen modal. Skrivningar är spärrade tills den nya kontrollen lyckas. Kontobyte, utloggning, andra auth-händelser och saknad/felaktig profilläsning döljer fortfarande tidigare profil/vy. `profileContext.ts` håller klientens aktuella generation; detta är ett klientskydd, inte en ersättning för RLS/RPC-validering.
 
 `profileWriteGuard.ts` verifierar sessionens token med Auth och binder samma Authorization till profil-/bokningsbegäran. Formulär och asynkrona förberedelser kontrollerar sin fångade kontext; Home-utkast återanvänds inte vid användarbyte. Standardbokning, periodisering, VAT V2, fakturaunderlag och inventarieanskaffning behåller befintliga ekonomiska regler. Ingen migration. Bas, tester och publiceringsspärr: `docs/reviews/KAN-104-profile-context.md` och `PROJECT_STATE.md`.
 
