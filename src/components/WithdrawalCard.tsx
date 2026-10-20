@@ -115,10 +115,10 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
       setNotice(''); closeDetails()
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Uppgiften kunde inte sparas.') }
   }
-  const tone = !model.loading && !model.error && loaded?.assessment.result.status === 'calculated'
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+  const tone = !model.loading && !model.error && loaded && loaded.assessment.result.status !== 'incomplete' && loaded.assessment.result.recommendedOre !== null
+    ? 'border-emerald-600 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
     : model.error || loaded?.assessment.result.status === 'incomplete'
-      ? 'border-amber-300 bg-amber-50 text-amber-950'
+      ? 'border-amber-300 bg-slate-50 text-slate-950'
       : 'border-slate-200 bg-slate-50 text-slate-950'
   const available = loaded && !model.loading && !model.error
   function closeDetails() { dialog.current?.close(); setOpen(false); button.current?.focus() }
@@ -134,9 +134,9 @@ export function WithdrawalCardContent({ model, asOf, onOpenVat, onOpenNe, annual
     }
   }
   const loadStatus = model.loading ? <p role="status">Laddar uttagsunderlag…</p> : model.error ? <div role="alert"><p className="font-semibold">Uttagsunderlaget kunde inte hämtas</p><p>{model.error}</p><button type="button" onClick={() => void model.reload()} className="underline min-h-11">Försök igen</button></div> : null
-  return <section className={`rounded-2xl border p-4 min-w-0 ${tone}`} aria-label="Uttagsutrymme">
+  return <section className={`rounded-[1.75rem] border p-5 sm:p-6 min-w-0 w-full flex flex-col justify-between ${tone}`} aria-label="Uttagsutrymme">
     {available ? <WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt} /> : <><h3 className="font-bold">Säkert uttag</h3>{!open && loadStatus}</>}
-    <button ref={button} type="button" disabled={!available} aria-haspopup="dialog" aria-expanded={open} aria-controls={id} className="underline font-semibold min-h-11 mt-1 disabled:opacity-50" onClick={() => { startReview(); setOpen(true) }}>Visa beräkning och underlag</button>
+    <button ref={button} type="button" disabled={!available} aria-haspopup="dialog" aria-expanded={open} aria-controls={id} className="underline text-xs font-bold min-h-11 mt-1 disabled:opacity-50" onClick={() => { startReview(); setOpen(true) }}>Visa beräkning och underlag</button>
     {open && <dialog ref={dialog} id={id} onKeyDown={containFocus} aria-labelledby={id + '-title'} onCancel={e => { e.preventDefault(); closeDetails() }} onClose={() => { setOpen(false); button.current?.focus() }}
       className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[85dvh] rounded-3xl bg-white text-slate-950 shadow-2xl p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm">
       <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">

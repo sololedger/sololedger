@@ -21,7 +21,6 @@ interface OverviewJournalEntry {
 
 export interface OverviewCardsProps {
   withdrawal?: ReactNode
-  taxControl?: ReactNode
   data: DashboardData
   taxRate: number | null
   selectedYear: number
@@ -34,7 +33,6 @@ export interface OverviewCardsProps {
 export default function OverviewCards({
   data,
   withdrawal,
-  taxControl,
   taxRate,
   selectedYear,
   transactions,
@@ -62,7 +60,7 @@ export default function OverviewCards({
           Översikt
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
 
           {/* Bank */}
           <button
@@ -83,13 +81,12 @@ export default function OverviewCards({
           </button>
 
           {/* Skatt */}
-          <div className="p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white min-w-0">
           <button
             onClick={() => setActiveModal('skatt')}
-            className="group w-full text-left"
+            className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-orange-200 hover:shadow-md transition-all text-left min-w-0"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
-              Årets skatteexempel · {selectedYear}{taxRate !== null && ` · ${taxRate}%`}
+              Skatt{taxRate !== null && ` · ${taxRate}%`}
             </p>
 
             <p className="text-xl font-black tabular-nums text-orange-500">
@@ -101,8 +98,6 @@ export default function OverviewCards({
               Visa beräkning ↗
             </p>
           </button>
-          {taxControl}
-          </div>
 
           {/* Moms */}
           <button
@@ -146,7 +141,7 @@ export default function OverviewCards({
             </p>
           </button>
 
-          <div className="col-span-2 md:col-span-4 min-w-0">
+          <div className="col-span-2 md:col-span-1 min-w-0 flex">
             {withdrawal ?? <p role="status">{data.taxReviewRequired ? 'Skatteunderlaget behöver granskas i NE-bilagan' : data.momsManualReviewRequired ? 'Moms behöver kontrolleras' : 'Viktig uppgift saknas. Ladda uttagsunderlaget.'}</p>}
           </div>
 

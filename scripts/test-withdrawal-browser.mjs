@@ -23,7 +23,7 @@ try {
   await expect(page.getByRole('button',{name:'Visa beräkning och underlag'})).toBeDisabled()
   await page.evaluate(()=>window.withdrawalHarness.finish(0))
   await page.getByText('Kan inte beräknas – kontroll krävs',{exact:true}).waitFor()
-  assert.equal(await page.locator('section.bg-emerald-50').count(),0,'blocked card has no success background')
+  assert.equal(await page.locator('section.from-emerald-500').count(),0,'blocked card has no success background')
   assert.equal(await page.locator('section dl').count(),0,'closed card contains no detailed breakdown')
   assert((await page.locator('section').boundingBox()).height<260,'compact card height')
   await page.screenshot({path:`${artifacts}/compact-blocked-${width}.png`,fullPage:true})
@@ -101,7 +101,7 @@ try {
     } else {
       await expect(compact).toContainText('Kan inte beräknas – kontroll krävs')
       await expect(page.locator('section .text-2xl')).toHaveCount(0)
-      assert.equal(await page.locator('section.bg-emerald-50').count(),0)
+      assert.equal(await page.locator('section.from-emerald-500').count(),0)
     }
     await page.getByRole('button',{name:'Visa beräkning och underlag'}).click()
     await expect(page.getByRole('dialog').locator('dl')).toContainText('Bokförd företagsbank')
