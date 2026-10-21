@@ -1,78 +1,98 @@
 # SoloLedger Project State
 
-Avstämt 2026-10-21. **KAN-62 LOCAL PASS accepterat för Staging-förberedelse. Stanna före publicering.**
-Arbetsmodell: LOCAL → STAGING → PRODUCTION. Lokal implementation, omkörning och scoped commits
-är tillåtna inom godkänt uppdrag. Extern publicering/migration kräver nästa uttryckliga beslut.
+Avstämt 2026-10-21 efter återstart. **Gemensam inventariekandidat LOCAL PASS.**
+Arbetsmodell: LOCAL → STAGING → PRODUCTION. Ingen Staging-publicering godkänd.
+Produktmål/prioriteringar finns i AGENTS.md: korrekt och enkel bokföring år efter år för Jessika.
 
-## Verifierad Production och Staging
+## Aktuell kandidat och nästa steg
 
-- GitHub main **d4320f5d6524216948904e0e58cae3a30ddd76fa** (KAN-105), färskt läst.
-- Production Vercel **dpl_4axRc8RXNvcLoyna8HVbrccA9VFy**, READY / main / production;
-  sololedger.vercel.app pekar på exakt detta bygge. Ingen ny deployment gjord.
-- Production Supabase **wbaxmuvudpnkvuliicuy**: 52 migrationer, senast **20261020130000**.
-- GitHub staging **d57161756fec9999094b1e068db2a1e9cde22b2b**. KAN-105 är redan
-  Production-levererad men saknas i staging och ska följa med i nästa lokala integration.
-- Staging Supabase **fzxqiqenqjzhlyxxpvhg**: 54 migrationer, samma senaste version.
-  Exakt extra versioner mot Production: **20261012123000** och **20261012153000** KAN-62.
-  Historiska filer finns i båda Git-träden; återspela dem inte mot Staging.
-- Enda funktionella kroppsskillnaden efter CRLF/LF-normalisering: privata inventarie-RPC:n.
-  Offentlig wrapper/KAN-54/KAN-75 skydd är lika. Äldre separat get_next_ver_nr-ACL-avvikelse
-  (PUBLIC/anon EXECUTE i Staging) kvarstår; ingen behörighetsändring ingår här.
-- Databasgranskning utförd med TLS och READ ONLY, endast katalog/ledger, inga användarrader.
-- **Vercel staging-byggspärr kvarstår.** Ordinarie staging-alias visar ännu KAN-80,
-  **fc8eb6ab6fe4d31bf81c379d6b2ec1d3018667a0**, inte den aktuella grenen.
-  d571617:s integrations-Preview är READY; staging-grenens bygge är CANCELED.
+- Scope: KAN-62/65/73/76 inklusive säker kollektiv K1-årsavskrivning för normalfall.
+- Arbetskopia: `audit-packages/KAN-62-rule-contract-local`, vanlig bevarad lokal klon.
+- Gren **codex/KAN-62-65-73-76-inventory**.
+- Produktcheckpoint **ab664fc61a21dbce2fabe4feaf763eec36a9b5e7**; följande docscheckpoint
+  innehåller denna state, Architecture.md och samlad verifieringsrapport.
+- Bevarad KAN-62-förfader **89afeefa90faa3ad0c3a6d7622a739c3fcfa7ebc**, även på
+  `codex/KAN-62-staging-preparation`. Ingen historikomskrivning eller orelaterad produktcommit.
+- Kandidatens origin är lokal KAN-97-kopia, INTE GitHub. `github/main`/`github/staging`
+  är tidigare hämtade GitHub-referenser. Root Desktop/staging får inte pushas som produktrelease.
+- **Nästa säkra steg:** ledargranska lokal checkpoint och förbered exakt gemensam
+  Staging-acceptans. Stoppa före push, hosted migration, byggspärrändring eller deployment.
+- Full rapport: **docs/reviews/INVENTORY-LOCAL-PASS.md** i kandidaten.
+  Tidigare analys finns i root `audit-packages/KAN-62-INVENTORY-DELIVERY-REVIEW-20261021.md`.
 
-## KAN-62 kandidat och lokal verifiering
+## Implementerat och verifierat
 
-- Arbetskopia: **audit-packages/KAN-62-rule-contract-local**, vanlig bevarad lokal klon.
-  Origin är lokal KAN-97-kopia, INTE GitHub. Läsreferenser github/main och github/staging
-  hämtade direkt från GitHub. Desktop-kod eller dess äldre origin/main är inte releasekälla.
-- Kandidatgren: **codex/KAN-62-rule-contract**, bas d4320f5; produktcheckpoint
-  **ca42545295baeb0ea461c8e44310a3e8290a5a85**. Separat docscheckpoint innehåller regler/state/plan.
-- Lokal Staging-integration: **codex/KAN-62-staging-preparation**, bas github/staging.
-  Exakt HEAD verifieras i slutrapport/git; inget har pushats. Produktträd ska matcha kandidaten.
-- Regel: strikt gräns under 29 600 exklusive fakturamoms för 2026; ej avdragsgill moms
-  ingår i kostnad/tillgång. Beständiga sammaårsgrupper/planer, tre köp, kortliv och exakt
-  preview/serverkontrakt. Historiska journaler bevaras; osäkra äldre planer/länkar stoppas.
-- Endast ny migration **20261020233000_kan62_rule_contract.sql** för Staging.
-  Alla 55 lokala migrationshashar verifierade; inga historiska filer ändrade.
-- LOCAL PASS: full SQL/RLS/klientbehörighet, 59 lyckade anrop och 114 exakta negativa prov;
-  äldre replay efter uppgradering, journalrader/balanser, stängda/deklarerade perioder.
-  **9/9 samtidighetsfall**, även verklig moms- och årsstängning. Bevis i
-  **docs/reviews/KAN-62-LOCAL-PASS.md**, tidigare FAIL-bevis bevarade.
-- Lokal DB **sololedger_kan62_disposable_20261021**, **127.0.0.1:5432**, PostgreSQL17.11,
-  OID **57199**. Exakt unik markör i ignorerat coverage/kan62-local-db/database-identity.json.
-  55 installerade migrationer, 19 syntetiska användare; tidigare data/bevis ska bevaras.
-  Ingen reset/radering, ingen ny skrivande databastestning under releaseförberedelsen.
-- Ny kontroll: standardbygge **Next16.2.6/Turbopack PASS**, inklusive TypeScript och 8/8
-  statiska sidor. Publik smoke mot faktiskt byggd app **2/2 PASS**. Endast syntetisk
-  localhost-konfiguration/nycklar; ingen appkonfiguration/dependency ändrad.
-- Tidigare dev/PostCSS-fel återkom inte i bygget; detta är inte ett generellt dev-fixkvitto.
-  Första byggförsöket saknade syntetisk servernyckel för modulstart; korrigerad miljö PASS.
-- Riktad lint utan varningar, offline körvakt och DB-invarianter PASS. Domän-/säker regression
-  enligt tidigare lokalt PASS; färsk domänomkörning/logg i coverage/kan62-local-db/staging-prep-*.
+- KAN-62:s strikt netto-under-29 600-regel 2026, ej avdragsgill moms i bokfört värde,
+  beständiga paket, kortliv, preview/server och tidigare säkerhetskontroller bevarade.
+- KAN-65: ägarbundna tvåvägslänkar köp/omklassningsjournal, sökning och mobil/desktop.
+- KAN-73: verklig 2641 från komplett validerat inventarieverifikat i momsrapport/dashboard;
+  momsavslut/deklarationsavstämning bevarad, momsfri årsavskrivning tillåts efter momsavslut.
+- KAN-76/K1: gemensam server-preview/bokning, komplett historik, årsföljd, lås/replay,
+  nollvärde och skydd mot sena underlagsändringar. Högst halvt PBB → hel avskrivning,
+  annars 30 procent. Bekräftelse av normalt kalenderår och färdiga årsinköp krävs.
+- **Full SQL PASS** `runs/inventory-sql-r07`: även gamla KAN-62:s 59 lyckade/114 negativa
+  anrop, äldre replay efter uppgradering, journalrader/balanser, klientroller/RLS/privata anrop.
+- **10/10 nya samtidighetsfall PASS** `runs/inventory-concurrency-r03`, inklusive verklig
+  låsväntan, moms-/årsstängning, lika/ändrad replay och olika ägare.
+- **9/9 tidigare KAN-62 samtidighetsfall PASS** `runs/inventory-kan62-concurrency-r01`.
+- Två år med/utan momsavdrag: faktiska journaler → moms/NE R10/B4/dashboard PASS.
+- Hel domänsvit, säkra regressionens återstående sju delar, panel/historiklänkar,
+  TypeScript, scoped lint, offlinevakter, DB-invarianter och admin-delete dry-run PASS.
+- Standard **Next16.2.6/Turbopack build PASS**, 8/8 statiska sidor; publik smoke på byggd
+  app **2/2 PASS**. Tidigare Turbopack-fel återkom inte. Syntetisk localhost-konfiguration.
+- TransactionTable har 13 befintliga lint-fel, oförändrat mot 89afeef; full repo-lint
+  påstås inte grön. Hosted JWT/HTTP och autentiserad Staging-acceptans är inte körda.
+- Bevis bevaras i kandidatens ignorerade `coverage/kan62-local-db/`, inga gamla FAIL-försök
+  eller fixtures raderade. Rapporten anger exakta bevisvägar och verifieringens gränser.
 
-## Begränsningar och nästa beslut
+## Isolerad lokal databas och migrationsurval
 
-- Jira återläst: KAN-62 **In Review / Pontus**, KAN-73 och KAN-76 **To Do / High**.
-  Inga Jira-ändringar. KAN-73 fixed_asset/2641 i momsrapport/dashboard och KAN-76 köp efter
-  avskrivning är olösta och blockerar generell inventarie-/Production-acceptans.
-- Ingen ny EU-varuhantering, obetalda fakturor, allmän aktivering, returer eller fleråriga
-  avskrivningar. Ingen ändring av Jessikas bokföring; endast syntetiska kommande acceptansprov.
-- Nästa godkännande: exakt release-SHA till staging, EN migration 20261020233000,
-  återöppning av Vercels staging-byggspärr och avgränsade syntetiska Staging-acceptansprov.
-  Migration först, verifiera skydd/ledger, matchande klient därefter; gammal klient ska stoppas.
-- Full plan och kompatibilitet: **docs/reviews/KAN-62-STAGING-PREPARATION.md** i kandidaten.
-  Hosted build/JWT/HTTP och rapport-/NE/dashboardacceptans återstår. KAN-73 får inte rapporteras PASS.
-- Ingen push, hosted migration, deployment eller Jira-mutation utförd. Lokala commits godkända.
+- Enda skrivmål: **sololedger_kan62_disposable_20261021**, **127.0.0.1:5432**, PG17.11,
+  OID **57199**; unik markör i ignorerad `coverage/kan62-local-db/database-identity.json`.
+- 55 historiska migrationer oförändrade + tre nya installerade endast lokalt = 58.
+  Manifest: `docs/reviews/INVENTORY-LOCAL-MIGRATIONS.json`; alla hashkontroller PASS.
+- Slutlig READ ONLY-kontroll PASS: 60 syntetiska användare, 69 tillgångar, 152 transaktioner,
+  323 journalrader, 29 årskörningar, inga obalanser eller kvarvarande testsessioner.
+  Ursprungliga 19 användares rader, gemensamma roller/medlemskap och andra DB-metadata bevarade.
+- Förväntat Staging-tillägg, ordning:
+  1. `20261020233000_kan62_rule_contract.sql` (bevarad KAN-62-checkpoint).
+  2. `20261021120000_inventory_k1_depreciation_contract.sql`.
+  3. `20261021123000_inventory_journal_boundary.sql`.
+  4. `20261021130000_inventory_prior_year_validation.sql`.
+- Live ledger/definitioner/grants ska återjämföras före eventuell godkänd körning.
+  Inga gamla migrationer/baseline ska återspelas. Ingen include-all/repair.
+- Nya klienten kräver preview/checked RPC. Äldre integer-års-RPC är replay-only.
+  Migration först under pausad inventarieacceptans, sedan matchande klient; gammal klient
+  kan stoppas. Produktionsurval kräver separat kontroll av dess annorlunda migrationshistorik.
 
-## Bevarade arbetskopior och äldre risker
+## Avgränsning och kvarstående risker
 
-- Root Desktop-gren staging är en äldre separat dokumentationskedja; pusha den aldrig som
-  produktrelease. Befintlig personalavgränsning i AGENTS är bevarad men hålls utanför ny docscommit.
-  audit-packages/ och scripts/create-kan63-staging-user.mjs är tidigare lokalt material, ej release.
-- KAN-97/104/105-kopior, miljöfiler, auth och DB-bevis orörda. Ingen automatisk cleanup.
-- Tidigare öppna SIE/flerårsrisker KAN-95/96/83/34 och äldre testkontons årsavvikelser
-  är inte lösta av detta uppdrag. Deras status är inte nygranskad; historik i PROJECT_ARCHIVE.md.
-  KAN-75 tidigare release är avslutad; kör aldrig dess historiska mutationsverktyg igen.
+- Stöd: svenska betalda köp, full/ingen momsavdragsrätt, verifierade normala kalenderår;
+  regelparametrar för 2025/2026. Andra regelår stoppas tills verifierade parametrar finns.
+- Spärrat: aktiverade tillgångars kredit/avyttring/utrangering, automatisk rättelse av
+  årsavskrivning, osäkra ingående/importerade värden, äldre körning utan verifierad
+  årslängd, okända/förkortade/förlängda år. Ingen historisk datakonvertering.
+- Ingen utvidgning till EU, obetalda fakturor, partiellt momsavdrag eller andra metoder.
+  Säkra direktavdrag/korttidsinventarier blockeras inte av redan bokad årsavskrivning.
+- Ingen ändring av Jessikas bokföring, push, extern migration, deployment eller Jira-mutation.
+
+## Senast verifierade externa läge – inte nyligen ompublicerat
+
+- GitHub main **d4320f5d6524216948904e0e58cae3a30ddd76fa** (KAN-105), Production READY
+  `dpl_4axRc8RXNvcLoyna8HVbrccA9VFy`, sololedger.vercel.app, vid granskning 2026-10-21.
+- Production Supabase `wbaxmuvudpnkvuliicuy`: 52 migrationer, senast 20261020130000.
+- GitHub staging **d57161756fec9999094b1e068db2a1e9cde22b2b**; kandidatbasen inkluderar KAN-105.
+- Staging Supabase `fzxqiqenqjzhlyxxpvhg`: 54 migrationer; extra 20261012123000/20261012153000.
+- Vercel staging-byggspärr kvar vid senaste kontroll; ordinarie alias visade ännu KAN-80
+  fc8eb6ab6fe4d31bf81c379d6b2ec1d3018667a0. Aktuell inventariekandidat är inte publicerad.
+- Äldre get_next_ver_nr-ACL-avvikelse i Staging ligger utanför detta scope.
+- Jira senast återläst: KAN-62 In Review/Pontus, KAN-65 In Review/ej tilldelad,
+  KAN-73/76 To Do/High/ej tilldelade. Ingen statusändring eller nytt Done-påstående.
+
+## Bevarat övrigt arbete
+
+- Root AGENTS.md:s tidigare personalavgränsning bevaras utanför denna scoped docscommit.
+  Root `audit-packages/` och `scripts/create-kan63-staging-user.mjs` är tidigare lokalt material.
+- Andra arbetskopior, miljöfiler/auth och testbevis bevaras. Ingen reset/radering/cleanup.
+- Äldre separata SIE/flerårsrisker KAN-95/96/83/34 är inte lösta av inventarieuppdraget.
+  Historik i PROJECT_ARCHIVE.md. Aktiv gemensam leverans arkiveras inte före acceptans.

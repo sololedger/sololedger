@@ -231,7 +231,7 @@ Kunskapslagret har 14 systemkonton i `SYSTEM_ACCOUNTS`.
 
 ## Inventarier Och Avskrivningar
 
-Nuläget är medvetet delvis:
+Lokal gemensam kandidat KAN-62/65/73/76 (2026-10-21), ännu inte publicerad:
 
 - `BOOKING_CATEGORIES` har guided kategori `inventarier` med primary account 1220.
 - `SYSTEM_ACCOUNTS` känner till 7830 som systemkonto för avskrivning på inventarier.
@@ -239,7 +239,13 @@ Nuläget är medvetet delvis:
 - `getNEData()` placerar 1220-1249 i B4 Maskiner och inventarier.
 - SIE-export tar med använda journal-/balanskonton även om de inte finns som `accounts`-rader.
 
-Det finns däremot inget dedikerat inventarieregister, ingen nyttjandeperiod/livslängd, ingen avskrivningsplan och ingen automatisk årlig avskrivningsverifikation. Framtida produktarbete är fångat i Jira KAN-36.
+`FixedAssetsPanel` och `accountingService` använder det ägarisolerade inventarieregistret, anskaffnings-/omklassningsevent och årsavskrivningskörningar. KAN-62:s köp-RPC bevarar fakturamoms, bokfört värde, beständiga sammaårsgrupper och strikt nettogräns för mindre värde. Omklassning bokförs separat D1220/K5410; historiska köp ändras inte. Transaktionshistoriken länkar båda riktningarna.
+
+`get_fixed_asset_depreciation_preview(integer)` och `book_fixed_asset_depreciation_checked(jsonb)` delar privat, journalavstämt kollektivt K1-underlag. Bokning kräver bekräftat normalt kalenderår, avslutade årsinköp och oförändrad underlagssignatur/belopp. Högst halvt prisbasbelopp ger hel avskrivning; annars används 30 procent. Regelår 2025/2026 är verifierade. Årsjournalen är D7830/K1220 utan moms eller betalning. Historik läses fullständigt; nollsaldo ger inget nytt förslag. Den äldre integer-RPC:n tillåter bara replay av redan bokad körning.
+
+KAN-75:s årslåsgräns behålls, med gemensam inventarielåsning och en INSERT-vakt för relevanta journalrader. Aktivering/omklassning/bakdatering får inte ändra ett redan fastställt årsunderlag. Säkra direktavdrag och korttidsinventarier tillåts fortsatt. Momsrapport/dashboard inkluderar faktisk 2641 från komplett validerat fixed_asset-verifikat; momsfri årsavskrivning är tillåten även efter momsavslut/deklaration.
+
+Avyttring/utrangering av aktiverade tillgångar, kreditering, automatisk årsavskrivningsrättelse, osäkra ingående värden och okänd/avvikande årslängd saknar stöd och stoppas. Ingen individuell linjär avskrivningsplan eller historisk datakonvertering ingår. Se `docs/reviews/INVENTORY-LOCAL-PASS.md` för testbevis och kvarvarande acceptans.
 
 Legacy-kategorin `avskrivning_inventarier` i `ACCOUNT_PRESETS` ska inte framställas som en nödvändig vanlig defaultkategori. Den är legacy-kunskap, inte ett bevis på att ett komplett avskrivningsflöde finns.
 
