@@ -1,31 +1,78 @@
 # SoloLedger Project State
 
-Uppdaterad 2026-10-20. Aktivt: KAN-105, lokalt implementerad och verifierad; Pontus acceptans återstår.
+Avstämt 2026-10-21. **KAN-62 LOCAL PASS accepterat för Staging-förberedelse. Stanna före publicering.**
+Arbetsmodell: LOCAL → STAGING → PRODUCTION. Lokal implementation, omkörning och scoped commits
+är tillåtna inom godkänt uppdrag. Extern publicering/migration kräver nästa uttryckliga beslut.
 
-## Arbetskopia och bevarande
+## Verifierad Production och Staging
 
-- Aktiv kodkopia: audit-packages/KAN-97-staging-integration-20261020/candidate, återanvänd vanlig klon, gren codex/KAN-105-auth-focus.
-- HEAD/bas: af412c0ea06219ea625f341f15d158a84ca6c0dc (publicerad KAN-97). Inga nya commits eller pushar. Ingen upstream/remote ändrad för KAN-105.
-- Originalkopia audit-packages/KAN-104-source har kvar befintliga PROJECT_STATE-/PROJECT_ARCHIVE-ändringar och 17 ospårade filer. Alla 15 skyddade filer kontrollsummematchar. Radera/städa inte kopior eller testbevis.
-- Denna fil ersätter kandidatens inaktuella KAN-97-status. Historik finns i Git och originalkällans bevarade dokument/coverage.
+- GitHub main **d4320f5d6524216948904e0e58cae3a30ddd76fa** (KAN-105), färskt läst.
+- Production Vercel **dpl_4axRc8RXNvcLoyna8HVbrccA9VFy**, READY / main / production;
+  sololedger.vercel.app pekar på exakt detta bygge. Ingen ny deployment gjord.
+- Production Supabase **wbaxmuvudpnkvuliicuy**: 52 migrationer, senast **20261020130000**.
+- GitHub staging **d57161756fec9999094b1e068db2a1e9cde22b2b**. KAN-105 är redan
+  Production-levererad men saknas i staging och ska följa med i nästa lokala integration.
+- Staging Supabase **fzxqiqenqjzhlyxxpvhg**: 54 migrationer, samma senaste version.
+  Exakt extra versioner mot Production: **20261012123000** och **20261012153000** KAN-62.
+  Historiska filer finns i båda Git-träden; återspela dem inte mot Staging.
+- Enda funktionella kroppsskillnaden efter CRLF/LF-normalisering: privata inventarie-RPC:n.
+  Offentlig wrapper/KAN-54/KAN-75 skydd är lika. Äldre separat get_next_ver_nr-ACL-avvikelse
+  (PUBLIC/anon EXECUTE i Staging) kvarstår; ingen behörighetsändring ingår här.
+- Databasgranskning utförd med TLS och READ ONLY, endast katalog/ledger, inga användarrader.
+- **Vercel staging-byggspärr kvarstår.** Ordinarie staging-alias visar ännu KAN-80,
+  **fc8eb6ab6fe4d31bf81c379d6b2ec1d3018667a0**, inte den aktuella grenen.
+  d571617:s integrations-Preview är READY; staging-grenens bygge är CANCELED.
 
-## KAN-97 publicerad grund
+## KAN-62 kandidat och lokal verifiering
 
-- GitHub main af412c0ea06219ea625f341f15d158a84ca6c0dc; staging d57161756fec9999094b1e068db2a1e9cde22b2b har samma produktträd.
-- Production Vercel dpl_ATTabx4y5HcxNEDnoXZgCpdJEXcA READY på sololedger.vercel.app, Supabase wbaxmuvudpnkvuliicuy. Ledger 52, protokoll 3, delete-user v14 ACTIVE/JWT. Tidigare verifierat KAN-97-underlag, inte nya KAN-105-DB-kontroller.
-- Pontus anger nu KAN-97 färdig/publicerad. Ingen KAN-97/Jira-status ändrad av KAN-105-arbetet.
+- Arbetskopia: **audit-packages/KAN-62-rule-contract-local**, vanlig bevarad lokal klon.
+  Origin är lokal KAN-97-kopia, INTE GitHub. Läsreferenser github/main och github/staging
+  hämtade direkt från GitHub. Desktop-kod eller dess äldre origin/main är inte releasekälla.
+- Kandidatgren: **codex/KAN-62-rule-contract**, bas d4320f5; produktcheckpoint
+  **ca42545295baeb0ea461c8e44310a3e8290a5a85**. Separat docscheckpoint innehåller regler/state/plan.
+- Lokal Staging-integration: **codex/KAN-62-staging-preparation**, bas github/staging.
+  Exakt HEAD verifieras i slutrapport/git; inget har pushats. Produktträd ska matcha kandidaten.
+- Regel: strikt gräns under 29 600 exklusive fakturamoms för 2026; ej avdragsgill moms
+  ingår i kostnad/tillgång. Beständiga sammaårsgrupper/planer, tre köp, kortliv och exakt
+  preview/serverkontrakt. Historiska journaler bevaras; osäkra äldre planer/länkar stoppas.
+- Endast ny migration **20261020233000_kan62_rule_contract.sql** för Staging.
+  Alla 55 lokala migrationshashar verifierade; inga historiska filer ändrade.
+- LOCAL PASS: full SQL/RLS/klientbehörighet, 59 lyckade anrop och 114 exakta negativa prov;
+  äldre replay efter uppgradering, journalrader/balanser, stängda/deklarerade perioder.
+  **9/9 samtidighetsfall**, även verklig moms- och årsstängning. Bevis i
+  **docs/reviews/KAN-62-LOCAL-PASS.md**, tidigare FAIL-bevis bevarade.
+- Lokal DB **sololedger_kan62_disposable_20261021**, **127.0.0.1:5432**, PostgreSQL17.11,
+  OID **57199**. Exakt unik markör i ignorerat coverage/kan62-local-db/database-identity.json.
+  55 installerade migrationer, 19 syntetiska användare; tidigare data/bevis ska bevaras.
+  Ingen reset/radering, ingen ny skrivande databastestning under releaseförberedelsen.
+- Ny kontroll: standardbygge **Next16.2.6/Turbopack PASS**, inklusive TypeScript och 8/8
+  statiska sidor. Publik smoke mot faktiskt byggd app **2/2 PASS**. Endast syntetisk
+  localhost-konfiguration/nycklar; ingen appkonfiguration/dependency ändrad.
+- Tidigare dev/PostCSS-fel återkom inte i bygget; detta är inte ett generellt dev-fixkvitto.
+  Första byggförsöket saknade syntetisk servernyckel för modulstart; korrigerad miljö PASS.
+- Riktad lint utan varningar, offline körvakt och DB-invarianter PASS. Domän-/säker regression
+  enligt tidigare lokalt PASS; färsk domänomkörning/logg i coverage/kan62-local-db/staging-prep-*.
 
-## KAN-105 kandidat
+## Begränsningar och nästa beslut
 
-- Orsak: SDK:s återkomst till synlig flik skickar SIGNED_IN för samma ägare; tidigare profilnollställning monterade ned Home/ekonomivy/modal och startade bokföringsladdning.
-- useAuth behåller samma ägares verifierade profil under SIGNED_IN/TOKEN_REFRESHED men förnyar skrivkontext och verifierar profilen. Skrivningar spärras under kontroll; identitetsbyte/utloggning/andra events/fel döljer som tidigare.
-- Produktkod ändrad endast i src/hooks/useAuth.ts. Nya offline-regressioner och fixture, liten utökning av befintlig fixture; package.json kör dem i domän/regression. Architecture och docs/reviews/KAN-105-AUTH-FOCUS.md dokumenterar.
-- PASS: verklig SDK-visibility-reproduktion före, fix/säkerhetsfall 1280/390 efter, profilkontext, typkontroll, riktad lint (0 fynd), optimerat webpack-bygge. Säkra regressionens samtliga delmoment PASS. Standardrunner avbröts för Windows/Turbopack-sökvägsfel vid smoke; samma smoke PASS separat mot färdigt bygge efter tillåten localhost-åtkomst. Ingen grön helkörning påstås.
-- Bevis: coverage/kan105-checks och coverage/kan105-auth-focus-1792526510360 (före), -1792526747591 (efter).
-- Ingen DB-/Edge-/affärsskrivning, migration, commit, push eller deployment. Ingen fjärrpreview ännu. Jira KAN-105 är In Review, tilldelad Pontus; kommentar 11671 innehåller verifiering och acceptanssteg. Inte Done.
+- Jira återläst: KAN-62 **In Review / Pontus**, KAN-73 och KAN-76 **To Do / High**.
+  Inga Jira-ändringar. KAN-73 fixed_asset/2641 i momsrapport/dashboard och KAN-76 köp efter
+  avskrivning är olösta och blockerar generell inventarie-/Production-acceptans.
+- Ingen ny EU-varuhantering, obetalda fakturor, allmän aktivering, returer eller fleråriga
+  avskrivningar. Ingen ändring av Jessikas bokföring; endast syntetiska kommande acceptansprov.
+- Nästa godkännande: exakt release-SHA till staging, EN migration 20261020233000,
+  återöppning av Vercels staging-byggspärr och avgränsade syntetiska Staging-acceptansprov.
+  Migration först, verifiera skydd/ledger, matchande klient därefter; gammal klient ska stoppas.
+- Full plan och kompatibilitet: **docs/reviews/KAN-62-STAGING-PREPARATION.md** i kandidaten.
+  Hosted build/JWT/HTTP och rapport-/NE/dashboardacceptans återstår. KAN-73 får inte rapporteras PASS.
+- Ingen push, hosted migration, deployment eller Jira-mutation utförd. Lokala commits godkända.
 
-## Nästa steg
+## Bevarade arbetskopior och äldre risker
 
-- Läs docs/reviews/KAN-105-AUTH-FOCUS.md och faktisk git diff/status.
-- Pontus har nu uttryckligen godkänt avgränsad KAN-105-commit och Vercel Staging Preview. Publicera exakt denna kandidat med Preview-miljö, utan Production-push/deploy eller DB-ändring. Publiceringskvitto/commit/deployment finns efteråt i ../kan105-preview-20261020/. Därefter Pontus flikbyte/modal/kontobyte på verklig Staging och mobil där möjligt.
-- Production-release kräver nytt godkännande. Inga orelaterade filer eller originalkällans dokumentändringar får följa med av misstag.
+- Root Desktop-gren staging är en äldre separat dokumentationskedja; pusha den aldrig som
+  produktrelease. Befintlig personalavgränsning i AGENTS är bevarad men hålls utanför ny docscommit.
+  audit-packages/ och scripts/create-kan63-staging-user.mjs är tidigare lokalt material, ej release.
+- KAN-97/104/105-kopior, miljöfiler, auth och DB-bevis orörda. Ingen automatisk cleanup.
+- Tidigare öppna SIE/flerårsrisker KAN-95/96/83/34 och äldre testkontons årsavvikelser
+  är inte lösta av detta uppdrag. Deras status är inte nygranskad; historik i PROJECT_ARCHIVE.md.
+  KAN-75 tidigare release är avslutad; kör aldrig dess historiska mutationsverktyg igen.

@@ -55,9 +55,9 @@ Programmet ska vara tillförlitligt och kunna användas av andra företagare på
 
 ## Change Safety
 
-- Do not change the live database, run migrations, alter Supabase configuration, or modify Supabase data without explicit user approval.
+- Staging/Production database writes, migrations and Supabase configuration changes require explicit approval. Local database work is allowed only within the explicitly approved isolated environment and operation scope below.
 - Do not deploy without explicit user approval.
-- Do not commit or push without explicit user approval.
+- Local checkpoints/commits are authorized within an explicitly approved Jira assignment. Push always requires explicit approval; never include unrelated user changes.
 - Make small, focused changes. Do not combine broad refactoring with changes to bookkeeping, VAT, SIE, reports, subscriptions, RLS, or RPC behavior.
 - Do not change working bookkeeping, VAT, result, NE, SIE, year-closing, or correction logic without a concrete reason and targeted verification.
 - Never delete or modify real user data as test data.
@@ -74,15 +74,15 @@ Programmet ska vara tillförlitligt och kunna användas av andra företagare på
 
 ## Normal Workflow
 
-Use this default workflow unless the user gives a different instruction:
+Use **LOCAL → STAGING → PRODUCTION** unless the user narrows the assignment.
 
-1. Analyze the relevant code, docs, migrations, and live DB definitions when DB behavior is involved.
-2. Propose a small change and the verification plan.
-3. Implement locally.
-4. Run the relevant local checks.
-5. Let the user verify.
-6. Create a checkpoint.
-7. Commit or push only after explicit user approval.
+1. LOCAL: within an explicitly approved Jira assignment, analyze the relevant code, docs, migration history and deployed definitions; implement, correct normal in-scope defects, retest and create scoped local checkpoints/commits autonomously. Explain the small change and risk-based verification plan; do not ask for a new decision for each normal local step.
+2. Reuse verified isolated local test environments. Non-destructive local tests and synthetic writes in an explicitly approved, identified disposable database may be repeated within that assignment. Verify exact database name, localhost address/port, identity and unique marker before writes. Preserve existing fixtures and evidence; isolate new cohorts rather than resetting old data. Creating another database or installing migrations outside the approved scope still needs approval.
+3. Verify according to risk. Small UI fixes normally need focused local/static checks and visual acceptance; bookkeeping, VAT, RPC, RLS and data-integrity changes require relevant journal, report, isolation, replay, correction, locking and concurrency checks. Do not weaken high-risk verification.
+4. STAGING: report local results, exact commits/migrations, compatibility and limitations. Stop for explicit approval before Staging publication or migration execution. After approval, verify the exact deployed candidate and let Pontus accept it.
+5. PRODUCTION: require explicit approval for the exact release, Production push, migrations and deployment; publish only the approved candidate and verify it.
+
+Stop and ask when scope must expand, accounting rules remain genuinely unclear after verification, real user data would change, existing data must be deleted/reset, or other databases/shared roles/passwords/server settings could be affected. Local autonomy never authorizes those operations, external publication, or Jira mutations. User instructions limiting an individual step always take precedence.
 
 ## Permanent Git, Staging, And Production Workflow
 
@@ -325,7 +325,7 @@ applicable instead of running unnecessary E2E.
 - If a separate real bug is discovered during other work, first search Jira for a relevant duplicate. If no relevant duplicate exists, a new `Bug` issue may be created when Jira-write is allowed for the workflow. Do not begin implementing that new bug unless Pontus selects, assigns, or approves it.
 - Jira bug reports should be compact and useful. When known, include reproduction, expected behavior, actual behavior, and scope/context.
 - Do not write secrets or real sensitive user data in Jira.
-- When assigned Jira work is implemented and Codex verification is complete but Pontus final testing remains, transition the issue to the verified `In Review` status, assign it to Pontus, and add a short Jira comment with what changed, what Codex verified, exactly what Pontus should test, and known limitations when relevant.
+- Only when Jira writes are authorized for the current workflow: when assigned Jira work is implemented and Codex verification is complete but Pontus final testing remains, transition the issue to the verified `In Review` status, assign it to Pontus, and add a short Jira comment with what changed, what Codex verified, exactly what Pontus should test, and known limitations when relevant.
 - Do not set a Jira issue to `Done` as a substitute for Pontus final testing unless Pontus explicitly instructs it.
 - When work comes from Jira, include the issue key in relevant `PROJECT_STATE.md` entries and normally in the commit message.
 - When creating Jira issues for SoloLedger work, prefer small scoped tasks that can be reviewed and verified independently.
@@ -369,8 +369,8 @@ When Pontus says `Prepare handoff`, or clearly asks for the same action:
 - Mark uncommitted or incomplete work clearly.
 - State the exact Next Step.
 - Show or summarize the handoff diff.
-- Ask for explicit approval before committing or pushing handoff documentation.
-- After approval, commit only the handoff documentation and push to the current branch.
+- Commit only the handoff documentation locally when covered by the approved assignment; otherwise request commit authorization.
+- Push only after explicit approval for the intended branch/release; a local checkpoint is not a published handoff.
 - Verify the local branch and remote point to the same commit and the working tree is clean.
 - The handoff is complete only after the handoff documentation is committed, pushed, and verified clean.
 
@@ -379,7 +379,7 @@ When Pontus says `Prepare handoff`, or clearly asks for the same action:
 - Before a checkpoint commit, verify exactly which files are included and ensure unrelated user changes are not included.
 - A checkpoint commit is local unless the user explicitly approves a push.
 - At the end of a meaningful task, report changed files, checks run, checks not run, current git status, and whether any Jira, Supabase, migration, deploy, commit, or push action was performed.
-- When Pontus says `Finalize checkpoint`, do not start new implementation. Verify the current diff, run relevant checks, verify current Jira/state status, run retention, update `PROJECT_STATE.md` and when needed `PROJECT_ARCHIVE.md` to the verified state, present exactly which files should be included, propose a commit message, and wait for explicit approval.
-- Commit requires explicit approval.
+- When Pontus says `Finalize checkpoint`, do not start new implementation. Verify the current diff, run relevant checks, verify current Jira/state status, run retention, update `PROJECT_STATE.md` and when needed `PROJECT_ARCHIVE.md` to the verified state, present exactly which files are included and the commit message, and create the local checkpoint when covered by the approved assignment. Stop before any unapproved push.
+- Local commits within an explicitly approved Jira assignment need no separate approval; unrelated work remains excluded.
 - Push requires explicit approval unless Pontus explicitly approves commit and push together in the same instruction.
 - Deploys and live Supabase writes continue to require explicit approval under the existing rules.
