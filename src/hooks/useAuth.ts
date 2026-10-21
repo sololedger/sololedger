@@ -93,11 +93,16 @@ export function useAuth() {
       if (!mounted.current) return
       const currentUser = session?.user ?? null
       const previousOwner = ticketRef.current?.userId
+      const sameOwnerRefresh = Boolean(currentUser && previousOwner === currentUser.id &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED'))
       // Invalidate before React renders or any pending reply runs.
       const ticket = beginProfileContext(currentUser?.id ?? null)
       ticketRef.current = ticket
       setProfileTicket(ticket)
-      setProfile(null)
+      // Returning to a visible tab can emit SIGNED_IN again. Keep this owner's
+      // verified view mounted while rechecking; the new ticket still blocks
+      // writes, and a failed read or identity change clears access as before.
+      setProfile(previous => sameOwnerRefresh && previous?.id === currentUser?.id ? previous : null)
       setProfileError(false)
       setUser(currentUser)
       setAuthLoading(false)

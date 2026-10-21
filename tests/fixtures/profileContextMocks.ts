@@ -13,7 +13,7 @@ const writes: { id: string; patch: Row }[] = []
 const bookings: { owner: string; inputVat: number; args: unknown }[] = []
 let wrongIdentity = false
 export const control = {
-  event(id: string | null) { owner = id; callback(id ? 'SIGNED_IN' : 'SIGNED_OUT', id ? { user: { id, email: `${id}@example.invalid` } } : null) },
+  event(id: string | null, event = id ? 'SIGNED_IN' : 'SIGNED_OUT') { owner = id; callback(event, id ? { user: { id, email: `${id}@example.invalid` } } : null) },
   pending: () => pending.map(p => p.id),
   finish(index: number, error = false, row?: Row) {
     const [request] = pending.splice(index, 1)

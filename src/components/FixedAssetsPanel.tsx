@@ -10,13 +10,17 @@ import {
   retireFixedAsset,
 } from '@/lib/accountingService'
 import {
+  assessFixedAssetGroup,
   calculateFixedAssetDecision,
+  calculateFixedAssetInvoiceAmounts,
   calculateK1CollectiveDepreciation,
+  isFixedAssetVatRate,
   type FixedAsset,
   type FixedAssetConnectionAssessment,
   type FixedAssetDepreciationRun,
   type FixedAssetTaxRuleParameters,
   type FixedAssetUsefulLifeAnswer,
+  type FixedAssetVatRate,
   type FixedAssetVatDeductionEntitlement,
 } from '@/lib/fixedAssets'
 import type { PaymentAccountRole } from '@/lib/paymentAccountRoles'
@@ -48,6 +52,8 @@ const paymentSourceLabels: Record<PaymentSourceChoice, string> = {
   business_account: 'Företagets konto',
   owner_private: 'Privat betalning',
 }
+
+const fixedAssetVatRates: FixedAssetVatRate[] = [25, 12, 6, 0]
 
 function formatMoney(amount: number) {
   return amount.toLocaleString('sv-SE', {
@@ -102,6 +108,23 @@ function fixedAssetVatDeductionNotice(
   return null
 }
 
+function HelpHint({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <span
+        aria-label={text}
+        tabIndex={0}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 bg-white text-[10px] font-black leading-none text-gray-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+      >
+        ?
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs font-bold normal-case leading-relaxed text-gray-700 shadow-lg group-hover:block group-focus-within:block">
+        {text}
+      </span>
+    </span>
+  )
+}
+
 export default function FixedAssetsPanel({
   verifyProfile,
   selectedYear,
@@ -129,8 +152,8 @@ export default function FixedAssetsPanel({
   const [description, setDescription] = useState('')
   const [acquisitionDate, setAcquisitionDate] = useState(dateInYear(selectedYear))
   const [supplierCountry, setSupplierCountry] = useState<'SE' | 'foreign'>('SE')
-  const [taxableBaseAmount, setTaxableBaseAmount] = useState('')
-  const [supplierVatAmount, setSupplierVatAmount] = useState('')
+  const [grossAmount, setGrossAmount] = useState('')
+  const [vatRate, setVatRate] = useState<FixedAssetVatRate>(25)
   const [vatDeductionEntitlement, setVatDeductionEntitlement] =
     useState<FixedAssetVatDeductionEntitlement>(
       defaultFixedAssetVatDeduction(companyVatProfileResult.profile)
@@ -225,46 +248,52 @@ export default function FixedAssetsPanel({
       ),
     [acquisitionDate, assets, selectedYear]
   )
-  const selectedConnectedAssets = useMemo(
-    () => priorConnectableAssets.filter(asset => connectedAssetIds.includes(asset.id)),
-    [connectedAssetIds, priorConnectableAssets]
-  )
-  const parsedTaxableBaseAmount = parseAmount(taxableBaseAmount)
+  const parsedGrossAmount = parseAmount(grossAmount)
   const hasValidPurchaseAmount =
-    taxableBaseAmount.trim() !== '' &&
-    Number.isFinite(parsedTaxableBaseAmount) &&
-    parsedTaxableBaseAmount > 0
-  const previewThresholdBasisAmount = useMemo(() => {
-    const currentAmount = parsedTaxableBaseAmount
-    if (connectionAssessment !== 'connected') return currentAmount
+    grossAmount.trim() !== '' &&
+    Number.isFinite(parsedGrossAmount) &&
+    parsedGrossAmount > 0 &&
+    isFixedAssetVatRate(vatRate)
+  const invoiceAmounts = useMemo(() => {
+    if (!hasValidPurchaseAmount) return null
 
-    const priorBasis = selectedConnectedAssets.reduce(
-      (sum, asset) =>
-        sum +
-        (asset.decisionType === 'immediate_expense_short_life'
-          ? 0
-          : asset.taxableBaseAmount),
-      0
-    )
-    const plannedBasis = parseAmount(plannedGroupBasisAmount)
-    return Math.max(currentAmount + priorBasis, plannedBasis)
-  }, [
-    connectionAssessment,
-    plannedGroupBasisAmount,
-    parsedTaxableBaseAmount,
-    selectedConnectedAssets,
-  ])
+    try {
+      return calculateFixedAssetInvoiceAmounts({
+        grossAmount: parsedGrossAmount,
+        vatRate,
+      })
+    } catch {
+      return null
+    }
+  }, [hasValidPurchaseAmount, parsedGrossAmount, vatRate])
+  const groupAssessment = useMemo(() => {
+    if (!invoiceAmounts) return { value: null, error: null }
+    try {
+      return { value: assessFixedAssetGroup({
+        assets,
+        connectedAssetIds: connectionAssessment === 'connected' ? connectedAssetIds : [],
+        acquisitionDate,
+        fiscalYear: selectedYear,
+        currentTaxableBaseAmount: invoiceAmounts.taxableBaseAmount,
+        plannedGroupBasisAmount: connectionAssessment === 'connected' && plannedGroupBasisAmount.trim() !== ''
+          ? parseAmount(plannedGroupBasisAmount) : null,
+      }), error: null }
+    } catch (err) {
+      return { value: null, error: err instanceof Error ? err.message : 'Paketet kunde inte kontrolleras.' }
+    }
+  }, [assets, connectedAssetIds, connectionAssessment, acquisitionDate, selectedYear, invoiceAmounts, plannedGroupBasisAmount])
+  const previewThresholdBasisAmount = groupAssessment.value?.thresholdBasisAmount ?? 0
 
   const decision = useMemo(() => {
     if (!taxRules) return null
     if (connectionAssessment === '' || connectionAssessment === 'uncertain') return null
-    if (!hasValidPurchaseAmount) return null
+    if (!hasValidPurchaseAmount || !groupAssessment.value) return null
 
     try {
       return calculateFixedAssetDecision(
         {
-          taxableBaseAmount: parseAmount(taxableBaseAmount),
-          supplierVatAmount: parseAmount(supplierVatAmount),
+          grossAmount: parseAmount(grossAmount),
+          vatRate,
           vatDeductionEntitlement: effectiveVatDeductionEntitlement,
           thresholdBasisAmount: previewThresholdBasisAmount,
           usefulLifeAnswer: usefulLifeAnswer || null,
@@ -277,10 +306,11 @@ export default function FixedAssetsPanel({
   }, [
     connectionAssessment,
     hasValidPurchaseAmount,
+    grossAmount,
     previewThresholdBasisAmount,
-    supplierVatAmount,
+    groupAssessment.value,
     taxRules,
-    taxableBaseAmount,
+    vatRate,
     usefulLifeAnswer,
     effectiveVatDeductionEntitlement,
   ])
@@ -288,6 +318,7 @@ export default function FixedAssetsPanel({
   const capitalizedAssets = assets.filter(
     asset => asset.assetStatus === 'active' && asset.capitalizedAmount > 0
   )
+  const showUsefulLifeQuestion = hasValidPurchaseAmount || usefulLifeAnswer !== ''
   const latestRun = depreciationRuns.find(run => run.fiscalYear === selectedYear)
   const estimatedDepreciation = useMemo(() => {
     if (!taxRules) return null
@@ -360,6 +391,10 @@ export default function FixedAssetsPanel({
       return
     }
 
+    if (groupAssessment.error || !groupAssessment.value) {
+      setError(groupAssessment.error ?? 'Kontrollera belopp och anskaffningsgrupp.')
+      return
+    }
     if (decision?.status === 'needs_useful_life') {
       setError('Ange om utrustningen beräknas användas högst tre år.')
       return
@@ -379,9 +414,12 @@ export default function FixedAssetsPanel({
         supplierCountry: 'SE' as const,
         paymentAccountRole: paymentRole,
         vatDeductionEntitlement: effectiveVatDeductionEntitlement,
-        taxableBaseAmount: parseAmount(taxableBaseAmount),
-        supplierVatAmount: parseAmount(supplierVatAmount),
+        grossAmount: parseAmount(grossAmount),
+        vatRate,
         thresholdBasisAmount: previewThresholdBasisAmount,
+        expectedPriorAssetIds: groupAssessment.value.priorAssets.map(asset => asset.id).sort(),
+        expectedReclassificationAmount: decision?.status === 'ready' && decision.decisionType === 'capitalized'
+          ? groupAssessment.value.reclassificationAmount : 0,
         connectionAssessment,
         acquisitionGroupName:
           connectionAssessment === 'connected'
@@ -411,12 +449,11 @@ export default function FixedAssetsPanel({
       })
 
       setMessage(
-        `${result.idempotentReplay ? 'Inventariet var redan bokfört' : 'Bokfört'} som ${decisionLabel(result.decisionType)}. Verifikation ${result.verNr}.`
+        `${result.idempotentReplay ? 'Inventariet var redan bokfört' : 'Bokfört'} som ${decisionLabel(result.decisionType)}. Verifikation ${result.verNr}.${result.reclassificationAmount > 0 ? ` Tidigare kostnadsförda delar omklassades med ${formatMoney(result.reclassificationAmount)} kr i en separat verifikation.` : ''}`
       )
       acquisitionSubmissionRef.current = null
       setDescription('')
-      setTaxableBaseAmount('')
-      setSupplierVatAmount('')
+      setGrossAmount('')
       setConnectionAssessment('')
       setPlannedGroupBasisAmount('')
       setAcquisitionGroupName('')
@@ -557,11 +594,11 @@ export default function FixedAssetsPanel({
             </label>
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
-              Belopp exkl. moms
+              Belopp inkl. moms
               <input
                 inputMode="decimal"
-                value={taxableBaseAmount}
-                onChange={(event) => setTaxableBaseAmount(event.target.value)}
+                value={grossAmount}
+                onChange={(event) => setGrossAmount(event.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
                 required
               />
@@ -569,12 +606,22 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Moms på fakturan
-              <input
-                inputMode="decimal"
-                value={supplierVatAmount}
-                onChange={(event) => setSupplierVatAmount(event.target.value)}
+              <select
+                value={vatRate}
+                onChange={(event) => {
+                  const nextRate = Number(event.target.value)
+                  if (isFixedAssetVatRate(nextRate)) {
+                    setVatRate(nextRate)
+                  }
+                }}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
-              />
+              >
+                {fixedAssetVatRates.map(rate => (
+                  <option key={rate} value={rate}>
+                    {rate} %
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
@@ -617,9 +664,12 @@ export default function FixedAssetsPanel({
           </div>
 
           <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-black uppercase tracking-widest text-gray-500">
-              Samband med annan utrustning
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-500">
+                Samband med annan utrustning
+              </p>
+              <HelpHint text="Välj fristående köp när utrustningen kan användas själv. Välj paket när delarna hör ihop, till exempel vid funktionellt samband eller delleverans. Ett senare inköp kan göra att hela paketet behöver bedömas tillsammans." />
+            </div>
             <div className="mt-3 grid gap-2">
               {[
                 ['standalone', 'Fristående köp'],
@@ -651,7 +701,10 @@ export default function FixedAssetsPanel({
             {connectionAssessment === 'connected' && (
               <div className="mt-4 space-y-4">
                 <label className="block space-y-1 text-xs font-bold text-gray-600">
-                  Gruppnamn
+                  <span className="inline-flex items-center gap-2">
+                    Gruppnamn
+                    <HelpHint text="Namnet hjälper dig känna igen paketet i efterhand. Exempel: Kamerapaket, datorarbetsplats eller ljudrigg." />
+                  </span>
                   <input
                     value={acquisitionGroupName}
                     onChange={(event) => setAcquisitionGroupName(event.target.value)}
@@ -661,7 +714,10 @@ export default function FixedAssetsPanel({
                 </label>
 
                 <label className="block space-y-1 text-xs font-bold text-gray-600">
-                  Känt samlat belopp exkl. moms om hela paketet redan är känt
+                  <span className="inline-flex items-center gap-2">
+                    Planerat paketbelopp exklusive fakturamoms
+                    <HelpHint text="Ange hela paketets belopp exklusive fakturamoms. Ta inte med bekräftade korttidsinventarier. Vid osäkert samband ska köpet stoppas för kontroll." />
+                  </span>
                   <input
                     inputMode="decimal"
                     value={plannedGroupBasisAmount}
@@ -673,6 +729,9 @@ export default function FixedAssetsPanel({
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-gray-600">
                     Koppla tidigare registrerade delar
+                  </p>
+                  <p className="text-xs font-bold leading-relaxed text-gray-500">
+                    Kopplingen ändrar inte den gamla verifikationen. Om paketet ska aktiveras skapar SoloLedger en separat omklassning för tidigare kostnadsförda delar.
                   </p>
                   {priorConnectableAssets.length === 0 ? (
                     <p className="text-xs font-bold text-gray-500">
@@ -706,16 +765,16 @@ export default function FixedAssetsPanel({
             )}
           </div>
 
-          {decision?.status === 'needs_useful_life' && (
+          {showUsefulLifeQuestion && (
             <label className="mt-4 block space-y-1 text-xs font-bold text-gray-600">
-              Beräknad användningstid
+              Beräknad ekonomisk livslängd (valfritt under beloppsgränsen)
               <select
                 value={usefulLifeAnswer}
                 onChange={(event) =>
                   setUsefulLifeAnswer(event.target.value as FixedAssetUsefulLifeAnswer)
                 }
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold text-gray-800 outline-none focus:border-emerald-400"
-                required
+                required={decision?.status === 'needs_useful_life'}
               >
                 <option value="">Välj</option>
                 <option value="max_three_years">Högst tre år</option>
@@ -724,6 +783,7 @@ export default function FixedAssetsPanel({
             </label>
           )}
 
+          {groupAssessment.error && <p role="alert" className="mt-4 text-sm font-bold text-red-700">{groupAssessment.error}</p>}
           {decision?.status === 'ready' && (
             <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">
@@ -732,12 +792,21 @@ export default function FixedAssetsPanel({
               <p className="mt-1 text-sm font-black text-emerald-900">
                 {decisionLabel(decision.decisionType)}
               </p>
+              <p className="mt-2 text-xs font-bold text-emerald-800">
+                Faktura {formatMoney(decision.grossAmount)} kr inkl. moms · Underlag {formatMoney(decision.taxableBaseAmount)} kr · Fakturamoms {formatMoney(decision.supplierVatAmount)} kr ({decision.vatRate} %)
+              </p>
               <p className="mt-1 text-xs font-bold text-emerald-800">
-                Kostnad {formatMoney(decision.expensedAmount)} kr · Inventarievärde {formatMoney(decision.capitalizedAmount)} kr · Momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
+                Det här köpet: kostnad {formatMoney(decision.expensedAmount)} kr · inventarievärde {formatMoney(decision.capitalizedAmount)} kr · momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
+              </p>
+              <p className="mt-1 text-xs font-bold text-emerald-800">
+                Bedömningsvärde för paketet exklusive fakturamoms: {formatMoney(decision.thresholdBasisAmount)} kr
               </p>
             </div>
           )}
 
+          {decision?.status === 'ready' && decision.decisionType === 'capitalized' && groupAssessment.value && groupAssessment.value.reclassificationAmount > 0 && (
+            <p className="mt-3 text-sm font-bold text-amber-800">Tidigare direktkostnadsförda delar: {formatMoney(groupAssessment.value.reclassificationAmount)} kr kommer att omklassificeras från 5410 till 1220 via en separat verifikation. Bekräftade korttidsinventarier behåller sitt direktavdrag.</p>
+          )}
           {connectionAssessment &&
             connectionAssessment !== 'uncertain' &&
             !hasValidPurchaseAmount && (
@@ -746,7 +815,7 @@ export default function FixedAssetsPanel({
                   Förhandsbedömning
                 </p>
                 <p className="mt-1 text-sm font-bold text-gray-600">
-                  Ange inköpsbelopp exklusive moms så visar SoloLedger om köpet kan kostnadsföras direkt eller ska bli inventarie.
+                  Ange inköpsbelopp inklusive moms så visar SoloLedger om köpet kan kostnadsföras direkt eller ska bli inventarie.
                 </p>
               </div>
             )}

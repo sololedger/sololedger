@@ -42,6 +42,7 @@ import {
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
 import { calculateNeBalanceRows } from './neBalance'
+import { readFixedAssetGroupPlan } from './fixedAssets'
 import { collectNeAccountCoverage } from './neAccountCoverage'
 import type {
   FixedAsset,
@@ -287,6 +288,7 @@ export interface CustomerInvoice {
 }
 
 interface FixedAssetRow {
+  audit_snapshot?: unknown
   id: string
   acquisition_transaction_id: string
   acquisition_date: string
@@ -592,6 +594,7 @@ function mapFixedAssetTaxRuleParameters(
 
 function mapFixedAsset(row: FixedAssetRow): FixedAsset {
   return {
+    ...readFixedAssetGroupPlan(row.audit_snapshot),
     id: row.id,
     transactionId: row.acquisition_transaction_id,
     acquisitionDate: row.acquisition_date,
@@ -666,20 +669,17 @@ export async function getTaxRuleParametersForYear(
 export async function getFixedAssets(throughYear: number): Promise<FixedAsset[]> {
   const userId = await getUserId()
 
-  const { data, error } = await supabase
-    .from('fixed_assets')
-    .select('id, acquisition_transaction_id, acquisition_date, fiscal_year, name, supplier_country, connection_assessment, acquisition_group_id, payment_account_role, payment_account_number, vat_deduction_entitlement, taxable_base_amount, supplier_vat_amount, deductible_vat_amount, non_deductible_vat_amount, threshold_basis_amount, naturally_connected, connected_acquisition_key, useful_life_answer, decision_type, status, expensed_amount, capitalized_amount, rule_year, rule_version, price_base_amount, half_price_base_amount, retired_at, created_at')
-    .eq('user_id', userId)
-    .lte('fiscal_year', throughYear)
-    .order('acquisition_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  if (error) {
-    throw new Error('Kunde inte hämta inventarier: ' + error.message)
+  const data = await fetchAllRows<FixedAssetRow & { user_id: string }>({
+    context: 'inventarieregister',
+    createQuery: () => (supabase.from('fixed_assets')
+      .select('id, acquisition_transaction_id, acquisition_date, fiscal_year, name, supplier_country, connection_assessment, acquisition_group_id, payment_account_role, payment_account_number, vat_deduction_entitlement, taxable_base_amount, supplier_vat_amount, deductible_vat_amount, non_deductible_vat_amount, threshold_basis_amount, naturally_connected, connected_acquisition_key, useful_life_answer, decision_type, status, expensed_amount, capitalized_amount, rule_year, rule_version, price_base_amount, half_price_base_amount, retired_at, created_at, audit_snapshot, user_id', { count: 'exact' })
+      .eq('user_id', userId).lte('fiscal_year', throughYear)
+      .order('acquisition_date', { ascending: false }).order('created_at', { ascending: false }).order('id')) as unknown as FetchAllRangeQuery<FixedAssetRow & { user_id: string }>,
+  })
+  if (data.some(row => row.user_id !== userId || row.fiscal_year > throughYear) || new Set(data.map(row => row.id)).size !== data.length) {
+    throw new Error('Inventarieregistret kunde inte verifieras för användaren och året.')
   }
-
-  return ((data ?? []) as FixedAssetRow[]).map(mapFixedAsset)
+  return data.map(mapFixedAsset)
 }
 
 export async function getFixedAssetDepreciationRuns(
@@ -717,8 +717,12 @@ export async function bookFixedAssetAcquisition(
       idempotency_key: input.idempotencyKey,
       payment_account_role: input.paymentAccountRole,
       vat_deduction_entitlement: input.vatDeductionEntitlement,
-      taxable_base_amount: input.taxableBaseAmount,
-      supplier_vat_amount: input.supplierVatAmount,
+      booking_contract_version: 'kan62-rule-contract-v1',
+      expected_threshold_basis_amount: input.thresholdBasisAmount,
+      expected_prior_asset_ids: input.expectedPriorAssetIds,
+      expected_reclassification_amount: input.expectedReclassificationAmount,
+      gross_amount: input.grossAmount,
+      vat_rate: input.vatRate,
       connection_assessment: input.connectionAssessment,
       acquisition_group_id: input.acquisitionGroupId ?? null,
       acquisition_group_name: input.acquisitionGroupName ?? null,
