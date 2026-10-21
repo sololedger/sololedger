@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react' // 🌟 Importerat useEffect för synkning
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { validateCompanyVatNumber } from '@/lib/companyProfile'
 import type {
@@ -17,11 +17,14 @@ import {
   paymentAccountRoleSetupSummary,
   type PaymentAccountRoleAccountLike,
 } from '@/lib/paymentAccountRoleStatus'
+import { changeProfileDraft, clearSavedDraftFields, type ProfileDraftFields, type ProfileSettingsDraft } from '@/lib/profileSettingsDraft'
 import SwedishDateInput from './SwedishDateInput'
 
 type PersistedDefaultDeductionEntitlement = Exclude<DeductionEntitlement, 'partial'>
 
 interface Props {
+  draft?: ProfileSettingsDraft | null
+  onDraftChange?: Dispatch<SetStateAction<ProfileSettingsDraft | null>>
   user: any
   profile: any
   verifyProfile: () => Promise<string>
@@ -56,6 +59,7 @@ interface SieImportBatch {
 }
 
 export default function ProfileSettings({
+  draft: parentDraft, onDraftChange,
   user,
   profile,
   onProfileUpdate,
@@ -74,15 +78,22 @@ export default function ProfileSettings({
   onSavePaymentAccountRole,
   onClearPaymentAccountRole,
 }: Props) {
-  const [companyName, setCompanyName] = useState(profile?.company_name || '')
-  const [orgNr, setOrgNr] = useState(profile?.org_nr || '')
-  const [vatNumber, setVatNumber] = useState(profile?.vat_number || '')
-  const [vatStatus, setVatStatus] = useState<'registered' | 'not_registered' | 'unknown'>(profile?.vat_status || 'unknown')
-  const [vatPeriodType, setVatPeriodType] = useState<'month' | 'quarter' | 'year' | ''>(profile?.vat_period_type || '')
-  const [vatManagementFrom, setVatManagementFrom] = useState(profile?.vat_management_from || '')
-  const [domesticSalesVatTreatment, setDomesticSalesVatTreatment] = useState<DomesticSalesVatTreatment>(profile?.domestic_sales_vat_treatment || 'unknown')
-  const [foreignPurchaseReporting, setForeignPurchaseReporting] = useState<ForeignPurchaseReporting>(profile?.foreign_purchase_reporting || 'unknown')
-  const [defaultDeductionEntitlement, setDefaultDeductionEntitlement] = useState<PersistedDefaultDeductionEntitlement>(profile?.default_deduction_entitlement || 'unknown')
+  const [localDraft, setLocalDraft] = useState<ProfileSettingsDraft | null>(null)
+  const draft = parentDraft === undefined ? localDraft : parentDraft
+  const setDraft = onDraftChange ?? setLocalDraft
+  function draftField<K extends keyof ProfileDraftFields>(key: K, fallback: ProfileDraftFields[K]): [ProfileDraftFields[K], (value: ProfileDraftFields[K]) => void] {
+    return [draft && draft.ownerId === user.id ? draft.fields[key] ?? fallback : fallback,
+      value => setDraft(current => changeProfileDraft(current, user.id, key, value))]
+  }
+  const [companyName, setCompanyName] = draftField('companyName', profile?.company_name || '')
+  const [orgNr, setOrgNr] = draftField('orgNr', profile?.org_nr || '')
+  const [vatNumber, setVatNumber] = draftField('vatNumber', profile?.vat_number || '')
+  const [vatStatus, setVatStatus] = draftField('vatStatus', profile?.vat_status || 'unknown')
+  const [vatPeriodType, setVatPeriodType] = draftField('vatPeriodType', profile?.vat_period_type || '')
+  const [vatManagementFrom, setVatManagementFrom] = draftField('vatManagementFrom', profile?.vat_management_from || '')
+  const [domesticSalesVatTreatment, setDomesticSalesVatTreatment] = draftField('domesticSalesVatTreatment', profile?.domestic_sales_vat_treatment || 'unknown')
+  const [foreignPurchaseReporting, setForeignPurchaseReporting] = draftField('foreignPurchaseReporting', profile?.foreign_purchase_reporting || 'unknown')
+  const [defaultDeductionEntitlement, setDefaultDeductionEntitlement] = draftField('defaultDeductionEntitlement', profile?.default_deduction_entitlement || 'unknown')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -91,18 +102,13 @@ export default function ProfileSettings({
   const [sieImportsError, setSieImportsError] = useState<string | null>(null)
   const [undoingImportId, setUndoingImportId] = useState<string | null>(null)
   const [sieUndoNotice, setSieUndoNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
-  const [paymentRoleDrafts, setPaymentRoleDrafts] =
-    useState<Record<PaymentAccountRole, string>>({
-      business_payment_account: '',
-      owner_private_payment: '',
-    })
   const [paymentRoleSaving, setPaymentRoleSaving] =
     useState<PaymentAccountRole | null>(null)
   const [paymentRoleNotice, setPaymentRoleNotice] =
     useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [newPassword, setNewPassword] = draftField('newPassword', '')
+  const [confirmPassword, setConfirmPassword] = draftField('confirmPassword', '')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordNotice, setPasswordNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
@@ -126,19 +132,6 @@ export default function ProfileSettings({
       vatManagementFrom !== savedVatManagementFrom
     ))
 
-  // 🌟 Synka lokala states när profildatan har landat från Supabase
-  useEffect(() => {
-    setCompanyName(profile?.company_name || '')
-    setOrgNr(profile?.org_nr || '')
-    setVatNumber(profile?.vat_number || '')
-    setVatStatus(profile?.vat_status || 'unknown')
-    setVatPeriodType(profile?.vat_period_type || '')
-    setVatManagementFrom(profile?.vat_management_from || '')
-    setDomesticSalesVatTreatment(profile?.domestic_sales_vat_treatment || 'unknown')
-    setForeignPurchaseReporting(profile?.foreign_purchase_reporting || 'unknown')
-    setDefaultDeductionEntitlement(profile?.default_deduction_entitlement || 'unknown')
-  }, [profile])
-
   const paymentRoleSetups = buildPaymentAccountRoleSetups({
     configuredRoles: paymentAccountRoles,
     accounts: kontoplan,
@@ -149,16 +142,12 @@ export default function ProfileSettings({
     },
   })
 
-  useEffect(() => {
-    setPaymentRoleDrafts({
-      business_payment_account:
-        paymentRoleSetups.find(setup => setup.role === 'business_payment_account')
-          ?.accountNumber ?? '',
-      owner_private_payment:
-        paymentRoleSetups.find(setup => setup.role === 'owner_private_payment')
-          ?.accountNumber ?? '',
-    })
-  }, [paymentAccountRoles, kontoplan])
+  const savedRole = (role: PaymentAccountRole) => paymentRoleSetups.find(setup => setup.role === role)?.accountNumber ?? ''
+  const [businessRole, setBusinessRole] = draftField('business_payment_account', savedRole('business_payment_account'))
+  const [privateRole, setPrivateRole] = draftField('owner_private_payment', savedRole('owner_private_payment'))
+  const paymentRoleDrafts = { business_payment_account: businessRole, owner_private_payment: privateRole }
+  const paymentRolesChanged = businessRole !== savedRole('business_payment_account') || privateRole !== savedRole('owner_private_payment')
+  const setPaymentRoleDraft = (role: PaymentAccountRole, value: string) => role === 'business_payment_account' ? setBusinessRole(value) : setPrivateRole(value)
 
   useEffect(() => {
     if (!user?.id) {
@@ -265,6 +254,12 @@ export default function ProfileSettings({
       return
     }
 
+    const submittedFields = draft && draft.ownerId === user.id ? { ...draft.fields } : {}
+    const submittedProfile = { ...submittedFields }
+    delete submittedProfile.business_payment_account
+    delete submittedProfile.owner_private_payment
+    delete submittedProfile.newPassword
+    delete submittedProfile.confirmPassword
     setSaving(true)
     setSaved(false)
 
@@ -314,7 +309,7 @@ export default function ProfileSettings({
         ...vatSettings,
         ...vatV2ProfileSettings,
       })
-      setVatNumber(vatNumberValidation.value || '')
+      setDraft(current => clearSavedDraftFields(current, user.id, submittedProfile))
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -343,6 +338,7 @@ export default function ProfileSettings({
     setPaymentRoleNotice(null)
     try {
       await onSavePaymentAccountRole(role, option.accountNumber)
+      setDraft(current => clearSavedDraftFields(current, user.id, { [role]: accountNumber }))
       setPaymentRoleNotice({
         type: 'success',
         text: `${setup.label} är sparat som ${paymentAccountRoleOptionLabel(option)}.`,
@@ -369,7 +365,7 @@ export default function ProfileSettings({
     setPaymentRoleNotice(null)
     try {
       await onClearPaymentAccountRole(role)
-      setPaymentRoleDrafts(current => ({ ...current, [role]: '' }))
+      setDraft(current => clearSavedDraftFields(current, user.id, { [role]: paymentRoleDrafts[role] }))
       setPaymentRoleNotice({
         type: 'success',
         text: `${setup?.label ?? 'Betalningskontot'} är rensat.`,
@@ -402,8 +398,7 @@ export default function ProfileSettings({
       const result = await onUpdatePassword(newPassword)
       if (result.success) {
         setPasswordNotice({ type: 'success', text: '✓ Lösenordet är uppdaterat.' })
-        setNewPassword('')
-        setConfirmPassword('')
+        setDraft(current => clearSavedDraftFields(current, user.id, { newPassword, confirmPassword }))
       } else {
         setPasswordNotice({ type: 'error', text: result.error })
       }
@@ -469,6 +464,7 @@ export default function ProfileSettings({
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {(hasChanges || paymentRolesChanged || newPassword || confirmPassword) && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">Osparade ändringar i Profil. De finns kvar när du byter sida under den här inloggningen. Bokföringen använder bara sparade inställningar.</p>}
 
       {/* Kontoinformation */}
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-5 sm:p-8">
@@ -591,13 +587,10 @@ export default function ProfileSettings({
                       <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
                         Välj konto
                       </label>
-                      <select
+                      <select aria-label={`Välj konto för ${setup.label.toLowerCase()}`}
                         value={selected}
                         onChange={e => {
-                          setPaymentRoleDrafts(current => ({
-                            ...current,
-                            [setup.role]: e.target.value,
-                          }))
+                          setPaymentRoleDraft(setup.role, e.target.value)
                           setPaymentRoleNotice(null)
                         }}
                         disabled={paymentAccountRolesLoading || kontoplanLoading || savingThisRole}

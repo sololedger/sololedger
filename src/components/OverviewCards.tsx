@@ -1,5 +1,6 @@
 'use client'
 import { useState, type ReactNode } from 'react'
+import { vatNetPresentation } from '@/lib/vatNetPresentation'
 import { DashboardData } from '@/lib/calculations'
 import { buildBankAccountHistory, type BankHistoryEntry } from '@/lib/bankAccountHistory'
 
@@ -43,6 +44,7 @@ export default function OverviewCards({
   const [showBankCorrections, setShowBankCorrections] = useState(false)
   const bankHistory = buildBankAccountHistory({ transactions, journalMap })
   const bankEntries = showBankCorrections ? bankHistory.entries : bankHistory.defaultEntries
+  const vatPresentation = vatNetPresentation(data.momsNetto)
   const bankPeriodEnd = `${selectedYear}-12-31`
 
   function bankEntryLabel(entry: BankHistoryEntry) {
@@ -105,7 +107,7 @@ export default function OverviewCards({
             className="group p-4 sm:p-6 rounded-[1.75rem] border border-gray-100 bg-white hover:border-green-200 hover:shadow-md transition-all text-left"
           >
             <p className="text-xs font-black uppercase text-gray-400 tracking-wider mb-2">
-              Moms
+              {data.momsManualReviewRequired ? 'Moms' : vatPresentation.label}
             </p>
 
             {data.momsManualReviewRequired ? (
@@ -113,8 +115,8 @@ export default function OverviewCards({
                 Kontroll krävs
               </p>
             ) : (
-              <p className={`text-xl font-black tabular-nums ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {data.momsNetto.toLocaleString('sv-SE')} kr
+              <p className={`text-xl font-black tabular-nums ${vatPresentation.tone}`}>
+                {vatPresentation.amount.toLocaleString('sv-SE')} kr
               </p>
             )}
 
@@ -158,7 +160,7 @@ export default function OverviewCards({
             className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-6 sm:p-10 relative max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <button
+            <button aria-label="Stäng"
               onClick={() => setActiveModal(null)}
               className="absolute top-5 right-6 sm:top-6 sm:right-8 text-gray-300 hover:text-gray-600 text-2xl font-black transition-colors"
             >
@@ -415,7 +417,7 @@ export default function OverviewCards({
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
-                    Moms att betala eller få tillbaka
+                    {data.momsManualReviewRequired ? 'Moms att betala eller få tillbaka' : vatPresentation.label}
                   </span>
 
                   {data.momsManualReviewRequired ? (
@@ -423,9 +425,8 @@ export default function OverviewCards({
                       Kontroll krävs
                     </span>
                   ) : (
-                    <span className={`text-2xl font-black ${data.momsNetto <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {data.momsNetto <= 0 ? 'Få tillbaka: ' : 'Att betala: '}
-                      {Math.abs(data.momsNetto).toLocaleString('sv-SE')} kr
+                    <span className={`text-2xl font-black ${vatPresentation.tone}`}>
+                      {vatPresentation.amount.toLocaleString('sv-SE')} kr
                     </span>
                   )}
                 </div>

@@ -16,6 +16,7 @@ import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
 import ProfileSettings from '@/components/ProfileSettings'
+import type { ProfileSettingsDraft } from '@/lib/profileSettingsDraft'
 import TransactionTable from '@/components/TransactionTable'
 import EmptyBookkeepingState from '@/components/EmptyBookkeepingState'
 import DashboardOverview from '@/components/DashboardOverview'
@@ -91,6 +92,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [password, setPassword] = useState('')
 
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [profileDraft, setProfileDraft] = useState<ProfileSettingsDraft | null>(null)
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
@@ -1311,7 +1313,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       ) : activeTab === 'faq' ? (
         <FAQ />
       ) : activeTab === 'profil' ? (
-        <ProfileSettings 
+        <ProfileSettings draft={profileDraft} onDraftChange={setProfileDraft}
           key={`${user.id}:${profileContextKey}`}
           verifyProfile={verifyProfile}
           user={user} 

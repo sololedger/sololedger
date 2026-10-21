@@ -244,8 +244,8 @@ assert(
 
 assert(
   fixedAssetsPanelSource.includes('Kopplingen ändrar inte den gamla verifikationen') &&
-    fixedAssetsPanelSource.includes('Bedömningsvärde för paketet') &&
-    fixedAssetsPanelSource.includes('Det här köpet: kostnad') &&
+    fixedAssetsPanelSource.includes('Bedömningsvärde exklusive fakturamoms') &&
+    fixedAssetsPanelSource.includes('Kostnad direkt:') &&
     fixedAssetsPanelSource.includes('Tidigare kostnadsförda delar omklassades'),
   'Fixed asset panel explains connected acquisitions and separates package assessment value from the current booking amount.'
 )

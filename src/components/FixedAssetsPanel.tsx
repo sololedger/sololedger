@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useId, type FormEvent } from 'react'
 import {
   bookFixedAssetAcquisition,
   bookFixedAssetDepreciation,
@@ -106,24 +106,26 @@ function fixedAssetVatDeductionNotice(
     return 'Företagsprofilen saknar säker uppgift om avdragsrätt. Fullt momsavdrag är låst tills Profil uppdateras; köpet kan bokföras utan momsavdrag.'
   }
 
+  if (profile.defaultDeductionEntitlement === 'partial') return 'Delvis momsavdrag stöds inte här. Om du väljer inget momsavdrag ingår hela fakturabeloppet i kostnaden eller inventarievärdet.'
   return null
 }
 
 function HelpHint({ text }: { text: string }) {
-  return (
-    <span className="group relative inline-flex">
-      <span
-        aria-label={text}
-        tabIndex={0}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 bg-white text-[10px] font-black leading-none text-gray-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-      >
-        ?
-      </span>
-      <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs font-bold normal-case leading-relaxed text-gray-700 shadow-lg group-hover:block group-focus-within:block">
-        {text}
-      </span>
-    </span>
-  )
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState({ left: 16, top: 24 })
+  const id = useId()
+  return <span className="relative inline-flex align-middle">
+    <button type="button" aria-label="Visa förklaring" aria-expanded={open} aria-controls={id}
+      onClick={event => {
+        event.preventDefault()
+        const rect = event.currentTarget.getBoundingClientRect()
+        setPosition({ left: Math.max(16, Math.min(rect.left, window.innerWidth - 272)), top: Math.max(16, Math.min(rect.bottom + 8, window.innerHeight - 220)) })
+        setOpen(value => !value)
+      }}
+      onBlur={() => setOpen(false)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs font-black text-gray-600 focus:ring-2 focus:ring-emerald-300">?</button>
+    {open && <span id={id} role="note" style={position} className="fixed z-20 max-h-[50vh] w-64 max-w-[calc(100vw-32px)] overflow-auto rounded-lg border border-gray-200 bg-white p-3 text-xs font-medium normal-case leading-relaxed text-gray-700 shadow-lg">{text}</span>}
+  </span>
 }
 
 export default function FixedAssetsPanel({
@@ -321,6 +323,17 @@ export default function FixedAssetsPanel({
     effectiveVatDeductionEntitlement,
   ])
 
+  const purchaseBlockReason = isYearLocked ? 'Året är låst.'
+    : decision?.status === 'ready' && decision.decisionType === 'capitalized' && depreciationRuns.some(run => run.fiscalYear >= selectedYear) ? 'Inventarieunderlaget är redan fastställt genom årsavskrivning. Senare aktivering kräver en kontrollerad rättelse som ännu inte stöds.'
+    : supplierCountry !== 'SE' ? 'Endast svenska inköp stöds i det här flödet.'
+    : connectionAssessment === 'uncertain' ? 'Sambandet med annan utrustning behöver klarläggas först.'
+    : groupAssessment.error ? groupAssessment.error
+    : !connectionAssessment ? 'Välj om köpet är fristående eller hör till ett paket.'
+    : !hasValidPurchaseAmount ? 'Ange ett giltigt belopp inklusive moms.'
+    : !configuredPaymentRole ? 'Välj ett sparat betalningskonto i Profil först.'
+    : decision?.status === 'needs_useful_life' ? 'Ange ekonomisk livslängd för att bedöma direktavdrag eller aktivering.'
+    : !decision ? 'Underlaget är inte tillräckligt för en säker bedömning.' : null
+
   const capitalizedAssets = assets.filter(
     asset => asset.assetStatus === 'active' && asset.capitalizedAmount > 0
   )
@@ -491,7 +504,7 @@ export default function FixedAssetsPanel({
 
     try {
       await retireFixedAsset(asset.id, `${selectedYear}-12-31`, 'Avslutad i inventarieregistret')
-      setMessage('Inventariet markerades som avslutat.')
+      setMessage('Utrustningen markerades som inte längre i bruk. Bokföringen är oförändrad.')
       await loadPanel()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Inventariet kunde inte avslutas.')
@@ -538,7 +551,7 @@ export default function FixedAssetsPanel({
                 Köp av utrustning
               </p>
               <h2 className="mt-1 text-lg font-black text-gray-900">
-                Nytt inventarie
+                Nytt köp
               </h2>
             </div>
             <div className="rounded-xl bg-emerald-50 px-3 py-2 text-right">
@@ -546,7 +559,7 @@ export default function FixedAssetsPanel({
                 {selectedYear}
               </p>
               <p className="text-xs font-bold text-emerald-800">
-                Halvt PBB {formatMoney(taxRules.halfPriceBaseAmount)} kr
+                Halvt PBB {formatMoney(taxRules.halfPriceBaseAmount)} kr <HelpHint text={`Beloppsgränsen följer regelåret ${taxRules.taxYear}. Mindre värde kräver ett belopp strikt under ${formatMoney(taxRules.halfPriceBaseAmount)} kr exklusive fakturamoms. Ej avdragsgill moms ingår ändå i bokförd kostnad eller tillgång.`} />
               </p>
             </div>
           </div>
@@ -565,7 +578,7 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Leverantörsland
-              <select
+              <select aria-label="Leverantörsland"
                 value={supplierCountry}
                 onChange={(event) =>
                   setSupplierCountry(event.target.value === 'SE' ? 'SE' : 'foreign')
@@ -601,7 +614,7 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Moms på fakturan
-              <select
+              <select aria-label="Moms på fakturan"
                 value={vatRate}
                 onChange={(event) => {
                   const nextRate = Number(event.target.value)
@@ -621,7 +634,7 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Momsavdrag
-              <select
+              <select aria-label="Momsavdrag"
                 value={effectiveVatDeductionEntitlement}
                 onChange={(event) =>
                   setVatDeductionEntitlement(
@@ -645,7 +658,7 @@ export default function FixedAssetsPanel({
 
             <label className="space-y-1 text-xs font-bold text-gray-600">
               Betalning
-              <select
+              <select aria-label="Betalning"
                 value={paymentSource}
                 onChange={(event) =>
                   setPaymentSource(event.target.value as PaymentSourceChoice)
@@ -663,7 +676,7 @@ export default function FixedAssetsPanel({
               <p className="text-xs font-black uppercase tracking-widest text-gray-500">
                 Samband med annan utrustning
               </p>
-              <HelpHint text="Välj fristående köp när utrustningen kan användas själv. Välj paket när delarna hör ihop, till exempel vid funktionellt samband eller delleverans. Ett senare inköp kan göra att hela paketet behöver bedömas tillsammans." />
+              <HelpHint text="Utrustning som hör ihop och köps för gemensam användning under samma beskattningsår kan behöva bedömas som ett paket, även vid delleveranser. Välj tidigare delar som hör till paketet. Inköp från olika år grupperas inte automatiskt." />
             </div>
             <div className="mt-3 grid gap-2">
               {[
@@ -761,9 +774,9 @@ export default function FixedAssetsPanel({
           </div>
 
           {showUsefulLifeQuestion && (
-            <label className="mt-4 block space-y-1 text-xs font-bold text-gray-600">
-              Beräknad ekonomisk livslängd (valfritt under beloppsgränsen)
-              <select
+            <div className="mt-4 block space-y-1 text-xs font-bold text-gray-600">
+              <div>Beräknad ekonomisk livslängd (valfritt under beloppsgränsen) <HelpHint text="Hur länge utrustningen beräknas vara användbar i verksamheten. Högst tre år kan ge direktavdrag även över beloppsgränsen. Välj inte kort livslängd om det är osäkert." /></div>
+              <select aria-label="Beräknad ekonomisk livslängd"
                 value={usefulLifeAnswer}
                 onChange={(event) =>
                   setUsefulLifeAnswer(event.target.value as FixedAssetUsefulLifeAnswer)
@@ -775,14 +788,14 @@ export default function FixedAssetsPanel({
                 <option value="max_three_years">Högst tre år</option>
                 <option value="more_than_three_years_or_unknown">Mer än tre år eller osäkert</option>
               </select>
-            </label>
+            </div>
           )}
 
-          {groupAssessment.error && <p role="alert" className="mt-4 text-sm font-bold text-red-700">{groupAssessment.error}</p>}
-          {decision?.status === 'ready' && (
+          {purchaseBlockReason && <p role={groupAssessment.error ? "alert" : "status"} className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Ingen bokföring kan göras ännu: {purchaseBlockReason}</p>}
+          {decision?.status === 'ready' && !purchaseBlockReason && (
             <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">
-                Förhandsbedömning
+                Förhandsbedömning <HelpHint text="Direkt kostnad minskar resultatet vid köpet. En aktiverad inventarie bokförs som tillgång; resultatet påverkas senare genom avskrivning." />
               </p>
               <p className="mt-1 text-sm font-black text-emerald-900">
                 {decisionLabel(decision.decisionType)}
@@ -790,17 +803,24 @@ export default function FixedAssetsPanel({
               <p className="mt-2 text-xs font-bold text-emerald-800">
                 Faktura {formatMoney(decision.grossAmount)} kr inkl. moms · Underlag {formatMoney(decision.taxableBaseAmount)} kr · Fakturamoms {formatMoney(decision.supplierVatAmount)} kr ({decision.vatRate} %)
               </p>
+              <ul className="mt-3 space-y-2 text-sm text-emerald-950" aria-label="Det händer när du bokför">
+                <li>{paymentSource === 'owner_private'
+                  ? <>Du betalar privat {formatMoney(decision.totalPaidAmount)} kr. Egen insättning bokförs på {configuredPaymentRole?.accountNumber}; företagets bankkonto påverkas inte.</>
+                  : <>Företagets betalningskonto {configuredPaymentRole?.accountNumber} minskar med {formatMoney(decision.totalPaidAmount)} kr.</>}</li>
+                <li>{decision.deductibleVatAmount > 0 ? <>Avdragsgill moms: {formatMoney(decision.deductibleVatAmount)} kr tas med i momsrapporten.</> : <>Momsavdrag: 0 kr. Ingen ingående moms dras av.</>}</li>
+                <li>{decision.decisionType === 'capitalized'
+                  ? <>Inventarievärdet ökar med {formatMoney(decision.capitalizedAmount)} kr. Köpet ger ingen kostnad i resultatet direkt.</>
+                  : <>Kostnad direkt: {formatMoney(decision.expensedAmount)} kr. Årets resultat minskar med samma belopp.</>}</li>
+                {decision.nonDeductibleVatAmount > 0 && <li className="text-xs">Fakturamoms som inte får dras av, {formatMoney(decision.nonDeductibleVatAmount)} kr, ingår i {decision.decisionType === 'capitalized' ? 'inventarievärdet' : 'kostnaden'} ovan.</li>}
+              </ul>
               <p className="mt-1 text-xs font-bold text-emerald-800">
-                Det här köpet: kostnad {formatMoney(decision.expensedAmount)} kr · inventarievärde {formatMoney(decision.capitalizedAmount)} kr · momsavdrag {formatMoney(decision.deductibleVatAmount)} kr
-              </p>
-              <p className="mt-1 text-xs font-bold text-emerald-800">
-                Bedömningsvärde för paketet exklusive fakturamoms: {formatMoney(decision.thresholdBasisAmount)} kr
+                Bedömningsvärde exklusive fakturamoms: {formatMoney(decision.thresholdBasisAmount)} kr <HelpHint text={`Mindre värde kräver ett belopp strikt under halvt prisbasbelopp: ${formatMoney(taxRules.halfPriceBaseAmount)} kr för ${taxRules.taxYear}. Paket bedöms tillsammans för samma år. Ej avdragsgill moms ingår i bokfört värde men inte i denna gränsprövning.`} />
               </p>
             </div>
           )}
 
           {decision?.status === 'ready' && decision.decisionType === 'capitalized' && groupAssessment.value && groupAssessment.value.reclassificationAmount > 0 && (
-            <p className="mt-3 text-sm font-bold text-amber-800">Tidigare direktkostnadsförda delar: {formatMoney(groupAssessment.value.reclassificationAmount)} kr kommer att omklassificeras från 5410 till 1220 via en separat verifikation. Bekräftade korttidsinventarier behåller sitt direktavdrag.</p>
+            <p className="mt-3 text-sm font-bold text-amber-800">Tidigare direktkostnadsförda delar: {formatMoney(groupAssessment.value.reclassificationAmount)} kr flyttas från kostnad till inventarievärde. Tidigare kostnader minskar och årets resultat ökar med det beloppet, genom en separat verifikation. Ingen ny betalning eller moms uppstår; originalköpen ändras inte. Bekräftade korttidsinventarier behåller sitt direktavdrag.</p>
           )}
           {connectionAssessment &&
             connectionAssessment !== 'uncertain' &&
@@ -817,7 +837,7 @@ export default function FixedAssetsPanel({
 
           {supplierCountry !== 'SE' && (
             <div className="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-              Utländska varuköp stoppas i KAN-36 och hanteras först när EU-varuflödet finns.
+              Endast svenska varuköp stöds här. Köp från utlandet behöver hanteras separat.
             </div>
           )}
 
@@ -858,7 +878,7 @@ export default function FixedAssetsPanel({
               </button>
               <button
                 type="submit"
-                disabled={saving || isYearLocked || supplierCountry !== 'SE'}
+                disabled={saving || purchaseBlockReason !== null}
                 className="h-10 rounded-xl bg-emerald-600 px-5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 Bokför
@@ -872,7 +892,7 @@ export default function FixedAssetsPanel({
             Årsavskrivning
           </p>
           <h2 className="mt-1 text-lg font-black text-gray-900">
-            K1 kollektivt underlag
+            K1 kollektivt underlag <HelpHint text="Årsavskrivning görs normalt vid årsbokslutet när årets inventarieinköp är klara. K1 bedömer det samlade kvarvarande värdet. Det granskade underlaget avgör om hela beloppet eller 30 procent skrivs av." />
           </h2>
 
           {depreciationPreview?.status === 'blocked' ? (
@@ -897,6 +917,7 @@ export default function FixedAssetsPanel({
                   Preliminär avskrivning {formatMoney(estimatedDepreciation.depreciationAmount)} kr · {depreciationMethodLabel(estimatedDepreciation.method)}
                 </p>
               </div>
+              <p className="text-sm text-gray-700">Årets resultat och bokfört inventarievärde minskar med {formatMoney(estimatedDepreciation.depreciationAmount)} kr. Ingen ny bankbetalning görs och momsen påverkas inte.</p>
               <button
                 type="button"
                 onClick={handleDepreciation}
@@ -905,10 +926,10 @@ export default function FixedAssetsPanel({
               >
                 Bokför årsavskrivning
               </button>
-              <label className="flex gap-2 text-xs font-bold text-gray-600">
+              <div className="flex items-start gap-2"><label className="flex gap-2 text-xs font-bold text-gray-600">
                 <input type="checkbox" checked={normalYearConfirmed} onChange={event => setNormalYearConfirmed(event.target.checked)} />
-                Jag bekräftar att räkenskapsåret är 1 januari–31 december, tolv månader, och att årets inventarieköp är färdiga. Beloppet ovan ska bokföras per 31 december. Senare aktivering och automatisk rättelse av årets avskrivning stöds inte.
-              </label>
+                Jag bekräftar att räkenskapsåret är 1 januari–31 december, tolv månader, och att årets inventarieköp är färdiga. Beloppet ovan ska bokföras per 31 december. Senare aktivering och automatisk rättelse av årets avskrivning stöds inte.</label> <HelpHint text="Årtalet i registret bevisar inte årslängden. Bekräfta att året verkligen är tolv månader, 1 januari–31 december, och att alla årets inventarieköp är klara. Bokningen fastställer underlaget; senare aktiveringar eller omklassningar som påverkar det spärras. Automatisk rättelse stöds inte." />
+              </div>
             </div>
           ) : (
             <p className="mt-5 text-sm font-bold text-gray-500">
@@ -925,7 +946,7 @@ export default function FixedAssetsPanel({
               Register
             </p>
             <h2 className="mt-1 text-lg font-black text-gray-900">
-              Inventarier till och med {selectedYear}
+              Inventarier till och med {selectedYear} <HelpHint text="Inte längre i bruk ändrar bara registerstatus för direktkostnadsförd utrustning. Ingen försäljning, kreditnota eller bokföringsrättelse skapas. Aktiverade tillgångar kan inte avslutas i detta flöde." />
             </h2>
           </div>
         </div>
@@ -1010,15 +1031,16 @@ export default function FixedAssetsPanel({
                       {asset.assetStatus === 'expensed' ? (
                         <button
                           type="button"
+                          title="Ändrar bara registerstatus. Ingen försäljning, kreditnota eller bokföringsrättelse skapas."
                           onClick={() => void handleRetire(asset)}
                           disabled={saving || isYearLocked}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
                         >
-                          Avsluta
+                          Inte längre i bruk
                         </button>
                       ) : (
                         <span className="text-xs font-bold text-gray-400">
-                          Avyttring stöds inte i V1
+                          Avyttring stöds inte
                         </span>
                       )}
                     </td>
