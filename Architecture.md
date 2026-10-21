@@ -6,6 +6,8 @@
 
 `profileWriteGuard.ts` verifierar sessionens token med Auth och binder samma Authorization till profil-/bokningsbegäran. Formulär och asynkrona förberedelser kontrollerar sin fångade kontext; Home-utkast återanvänds inte vid användarbyte. Standardbokning, periodisering, VAT V2, fakturaunderlag och inventarieanskaffning behåller befintliga ekonomiska regler. Ingen migration. Bas, tester och publiceringsspärr: `docs/reviews/KAN-104-profile-context.md` och `PROJECT_STATE.md`.
 
+Profilens osparade fält hålls i `HomeSession` som `ProfileSettingsDraft`, separat från verifierad `profile`. Utkastet överlever intern navigation och samma användares profiluppdatering, även när formuläret monteras om. Sessionens ägarnyckel rensar minnet vid kontobyte/utloggning; ingen localStorage/sessionStorage används. Profil, betalningskonton och lösenord har fortsatt separata aktiva sparåtgärder. En avslutad sparning rensar bara inskickade fält som inte hunnit ändras igen. Bokföringspolicy läser enbart sparad profil och konfigurerade betalningsroller. `vatNetPresentation.ts` formaterar dashboardens signerade nettomoms utan att ändra beräkningar/rapporter. Lokal UX-verifiering: `docs/reviews/INVENTORY-UX-LOCAL-PASS.md`.
+
 
 ## KAN-80: beständiga bokningsförsök (endast lokal kandidat)
 
