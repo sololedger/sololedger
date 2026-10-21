@@ -1,0 +1,458 @@
+{
+  "kind": "KAN-62 planned local installation; not an applied migration ledger",
+  "date": "2026-10-21",
+  "repositoryBase": "d4320f5d6524216948904e0e58cae3a30ddd76fa",
+  "branch": "codex/KAN-62-rule-contract",
+  "target": {
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "postgresMajor": 17,
+    "oidAndMarker": "Must be assigned and verified only after separately approved creation"
+  },
+  "migrationCount": 55,
+  "historicalCount": 54,
+  "newCandidateCount": 1,
+  "migrations": [
+    {
+      "order": 1,
+      "file": "20260925000000_pre_kan17_cli_baseline.sql",
+      "version": "20260925000000",
+      "sha256": "084ff46ae36dd21dd33c19bb3ed167b28d1df8e9dea43da5b037d27bb4808463",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 2,
+      "file": "20260925050113_20260925_add_vat_account_classification.sql",
+      "version": "20260925050113",
+      "sha256": "fbded32b1e44805b335451e63482395eea54d7ddb4b289625827eb9cdb0c772d",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 3,
+      "file": "20260925070346_20260925_delegate_vat_concurrency_account.sql",
+      "version": "20260925070346",
+      "sha256": "9ed65d449751f0aee646c96bd8341eeba9ebb76c65742934331521392af9af2e",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 4,
+      "file": "20260925124023_delegate_vat_close_account_classification.sql",
+      "version": "20260925124023",
+      "sha256": "8e5f0023baeaaa1e421a5c5c4bbdb1746a2815e2deb780ebc2a37d99e6e5d561",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 5,
+      "file": "20260926132107_add_2645_vat_account_classification.sql",
+      "version": "20260926132107",
+      "sha256": "0ce7d1d0b24f146e1a5821f5b0c9c40c96e0d153e2f0b96e0d0a1bd3f1d7feff",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 6,
+      "file": "20260926174535_add_vat_v2_reverse_charge_booking.sql",
+      "version": "20260926174535",
+      "sha256": "5bd1008f9461bd9ec4b3568593988ede47dcd486c40cf91bd73f8e9a832f5af9",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 7,
+      "file": "20260927070224_add_vat_profile_runtime_fields.sql",
+      "version": "20260927070224",
+      "sha256": "f46cedf0364b06587d6eb8c67cb7d9c5ed6fb2c943862d3874bd17376d177ee4",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 8,
+      "file": "20260927151231_add_payment_account_roles.sql",
+      "version": "20260927151231",
+      "sha256": "cdbf95529d4cf4c0477fe4f0dc92c9f0155a01e4cca0243884e7fe28bd849af3",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 9,
+      "file": "20260927174627_harden_payment_account_roles_acl.sql",
+      "version": "20260927174627",
+      "sha256": "919016726eaf5259ca1e51f47d109132e183c215be5fab124364eb230e03672b",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 10,
+      "file": "20260928193000_add_vat_declaration_submission_date.sql",
+      "version": "20260928193000",
+      "sha256": "3190eed835f09410312fd128e8b17b1605433bf71d02535dc38605bc213ff398",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 11,
+      "file": "20260929101500_add_vat_lifecycle_source_taxonomy.sql",
+      "version": "20260929101500",
+      "sha256": "d089a486b7e156f9cae4b17f784ff2bb57bd7cd76178ec23133992ac287457d8",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 12,
+      "file": "20260929143000_add_vat_settlement_foundation.sql",
+      "version": "20260929143000",
+      "sha256": "5f5c7e04703b98d128d45d58e152c1d54eb0bed5710b0e05a39250e684012ef0",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 13,
+      "file": "20260929183000_add_tax_account_movement.sql",
+      "version": "20260929183000",
+      "sha256": "88fdc21824ab7ce5a6a533f1f6f7defdbad34bd862b8c7e42153e9ce9544593a",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 14,
+      "file": "20260930120000_audit1_p0_vat_lifecycle_semantics.sql",
+      "version": "20260930120000",
+      "sha256": "b448efef2fa74bc85f17d8cb6c4c24623a9d8dda82dfcf0fb6e58b37c854a7b5",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 15,
+      "file": "20260930163000_kan30_delete_user_data_vat_lifecycle.sql",
+      "version": "20260930163000",
+      "sha256": "3b63bf850608dcb12e2958c807b70f5efb5a858841f88ec25ced0f6839c3f077",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 16,
+      "file": "20260930190000_kan31_idempotency_replay.sql",
+      "version": "20260930190000",
+      "sha256": "2b37aa008fb6f7d2f9310f14593ff64e3c94e2725c177378c2805d38bf25ac72",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 17,
+      "file": "20261001060000_kan31_vat_v2_idempotency_acl_fix.sql",
+      "version": "20261001060000",
+      "sha256": "904d11aebf64d855675ad58a27fc107e391382d99b3a2cc8fb800425ae90e7b1",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 18,
+      "file": "20261001120000_kan33_account_balance_rpcs.sql",
+      "version": "20261001120000",
+      "sha256": "538bd7e1e877d0e05df1ecf865695de4d2061464668e7d3ccf0f8b78536ed2b5",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 19,
+      "file": "20261004152057_kan38_vat_v2_payment_role_enforcement.sql",
+      "version": "20261004152057",
+      "sha256": "eeee57cfe75a140fc1eb49c01f8b9b86b7967ca0cbc1a1d7954bca1152833997",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 20,
+      "file": "20261005105538_kan42_close_year_ne_guard.sql",
+      "version": "20261005105538",
+      "sha256": "1617e78140368d1a35a460e4cfd90a0c487a40ecdb5f6b334d2787e98a2db433",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 21,
+      "file": "20261005193000_kan46_customer_invoice_lifecycle.sql",
+      "version": "20261005193000",
+      "sha256": "e94c0cb67146ad538256af619a7f0a2f0042d91573bb8776e1a31909b442f0c9",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 22,
+      "file": "20261005203000_ensure_attachments_storage_bucket.sql",
+      "version": "20261005203000",
+      "sha256": "0f310962d1e1680e81f487c57e80a9a24a4dd109a2554454321c1a7033a478f6",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 23,
+      "file": "20261005210000_fix_customer_invoice_year_end_scope.sql",
+      "version": "20261005210000",
+      "sha256": "1f98b09291e9c7c8c4596f1ea4cb7f3d4eba8e8d75cdf93ae379df89011fae74",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 24,
+      "file": "20261005213000_allow_customer_invoice_controlled_reversal.sql",
+      "version": "20261005213000",
+      "sha256": "c6945f276258340b0cbfb2d575bd8a95ba1dfca0d26c1c7790fa9bae0ddd0df2",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 25,
+      "file": "20261006120000_kan14_vat_v2_no_deduction.sql",
+      "version": "20261006120000",
+      "sha256": "748b2204856704c3b38432a93fac925b1cffd6d9b864e10f823a278076012ebb",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 26,
+      "file": "20261006143000_add_profile_vat_number.sql",
+      "version": "20261006143000",
+      "sha256": "aeafd4d6eb4391bea0f52cc8abdee04810fa8167a1d44fbf0b1a30f1d890a07d",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 27,
+      "file": "20261007110000_kan51_historical_customer_invoice_linkage.sql",
+      "version": "20261007110000",
+      "sha256": "0117ce348dafc736c3679eaabf82ea5a1feb7ffbe609813542e05791b56871b6",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 28,
+      "file": "20261007130000_kan22_vat_v2_business_facts.sql",
+      "version": "20261007130000",
+      "sha256": "df46398e7bee9e8f24a69dd992697ff2aaf6aec63dc87f751c436d3af0b19fd8",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 29,
+      "file": "20261007160000_kan36_fixed_assets.sql",
+      "version": "20261007160000",
+      "sha256": "917a56e062b337693f1e40eb093a16c552a5eaa2c5aba7b06944642a3c6caffb",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 30,
+      "file": "20261008110000_kan36_redirect_manual_equipment_purchases.sql",
+      "version": "20261008110000",
+      "sha256": "826e50e893e7e1817d9f504260840afc8bef9649085632bf1207325ed76950e4",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 31,
+      "file": "20261008170000_kan54_fixed_asset_vat_deduction_guard.sql",
+      "version": "20261008170000",
+      "sha256": "8d56eff575c41cddb07ad76fc41c1a137b6f45777a680346a73ffb24557c8dff",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 32,
+      "file": "20261008173000_kan54_revoke_internal_delegate_service_role.sql",
+      "version": "20261008173000",
+      "sha256": "8581f6dd89bd32bb3aec6bea87ba5513c8047178fd79a786a7f05bde1854db70",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 33,
+      "file": "20261008175927_kan55_purchase_input_vat_deduction.sql",
+      "version": "20261008175927",
+      "sha256": "8071e6194c3f51ab37429d2e1a29ec64dcb680e079664a718c1bc95867b0f894",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 34,
+      "file": "20261009203900_kan56_kan57_db_regression_repair.sql",
+      "version": "20261009203900",
+      "sha256": "9a2f6bf4f7c0736ac3a25778adadd9458e94acac937a67e1792b12236a453344",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 35,
+      "file": "20261009220552_kan56_customer_invoice_booking_delete_context.sql",
+      "version": "20261009220552",
+      "sha256": "c823cf1e9d611dc78d4236e0506943607a0804f9bcaf468881bcbcc7c80c8c5d",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 36,
+      "file": "20261012123000_kan62_fixed_asset_gross_vat_rate.sql",
+      "version": "20261012123000",
+      "sha256": "8b1c5508148c600cf72d9dcbc1727a393c00734423e9030d907043bbe5a37abe",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 37,
+      "file": "20261012153000_kan62_fixed_asset_group_locking.sql",
+      "version": "20261012153000",
+      "sha256": "69a29ddf52a556e1b83d01ae3938e170f62b539a54a4d7e983e68db3529dea8a",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 38,
+      "file": "20261013103000_kan63_customer_invoice_vat_guard.sql",
+      "version": "20261013103000",
+      "sha256": "f5e592bc2ee662f2a880868d680487dca6479eff49284219de2116e863c3a642",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 39,
+      "file": "20261014100000_kan72_standard_booking_integrity.sql",
+      "version": "20261014100000",
+      "sha256": "2ea035c251a728518706c23a689f8b73bd01ae1136e98bbfb352f21c5da92e29",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 40,
+      "file": "20261014123000_kan72_journal_user_ver_index.sql",
+      "version": "20261014123000",
+      "sha256": "e01870efe4a2d8c3a1df5f3b241c2923ea9329ab5305849a9dd7aa69feef9bc2",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 41,
+      "file": "20261014162850_kan71_sie_undo_vat_period_guard.sql",
+      "version": "20261014162850",
+      "sha256": "c3e8c5149731985e96267541653fbbb2c48c57c351b9ab867a71000863e9b7d1",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 42,
+      "file": "20261014171038_kan71_sie_correction_period_guard.sql",
+      "version": "20261014171038",
+      "sha256": "582d8ad2631855cf1a12da8627900a899d3b6a72004fd2074a988da0d44c0e4c",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 43,
+      "file": "20261014174218_kan71_legacy_sie_correction_history_guard.sql",
+      "version": "20261014174218",
+      "sha256": "c8ac1437465bfbca76ff19fc414cba6382baa5006ebedd3103dc9319ca870967",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 44,
+      "file": "20261015115900_kan74_sie_verified_inputs.sql",
+      "version": "20261015115900",
+      "sha256": "4d5c930f5cf7fc665986c7ff174bcf3eefe0b51a24f50a4fd11c71d5769cbfd0",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 45,
+      "file": "20261015120000_kan74_sie_opening_balance_guard.sql",
+      "version": "20261015120000",
+      "sha256": "ed3f4a2f58342e273f0d64434f6e460d6a1e97e0a0c630de15b695d48de78ac1",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 46,
+      "file": "20261015121000_kan74_sie_receipt_deletion.sql",
+      "version": "20261015121000",
+      "sha256": "72cc65d9af695dc6c1d8fd4fc8da037b5c1232ebbaf96b40116dd1191d6c8bf9",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 47,
+      "file": "20261015180458_kan84_explicit_first_vat_year_period.sql",
+      "version": "20261015180458",
+      "sha256": "ad2ad5afad73fa6a69943dd33896d020d47268c35e35870bd5f7fa293f935498",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 48,
+      "file": "20261017122027_kan88_ne_sales_classification.sql",
+      "version": "20261017122027",
+      "sha256": "9ca9c80da6ef159e51a85379a593d4ad704ca231bca2c658f67d5583db0d5044",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 49,
+      "file": "20261017164431_kan89_category_visibility.sql",
+      "version": "20261017164431",
+      "sha256": "051a368ae27b265744fedf833ed356c5033128fbb5d3058219505225466bffc6",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 50,
+      "file": "20261017190000_kan80_standard_booking_idempotency.sql",
+      "version": "20261017190000",
+      "sha256": "6c4b631847c101ad3c21e938c1ec78b84063ed3beac627011f3eec1cd9741e64",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 51,
+      "file": "20261018190000_kan93_ne_equity_transfers.sql",
+      "version": "20261018190000",
+      "sha256": "5d1d7e1b3db6fa85b0485cd26c740f31d128c8c8ee580b93be7fad370b2aad45",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 52,
+      "file": "20261019120000_kan75_year_close_concurrency.sql",
+      "version": "20261019120000",
+      "sha256": "57ccfa875a5c66b49d93c20c79ab836e8a1cee94d96b8bcd407ab953804d2b80",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 53,
+      "file": "20261019200000_kan97_withdrawal_assessments.sql",
+      "version": "20261019200000",
+      "sha256": "5c0d216e271e3c39ded65eea8cca46f4454977b0ec1314987ef5aa39dfc3f742",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 54,
+      "file": "20261020130000_kan97_withdrawal_invoice_context.sql",
+      "version": "20261020130000",
+      "sha256": "99e01b4f2bcb256ea6b21a35b6909837354124717a8f5d5aac58dc57c5a838fd",
+      "phase": "historical-unmodified",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    },
+    {
+      "order": 55,
+      "file": "20261020233000_kan62_rule_contract.sql",
+      "version": "20261020233000",
+      "sha256": "b5f54425b4a356a416ca1b0f362daf264ded3a6286ec7e546d03688d5950cfd4",
+      "phase": "new-candidate",
+      "execution": "NOT EXECUTED IN KAN-62 DATABASE"
+    }
+  ]
+}
