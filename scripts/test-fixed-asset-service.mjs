@@ -9,7 +9,7 @@ let rows = [], mode = 'normal', pages = 0, sent, profileFailure = false
 const fixture = {
   auth: { getUser: async () => ({ data: { user: { id: owner } }, error: null }) },
   from(table) {
-    assert.equal(table, 'fixed_assets')
+    assert(['fixed_assets','fixed_asset_depreciation_runs'].includes(table))
     const filters = {}
     return {
       select(_columns, options) { assert.equal(options.count, 'exact'); return this },
@@ -34,7 +34,7 @@ globalThis.__kan62VerifiedRpc = async () => {
       expected: true, threshold_basis_amount: args.p_payload.expected_threshold_basis_amount }, error: null }
   } }
 }
-const bundle = await build({ stdin: { contents: "export { getFixedAssets, bookFixedAssetAcquisition } from './src/lib/accountingService.ts'", resolveDir: process.cwd() },
+const bundle = await build({ stdin: { contents: "export { getFixedAssets, getFixedAssetDepreciationRuns, bookFixedAssetAcquisition } from './src/lib/accountingService.ts'", resolveDir: process.cwd() },
   bundle: true, write: false, platform: 'node', format: 'cjs', plugins: [{ name: 'synthetic-only', setup(b) {
     b.onResolve({ filter: /(?:supabaseClient|profileWriteGuard)(?:\.ts)?$/ }, args => ({ path: args.path, namespace: 'synthetic' }))
     b.onLoad({ filter: /.*/, namespace: 'synthetic' }, args => ({ contents: args.path.includes('supabaseClient')
@@ -76,5 +76,11 @@ assert.deepEqual(sent.args.p_payload.expected_prior_asset_ids, [])
 profileFailure = true; sent = null
 await assert.rejects(service.bookFixedAssetAcquisition(input), /unverified profile/)
 assert.equal(sent, null)
+profileFailure=false;mode='normal';pages=0
+rows=Array.from({length:1001},(_,i)=>({...row(i),basis_amount:100000,depreciation_amount:30000,method:'k1_main_rule_30_percent'}))
+assert.equal((await service.getFixedAssetDepreciationRuns(2026)).length,1001)
+assert.equal(pages,2,'annual history is complete beyond the former 50-run cap')
+rows=[{...rows[0],user_id:'other-owner'}]
+await assert.rejects(service.getFixedAssetDepreciationRuns(2026),/användaren och året/)
 delete globalThis.__kan62Fixture; delete globalThis.__kan62VerifiedRpc
 console.log('KAN-62 actual service: complete paging, owner/year checks, profile guard and RPC preview contract PASS')

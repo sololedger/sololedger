@@ -687,19 +687,19 @@ export async function getFixedAssetDepreciationRuns(
 ): Promise<FixedAssetDepreciationRun[]> {
   const userId = await getUserId()
 
-  const { data, error } = await supabase
+  const data = await fetchAllRows<FixedAssetDepreciationRunRow & { user_id: string }>({
+    context: 'inventarieavskrivningar',
+    createQuery: () => (supabase
     .from('fixed_asset_depreciation_runs')
-    .select('id, fiscal_year, transaction_id, basis_amount, depreciation_amount, method, full_writeoff_applied, rule_year, rule_version, price_base_amount, half_price_base_amount, created_at')
+    .select('id, user_id, fiscal_year, transaction_id, basis_amount, depreciation_amount, method, full_writeoff_applied, rule_year, rule_version, price_base_amount, half_price_base_amount, created_at', { count: 'exact' })
     .eq('user_id', userId)
     .lte('fiscal_year', throughYear)
-    .order('fiscal_year', { ascending: false })
-    .limit(50)
-
-  if (error) {
-    throw new Error('Kunde inte hämta avskrivningar: ' + error.message)
+    .order('fiscal_year', { ascending: false }).order('id')) as unknown as FetchAllRangeQuery<FixedAssetDepreciationRunRow & { user_id: string }>,
+  })
+  if (data.some(row => row.user_id !== userId || row.fiscal_year > throughYear) || new Set(data.map(row => row.id)).size !== data.length) {
+    throw new Error('Avskrivningshistoriken kunde inte verifieras för användaren och året.')
   }
-
-  return ((data ?? []) as FixedAssetDepreciationRunRow[]).map(
+  return data.map(
     mapFixedAssetDepreciationRun
   )
 }
@@ -764,13 +764,21 @@ export async function bookFixedAssetAcquisition(
 }
 
 export async function bookFixedAssetDepreciation(
-  fiscalYear: number
+  fiscalYear: number,
+  preview: import('./fixedAssets').FixedAssetDepreciationPreview,
+  normalCalendarYearConfirmed: boolean
 ): Promise<FixedAssetDepreciationResult> {
   await getUserId()
 
   const { data, error } = await supabase.rpc(
-    'book_fixed_asset_depreciation_atomic',
-    { p_fiscal_year: fiscalYear }
+    'book_fixed_asset_depreciation_checked',
+    { p_payload: {
+      fiscal_year: fiscalYear,
+      year_start: `${fiscalYear}-01-01`, year_end: `${fiscalYear}-12-31`,
+      normal_calendar_year_confirmed: normalCalendarYearConfirmed,
+      all_purchases_complete: normalCalendarYearConfirmed,
+      expected_signature: preview.signature, expected_amount: preview.depreciation_amount,
+    } }
   )
 
   if (error) {
@@ -796,6 +804,16 @@ export async function bookFixedAssetDepreciation(
     ruleVersion: data.rule_version as string,
     halfPriceBaseAmount: Number(data.half_price_base_amount),
   }
+}
+
+export async function getFixedAssetDepreciationPreview(fiscalYear: number): Promise<import('./fixedAssets').FixedAssetDepreciationPreview> {
+  await getUserId()
+  const { data, error } = await supabase.rpc('get_fixed_asset_depreciation_preview', { p_fiscal_year: fiscalYear })
+  if (error) throw new Error('Avskrivningsunderlaget kunde inte hämtas: ' + error.message)
+  if (!data || !['ready', 'booked', 'empty', 'blocked'].includes(data.status)) throw new Error('Avskrivningsunderlaget kunde inte verifieras.')
+  if (data.status !== 'blocked' && (!Number.isFinite(data.book_value) || !Number.isFinite(data.basis_amount) ||
+    !Number.isFinite(data.depreciation_amount) || !data.signature)) throw new Error('Ofullständigt avskrivningsunderlag.')
+  return data
 }
 
 export async function retireFixedAsset(

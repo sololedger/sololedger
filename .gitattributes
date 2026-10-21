@@ -1,2 +1,5 @@
 # Preserve the exact reviewed/installed KAN-62 candidate hash on Windows checkout.
 supabase/migrations/20261020233000_kan62_rule_contract.sql text eol=lf
+supabase/migrations/20261021120000_inventory_k1_depreciation_contract.sql text eol=lf
+supabase/migrations/20261021123000_inventory_journal_boundary.sql text eol=lf
+supabase/migrations/20261021130000_inventory_prior_year_validation.sql text eol=lf

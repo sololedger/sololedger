@@ -5,6 +5,7 @@ import {
   bookFixedAssetAcquisition,
   bookFixedAssetDepreciation,
   getFixedAssetDepreciationRuns,
+  getFixedAssetDepreciationPreview,
   getFixedAssets,
   getTaxRuleParametersForYear,
   retireFixedAsset,
@@ -13,11 +14,11 @@ import {
   assessFixedAssetGroup,
   calculateFixedAssetDecision,
   calculateFixedAssetInvoiceAmounts,
-  calculateK1CollectiveDepreciation,
   isFixedAssetVatRate,
   type FixedAsset,
   type FixedAssetConnectionAssessment,
   type FixedAssetDepreciationRun,
+  type FixedAssetDepreciationPreview,
   type FixedAssetTaxRuleParameters,
   type FixedAssetUsefulLifeAnswer,
   type FixedAssetVatRate,
@@ -143,6 +144,8 @@ export default function FixedAssetsPanel({
   const [taxRules, setTaxRules] = useState<FixedAssetTaxRuleParameters | null>(null)
   const [assets, setAssets] = useState<FixedAsset[]>([])
   const [depreciationRuns, setDepreciationRuns] = useState<FixedAssetDepreciationRun[]>([])
+  const [depreciationPreview, setDepreciationPreview] = useState<FixedAssetDepreciationPreview | null>(null)
+  const [normalYearConfirmed, setNormalYearConfirmed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -185,15 +188,18 @@ export default function FixedAssetsPanel({
     setUnsupportedYear(null)
 
     try {
-      const [rules, assetRows, runRows] = await Promise.all([
+      const [rules, assetRows, runRows, preview] = await Promise.all([
         getTaxRuleParametersForYear(selectedYear),
         getFixedAssets(selectedYear),
         getFixedAssetDepreciationRuns(selectedYear),
+        getFixedAssetDepreciationPreview(selectedYear),
       ])
       if (!isCurrent()) return
       setTaxRules(rules)
       setAssets(assetRows)
       setDepreciationRuns(runRows)
+      setDepreciationPreview(preview)
+      setNormalYearConfirmed(false)
     } catch (err) {
       if (!isCurrent()) return
       setPanelLoadError(`Kunde inte hämta inventarieuppgifter för ${selectedYear}. Inga belopp visas. Försök igen.`)
@@ -320,19 +326,10 @@ export default function FixedAssetsPanel({
   )
   const showUsefulLifeQuestion = hasValidPurchaseAmount || usefulLifeAnswer !== ''
   const latestRun = depreciationRuns.find(run => run.fiscalYear === selectedYear)
-  const estimatedDepreciation = useMemo(() => {
-    if (!taxRules) return null
-    const basis = capitalizedAssets.reduce(
-      (sum, asset) => sum + asset.capitalizedAmount,
-      0
-    )
-    if (basis <= 0) return null
-
-    return {
-      basis,
-      ...calculateK1CollectiveDepreciation({ depreciationBasis: basis, taxRules }),
-    }
-  }, [capitalizedAssets, taxRules])
+  const estimatedDepreciation = depreciationPreview?.status === 'ready' ? {
+    basis: depreciationPreview.basis_amount!, depreciationAmount: depreciationPreview.depreciation_amount!,
+    method: depreciationPreview.method!,
+  } : null
   const totalCapitalizedAcquisitionValue = capitalizedAssets.reduce(
     (sum, asset) => sum + asset.capitalizedAmount,
     0
@@ -341,10 +338,7 @@ export default function FixedAssetsPanel({
     (sum, run) => sum + run.depreciationAmount,
     0
   )
-  const collectiveBookValue = Math.max(
-    0,
-    totalCapitalizedAcquisitionValue - totalBookedDepreciation
-  )
+  const collectiveBookValue = depreciationPreview?.book_value ?? null
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -474,7 +468,8 @@ export default function FixedAssetsPanel({
     setSaving(true)
 
     try {
-      const result = await bookFixedAssetDepreciation(selectedYear)
+      if (!depreciationPreview || !normalYearConfirmed) throw new Error('Bekräfta tolvmånadersåret och att inventarieköpen är färdiga.')
+      const result = await bookFixedAssetDepreciation(selectedYear, depreciationPreview, normalYearConfirmed)
       setMessage(
         result.idempotentReplay
           ? `Avskrivningen för ${selectedYear} var redan bokförd.`
@@ -880,7 +875,9 @@ export default function FixedAssetsPanel({
             K1 kollektivt underlag
           </h2>
 
-          {latestRun ? (
+          {depreciationPreview?.status === 'blocked' ? (
+            <p role="alert" className="mt-5 text-sm font-bold text-amber-800">{depreciationPreview.reason}</p>
+          ) : latestRun ? (
             <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <p className="text-sm font-black text-emerald-900">
                 Avskrivning för {selectedYear} är bokförd
@@ -903,11 +900,15 @@ export default function FixedAssetsPanel({
               <button
                 type="button"
                 onClick={handleDepreciation}
-                disabled={saving || isYearLocked}
+                disabled={saving || isYearLocked || !normalYearConfirmed}
                 className="h-10 w-full rounded-xl bg-gray-900 px-4 text-[10px] font-black uppercase tracking-wider text-white hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 Bokför årsavskrivning
               </button>
+              <label className="flex gap-2 text-xs font-bold text-gray-600">
+                <input type="checkbox" checked={normalYearConfirmed} onChange={event => setNormalYearConfirmed(event.target.checked)} />
+                Jag bekräftar att räkenskapsåret är 1 januari–31 december, tolv månader, och att årets inventarieköp är färdiga. Beloppet ovan ska bokföras per 31 december. Senare aktivering och automatisk rättelse av årets avskrivning stöds inte.
+              </label>
             </div>
           ) : (
             <p className="mt-5 text-sm font-bold text-gray-500">
@@ -958,7 +959,7 @@ export default function FixedAssetsPanel({
                     Bokfört värde kollektivt
                   </p>
                   <p className="mt-1 text-lg font-black text-emerald-900">
-                    {formatMoney(collectiveBookValue)} kr
+                    {collectiveBookValue == null ? 'Kräver kontroll' : `${formatMoney(collectiveBookValue)} kr`}
                   </p>
                 </div>
               </div>

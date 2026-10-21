@@ -335,7 +335,6 @@ const controlledLifecycleRows = assertReady(
       tx('vat-closing-zero-net', 'vat_closing'),
       tx('vat-settlement-stray-vat', 'vat_settlement'),
       tx('tax-movement-stray-vat', 'tax_account_movement'),
-      tx('fixed-asset-stray-vat', 'fixed_asset'),
       tx('fixed-asset-reclass-stray-vat', 'fixed_asset_reclassification'),
     ],
     journalRows: [
@@ -343,7 +342,6 @@ const controlledLifecycleRows = assertReady(
       row('vat-closing-zero-net', '2645', 0, 57),
       row('vat-settlement-stray-vat', '2611', 0, 25),
       row('tax-movement-stray-vat', '2641', 25, 0),
-      row('fixed-asset-stray-vat', '2641', 125, 0),
       row('fixed-asset-reclass-stray-vat', '2611', 0, 125),
     ],
     vatV2Snapshots: [],

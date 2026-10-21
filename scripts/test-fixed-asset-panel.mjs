@@ -15,10 +15,11 @@ paymentAccountRolesLoading={false} paymentAccountRolesLoaded={true} paymentAccou
 onRefreshPaymentAccountRoles={()=>{}} onOpenPaymentAccountSettings={()=>{}} onBookkeepingChanged={()=>{}}/>);
 window.renderAssetPanel();`
 const service = `export async function getFixedAssets(){return window.assetFixture.assets}
-export async function getFixedAssetDepreciationRuns(){return []}
+export async function getFixedAssetDepreciationRuns(){return window.assetFixture.runs || []}
+export async function getFixedAssetDepreciationPreview(){return window.assetFixture.preview || {status:'empty',book_value:0}}
 export async function getTaxRuleParametersForYear(){return window.assetFixture.rules}
 export async function bookFixedAssetAcquisition(input){window.assetFixture.sent.push(input);throw Error('Synthetic transport stopped before booking')}
-export async function bookFixedAssetDepreciation(){throw Error('Disabled synthetic write')}
+export async function bookFixedAssetDepreciation(...args){window.assetFixture.annual=args;throw Error('Synthetic annual transport stopped')}
 export async function retireFixedAsset(){throw Error('Disabled synthetic write')}`
 const bundle = await build({ stdin: { contents: entry, loader: 'tsx', resolveDir: process.cwd() }, bundle: true,
   write: false, platform: 'browser', format: 'iife', jsx: 'automatic', plugins: [{ name: 'synthetic-asset-service', setup(b) {
@@ -70,6 +71,27 @@ try {
   assert.equal(grouped.expectedReclassificationAmount, 25000)
   await page.getByLabel('Datum', { exact: true }).fill('2025-03-01')
   await expect(page.getByRole('alert')).toContainText('valt bokföringsår')
+  await page.evaluate(() => {
+    window.assetFixture.assets = [{id:'CAP',fiscalYear:2025,acquisitionDate:'2025-01-01',assetStatus:'active',
+      decisionType:'capitalized',capitalizedAmount:40000,expensedAmount:0,description:'Capital asset',paymentAccountRole:'business_payment_account',ruleYear:2025}]
+    window.assetFixture.runs = [{id:'prior',fiscalYear:2025,depreciationAmount:12000}]
+    window.assetFixture.preview = {status:'ready',basis_amount:28000,depreciation_amount:28000,book_value:28000,
+      signature:'reviewed-snapshot',method:'k1_half_pbb_full_writeoff'}
+    window.renderAssetPanel()
+  })
+  const annualButton=page.getByRole('button',{name:'Bokför årsavskrivning',exact:true})
+  await expect(annualButton).toBeDisabled()
+  await expect(page.getByText(/Preliminär avskrivning 28\s*000,00/)).toBeVisible()
+  await page.getByRole('checkbox',{name:/Jag bekräftar att räkenskapsåret/}).check()
+  await annualButton.click()
+  await expect.poll(()=>page.evaluate(()=>window.assetFixture.annual?.[1]?.signature)).toBe('reviewed-snapshot')
+  assert.equal(await page.evaluate(()=>window.assetFixture.annual[2]),true)
+  await page.evaluate(()=>{window.assetFixture.preview={status:'empty',book_value:0};window.renderAssetPanel()})
+  await expect(annualButton).toHaveCount(0)
+  await expect(page.getByText('Bokfört värde kollektivt').locator('..')).toContainText('0,00 kr')
+  await page.evaluate(()=>{window.assetFixture.preview={status:'blocked',reason:'Okänd årslängd kräver kontroll'};window.renderAssetPanel()})
+  await expect(page.getByRole('alert')).toContainText('Okänd årslängd')
+  await expect(page.getByRole('button',{name:'Bokför',exact:true})).toBeEnabled()
   assert.deepEqual(errors, [])
   console.log('KAN-62 actual panel: gross/net preview, exact boundary, short life, complete group and year guard PASS (synthetic transport)')
 } finally { await browser.close() }

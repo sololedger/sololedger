@@ -40,6 +40,21 @@ interface TransactionTableProps {
   onFavorite: (tx: any) => void
 }
 
+type FixedAssetReclassificationTraceLink = {
+  assetName?: string | null
+  amount?: number | string | null
+  eventDate?: string | null
+  originalVerNr?: number | string | null
+  reclassificationVerNr?: number | string | null
+}
+
+type TransactionWithFixedAssetTrace = {
+  fixed_asset_trace?: {
+    reclassifiedBy?: FixedAssetReclassificationTraceLink[] | null
+    reclassifies?: FixedAssetReclassificationTraceLink[] | null
+  } | null
+}
+
 export default function TransactionTable({
   transactions,
   journalMap,
@@ -393,6 +408,76 @@ export default function TransactionTable({
   const noFilteredResults = filtersActive && displayItems.length === 0
   const clearFilters = () => {
     setFilters({ ...DEFAULT_TRANSACTION_HISTORY_FILTERS })
+  }
+  const focusVerification = (verNr: number | string | null | undefined) => {
+    if (verNr == null || verNr === '') return
+    setFilters(prev => ({ ...prev, search: `VER-${verNr}` }))
+  }
+  const traceAmount = (amount: unknown) =>
+    Number(amount || 0).toLocaleString('sv-SE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+
+  function ReclassificationTraceNote({
+    tx,
+    compact = false,
+  }: {
+    tx: TransactionWithFixedAssetTrace
+    compact?: boolean
+  }) {
+    const trace = tx.fixed_asset_trace || {}
+    const reclassifiedBy: FixedAssetReclassificationTraceLink[] = Array.isArray(trace.reclassifiedBy)
+      ? trace.reclassifiedBy
+      : []
+    const reclassifies: FixedAssetReclassificationTraceLink[] = Array.isArray(trace.reclassifies)
+      ? trace.reclassifies
+      : []
+    if (reclassifiedBy.length === 0 && reclassifies.length === 0) return null
+
+    return (
+      <div className={`${compact ? 'mb-2' : 'mt-2'} space-y-1`}>
+        {reclassifiedBy.map((link, index) => (
+          <div
+            key={`reclassified-by-${link.assetName ?? 'asset'}-${link.reclassificationVerNr ?? index}`}
+            className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[10px] font-bold text-emerald-800"
+          >
+            <span>
+              Omklassificerad {link.eventDate || 'okänt datum'}: {link.assetName || 'Inventarie'} {traceAmount(link.amount)} kr via {link.reclassificationVerNr != null ? `VER-${link.reclassificationVerNr}` : 'en senare verifikation'}. Ursprunglig kontering är oförändrad.
+            </span>
+            {link.reclassificationVerNr != null && (
+              <button
+                type="button"
+                onClick={() => focusVerification(link.reclassificationVerNr)}
+                className="ml-2 font-black text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
+              >
+                Visa VER-{link.reclassificationVerNr}
+              </button>
+            )}
+          </div>
+        ))}
+
+        {reclassifies.map((link, index) => (
+          <div
+            key={`reclassifies-${link.assetName ?? 'asset'}-${link.originalVerNr ?? index}`}
+            className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[10px] font-bold text-emerald-800"
+          >
+            <span>
+              Omklassificerar {link.assetName || 'inventarie'} från {link.originalVerNr != null ? `VER-${link.originalVerNr}` : 'ursprunglig verifikation'} med {traceAmount(link.amount)} kr.
+            </span>
+            {link.originalVerNr != null && (
+              <button
+                type="button"
+                onClick={() => focusVerification(link.originalVerNr)}
+                className="ml-2 font-black text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900"
+              >
+                Visa VER-{link.originalVerNr}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const renderAttachmentGroup = (group: Extract<DisplayItem, { kind: 'attachmentGroup' }>, layout: 'desktop' | 'mobile') => (
@@ -793,6 +878,8 @@ export default function TransactionTable({
                       </p>
                     )}
 
+                    <ReclassificationTraceNote tx={tx} />
+
                     {tx.file_url && !isNeutralized && !isVatClosing && (
                       <button
                         onClick={() => handleOpenAttachment(tx.file_url)}
@@ -1126,6 +1213,8 @@ export default function TransactionTable({
                   Rättar VER-{tx.corrects_ver_nr}
                 </p>
               )}
+
+              <ReclassificationTraceNote tx={tx} compact />
 
               {tx.file_url && !isNeutralized && !isVatClosing && (
                 <button

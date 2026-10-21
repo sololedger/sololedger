@@ -62,6 +62,7 @@ const assetReads = deferredReads()
 const assets = await callbacks('src/components/FixedAssetsPanel.tsx', ['loadPanel'], {
   selectedYear: 2027, panelLoadSequence: { current: 0 },
   getTaxRuleParametersForYear: assetReads.read, getFixedAssets: assetReads.read, getFixedAssetDepreciationRuns: assetReads.read,
+  getFixedAssetDepreciationPreview: assetReads.read,
 })
 first = assets.loadPanel()
 assetReads.requests.splice(0).forEach((read, i) => i === 1 ? read.reject(new Error('Synthetic read failure')) : read.resolve([]))

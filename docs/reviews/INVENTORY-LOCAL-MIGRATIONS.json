@@ -1,0 +1,18 @@
+{
+  "base": "89afeefa90faa3ad0c3a6d7622a739c3fcfa7ebc",
+  "historicalManifest": "KAN-62-LOCAL-DB-MIGRATIONS.json",
+  "files": [
+    {
+      "file": "supabase/migrations/20261021120000_inventory_k1_depreciation_contract.sql",
+      "sha256": "2425839bd1b3e8bc536f4ddec10f7bc2d70cae08fa512541287a0053fea7475d"
+    },
+    {
+      "file": "supabase/migrations/20261021123000_inventory_journal_boundary.sql",
+      "sha256": "7db59eecb51aca8e1e6afbe8cae1b171ab36eb2f6427e0768a52d4cfceed9d18"
+    },
+    {
+      "file": "supabase/migrations/20261021130000_inventory_prior_year_validation.sql",
+      "sha256": "2c4de531e88ad5b5277461ad380da6fb2537dd14df461a6a78dec6414bc034f0"
+    }
+  ]
+}

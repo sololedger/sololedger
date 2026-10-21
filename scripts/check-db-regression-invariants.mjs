@@ -105,8 +105,10 @@ for (const name of [
 // Inspect the actual last complete body, rather than checking an old file's
 // contents after a newer definition has superseded it. KAN-75 additionally
 // transforms exact guarded preimages; that dynamic SQL still needs PG testing.
-function latestBody(name) {
-  const file = latestCriticalDefinitions[name]
+function latestBody(name, beforeFile) {
+  const file = beforeFile ? readdirSync(migrationDir).filter(file => file.endsWith('.sql') && file < beforeFile).sort()
+    .filter(file => new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\(`).test(read(join(migrationDir,file)))).at(-1)
+    : latestCriticalDefinitions[name]
   if (!file) { fail(`Missing definition: ${name}`); return '' }
   const source = read(join(migrationDir, file))
   const match = source.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?AS (\\$[a-zA-Z_]*\\$)([\\s\\S]*?)\\1\\s*;`))
@@ -128,7 +130,22 @@ for (const table of ['withdrawal_assessment_facts', 'withdrawal_assessment_revis
 for (const [child, parent] of [['withdrawal_assessment_facts', 'withdrawal_assessment_revisions'], ['withdrawal_assessment_revisions', 'profiles'], ['journal_entries', 'transactions']]) {
   if (currentDelete.indexOf(`DELETE FROM public.${child}`) >= currentDelete.indexOf(`DELETE FROM public.${parent}`)) fail(`delete order: ${child} must precede ${parent}`)
 }
-const currentClose = latestBody('close_year_atomic')
+let currentClose = latestBody('close_year_atomic')
+if (currentClose.includes('RETURN public.close_year_unchecked_inventory(p_year)')) {
+  const file = '20261021120000_inventory_k1_depreciation_contract.sql'
+  if (latestCriticalDefinitions.close_year_atomic !== file) fail('Unexpected close-year delegate transformation')
+  for (const needle of ['lock_accounting_year_boundary(auth.uid(),true)', 'inventory_depreciation_state(p_year)',
+    "s->>'status'='ready'", 'public.lock_inventory_boundary()']) assertIncludes(currentClose,needle,'inventory close-year wrapper')
+  const migration = read(join(migrationDir,file))
+  for (const needle of ["pg_get_functiondef('public.close_year_atomic(integer)'::regprocedure)",
+    "EXECUTE replace(d,'public.close_year_atomic(', 'public.close_year_unchecked_inventory(')",
+    'REVOKE ALL ON FUNCTION public.close_year_unchecked_inventory(integer) FROM PUBLIC,anon,authenticated,service_role;']) {
+    assertIncludes(migration,needle,'private preserved close-year delegate')
+  }
+  // Check every original invariant too; the wrapper must not replace them.
+  // Actual transformed definition/grants and year-close races are checked in PostgreSQL.
+  currentClose=latestBody('close_year_atomic',file)
+}
 for (const needle of ['v_user_id := auth.uid()', 'IF v_user_id IS NULL', 'FOR UPDATE', 'public.closed_years', 'public.vat_periods', 'public.customer_invoices', 'public.fixed_assets', 'AS cumulative_result', "WHERE account_class IN ('3', '4', '5', '6', '7', '8')", 'INSERT INTO public.closed_years']) {
   assertIncludes(currentClose, needle, 'current close_year_atomic')
 }

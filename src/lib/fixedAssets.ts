@@ -175,6 +175,18 @@ export interface FixedAssetDepreciationResult {
   halfPriceBaseAmount: number
 }
 
+export interface FixedAssetDepreciationPreview {
+  status: 'ready' | 'booked' | 'empty' | 'blocked'
+  reason?: string
+  signature?: string
+  basis_amount?: number
+  depreciation_amount?: number
+  book_value?: number
+  acquisition_total?: number
+  depreciation_total?: number
+  method?: FixedAssetDepreciationRun['method']
+}
+
 function roundAmount(value: number) {
   return Math.round(value * 100) / 100
 }

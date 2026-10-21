@@ -69,6 +69,7 @@ export type VatReportAggregationErrorCode =
   | 'customer_invoice_vat_unsupported'
   | 'customer_invoice_voucher_inconsistent'
   | 'legacy_reverse_charge_ambiguous'
+  | 'fixed_asset_voucher_inconsistent'
 
 export interface VatReportAggregationError {
   code: VatReportAggregationErrorCode
@@ -662,6 +663,30 @@ export function aggregateVatReport(input: {
 }): VatReportAggregationResult {
   const fields = createEmptyFields()
   const errors: VatReportAggregationError[] = []
+  // Controlled acquisition vouchers are not legacy/manual VAT inference.
+  // Use the booked 2641 row; never reconstruct deduction from profile or rate.
+  const fixedAssetIds = input.transactions.filter(tx => tx.source === 'fixed_asset').map(tx => tx.id)
+  for (const id of new Set(fixedAssetIds)) {
+    const rows = input.journalRows.filter(row => row.transactionId === id)
+    if (!rows.some(row => row.inReportPeriod)) continue
+    const costs = rows.filter(row => ['5410', '1220'].includes(row.accountNumber))
+    const vat = rows.filter(row => row.accountNumber === '2641')
+    const payments = rows.filter(row => /^(19\d{2}|2018)$/.test(row.accountNumber))
+    const valid = fixedAssetIds.filter(value => value === id).length === 1 &&
+      rows.every(row => row.inReportPeriod && isCurrencyAmount(row.debit) && isCurrencyAmount(row.credit) &&
+        row.debit >= 0 && row.credit >= 0 && !(row.debit > 0 && row.credit > 0)) &&
+      costs.length === 1 && costs[0].debit > 0 && costs[0].credit === 0 &&
+      vat.length <= 1 && vat.every(row => row.debit > 0 && row.credit === 0) &&
+      payments.length === 1 && payments[0].credit > 0 && payments[0].debit === 0 &&
+      rows.length === costs.length + vat.length + payments.length &&
+      roundCurrency(rows.reduce((sum, row) => sum + row.debit - row.credit, 0)) === 0
+    if (!valid) {
+      errors.push(error('fixed_asset_voucher_inconsistent', id,
+        'Inventarieinköpets journal kan inte verifieras komplett. Kontrollera underlaget.'))
+    } else {
+      addField(fields, '48', vat[0]?.debit ?? 0)
+    }
+  }
   const transactionById = new Map(input.transactions.map(tx => [tx.id, tx]))
   const nativeVatV2TransactionIds = new Set(
     input.transactions
