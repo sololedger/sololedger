@@ -24,6 +24,7 @@ import TransactionForm, {
   type OrdinaryInputVatDeductionSelection,
 } from '@/components/TransactionForm'
 import CustomerInvoicesPanel from '@/components/CustomerInvoicesPanel'
+import SupplierYearEndPanel from '@/components/SupplierYearEndPanel'
 import FixedAssetsPanel from '@/components/FixedAssetsPanel'
 import SieImportModal from '@/components/SieImportModal'
 
@@ -1037,6 +1038,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             ? 'Kontoplan'
             : activeTab === 'fakturor'
               ? 'Fakturor'
+            : activeTab === 'leverantorsskulder' ? 'Bokslutsskulder'
             : activeTab === 'inventarier'
               ? 'Inventarier'
             : activeTab === 'faq'
@@ -1125,7 +1127,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </div>
       )}
 
-      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
+      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
           <DashboardOverview
@@ -1273,6 +1275,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
           onYearCloseBlockerChange={setCustomerInvoiceYearCloseBlocker}
         />
+      ) : activeTab === 'leverantorsskulder' ? (
+        <SupplierYearEndPanel key={`${user.id}:${selectedYear}:${profileContextKey}`}
+          owner={user.id} selectedYear={selectedYear} isYearLocked={isYearLocked||!accountingDataReady} accountingReady={accountingDataReady}
+          onUploadAttachment={handleFileUpload} onBookkeepingChanged={refreshBookkeepingAfterCustomerInvoice}
+          onOpenBookkeeping={year=>{setSelectedYear(year);setActiveTab('dashboard')}}/>
       ) : activeTab === 'inventarier' ? (
         <FixedAssetsPanel
           key={`${user.id}:${selectedYear}`}

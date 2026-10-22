@@ -1647,7 +1647,7 @@ export async function getMomsBreakdown(startDate: string, endDate: string): Prom
   > = {}
 
   all26Rows.forEach(e => {
-    if (!isLegacyVatInferenceTransaction(transactionById.get(e.transaction_id) ?? {
+    if (transactionById.get(e.transaction_id)?.source !== 'supplier_invoice' && !isLegacyVatInferenceTransaction(transactionById.get(e.transaction_id) ?? {
       source: undefined,
       importBatchStatus: null,
     })) return

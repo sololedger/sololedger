@@ -9,6 +9,7 @@ import tailwind from '@tailwindcss/postcss'
 const owner='00000000-0080-4000-8000-000000000001'
 const profile={role:'admin',subscription_type:'paid',vat_status:'registered',domestic_sales_vat_treatment:'taxable',vat_period_type:'quarter',vat_management_from:'2026-01-01',foreign_purchase_reporting:'required',default_deduction_entitlement:'full'}
 const mock={
+ supplierYearEnd:`export const supplierExpenseChoices=[];export class SupplierRejectedError extends Error{};export async function getSupplierYearEndInvoices(){return []};export async function openSupplierAttachment(){};export async function submitSupplierCommand(owner,command){localStorage.setItem('supplierReplay',JSON.stringify(command));return {success:true,invoice_id:'i',transaction_id:'t',ver_nr:10}};`,
  withdrawalService:`export class WithdrawalConflictError extends Error{};export async function loadWithdrawal(){throw Error('Syntetiskt uttagsunderlag saknas i bokningstestet')};export async function saveWithdrawal(){throw Error('Uttagsskrivning är inte tillåten i bokningstestet')};`,
  useAuth:`export const useAuth=()=>({user:{id:localStorage.getItem('testAuthOwner')||'${owner}'},profile:{...${JSON.stringify(profile)},id:localStorage.getItem('testAuthOwner')||'${owner}'},authLoading:false,verifyProfile:async()=> 'synthetic-token'});`,
  useAccountingData:`export const useAccountingData=()=>({accountingDataReady:localStorage.getItem('testAccountingError')!=='yes',accountingDataError:localStorage.getItem('testAccountingError')==='yes'?'Kunde inte hämta ekonomiska uppgifter. Inga belopp visas.':null,retryAccountingData:async()=>{localStorage.removeItem('testAccountingError');window.location.reload()},transactions:[],balances:{'1930':987654321,'3010':-123456789},balanceSheetBalances:{'1930':987654321},journalMap:{},neData:{R11:123456789,R17:123456789,bank:987654321,B9:987654321,B10_total:987654321},momsBreakdown:{utgaendeMoms:0,ingaendeMoms:0,momsNetto:0},transactionHistoryComplete:true,kontoplan:[{id:'expense',name:'Syntetisk programvara',debit_account:'5420',credit_account:'1930',default_vat_rate:25,hidden_from_new_booking:localStorage.getItem('testGate')==='closed'}],kontoplanLoaded:true,kontoplanLoading:false,isYearLocked:localStorage.getItem('testGate')==='closed',refreshData:async()=>{},refreshDataWithStatus:async()=>({ok:localStorage.getItem('testRefresh')!=='fail'})});`,
@@ -30,9 +31,9 @@ const bundle=await build({stdin:{contents:"import React from 'react';import{crea
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
-  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','SubscriptionGuard'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
+  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','SubscriptionGuard','SupplierYearEndPanel'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
- b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
+ b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button><button onClick={()=>p.setActiveTab('leverantorsskulder')}>Test Bokslutsskulder</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})
 const css=(await postcss([tailwind({base:process.cwd()})]).process(await readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css
 const browser=await chromium.launch({headless:true})
@@ -135,6 +136,20 @@ try {
   await page.screenshot({path:'test-results/kan80/'+label+'.png',fullPage:true})
   await context.close()
   console.log('PASS actual Home/TransactionForm '+label+': upload once, lost response, real reload, frozen attempt, recovery through changed gates, confirmed result despite refresh failure'+(accountingError?'; KAN-78 load error, owner isolation, hidden dashboard/NE amounts and retry':''))
+ }
+ for(const width of [1280,390]) {
+  const context=await browser.newContext({viewport:{width,height:1000}})
+  await context.addInitScript(({owner})=>{localStorage.setItem('testAccountingError','yes');localStorage.setItem('sololedger.supplierYearEnd.'+owner,JSON.stringify({owner,command:{action:'pay',request_key:'frozen',invoice_id:'i',paid_amount:1250,payment_date:'2027-01-15'}}))},{owner})
+  await context.route('**/*',route=>route.request().url()==='http://127.0.0.1:47880/kan98'?route.fulfill({contentType:'text/html',body:'<style>'+css+'</style><div id="root"></div><script>'+bundle.outputFiles[0].text+'</script>'}):route.abort())
+  const page=await context.newPage();await page.goto('http://127.0.0.1:47880/kan98')
+  await page.getByRole('button',{name:'Test Bokslutsskulder'}).click()
+  const resume=page.getByRole('button',{name:'Återuppta samma försök',exact:true})
+  await expect(resume).toBeEnabled()
+  await expect(page.getByRole('button',{name:'Registrera och bokför bokslutsskulden',exact:true})).toBeDisabled()
+  await resume.click();await expect(page.getByRole('status')).toContainText('VER-10')
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('supplierReplay')).request_key),'frozen')
+  await expect(page.locator('main')).not.toContainText(/987\s654\s321|123\s456\s789/)
+  await context.close();console.log('PASS KAN98 actual Home '+width+': supplier retry visible despite global accounting read error; new booking blocked; exact saved request')
  }
 }finally{await browser.close()}
 await writeFile('test-results/kan80/browser-result.json',JSON.stringify({result:'PASS',viewports:[1280,390],accountingLoadError:true,ownerIsolation:true,surface:'actual Home and TransactionForm',transport:'synthetic offline only'},null,2))

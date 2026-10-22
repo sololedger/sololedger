@@ -1,0 +1,21 @@
+PASS exact year-end journal full/25, retry and changed-key duplicate rejection
+PASS 2026 UB/2027 IB, actual year lock, January settlement without new expense/VAT, old journal unchanged
+PASS exact year-end journal none/25, retry and changed-key duplicate rejection
+PASS 2026 UB/2027 IB, actual year lock, January settlement without new expense/VAT, old journal unchanged
+PASS exact year-end journal none/0, retry and changed-key duplicate rejection
+PASS 2026 UB/2027 IB, actual year lock, January settlement without new expense/VAT, old journal unchanged
+PASS auditable undo, repay and cancel; partial payment rejects without a journal
+PASS all unsupported input rejects atomically
+PASS same invoice number from different suppliers accepted, positive own RLS control
+PASS owner isolation and explicit denial of direct/anon writes
+PASS anon RPC and private deletion bypass denied
+PASS new source is explicitly current/system-managed/VAT-guarded, never generically edited
+PASS atomic deletion counts, FK cascade and zero residual check; fixture retained
+PASS real concurrent duplicate identities serialize; exactly one posting
+PASS concurrent payment/replay gives one payment and one receipt
+PASS year-close first: genuine waiting acquisition rejects atomically after commit
+PASS acquisition first: close waits and includes liability; exact replay survives year lock
+PASS locked payment year rejects without journal, status or sequence changes
+PASS real VAT closing -250, immutable closed-period basis, safe replay and later VAT-free settlement
+PASS all previous owners profiles/accounts/journal/transactions/VAT/locks fingerprints unchanged
+KAN98 DB PASS 32 checks

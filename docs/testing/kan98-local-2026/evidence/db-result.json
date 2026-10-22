@@ -1,0 +1,186 @@
+{
+  "checks": 32,
+  "owners": [
+    "6a3d57f2-b937-4561-afa1-7a35da113c31",
+    "7e3fc5d6-7efd-4d40-9281-54fcb5e9962b",
+    "ba9d4a84-66c1-4d5f-8588-86b3a5a04e9f",
+    "fea1b3f7-9b3f-44a3-ac2d-3a43d7911d65",
+    "bbdd4364-fb1d-4e65-95a8-231edf7f4f62",
+    "425e90bd-f7e7-458a-8935-19c18a2fda71",
+    "3f3e2681-bc14-4e1c-a8a1-5518bb667874",
+    "e672aaa9-ef1f-48d6-96fe-a3c9162485ea",
+    "dccbd148-8974-4660-80de-2098ab94613d"
+  ],
+  "manifest": {
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "postgresMajor": 17,
+    "oid": "57199",
+    "marker": "KAN62 disposable synthetic only 24656ce5-f60d-479e-8664-040667dc021c",
+    "syntheticOnly": true
+  },
+  "migrationSha": "60ea50ce6deed41f80b90d846d7ad76f9f977365d06eeec4c3a64b8f3e79786c",
+  "snapshots": [
+    {
+      "phase": "year_end",
+      "deduction": "full",
+      "rate": 25,
+      "journal": {
+        "rows": [
+          [
+            "2440",
+            0,
+            1250
+          ],
+          [
+            "2641",
+            250,
+            0
+          ],
+          [
+            "6110",
+            1000,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2026-12-31",
+        "owners": 1
+      }
+    },
+    {
+      "phase": "payment",
+      "deduction": "full",
+      "rate": 25,
+      "journal": {
+        "rows": [
+          [
+            "1930",
+            0,
+            1250
+          ],
+          [
+            "2440",
+            1250,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2027-01-15",
+        "owners": 1
+      }
+    },
+    {
+      "phase": "year_end",
+      "deduction": "none",
+      "rate": 25,
+      "journal": {
+        "rows": [
+          [
+            "2440",
+            0,
+            1250
+          ],
+          [
+            "6110",
+            1250,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2026-12-31",
+        "owners": 1
+      }
+    },
+    {
+      "phase": "payment",
+      "deduction": "none",
+      "rate": 25,
+      "journal": {
+        "rows": [
+          [
+            "1930",
+            0,
+            1250
+          ],
+          [
+            "2440",
+            1250,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2027-01-15",
+        "owners": 1
+      }
+    },
+    {
+      "phase": "year_end",
+      "deduction": "none",
+      "rate": 0,
+      "journal": {
+        "rows": [
+          [
+            "2440",
+            0,
+            1000
+          ],
+          [
+            "6110",
+            1000,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2026-12-31",
+        "owners": 1
+      }
+    },
+    {
+      "phase": "payment",
+      "deduction": "none",
+      "rate": 0,
+      "journal": {
+        "rows": [
+          [
+            "1930",
+            0,
+            1000
+          ],
+          [
+            "2440",
+            1000,
+            0
+          ]
+        ],
+        "balanced": true,
+        "dates": 1,
+        "booked_on": "2027-01-15",
+        "owners": 1
+      }
+    }
+  ],
+  "retainedBefore": {
+    "profiles": "f32d947b2dc96c0e8338108525bc57fc",
+    "accounts": "88f32d123a3d6ecf773d7007ecd81413",
+    "transactions": "b96e1dfcb231a8f848c571684b950922",
+    "journal_entries": "c2f645d0db499175873217acd84f9212",
+    "vat_periods": "1ebb8cb3cdc9dfbac7c620f16f0c757c",
+    "closed_years": "2bd5f671684f827c6b32e3b350a2e2ff"
+  },
+  "retainedAfter": {
+    "profiles": "f32d947b2dc96c0e8338108525bc57fc",
+    "accounts": "88f32d123a3d6ecf773d7007ecd81413",
+    "transactions": "b96e1dfcb231a8f848c571684b950922",
+    "journal_entries": "c2f645d0db499175873217acd84f9212",
+    "vat_periods": "1ebb8cb3cdc9dfbac7c620f16f0c757c",
+    "closed_years": "2bd5f671684f827c6b32e3b350a2e2ff"
+  },
+  "status": "PASS"
+}

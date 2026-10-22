@@ -486,3 +486,14 @@ Misstänkta framtida cleanup-kandidater att utreda separat:
 `review_ne_legacy_sale` förbereder en ägarsäker granskad klassificering av en äldre rad, inklusive KAN-51:s historiska fakturalänk, utan ändring av journaler, transaktioner eller verifikationsnummer. Tabellens RLS ger endast egen läsning för klienten; skrivningar går via kontrollerade funktioner. Atomär användarradering och Edge-räknare omfattar den nya tabellen. NE-metadata tillförs inte SIE-formatet.
 
 Migration `20261017122027_kan88_ne_sales_classification.sql` är endast lokalt verifierad och **inte applicerad på Staging/Production**. Aktuell leveransstatus och releasegräns finns i PROJECT_STATE.md; detaljer/tester i docs/reviews/KAN-88-local-ne-classification.md.
+
+## KAN-98 local supplier year-end liabilities
+
+`SupplierYearEndPanel` uses `supplierYearEnd.ts` and the atomic
+`manage_supplier_year_end_invoice` RPC. Invoice facts and append-only events link to ordinary
+transactions/journal rows through the controlled `supplier_invoice` source. Report VAT uses
+stored signed 2641 rows; settlement has no new VAT or expense. Existing result/NE/IB formulas
+remain authoritative. New tables have explicit read-only owner API grants/RLS; commands enforce
+identity, replay/locking, supported facts and period locks server-side. Deletion cascades and
+admin/Edge counters include both tables. Migration 20261022120000 is local-only pending separate
+Staging approval. See docs/reviews/KAN-98-LOCAL-PASS.md and current PROJECT_STATE.md.

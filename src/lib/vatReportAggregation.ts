@@ -70,6 +70,7 @@ export type VatReportAggregationErrorCode =
   | 'customer_invoice_voucher_inconsistent'
   | 'legacy_reverse_charge_ambiguous'
   | 'fixed_asset_voucher_inconsistent'
+  | 'supplier_invoice_voucher_inconsistent'
 
 export interface VatReportAggregationError {
   code: VatReportAggregationErrorCode
@@ -664,6 +665,26 @@ export function aggregateVatReport(input: {
   const fields = createEmptyFields()
   const errors: VatReportAggregationError[] = []
   // Controlled acquisition vouchers are not legacy/manual VAT inference.
+  // Supplier origin/reversal journals: use signed booked deduction, never today's profile.
+  for (const id of input.transactions.filter(tx => tx.source === 'supplier_invoice').map(tx => tx.id)) {
+    const rows = input.journalRows.filter(row => row.transactionId === id)
+    if (!rows.some(row => row.inReportPeriod)) continue
+    const cost = rows.filter(row => ['6110','6212','6310','6540','5910','5420'].includes(row.accountNumber))
+    const vat = rows.filter(row => row.accountNumber === '2641')
+    const debt = rows.filter(row => row.accountNumber === '2440')
+    const bank = rows.filter(row => row.accountNumber === '1930')
+    const validRows = rows.every(row => row.inReportPeriod && isCurrencyAmount(row.debit) && isCurrencyAmount(row.credit)
+      && row.debit >= 0 && row.credit >= 0 && (row.debit > 0) !== (row.credit > 0))
+    const balanced = roundCurrency(rows.reduce((sum,row)=>sum+row.debit-row.credit,0)) === 0
+    const debtNet = (debt[0]?.credit ?? 0)-(debt[0]?.debit ?? 0)
+    const origin = cost.length === 1 && bank.length === 0 && vat.length <= 1 && rows.length === 2+vat.length
+      && Math.sign(cost[0].debit-cost[0].credit) === Math.sign(debtNet)
+      && vat.every(row => Math.sign(row.debit-row.credit) === Math.sign(debtNet))
+    const settlement = bank.length === 1 && cost.length === 0 && vat.length === 0 && rows.length === 2
+    if (input.transactions.filter(tx=>tx.id===id).length !== 1 || !validRows || !balanced || debt.length !== 1 || !(origin || settlement)) {
+      errors.push(error('supplier_invoice_voucher_inconsistent',id,'Leverantörsskuldens journal är ofullständig eller motsägelsefull. Kontrollera underlaget.'))
+    } else if (origin) addField(fields,'48',(vat[0]?.debit ?? 0)-(vat[0]?.credit ?? 0))
+  }
   // Use the booked 2641 row; never reconstruct deduction from profile or rate.
   const fixedAssetIds = input.transactions.filter(tx => tx.source === 'fixed_asset').map(tx => tx.id)
   for (const id of new Set(fixedAssetIds)) {

@@ -1,4 +1,6 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
+  'supplier_year_end_events',
+  'supplier_year_end_invoices',
   'profiles',
   'withdrawal_assessment_facts',
   'withdrawal_assessment_revisions',
@@ -37,6 +39,8 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   AdminDeleteDryRunCountKey,
   string
 > = {
+  supplier_year_end_events: 'leverantörsskuldshändelser',
+  supplier_year_end_invoices: 'bokslutsförda leverantörsfakturor',
   profiles: 'profil',
   withdrawal_assessment_facts: 'uttagsuppgifter',
   withdrawal_assessment_revisions: 'uttagsavstämningar',

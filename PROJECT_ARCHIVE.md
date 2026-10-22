@@ -1050,3 +1050,11 @@ Dirty files outside the selected UI checkout (preserve; not included in handoff 
 - Godkända Staging-installationer: C installerade endast migration 20261019200000, 52→53 versionsrader, och D1 publicerade enbart delete-user v5→v6 med JWT-skydd. Fulla definition-/inventarie-/bevarandebevis finns i ../KAN-97-staging-integration-20261020/KAN-97-STAGING-MIGRATION-C.md respektive KAN-97-STAGING-EDGE-D1.md. Hostad användarfunktionalitet var inte provad genom dessa installationskontroller.
 - Första manuella D2 dpl_EhqAia9ZTJnpcNaK7wVS5d3rNTYV blev BLOCKED på nolare-författarens behörighet, ingen app/acceptansadress. Inga teamrättigheter ändrades. Lokal rätt SoloLedger-identitet och en godkänd tom releasecommit gav senare ett nytt separat godkänt Preview-försök READY. Första försöket är inte retroaktivt PASS.
 - Detaljrapporter, releasekommandon, lokala diagnostikbegränsningar och exakta SHA/manifest finns bevarade under ../KAN-97-staging-integration-20261020/. Pre-retention PROJECT_STATE och filmanifest bevaras i account-handoff-20261020/ där. Inga befintliga bevis/filer raderades eller flyttades under handoffen.
+
+## Superseded local inventory UX checkpoint (retained 2026-10-22)
+
+Previous PROJECT_STATE described codex/inventory-ux-profile-drafts, local code 261147c,
+base ad0f54c, and local verification recorded in docs/reviews/INVENTORY-UX-LOCAL-PASS.md.
+Subsequent root release audit records accepted Production/Staging 3e7aa0c; that root audit,
+not this old clone state, governs external release claims. KAN-98 starts from 3e7aa0c.
+Existing inventory fixtures and older evidence remain preserved; no reset or replay.

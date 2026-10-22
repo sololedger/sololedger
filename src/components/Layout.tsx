@@ -20,6 +20,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { tab: 'dashboard', label: 'Bokföring' },
   { tab: 'kontoplan', label: 'Kontoplan' },
   { tab: 'fakturor', label: 'Fakturor' },
+  { tab: 'leverantorsskulder', label: 'Bokslutsskulder' },
   { tab: 'inventarier', label: 'Inventarier' },
   { tab: 'ne', label: 'NE-Bilaga' },
   { tab: 'moms', label: 'Moms' },

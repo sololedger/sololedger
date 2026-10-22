@@ -9,6 +9,8 @@ const corsHeaders = {
 type Action = 'dry-run' | 'delete'
 
 const TABLES = [
+  'supplier_year_end_events',
+  'supplier_year_end_invoices',
   'withdrawal_assessment_facts',
   'withdrawal_assessment_revisions',
   'fixed_asset_depreciation_runs',

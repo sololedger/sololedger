@@ -17,12 +17,17 @@ export interface TransactionSourceUiPolicy {
     | 'vat_settlement'
     | 'tax_account_movement'
     | 'customer_invoice'
+    | 'supplier_invoice'
     | 'fixed_asset'
     | 'fixed_asset_reclassification'
     | 'fixed_asset_depreciation'
 }
 
 const SYSTEM_SOURCE_POLICIES: Record<string, TransactionSourceUiPolicy> = {
+  supplier_invoice: {
+    source: 'supplier_invoice', systemManaged: true, genericEditOffered: false,
+    genericCorrectionOffered: false, label: 'Leverantörsskuld vid bokslut', kind: 'supplier_invoice',
+  },
   sie_import: {
     source: 'sie_import',
     systemManaged: true,

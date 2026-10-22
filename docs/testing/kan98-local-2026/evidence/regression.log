@@ -1,0 +1,1747 @@
+
+> min-bokforing@0.1.0 test:regression
+> npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:ui-round && npm run test:e2e:smoke && node scripts/test-category-visibility-ui.mjs && node scripts/test-standard-booking-browser.mjs
+
+
+> min-bokforing@0.1.0 test:domain
+> node scripts/test-annual-tax.mjs && node scripts/test-withdrawal.ts && node --test scripts/test-withdrawal-regressions.ts scripts/test-withdrawal-invoices.ts && node scripts/test-withdrawal-conflicts.mjs && node scripts/test-withdrawal-transport.mjs && node scripts/check-withdrawal-migration.mjs && node scripts/test-withdrawal-browser.mjs && node scripts/test-auth-focus.mjs && node scripts/test-profile-context.mjs && node scripts/test-profile-draft-domain.ts && node scripts/test-profile-drafts.mjs && node scripts/test-accounting-load-ui.mjs && node scripts/test-accounting-panel-loads.mjs && node scripts/test-standard-booking-attempt.ts && node scripts/test-standard-booking-page.mjs && node scripts/test-standard-booking-amount.mjs && node scripts/test-result-engine.ts && node scripts/test-ne-warnings.mjs && node scripts/test-ne-tax-adjustments.mjs && node scripts/test-ne-account-coverage.mjs && node scripts/test-ne-chart-review.mjs && node scripts/test-ne-sales-classification.ts && node scripts/test-ne-equity.mjs && node scripts/test-ne-review.mjs && node scripts/test-ne-balance.ts && node scripts/test-ne-b14-ui.mjs && node scripts/test-accounting-knowledge.ts && node scripts/test-account-category-ui.ts && node scripts/test-domestic-sales-vat-policy.ts && node scripts/test-vat-domain.ts && node scripts/test-company-profile.ts && node scripts/test-vat-profile-adapter.ts && node scripts/test-vat-treatment-decision.ts && node scripts/test-vat-journal-plan.ts && node scripts/test-vat-audit-snapshot.ts && node scripts/test-supabase-fetch-all.ts && node scripts/test-transaction-history-loader.ts && node scripts/test-transaction-history-state.ts && node scripts/test-transaction-history-filters.ts && node scripts/test-customer-invoice-filters.ts && node scripts/test-customer-invoice-vat-policy.ts && node scripts/test-bank-account-history.ts && node scripts/test-stripe-server-config.ts && node scripts/test-sie-export-completeness.ts && node scripts/test-vat-report-aggregation.ts && node scripts/test-vat-report-service.ts && node scripts/test-inventory-reports.ts && node scripts/test-vat-report-presentation.ts && node scripts/test-vat-transaction-preflight.ts && node scripts/test-payment-account-roles.ts && node scripts/test-payment-account-role-status.ts && node scripts/test-vat-payment-source.ts && node scripts/test-vat-runtime-booking.ts && node scripts/test-fixed-assets.ts && node scripts/test-fixed-asset-rule-contract.ts && node scripts/test-fixed-asset-service.mjs && node scripts/test-fixed-asset-panel.mjs && node scripts/test-inventory-trace-ui.mjs && node scripts/test-transaction-form-ui.ts && node scripts/test-transaction-vat-presentation.ts && node scripts/test-ordinary-purchase-vat-ui.ts && node scripts/test-vat-lifecycle-ui.ts && node scripts/test-vat-settlement-ui.ts && node scripts/test-tax-account-movement-ui.ts && node scripts/test-dashboard-calculations.ts && tsx scripts/test-safe-withdrawal-presentation.tsx && node scripts/test-dashboard-vat.ts && node scripts/test-vat-net-presentation.mjs && node scripts/test-sie-vat-periods.ts && node --experimental-vm-modules scripts/test-sie-import.mjs && node scripts/test-booking-category-visibility.ts && npm run test:supplier-year-end
+
+PASS five-card layout, top controls, 6500 at saved 35%, blocked neutral, explicit save/remount; screenshots: C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\coverage\kan97-five-cards-1792653753341
+PASS annual tax: persisted shared rate, explicit save, no read/drag/year writes, history, remount, conflict/failure, other client, owner/late response, NE isolation
+(node:36248) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-97: 100 product-domain/adapter assertions; no DB writes
+(node:40200) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal-invoices.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing VAT-only validation accepts unrelated capital rows: it is not an invoice proof (6.0321ms)
+✔ verified same-year payment 0% uses journal once (31.3037ms)
+✔ verified same-year payment 6% uses journal once (1.2799ms)
+✔ verified same-year payment 12% uses journal once (1.6774ms)
+✔ verified same-year payment 25% uses journal once (1.6704ms)
+✔ unpaid current-year invoice adds no bank, income or VAT (0.8697ms)
+✔ paid document without any provable booking stays under review (0.9835ms)
+✔ year-end receivable and later settlement reserve old VAT and tax once (3.9665ms)
+✔ payment, reversal and new payment are separate dated journals (2.3338ms)
+✔ historical manual exempt link has no additional economic effect (1.9063ms)
+✔ fail closed: extra zero row (1.3448ms)
+✔ fail closed: balanced unrelated expense and capital (0.6355ms)
+✔ fail closed: missing sales (0.5482ms)
+✔ fail closed: wrong account (0.8722ms)
+✔ fail closed: wrong invoice amount (0.8069ms)
+✔ fail closed: wrong booking amount (1.4216ms)
+✔ fail closed: wrong transaction amount (0.9379ms)
+✔ fail closed: wrong direction (0.9091ms)
+✔ fail closed: missing row (0.8164ms)
+✔ fail closed: split same account (0.8172ms)
+✔ fail closed: wrong year (0.8153ms)
+✔ fail closed: wrong booking date (0.9456ms)
+✔ fail closed: wrong row date (0.9553ms)
+✔ fail closed: wrong VAT account (0.791ms)
+✔ fail closed: wrong rate (0.7333ms)
+✔ fail closed: missing policy (0.4536ms)
+✔ fail closed: manual legacy policy is not auto-authorized (0.5579ms)
+✔ fail closed: mixed historical policy (0.4617ms)
+✔ fail closed: missing booking (0.4369ms)
+✔ fail closed: missing invoice (0.5504ms)
+✔ fail closed: duplicate booking for same transaction (0.4965ms)
+✔ fail closed: foreign invoice owner (0.4613ms)
+✔ fail closed: foreign booking owner (0.3357ms)
+✔ fail closed: foreign transaction owner (0.3085ms)
+✔ fail closed: foreign row owner (0.2533ms)
+✔ fail closed: unknown kind (1.0091ms)
+✔ fail closed: import metadata (0.596ms)
+✔ fail closed: unexpected correction (0.5029ms)
+✔ fail closed: conflicting verification number (0.4533ms)
+✔ unbooked older invoice requires year-end review; unknown current invoice adds no cash (0.4405ms)
+✔ unproven settlement, wrong reversal target and double reversal remain blocked (2.3214ms)
+✔ reversing/rebooking a receivable settlement never adds sales or VAT (3.9656ms)
+✔ overlapping and backdated repayment chains remain blocked (1.7435ms)
+✔ same-day undo/rebooking and reversed payment before year-end receivable are valid (2.4542ms)
+✔ cross-year reversal preserves old positive tax and VAT reserves (0.8013ms)
+✔ read-only mixed manual purchases, corrections and periodization retain shared calculations (1.9806ms)
+✔ invoice VAT periods remain independent across month/quarter/year boundaries (2.1905ms)
+✔ invoice reversal in another VAT month cannot release the first month reserve (1.149ms)
+✔ negative bank never yields a positive recommendation with verified invoices (0.7079ms)
+✔ later generic correction of historical manual link requires review (1.0578ms)
+✔ rounding discrepancy stays blocked by existing VAT engine, no new tolerance/formula (2.1601ms)
+✔ tax decisions remain authoritative, saved annual rate is not bypassed (0.7164ms)
+✔ protocol 1/2 and missing invoice evidence fail closed (1.6183ms)
+✔ unsupported fixed_asset remains blocked alongside verified invoice (0.6704ms)
+✔ unsupported fixed_asset_reclassification remains blocked alongside verified invoice (0.4211ms)
+✔ unsupported fixed_asset_depreciation remains blocked alongside verified invoice (0.3873ms)
+✔ unsupported sie_import remains blocked alongside verified invoice (0.4065ms)
+✔ unsupported sie_opening_balance remains blocked alongside verified invoice (0.811ms)
+✔ unsupported sie_import_undo remains blocked alongside verified invoice (0.9852ms)
+✔ unsupported unknown remains blocked alongside verified invoice (0.4257ms)
+✔ P2 full journal: five rows must block even when two are after valuation date (0.6111ms)
+✔ P2 overlap: an additional zero-day pair inside an active payment must block (0.7204ms)
+✔ P2 overlap: a zero-day pair inside an active settlement across years must block (0.8188ms)
+✔ P2 overlap: zero-day undo before a later payment remains valid (0.9308ms)
+✔ P2 full journal: proof cannot disagree with the economic rows (0.7049ms)
+✔ P2 full journal: foreign proof owner fails closed (0.545ms)
+✔ P2 full journal: missing row or incomplete proof cannot authorize an invoice (0.4748ms)
+✔ P2 full journal: hidden future row changes proof signature but not dated bank (0.7267ms)
+✔ P2 overlap: zero-day pair followed by later-year receivable settlement is legitimate (1.1369ms)
+(node:53036) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal-regressions.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ R1: standalone 2650 liability must block an unexplained recommendation (36.2577ms)
+✔ R2: uncovered VAT activity cannot be netted annually without proven period boundaries (2.7802ms)
+✔ R4: explicit annual rate overrides legacy income rate for that year (3.8412ms)
+✔ R5: zero model remainder does not turn an estimate into checked final tax (2.5417ms)
+✔ R1: matched closing is reserved once, before and after settlement to S (3.5356ms)
+✔ R1: partial/unexplained liabilities do not hide behind a matching V or S total (4.0021ms)
+✔ R1: a matched refund closing is not added as a positive debt (0.7272ms)
+✔ R2: proven month/quarter/year boundaries; no writes or annual fallback (4.0152ms)
+✔ R2: mixed coverage, missing positive/negative periods and year boundaries (1.4923ms)
+✔ R4: per-year rates, legacy fallback, preliminary decisions, final net and validation (2.3465ms)
+✔ R4: changing one profitable year leaves another profitable year unchanged (1.7533ms)
+ℹ tests 80
+ℹ suites 0
+ℹ pass 80
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 479.356
+PASS R3: real service → hook → card; conflict hides old amount and reloads changed annual facts
+PASS R3/R4 boundaries: temporary save error, failed reload/retry, canonical rate/prefill, owner change and unmount
+PASS R6: existing coverage invalidated and changed final-tax basis route to the relevant form
+(node:60496) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/tests/fixtures/withdrawalFixtures.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-97 actual transport: protocol/owner/date, missing RPC fail closed, owner-checked save and revision/signature
+PASS KAN-97 static migration inventory/ACL/ownership/deletion contracts; NOT a database execution test
+PASS modal scroll 1280: wheel, both edges, backdrop, Escape/button/unmount restoration
+PASS modal scroll 390: emulated touch, both edges, backdrop, Escape/button/unmount restoration
+PASS KAN-97 browser 1280: real card/hook, save/reuse, year filter, error/retry, A→B→A, keyboard, focus/scroll, 6500, SIE/legacy blocks, open-modal refresh/error/owner/date and layout
+PASS KAN-97 browser 390: real card/hook, save/reuse, year filter, error/retry, A→B→A, keyboard, focus/scroll, 6500, SIE/legacy blocks, open-modal refresh/error/owner/date and layout
+{"artifacts":"coverage/kan105-auth-focus-1792653775568","reproduce":false,"results":[{"width":1280,"status":"PASS","sameOwnerPreservesModalAndDraft":true,"noAccountingReload":true,"refreshStillValidates":true,"identityUpdateHidesDuringValidation":true,"logoutAndAccountSwitchHideImmediately":true,"failedProfileClosesAccess":true},{"width":390,"status":"PASS","sameOwnerPreservesModalAndDraft":true,"noAccountingReload":true,"refreshStillValidates":true,"identityUpdateHidesDuringValidation":true,"logoutAndAccountSwitchHideImmediately":true,"failedProfileClosesAccess":true}]}
+PASS A→B delayed A response, old write closure denied
+PASS A→B→A replies out of order
+PASS concurrent same-owner loads; newest sequence wins
+PASS logout during fetch
+PASS profile failure stays closed; no VAT defaults or write
+PASS normal login, B name save preserves month/none, B booking uses zero input VAT
+PASS verified-identity mismatch and wrong-row response deny writes
+PASS incomplete profile is a failed load, never default VAT settings
+PASS stale failure cannot replace successful same-owner refresh
+PASS request bearer is pinned; changed generation blocks prepared RPC before transport
+PASS unmount invalidates pending reads and prepared writes
+(node:61288) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-profile-draft-domain.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS draft races/owner boundaries/independent saves and VAT receivable/payable/zero presentation
+PASS navigation/remount, refreshed profile and saved-only VAT booking with unsaved draft
+PASS explicit save only, owner isolation and logout clears draft; no browser storage
+PASS 2026 successful load; real dashboard and NE rendered
+PASS 2026 -> 2027 success, immediate masking
+PASS balances failure hides all financial views; retry recovers
+PASS cumulative failure hides all financial views; retry recovers
+PASS ne failure hides all financial views; retry recovers
+PASS history failure hides all financial views; retry recovers
+PASS vat failure hides all financial views; retry recovers
+PASS lock failure hides all financial views; retry recovers
+PASS missing-ne failure hides all financial views; retry recovers
+PASS rapid A -> B -> A, replies out of order
+PASS overlapping refreshes in same year, stale failure ignored
+PASS user/company switch in same year
+PASS logout invalidates pending replies
+PASS genuine empty year remains distinct from read failure
+PASS initial account lookup failure and retry; React StrictMode
+PASS application coverage: dashboard/NE boundary and owner/year keys
+PASS invoice actual loader: hide previous amounts, failure, retry, out-of-order refresh
+PASS asset actual loader: distinct technical failure, retry, out-of-order refresh
+PASS VAT actual period loader: immediate clear, stale response, failure and retry
+PASS VAT actual report: year/period A -> B -> A invalidates pending report and settlement/movement reads
+(node:48320) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-standard-booking-attempt.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-80 durable attempt: reload, owner scope, immutable payload/attachment, exact retry, error semantics, corrupt/blocked storage and safe release
+(node:60196) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/standardBookingAttempt.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual page ordinary/periodized: lost response, full reload, immutable payload/attachment, bypass changed client gates, post-confirmation refresh failure
+PASS actual page: confirmed rejection/corrected retry/attachment reuse, storage failure before RPC, clear failure after success, corrupt storage and concurrent tab lock
+(node:45088) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/standardBookingAttempt.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KAN-72 service, raw amount, rendered UI and actual page submit tests passed.
+KAN-88 actual submit confirms historical applicability before upload and atomic booking.
+PASS KAN-89 actual page handler: hidden, unknown and loading blocked for ordinary/periodized; historical metadata retained
+(node:42204) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-result-engine.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Result Engine Tests ===
+
+✓ 3010 försäljning → R1
+✓ 3010 försäljning → bokfört resultat
+✓ 3010 försäljning → avstämning
+✓ 3100 momsfri intäkt → R2
+✓ 3100 momsfri intäkt → bokfört resultat
+✓ 3100 momsfri intäkt → avstämning
+✓ 3200 bil- och bostadsförmån → R3
+✓ 3200 bil- och bostadsförmån → bokfört resultat
+✓ 3200 bil- och bostadsförmån → avstämning
+✓ 3500 fakturerade kostnader → R1
+✓ 3500 fakturerade kostnader → bokfört resultat
+✓ 3500 fakturerade kostnader → avstämning
+✓ 8310 ränteintäkt → R4
+✓ 8310 ränteintäkt → bokfört resultat
+✓ 8310 ränteintäkt → avstämning
+✓ 4000 varor/material → R5
+✓ 4000 varor/material → bokfört resultat
+✓ 4000 varor/material → avstämning
+✓ 4600 legoarbete/underentreprenad → R5
+✓ 4600 legoarbete/underentreprenad → bokfört resultat
+✓ 4600 legoarbete/underentreprenad → avstämning
+✓ 4700 erhållen rabatt → R5
+✓ 4700 erhållen rabatt → bokfört resultat
+✓ 4700 erhållen rabatt → avstämning
+✓ 4900 lagerförändring → R5
+✓ 4900 lagerförändring → bokfört resultat
+✓ 4900 lagerförändring → avstämning
+✓ 6570 bankkostnader → R6
+✓ 6570 bankkostnader → bokfört resultat
+✓ 6570 bankkostnader → avstämning
+✓ 7000 personalkostnad → R7
+✓ 7000 personalkostnad → bokfört resultat
+✓ 7000 personalkostnad → avstämning
+✓ 8410 räntekostnad → R8
+✓ 8410 räntekostnad → bokfört resultat
+✓ 8410 räntekostnad → avstämning
+✓ 7820 avskrivning → R9
+✓ 7820 avskrivning → bokfört resultat
+✓ 7820 avskrivning → avstämning
+✓ 7830 avskrivning → R10
+✓ 7830 avskrivning → bokfört resultat
+✓ 7830 avskrivning → avstämning
+✓ 3010 debetvänd korrigering → R1
+✓ 3010 debetvänd korrigering → bokfört resultat
+✓ 3010 debetvänd korrigering → avstämning
+✓ 3900 påverkar bokfört resultat
+✓ 3900 ligger i olöst resultatpåverkan
+✓ 3900 gissas inte till R1
+✓ 3900 gissas inte till R2
+✓ 3900 ger scenario-varning
+✓ 3900 stämmer av trots olöst NE-rad
+✓ 7700 påverkar bokfört resultat
+✓ 7700 ligger i olöst resultatpåverkan
+✓ 7700 ger scenario-varning
+✓ 7700 stämmer av trots olöst NE-rad
+✓ 7970 påverkar bokfört resultat
+✓ 7970 ligger i olöst resultatpåverkan
+✓ 7970 ger varning för okänd NE-mappning
+✓ 7970 stämmer av trots okänd NE-rad
+✓ 3970 går direkt till R2 → R2
+✓ 3970 går direkt till R2 → bokfört resultat
+✓ 3970 går direkt till R2 → avstämning
+✓ 3980 går direkt till R2 → R2
+✓ 3980 går direkt till R2 → bokfört resultat
+✓ 3980 går direkt till R2 → avstämning
+✓ 7100 mappas inte automatiskt till R7
+✓ 7200 mappas inte automatiskt till R7
+✓ 6992 minskar bokfört resultat
+✓ 6992 identifieras som ej avdragsgillt
+✓ 6992 återläggs i skattemässigt resultat
+✓ Sammansatt bokfört resultat
+✓ Sammansatt olöst resultatpåverkan
+✓ Sammansatt resultat stämmer av exakt
+✓ Okänt 3300 påverkar bokfört resultat
+✓ Okänt 3300 ligger i olöst resultatpåverkan
+✓ Okänt 3300 ger varning
+✓ Okänt 3300 stämmer av trots saknad NE-rad
+✓ 8999 påverkar inte bokfört resultat
+✓ 8999 hamnar inte i olöst resultatpåverkan
+✓ 8990 påverkar inte bokfört resultat
+✓ 8990 hamnar inte i olöst resultatpåverkan
+
+-----------------------------------
+Godkända tester: 81
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla resultatmotortester godkända.
+
+(node:51496) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/resultEngine.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-77: 10 synthetic service/render cases; all warning types, zero-net ambiguity, complete/empty, R1/R2 and fallback; amounts and immutable inputs preserved
+(node:25300) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/resultEngine.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-91: 18 service/sign/year/SIE cases; 15,994 unchanged BAS/sign results; dashboard + desktop/mobile offline consumers
+(node:50380) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/sieParser.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-90: 21 real service/render cases, unchanged reads, 8000 explicit account states
+PASS KAN-90 1440px: warning/details, locked/unlocked, amounts and no overflow/network
+PASS KAN-90 390px: warning/details, locked/unlocked, amounts and no overflow/network
+PASS KAN-90 320px: warning/details, locked/unlocked, amounts and no overflow/network
+(node:56384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/neChartReview.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-92: 33 baseline-compared report/sign/year cases; 8 exact conflicts; actual SIE payload/parser/preview; 1440/390/320px; no writes/network
+(node:52644) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-ne-sales-classification.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-88 NE-only allocation, signed corrections, unchanged totals and incomplete-underlay rejection
+(node:58076) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/src/lib/sieParser.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-93: 26 balanced/service/SIE/IB/baseline cases; R rows and KAN-88/90/91/92 preserved; locked/unlocked rendered warnings; no DB/network
+PASS KAN-93 actual NE browser: 1440/390/320px, review message, valid close enabled, unresolved balance close disabled, locked view, no overflow/network
+PASS unchanged NE amounts/warnings and read RPCs against exact Production service
+PASS actual review service, exact account provenance, historical R1/R2 and correction signs
+PASS used zero account retained only in review; originals and reversal both traceable
+PASS cumulative balances/IB, shared tax netting, B10 explanatory sources and tax adjustments
+PASS existing KAN-77/90/91/92/93 warnings and unknown name are visible
+PASS missing historical decision stays provisional without consulting current profile
+PASS owner mismatch and changed session rejected before exposing data
+PASS foreign transaction, foreign journal and foreign decision fail closed
+PASS read error, missing exact count and changed account balance fail closed
+PASS missing/invalid snapshot or decision summary never produces a complete view
+PASS more than 1000 journal rows are loaded with exact count, not silently truncated
+PASS default view still omits zero accounts, review remains non-mutating
+PASS next-year loss keeps annual result separate from cumulative equity explanation
+PASS nullable unused debit/credit follows deployed SQL coalesce, invalid values fail closed
+PASS actual NE integration is available in locked and open years without extra reads while closed
+PASS browser: desktop 1440, mobile 390/320, actual React drilldown, zero network, no writes/errors/overflow, year/owner stale response and read error
+PASS KAN-94: 15 focused service/model control groups + 3 browser widths
+(node:48288) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-ne-balance.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger NE Balance Tests ===
+
+PASS VER fixture negative 1930 is not reported as B9 asset
+PASS VER fixture does not invent B13 loan debt from 1930
+PASS VER fixture reports VAT payable in B14
+PASS VER fixture keeps B10 equity formula
+PASS VER fixture exposes unclassified negative bank balance
+PASS VER fixture balance control still catches the unresolved classification
+PASS positive bank balance is reported in B9
+PASS positive bank balance has no negative-bank warning
+PASS positive bank regression balances
+PASS mixed 19xx keeps positive bank amount in B9
+PASS mixed 19xx exposes the negative account separately
+PASS actual credit-account scenario has no bank asset
+PASS actual 2330 credit is reported in B13
+PASS actual 2330 credit has no negative-bank warning
+PASS actual 2330 credit balances
+
+-----------------------------------
+Passed tests: 15
+Failed tests: 0
+-----------------------------------
+
+NE balance tests passed.
+
+PASS KAN-69 1440px: VAT 250/net 150/receivable/zero, locked/unlocked, help, amounts, row toggle, no overflow or writes
+PASS KAN-69 390px: VAT 250/net 150/receivable/zero, locked/unlocked, help, amounts, row toggle, no overflow or writes
+PASS KAN-69 320px: VAT 250/net 150/receivable/zero, locked/unlocked, help, amounts, row toggle, no overflow or writes
+(node:48656) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-accounting-knowledge.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== DEFAULT ===
+┌─────────┬───────────────────────────┬────────┬────────┬─────┐
+│ (index) │ id                        │ debit  │ credit │ vat │
+├─────────┼───────────────────────────┼────────┼────────┼─────┤
+│ 0       │ 'forsaljning'             │ '1930' │ '3010' │ 25  │
+│ 1       │ 'forbrukningsinventarier' │ '5410' │ '1930' │ 25  │
+│ 2       │ 'programvaror'            │ '5420' │ '1930' │ 25  │
+│ 3       │ 'resor'                   │ '5800' │ '1930' │ 6   │
+│ 4       │ 'bankavgift'              │ '6570' │ '1930' │ 0   │
+│ 5       │ 'kurser'                  │ '6991' │ '1930' │ 0   │
+│ 6       │ 'skatter_avgifter'        │ '2012' │ '1930' │ 0   │
+│ 7       │ 'eget_uttag'              │ '2013' │ '1930' │ 0   │
+│ 8       │ 'egen_insattning'         │ '1930' │ '2018' │ 0   │
+└─────────┴───────────────────────────┴────────┴────────┴─────┘
+
+=== QUICK ===
+┌─────────┬──────────────────────────────┬────────┬────────┬─────┐
+│ (index) │ id                           │ debit  │ credit │ vat │
+├─────────┼──────────────────────────────┼────────┼────────┼─────┤
+│ 0       │ 'varor_material'             │ '4010' │ '1930' │ 25  │
+│ 1       │ 'kopta_tjanster_kunduppdrag' │ '4600' │ '1930' │ 25  │
+│ 2       │ 'lokalhyra'                  │ '5010' │ '1930' │ 0   │
+│ 3       │ 'el_verksamhetslokal'        │ '5020' │ '1930' │ 25  │
+│ 4       │ 'frakt'                      │ '5710' │ '1930' │ 25  │
+│ 5       │ 'egen_bil'                   │ '5843' │ '2018' │ 0   │
+│ 6       │ 'reklam'                     │ '5910' │ '1930' │ 25  │
+│ 7       │ 'kontorsmaterial'            │ '6110' │ '1930' │ 25  │
+│ 8       │ 'mobiltelefoni'              │ '6212' │ '1930' │ 25  │
+│ 9       │ 'internet'                   │ '6230' │ '1930' │ 25  │
+│ 10      │ 'porto'                      │ '6250' │ '1930' │ 25  │
+│ 11      │ 'foretagsforsakring'         │ '6310' │ '1930' │ 0   │
+│ 12      │ 'redovisningstjanster'       │ '6530' │ '1930' │ 25  │
+│ 13      │ 'it_tjanster'                │ '6540' │ '1930' │ 25  │
+└─────────┴──────────────────────────────┴────────┴────────┴─────┘
+
+=== RESULTAT ===
+Default: 9 / förväntat 9
+Quick:   14 / förväntat 14
+✓ Grundkontoplan v1 compatibility bridge ser komplett ut.
+✓ Exakt rätt 9 kategorier skapas för nya användare.
+✓ Inga gamla tekniska legacy-defaults följer med.
+✓ Default/Quick-flaggorna är korrekta.
+(node:49948) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-account-category-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✓ Canonical och legacy category IDs grupperas rätt i UI.
+✓ Egen insättning känns igen med både nytt och gammalt ID.
+✓ Svensk försäljningsmomsprofil kopplas till manuella 3xxx-intäktskategorier.
+✓ Vanlig 5410-kategori styrs till Inventarier utan att andra kostnader påverkas.
+(node:57784) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-domestic-sales-vat-policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Domestic sales VAT policy tests passed.
+(node:44300) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-domain.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Domain Tests ===
+
+✓ Exempt domestic sales can coexist with VAT registration → valid
+✓ Exempt domestic sales can coexist with VAT registration → no errors
+✓ Ordinary VAT V1-compatible registered profile → valid
+✓ Ordinary VAT V1-compatible registered profile → no errors
+✓ Partial deduction with valid percent → valid
+✓ Partial deduction with valid percent → no errors
+✓ Full deduction context without percent → valid
+✓ Full deduction context without percent → no errors
+✓ Non-registered small-business exempt profile → valid
+✓ Non-registered small-business exempt profile → no errors
+✓ No deduction context without percent → valid
+✓ No deduction context without percent → no errors
+✓ Unknown profile state is representable
+✓ Unknown registration is not converted to not_registered
+✓ Unknown foreign purchase reporting is not converted to not_required
+✓ Unknown deduction context without percent → valid
+✓ Unknown deduction context without percent → no errors
+✓ Registered profile requires period type
+✓ Registered profile requires reporting start
+✓ Foreign purchase reporting requires registration
+✓ Partial deduction requires percent
+✓ Deduction percent cannot be below zero
+✓ Deduction percent cannot exceed one hundred
+✓ Full deduction context cannot carry percent
+✓ No deduction context cannot carry percent
+✓ Unknown deduction context cannot carry percent
+✓ VAT facts input can carry explicit country information
+✓ DOMESTIC_TAXABLE_SALE → code
+✓ DOMESTIC_TAXABLE_SALE → rule version
+✓ DOMESTIC_TAXABLE_SALE → facts version
+✓ DOMESTIC_DEDUCTIBLE_PURCHASE → code
+✓ DOMESTIC_DEDUCTIBLE_PURCHASE → rule version
+✓ DOMESTIC_DEDUCTIBLE_PURCHASE → facts version
+✓ DOMESTIC_EXEMPT_SALE → code
+✓ DOMESTIC_EXEMPT_SALE → rule version
+✓ DOMESTIC_EXEMPT_SALE → facts version
+✓ EU_SERVICE_REVERSE_CHARGE → code
+✓ EU_SERVICE_REVERSE_CHARGE → rule version
+✓ EU_SERVICE_REVERSE_CHARGE → facts version
+✓ EU_SERVICE_REVERSE_CHARGE → code
+✓ EU_SERVICE_REVERSE_CHARGE → rule version
+✓ EU_SERVICE_REVERSE_CHARGE → facts version
+✓ EU_GOODS_ACQUISITION → code
+✓ EU_GOODS_ACQUISITION → rule version
+✓ EU_GOODS_ACQUISITION → facts version
+✓ NON_EU_SERVICE_REVERSE_CHARGE → code
+✓ NON_EU_SERVICE_REVERSE_CHARGE → rule version
+✓ NON_EU_SERVICE_REVERSE_CHARGE → facts version
+✓ IMPORT_GOODS → code
+✓ IMPORT_GOODS → rule version
+✓ IMPORT_GOODS → facts version
+✓ EU service no-deduction fixture keeps taxable base
+✓ EU service no-deduction fixture keeps output VAT
+✓ EU service no-deduction fixture uses output field 30
+✓ EU service no-deduction fixture uses acquisition field 21
+✓ EU service no-deduction fixture has zero deductible input VAT
+✓ EU service no-deduction fixture has no input VAT report field
+✓ EU service no-deduction fixture keeps deduction entitlement separate
+
+-----------------------------------
+Godkända tester: 58
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT domain-tester godkända.
+
+(node:60676) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-company-profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Company Profile Tests ===
+
+✓ VAT number is trimmed and uppercased
+✓ Empty VAT number is stored as null
+✓ Synthetic Swedish VAT number format is valid
+✓ Missing VAT number is allowed for existing companies
+✓ Swedish VAT number requires SE prefix
+✓ Swedish VAT number requires twelve digits after SE
+
+-----------------------------------
+Godkända tester: 6
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla company profile-tester godkända.
+
+(node:32888) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-profile-adapter.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Profile Adapter Tests ===
+
+✓ Missing domestic sales treatment remains unknown
+✓ Missing VAT registration remains unknown
+✓ Missing foreign purchase reporting remains unknown
+✓ Missing default deduction remains unknown
+✓ All-unknown profile is valid and representable
+✓ Supported full-deduction foreign-purchase profile is valid
+✓ Foreign purchase reporting maps independently
+✓ Full deduction maps explicitly
+✓ No-deduction profile remains distinguishable from full deduction
+✓ No-deduction profile remains a valid company profile
+✓ VAT registration does not imply deduction entitlement
+✓ Registered profile can keep deduction unknown
+✓ VAT registration does not imply foreign purchase reporting
+✓ Registered profile can keep foreign purchase reporting unknown
+✓ Foreign purchase reporting without VAT registration is rejected
+✓ Invalid combination reports existing domain validation code
+
+-----------------------------------
+Godkända tester: 16
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT profile adapter-tester godkända.
+
+(node:36248) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-treatment-decision.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Treatment Decision Tests ===
+
+✓ Domestic taxable sale → ready
+✓ Domestic taxable sale → valid
+✓ Domestic taxable sale → treatment code
+✓ Domestic taxable sale → base
+✓ Domestic taxable sale → output VAT
+✓ Domestic taxable sale → output field
+✓ Domestic taxable sale → base field
+✓ Domestic taxable sale → no input VAT
+✓ Unknown customer country blocks domestic sale → blocked
+✓ Unknown customer country blocks domestic sale → no fake treatment
+✓ Unknown customer country blocks domestic sale → unknown_customer_country
+✓ Non-Swedish sale is unsupported in first slice → blocked
+✓ Non-Swedish sale is unsupported in first slice → no fake treatment
+✓ Non-Swedish sale is unsupported in first slice → unsupported_vat_treatment
+✓ Domestic deductible purchase → ready
+✓ Domestic deductible purchase → valid
+✓ Domestic deductible purchase → treatment code
+✓ Domestic deductible purchase → base
+✓ Domestic deductible purchase → no output VAT
+✓ Domestic deductible purchase → input VAT
+✓ Domestic deductible purchase → input field
+✓ Domestic deductible purchase → full deduction
+✓ Unknown supplier VAT status blocks domestic purchase → blocked
+✓ Unknown supplier VAT status blocks domestic purchase → no fake treatment
+✓ Unknown supplier VAT status blocks domestic purchase → unknown_supplier_vat_charged
+✓ Domestic purchase without supplier-charged VAT is unsupported in first slice → blocked
+✓ Domestic purchase without supplier-charged VAT is unsupported in first slice → no fake treatment
+✓ Domestic purchase without supplier-charged VAT is unsupported in first slice → unsupported_vat_treatment
+✓ Domestic no-deduction purchase is outside verified first slice → blocked
+✓ Domestic no-deduction purchase is outside verified first slice → no fake treatment
+✓ Domestic no-deduction purchase is outside verified first slice → unsupported_vat_treatment
+✓ Jessika EU service no deduction → ready
+✓ Jessika EU service no deduction → valid
+✓ Jessika EU service no deduction → treatment code
+✓ Jessika EU service no deduction → acquisition base
+✓ Jessika EU service no deduction → output VAT
+✓ Jessika EU service no deduction → output field
+✓ Jessika EU service no deduction → acquisition field
+✓ Jessika EU service no deduction → no input VAT
+✓ Jessika EU service no deduction → no input field
+✓ Jessika EU service no deduction → no deduction
+✓ EU service full deduction → ready
+✓ EU service full deduction → valid
+✓ EU service full deduction → same treatment family
+✓ EU service full deduction → output VAT
+✓ EU service full deduction → output field
+✓ EU service full deduction → input VAT
+✓ EU service full deduction → input field
+✓ EU service full deduction → full deduction
+✓ Same calculation rate can appear in different treatments
+✓ Calculation rate is not the whole VAT treatment
+✓ Unknown rate blocks when VAT amount is required → blocked
+✓ Unknown rate blocks when VAT amount is required → no fake treatment
+✓ Unknown rate blocks when VAT amount is required → unknown_calculation_rate
+✓ Unknown supplier country blocks relevant purchase → blocked
+✓ Unknown supplier country blocks relevant purchase → no fake treatment
+✓ Unknown supplier country blocks relevant purchase → unknown_supplier_country
+✓ Unknown deduction entitlement blocks deductible purchase → blocked
+✓ Unknown deduction entitlement blocks deductible purchase → no fake treatment
+✓ Unknown deduction entitlement blocks deductible purchase → unknown_deduction_entitlement
+✓ Unknown supplier VAT status blocks EU service purchase → blocked
+✓ Unknown supplier VAT status blocks EU service purchase → no fake treatment
+✓ Unknown supplier VAT status blocks EU service purchase → unknown_supplier_vat_charged
+✓ Supplier-charged foreign VAT is unsupported in first slice → blocked
+✓ Supplier-charged foreign VAT is unsupported in first slice → no fake treatment
+✓ Supplier-charged foreign VAT is unsupported in first slice → unsupported_vat_treatment
+✓ Unknown VAT registration blocks EU service purchase → blocked
+✓ Unknown VAT registration blocks EU service purchase → no fake treatment
+✓ Unknown VAT registration blocks EU service purchase → unknown_vat_registration_status
+✓ Unknown foreign purchase reporting blocks EU service purchase → blocked
+✓ Unknown foreign purchase reporting blocks EU service purchase → no fake treatment
+✓ Unknown foreign purchase reporting blocks EU service purchase → unknown_foreign_purchase_reporting
+✓ Partial deduction is unsupported in first slice → blocked
+✓ Partial deduction is unsupported in first slice → no fake treatment
+✓ Partial deduction is unsupported in first slice → unsupported_vat_treatment
+✓ Unknown domestic sales treatment blocks domestic sale → blocked
+✓ Unknown domestic sales treatment blocks domestic sale → no fake treatment
+✓ Unknown domestic sales treatment blocks domestic sale → unknown_domestic_sales_vat_treatment
+✓ Mixed domestic sales treatment is unsupported in first slice → blocked
+✓ Mixed domestic sales treatment is unsupported in first slice → no fake treatment
+✓ Mixed domestic sales treatment is unsupported in first slice → unsupported_vat_treatment
+✓ Infinite amount blocks treatment → blocked
+✓ Infinite amount blocks treatment → no fake treatment
+✓ Infinite amount blocks treatment → invalid_amount
+✓ Negative amount blocks treatment → blocked
+✓ Negative amount blocks treatment → no fake treatment
+✓ Negative amount blocks treatment → invalid_amount
+✓ Invalid CompanyVatProfile blocks before treatment → blocked
+✓ Invalid CompanyVatProfile blocks before treatment → no fake treatment
+✓ Invalid CompanyVatProfile blocks before treatment → foreign_purchase_reporting_requires_registration
+
+-----------------------------------
+Godkända tester: 90
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT treatment decision-tester godkända.
+
+(node:46668) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-journal-plan.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT JournalPlan Tests ===
+
+✓ EU service reverse charge 25 percent full deduction -> ready
+✓ EU service reverse charge 25 percent full deduction -> valid
+✓ Happy path -> 4535 debit acquisition base
+✓ Happy path -> 2645 debit deductible calculated input VAT
+✓ Happy path -> 2614 credit calculated output VAT
+✓ Happy path -> supplied payment account credit
+✓ Happy path -> balanced
+✓ Happy path -> total debit
+✓ Happy path -> total credit
+✓ Happy path -> reconciled acquisition base
+✓ Happy path -> reconciled output VAT
+✓ Happy path -> reconciled deductible input VAT
+✓ Happy path -> reconciled payment leg
+✓ Happy path -> report field 21
+✓ Happy path -> report field 30
+✓ Happy path -> report field 48
+✓ Happy path -> treatment code snapshot
+✓ Happy path -> rule version snapshot
+✓ Happy path -> facts version snapshot
+✓ Non-1930 payment/payable account -> ready
+✓ Non-1930 payment/payable account -> valid
+✓ Non-1930 payment/payable account is preserved
+✓ Builder does not hardcode 1930
+✓ EU service no deduction -> ready
+✓ EU service no deduction -> valid
+✓ No deduction -> 4535 debit acquisition base
+✓ No deduction -> 4535 debit non-deductible calculated VAT cost
+✓ No deduction -> no 2645 debit
+✓ No deduction -> 2614 credit calculated output VAT
+✓ No deduction -> supplied payment account credit
+✓ No deduction -> total debit
+✓ No deduction -> total credit
+✓ No deduction -> no deductible input VAT
+✓ No deduction -> no field 48
+✓ EU service partial deduction blocks -> blocked
+✓ EU service partial deduction blocks -> no fake plan
+✓ EU service partial deduction blocks -> unsupported_deduction_entitlement
+✓ EU service non-25 percent rate blocks -> blocked
+✓ EU service non-25 percent rate blocks -> no fake plan
+✓ EU service non-25 percent rate blocks -> unsupported_calculation_rate
+✓ EU goods acquisition blocks -> blocked
+✓ EU goods acquisition blocks -> no fake plan
+✓ EU goods acquisition blocks -> unsupported_vat_treatment
+✓ Non-EU service reverse charge blocks -> blocked
+✓ Non-EU service reverse charge blocks -> no fake plan
+✓ Non-EU service reverse charge blocks -> unsupported_vat_treatment
+✓ Import goods blocks -> blocked
+✓ Import goods blocks -> no fake plan
+✓ Import goods blocks -> unsupported_vat_treatment
+✓ Malformed output VAT blocks -> blocked
+✓ Malformed output VAT blocks -> no fake plan
+✓ Malformed output VAT blocks -> inconsistent_treatment
+✓ Malformed deductible input VAT blocks -> blocked
+✓ Malformed deductible input VAT blocks -> no fake plan
+✓ Malformed deductible input VAT blocks -> inconsistent_treatment
+✓ Malformed payment account blocks -> blocked
+✓ Malformed payment account blocks -> no fake plan
+✓ Malformed payment account blocks -> invalid_payment_account
+
+-----------------------------------
+Godkända tester: 58
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT JournalPlan-tester godkända.
+
+(node:776) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-audit-snapshot.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Audit Snapshot Tests ===
+
+✓ EU service reverse charge plan -> JournalPlan ready
+✓ EU service reverse charge 25 percent full deduction -> snapshot ready
+✓ EU service reverse charge 25 percent full deduction -> valid
+✓ Happy path -> snapshot schema version
+✓ Happy path -> journal-plan version
+✓ Happy path -> treatment code
+✓ Happy path -> rule version
+✓ Happy path -> facts version
+✓ Happy path -> supplier country business fact is preserved
+✓ Happy path -> purchase classification business fact is preserved
+✓ Happy path -> deduction source business fact is preserved
+✓ Happy path -> field 21 base
+✓ Happy path -> rate
+✓ Happy path -> acquisition report field
+✓ Happy path -> field 30 amount
+✓ Happy path -> output report field
+✓ Happy path -> field 48 amount
+✓ Happy path -> deductible input report field
+✓ Happy path -> deduction entitlement
+✓ Happy path -> semantic acquisition base row
+✓ Happy path -> semantic deductible input VAT row
+✓ Happy path -> semantic output VAT row
+✓ Happy path -> semantic payment/payable row
+✓ Happy path -> reconciliation total debit
+✓ Happy path -> reconciliation total credit
+✓ EU service reverse charge with private payment account -> JournalPlan ready
+✓ Alternative payment account -> snapshot ready
+✓ Alternative payment account -> valid
+✓ Alternative payment account survives snapshot evidence
+✓ Alternative payment account is not rewritten to 1930
+✓ EU service no deduction plan -> JournalPlan ready
+✓ EU service reverse charge 25 percent no deduction -> snapshot ready
+✓ EU service reverse charge 25 percent no deduction -> valid
+✓ No deduction -> no deductible input VAT
+✓ No deduction -> no deductible input VAT report field
+✓ No deduction -> calculated VAT becomes non-deductible 4535 cost
+✓ No deduction -> no 2645 snapshot row
+✓ Different valid plan -> JournalPlan ready
+✓ Treatment and valid JournalPlan from different amounts do not snapshot -> blocked
+✓ Treatment and valid JournalPlan from different amounts do not snapshot -> no fake snapshot
+✓ Treatment and valid JournalPlan from different amounts do not snapshot -> inconsistent_evidence
+✓ Business facts that disagree with treatment do not snapshot -> blocked
+✓ Business facts that disagree with treatment do not snapshot -> no fake snapshot
+✓ Business facts that disagree with treatment do not snapshot -> inconsistent_evidence
+✓ Declared amount mismatch blocks -> blocked
+✓ Declared amount mismatch blocks -> no fake snapshot
+✓ Declared amount mismatch blocks -> inconsistent_journal_plan
+✓ Different rule version plan -> JournalPlan ready
+✓ Rule version mismatch blocks -> blocked
+✓ Rule version mismatch blocks -> no fake snapshot
+✓ Rule version mismatch blocks -> inconsistent_evidence
+✓ Different facts version plan -> JournalPlan ready
+✓ Facts version mismatch blocks -> blocked
+✓ Facts version mismatch blocks -> no fake snapshot
+✓ Facts version mismatch blocks -> inconsistent_evidence
+✓ Unsupported report field blocks -> blocked
+✓ Unsupported report field blocks -> no fake snapshot
+✓ Unsupported report field blocks -> unsupported_report_field
+✓ Unbalanced semantic plan blocks -> blocked
+✓ Unbalanced semantic plan blocks -> no fake snapshot
+✓ Unbalanced semantic plan blocks -> unbalanced_journal_plan
+✓ Malformed semantic role plan blocks -> blocked
+✓ Malformed semantic role plan blocks -> no fake snapshot
+✓ Malformed semantic role plan blocks -> invalid_journal_row
+✓ Malformed debit and credit row blocks -> blocked
+✓ Malformed debit and credit row blocks -> no fake snapshot
+✓ Malformed debit and credit row blocks -> invalid_journal_row
+✓ Wrong acquisition account blocks even when amounts reconcile -> blocked
+✓ Wrong acquisition account blocks even when amounts reconcile -> no fake snapshot
+✓ Wrong acquisition account blocks even when amounts reconcile -> invalid_journal_row
+✓ Wrong output VAT account blocks even when amounts reconcile -> blocked
+✓ Wrong output VAT account blocks even when amounts reconcile -> no fake snapshot
+✓ Wrong output VAT account blocks even when amounts reconcile -> invalid_journal_row
+✓ Wrong deductible input VAT account blocks even when amounts reconcile -> blocked
+✓ Wrong deductible input VAT account blocks even when amounts reconcile -> no fake snapshot
+✓ Wrong deductible input VAT account blocks even when amounts reconcile -> invalid_journal_row
+✓ Swapped VAT accounts block even when amounts reconcile -> blocked
+✓ Swapped VAT accounts block even when amounts reconcile -> no fake snapshot
+✓ Swapped VAT accounts block even when amounts reconcile -> invalid_journal_row
+✓ EU service partial deduction blocks -> blocked
+✓ EU service partial deduction blocks -> no fake snapshot
+✓ EU service partial deduction blocks -> unsupported_deduction_entitlement
+✓ EU service non-25 percent rate blocks -> blocked
+✓ EU service non-25 percent rate blocks -> no fake snapshot
+✓ EU service non-25 percent rate blocks -> unsupported_calculation_rate
+✓ EU goods acquisition blocks -> blocked
+✓ EU goods acquisition blocks -> no fake snapshot
+✓ EU goods acquisition blocks -> unsupported_vat_treatment
+✓ Non-EU service reverse charge blocks -> blocked
+✓ Non-EU service reverse charge blocks -> no fake snapshot
+✓ Non-EU service reverse charge blocks -> unsupported_vat_treatment
+✓ Import goods blocks -> blocked
+✓ Import goods blocks -> no fake snapshot
+✓ Import goods blocks -> unsupported_vat_treatment
+
+-----------------------------------
+Godkända tester: 94
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT audit snapshot-tester godkända.
+
+(node:55628) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-supabase-fetch-all.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Supabase Fetch-All Tests ===
+
+PASS fetchAllRows loads more than 1000 rows
+PASS fetchAllRows preserves first row
+PASS fetchAllRows preserves last row
+PASS fetchAllRows rejects count/data mismatch -> typed error
+PASS fetchAllRows rejects count/data mismatch -> message
+PASS fetchAllRows rejects missing exact count -> typed error
+PASS fetchAllRows rejects missing exact count -> message
+PASS fetchAllRows rejects query errors -> typed error
+PASS fetchAllRows rejects query errors -> message
+PASS fetchAllRowsByChunks loads 1001 rows
+PASS fetchAllRowsByChunks preserves final chunk
+PASS fetchAllRowsByChunks deduplicates repeated input values
+PASS fetchAllRowsByChunks preserves unique input order
+
+-----------------------------------
+Passed tests: 13
+Failed tests: 0
+-----------------------------------
+
+All Supabase fetch-all tests passed.
+
+(node:9344) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-history-loader.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Transaction History Loader Tests ===
+
+PASS: loads more than 1000 transactions
+PASS: loads more than 1000 journal rows
+PASS: maps multiple journal rows per transaction
+PASS: maps final correction journal rows
+PASS: stable database order uses date desc and id desc
+PASS: stable paging preserves last same-date row
+PASS: tenant isolation and year filter are preserved
+PASS: correction metadata is preserved
+PASS: invoice transaction metadata is preserved
+PASS: original fixed-asset purchase is linked to the real reclassification VER number
+PASS: original fixed-asset purchase trace includes the reclassified amount
+PASS: reclassification transaction links back to the real original VER number
+PASS: reclassification trace uses the existing fixed-asset name
+PASS: transactions request asks for exact count
+PASS: transactions request uses stable unique order
+PASS: journal rows are loaded in chunks
+PASS: journal requests ask for exact count
+PASS: journal requests use stable order
+PASS: journal row paging continues beyond 1000 rows inside a chunk
+PASS: missing transaction count fails closed
+PASS: transaction count/data mismatch fails closed
+PASS: journal query error fails closed
+PASS: missing journal count fails closed
+PASS: journal count/data mismatch fails closed
+PASS: cross-tenant journal row fails closed
+PASS: cross-tenant fixed-asset event fails closed
+PASS: cross-year transaction row fails closed if the backend returns it
+PASS: incomplete or invalid reclassification trace fails closed
+PASS: incomplete or invalid reclassification trace fails closed
+
+All transaction history loader tests passed.
+
+(node:52724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-history-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Transaction History State Tests ===
+
+PASS transaction history state tests
+(node:22804) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-history-filters.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Transaction History Filter Tests ===
+
+PASS: default filters are inactive
+PASS: search activates filter controls
+PASS: category activates filter controls
+PASS: non-default sort activates result count
+PASS: Adobe search combines with cost category and keeps the correction row
+PASS: VER search finds original and correction reference
+PASS: account name search uses existing account metadata
+PASS: account number search finds rows with matching journal account
+PASS: existing invoice id text is searchable without extra database data
+PASS: income category uses booked 3xxx accounts and preserves matched SIE undo batch
+PASS: cost category uses booked 4xxx-8xxx accounts and preserves matched SIE undo batch
+PASS: customer invoice category uses the customer_invoice source
+PASS: VAT/tax category uses verified VAT and tax source values only
+PASS: import category includes SIE undo rows
+PASS: matching one SIE undo row keeps the whole undo batch together
+PASS: amount descending sort is deterministic
+PASS: amount ascending sort is deterministic
+PASS: oldest-first sort uses date ascending with stable fallback
+PASS: verification-number sort uses highest verification first
+PASS: income category follows result engine for 3xxx plus 8310 and 8330
+PASS: cost category follows result engine for 4xxx plus 8410 and 8430
+PASS: VAT/tax category does not match ordinary transactions just because they include VAT or tax accounts
+PASS: VAT and tax balance accounts do not turn ordinary rows into costs
+PASS: search finds an exact transaction date
+PASS: search finds all transactions in a year-month
+PASS: search finds all transactions in a year
+PASS: plain large amount search finds matching transaction amounts
+PASS: amount search accepts Swedish thousands spacing
+PASS: amount search accepts comma decimals
+PASS: amount search accepts dot decimals
+PASS: account 1930 search still uses account numbers and can also match an exact 1930 kr amount
+PASS: amount search combines with category filters
+PASS: short amount search finds exact 228 kr amounts without matching larger 1228 kr or decimal amounts
+PASS: short amount search combines with VAT/tax category without including VAT V2 foreign purchases
+PASS: short amount search combines with foreign purchase category
+PASS: short search 140 finds both exact 140 kr amount and VER-140
+PASS: 1930 search finds account 1930 rows and exact 1930 kr amount
+PASS: amount search finds zero kronor with explicit decimal notation
+PASS: amount search accepts comma decimals for short amounts
+PASS: amount search accepts dot decimals for short amounts
+PASS: VAT/tax category uses only VAT closing, VAT settlement, and tax movement source values
+PASS: foreign purchase category uses the VAT V2 source value
+PASS: customer invoice category uses only customer_invoice source rows
+PASS: customer invoices and imports can still overlap with income when they include income accounts
+PASS: import category includes SIE import, opening balance, and SIE undo source rows
+PASS: fixed asset category includes acquisition, reclassification, and depreciation source rows
+PASS: search finds an original fixed-asset purchase through the later reclassification VER number
+PASS: search finds a reclassification transaction through the original VER number
+PASS: fixed asset category does not duplicate transactions when trace metadata exists
+PASS: search still combines with the new source-based VAT/tax category
+PASS: TransactionTable filters and sorts before existing show-more pagination
+PASS: TransactionTable resets visible count when search, filter, sort, or loaded history changes
+PASS: TransactionTable exposes compact search, category, sort, hit count, reset, and empty-result UI
+PASS: category labels match the final compact KAN-47 filter set
+PASS: TransactionTable keeps both desktop table and mobile card history views
+PASS: page.tsx still gates TransactionTable behind the verified KAN-35 table state
+
+All transaction history filter tests passed.
+
+(node:48184) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-customer-invoice-filters.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Customer Invoice Filter Tests ===
+
+PASS: default filters are inactive
+PASS: search activates invoice filters
+PASS: payment filter activates invoice filters
+PASS: year-end filter activates invoice filters
+PASS: sort activates invoice filters
+PASS: invoice number search finds one invoice
+PASS: customer search supports multi-term Swedish text
+PASS: year search matches invoice date year, not amount
+PASS: month search matches invoice date month
+PASS: day search matches exact invoice date
+PASS: amount search supports compact kronor
+PASS: amount search supports Swedish spacing
+PASS: amount search supports currency suffix
+PASS: amount search supports four-digit non-year amounts
+PASS: amount search supports spaced four-digit amounts
+PASS: pure invoice year search still uses invoice date instead of amount
+PASS: unpaid filter excludes paid invoices
+PASS: paid filter includes only paid invoices
+PASS: year-end-needed filter excludes unknown VAT and already-booked invoices
+PASS: booked year-end filter uses existing booking data even when paid later
+PASS: no-receivable filter means current year with no booking and no blocker
+PASS: unsafe VAT filter finds invoices blocked by unclear VAT facts
+PASS: other-year filter finds invoices belonging to another closing year
+PASS: search and status filters combine without mutation
+PASS: paid and booked year-end filters combine
+PASS: paid and no-receivable filters combine
+PASS: invoice-date ascending sort is stable
+PASS: due-date ascending sort is stable
+PASS: amount descending sort is stable
+PASS: year-end label shows unbooked current-year receivable need
+PASS: year-end label shows current-year paid invoice without receivable
+PASS: year-end label preserves booked receivable even when invoice is now paid
+PASS: year-end label shows unsafe VAT blocker
+PASS: year-end label shows other fiscal year
+PASS: multi-word customer search matches a contiguous phrase in one field
+PASS: multi-word customer search still finds contiguous customer phrases
+PASS: single-word customer search remains broad
+PASS: numeric invoice number search finds the invoice even when amount differs
+
+All customer invoice filter tests passed.
+
+(node:50072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-customer-invoice-vat-policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Customer Invoice VAT Policy Tests ===
+
+PASS: registered taxable profile allows taxable customer invoices
+PASS: registered taxable profile keeps manual VAT decision default
+PASS: small business exemption blocks taxable customer invoices
+PASS: small business exemption defaults ordinary customer invoices to exempt
+PASS: small business blocker names the profile exemption
+PASS: other exemption blocks taxable customer invoices
+PASS: other exemption defaults ordinary customer invoices to exempt
+PASS: not registered profile blocks taxable customer invoices
+PASS: not registered profile defaults ordinary customer invoices to exempt
+PASS: unknown domestic treatment blocks taxable customer invoices
+PASS: unknown domestic treatment keeps invoice VAT unknown
+PASS: unknown blocker follows no-guessing rule
+PASS: mixed domestic treatment blocks free taxable override
+PASS: mixed domestic treatment keeps invoice VAT unknown
+PASS: mixed notice explains mixed domestic sales
+PASS: edit form only blocks taxable VAT when VAT-relevant facts changed
+PASS: existing taxable invoice choice remains visible for harmless edits after profile changes
+PASS: denied VAT-relevant customer invoice edit shows an edit error
+PASS: canceling customer invoice edit clears stale edit errors
+PASS: manual customer invoice refresh clears stale errors after successful reload
+PASS: customer invoice reload still shows a fresh error when loading fails
+PASS: existing invoice VAT treatment is not silently coerced
+
+All customer invoice VAT policy tests passed.
+
+(node:15916) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-bank-account-history.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Bank Account History Tests ===
+
+PASS: opening balance is aggregated separately
+PASS: opening balance is counted separately
+PASS: opening balance is not a regular bank history entry
+PASS: all 1930 rows in one verification are summed
+PASS: default bank history hides only structured internal correction pairs
+PASS: structured correction and its neutralized original are available for review
+PASS: corrections without original verification link stay visible
+PASS: SIE imported bank rows are labelled as imported bookkeeping history
+PASS: customer invoice bank rows are labelled clearly
+
+All bank account history tests passed.
+
+(node:60036) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-stripe-server-config.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Stripe server configuration tests passed.
+(node:60956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-sie-export-completeness.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger SIE Export Completeness Tests ===
+
+PASS SIE export includes all 1001 current-year #VER blocks
+PASS SIE export includes all current-year #TRANS rows
+PASS SIE export includes final verification after the 1000-row boundary
+PASS SIE export current-year #RES uses all 1001 verifications
+PASS SIE export previous-year #RES uses complete previous-year rows
+PASS SIE export #IB uses complete previous-year balance
+PASS SIE export #UB uses complete current-year balance
+PASS SIE export rejects unverifiable transaction completeness
+
+-----------------------------------
+Passed tests: 8
+Failed tests: 0
+-----------------------------------
+
+All SIE export completeness tests passed.
+
+(node:47392) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-report-aggregation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Report Aggregation Tests ===
+
+PASS KAN-32 RED legacy/SIE reverse-charge-shaped 2614/2645 must not be inferred as domestic sale
+PASS KAN-32 RED legacy/SIE reverse-charge-shaped rows -> legacy_reverse_charge_ambiguous
+PASS KAN-32 undo original transaction from undone SIE batch -> blocked
+PASS KAN-32 undo original transaction from undone SIE batch -> no report
+PASS KAN-32 undo original transaction from undone SIE batch -> legacy_reverse_charge_ambiguous
+PASS KAN-32 undo full-year dashboard shape with original and SIE undo -> blocked
+PASS KAN-32 undo full-year dashboard shape with original and SIE undo -> no report
+PASS KAN-32 undo full-year dashboard shape with original and SIE undo -> legacy_reverse_charge_ambiguous
+PASS KAN-32 other completed SIE batch still blocks -> blocked
+PASS KAN-32 other completed SIE batch still blocks -> no report
+PASS KAN-32 other completed SIE batch still blocks -> legacy_reverse_charge_ambiguous
+PASS CASE A VAT V1 only -> ready
+PASS CASE A -> field 05
+PASS CASE A -> field 10
+PASS CASE A -> field 11
+PASS CASE A -> field 12
+PASS CASE A -> field 48
+PASS CASE A -> field 49
+PASS CASE A -> 25 percent base
+PASS CASE A -> 12 percent base
+PASS KAN-32 exact 2614 legacy reverse-charge indicator -> blocked
+PASS KAN-32 exact 2614 legacy reverse-charge indicator -> no report
+PASS KAN-32 exact 2614 legacy reverse-charge indicator -> legacy_reverse_charge_ambiguous
+PASS KAN-32 exact 2624 legacy reverse-charge indicator -> blocked
+PASS KAN-32 exact 2624 legacy reverse-charge indicator -> no report
+PASS KAN-32 exact 2624 legacy reverse-charge indicator -> legacy_reverse_charge_ambiguous
+PASS KAN-32 exact 2634 legacy reverse-charge indicator -> blocked
+PASS KAN-32 exact 2634 legacy reverse-charge indicator -> no report
+PASS KAN-32 exact 2634 legacy reverse-charge indicator -> legacy_reverse_charge_ambiguous
+PASS KAN-32 exact 2645 legacy reverse-charge indicator -> blocked
+PASS KAN-32 exact 2645 legacy reverse-charge indicator -> no report
+PASS KAN-32 exact 2645 legacy reverse-charge indicator -> legacy_reverse_charge_ambiguous
+PASS CASE A1 unknown future source default-deny -> ready
+PASS CASE A1 -> field 05
+PASS CASE A1 -> field 10
+PASS CASE A1 -> field 48
+PASS CASE A1 -> field 49
+PASS CASE A2 controlled lifecycle sources -> ready
+PASS CASE A2 -> field 05
+PASS CASE A2 -> field 10
+PASS CASE A2 -> field 48
+PASS CASE A2 -> field 49
+PASS CASE A3 customer invoice payment_same_year -> ready
+PASS CASE A3 -> field 05
+PASS CASE A3 -> field 10
+PASS CASE A3 -> field 49
+PASS CASE A3 -> 25 percent base
+PASS CASE A3A customer invoice uses 3010 sales base instead of reverse-derived VAT base -> ready
+PASS CASE A3A -> field 05
+PASS CASE A3A -> field 10
+PASS CASE A3A -> field 49
+PASS CASE A3B customer invoice payment_same_year 12 percent -> ready
+PASS CASE A3B -> field 05
+PASS CASE A3B -> field 11
+PASS CASE A3B -> field 49
+PASS CASE A3B -> 12 percent base
+PASS CASE A3C customer invoice payment_same_year 6 percent -> ready
+PASS CASE A3C -> field 05
+PASS CASE A3C -> field 12
+PASS CASE A3C -> field 49
+PASS CASE A3C -> 6 percent base
+PASS CASE A4 customer invoice year_end_receivable -> ready
+PASS CASE A4 -> field 05
+PASS CASE A4 -> field 10
+PASS CASE A4 -> field 49
+PASS CASE A5 customer invoice receivable_settlement -> ready
+PASS CASE A5 -> field 05
+PASS CASE A5 -> field 10
+PASS CASE A5 -> field 49
+PASS CASE A6 customer invoice year-end with next-year settlement outside period -> ready
+PASS CASE A6 -> field 05
+PASS CASE A6 -> field 10
+PASS CASE A6 -> field 49
+PASS CASE A7 customer invoice payment_same_year_reversal -> ready
+PASS CASE A7 -> field 05
+PASS CASE A7 -> field 10
+PASS CASE A7 -> field 49
+PASS CASE A7B customer invoice reversal across report boundary -> ready
+PASS CASE A7B -> field 05
+PASS CASE A7B -> field 10
+PASS CASE A7B -> field 49
+PASS CASE A8 customer invoice input VAT is not silently inferred -> blocked
+PASS CASE A8 customer invoice input VAT is not silently inferred -> no report
+PASS CASE A8 customer invoice input VAT is not silently inferred -> customer_invoice_vat_unsupported
+PASS CASE A8B customer invoice lone VAT row blocks -> blocked
+PASS CASE A8B customer invoice lone VAT row blocks -> no report
+PASS CASE A8B customer invoice lone VAT row blocks -> customer_invoice_voucher_inconsistent
+PASS CASE A8C customer invoice mismatched sales base blocks -> blocked
+PASS CASE A8C customer invoice mismatched sales base blocks -> no report
+PASS CASE A8C customer invoice mismatched sales base blocks -> customer_invoice_voucher_inconsistent
+PASS CASE A8D customer invoice missing 1930/1510 counter account blocks -> blocked
+PASS CASE A8D customer invoice missing 1930/1510 counter account blocks -> no report
+PASS CASE A8D customer invoice missing 1930/1510 counter account blocks -> customer_invoice_voucher_inconsistent
+PASS CASE A8E customer invoice split 1930/1510 counter account blocks -> blocked
+PASS CASE A8E customer invoice split 1930/1510 counter account blocks -> no report
+PASS CASE A8E customer invoice split 1930/1510 counter account blocks -> customer_invoice_voucher_inconsistent
+PASS CASE A9 customer invoice reverse-charge indicator is not silently inferred -> blocked
+PASS CASE A9 customer invoice reverse-charge indicator is not silently inferred -> no report
+PASS CASE A9 customer invoice reverse-charge indicator is not silently inferred -> customer_invoice_vat_unsupported
+PASS CASE A10 customer invoice 265x with input VAT blocks before settlement skip -> blocked
+PASS CASE A10 customer invoice 265x with input VAT blocks before settlement skip -> no report
+PASS CASE A10 customer invoice 265x with input VAT blocks before settlement skip -> customer_invoice_vat_unsupported
+PASS CASE A11 customer invoice 265x with reverse-charge output blocks before settlement skip -> blocked
+PASS CASE A11 customer invoice 265x with reverse-charge output blocks before settlement skip -> no report
+PASS CASE A11 customer invoice 265x with reverse-charge output blocks before settlement skip -> customer_invoice_vat_unsupported
+PASS CASE A12 legacy 265x with reverse-charge indicator blocks before settlement skip -> blocked
+PASS CASE A12 legacy 265x with reverse-charge indicator blocks before settlement skip -> no report
+PASS CASE A12 legacy 265x with reverse-charge indicator blocks before settlement skip -> legacy_reverse_charge_ambiguous
+PASS CASE B VAT V2 only -> ready
+PASS CASE B -> field 21
+PASS CASE B -> field 30
+PASS CASE B -> field 48
+PASS CASE B -> field 05
+PASS CASE B -> field 10
+PASS CASE B -> field 49
+PASS CASE B -> 2614 not counted as legacy output
+PASS CASE B -> 2645 not counted as legacy input
+PASS CASE B2 VAT V2 no deduction -> ready
+PASS CASE B2 -> field 21
+PASS CASE B2 -> field 30
+PASS CASE B2 -> field 48
+PASS CASE B2 -> field 49
+PASS CASE B2 -> 2614 not counted as legacy output
+PASS CASE B2 -> no legacy input VAT
+PASS CASE C mixed V1 and VAT V2 -> ready
+PASS CASE C -> field 05
+PASS CASE C -> field 10
+PASS CASE C -> field 21
+PASS CASE C -> field 30
+PASS CASE C -> field 48
+PASS CASE C -> field 49
+PASS CASE C -> legacy input VAT preserved
+PASS CASE C -> VAT V2 2614 does not leak to field 10
+PASS CASE D multiple VAT V2 -> ready
+PASS CASE D -> field 21
+PASS CASE D -> field 30
+PASS CASE D -> field 48
+PASS CASE D -> field 05
+PASS CASE D -> field 10
+PASS CASE D -> field 49
+PASS CASE E malformed missing VAT object -> blocked
+PASS CASE E malformed missing VAT object -> no report
+PASS CASE E malformed missing VAT object -> vat_v2_snapshot_malformed
+PASS CASE E invalid report field -> blocked
+PASS CASE E invalid report field -> no report
+PASS CASE E invalid report field -> vat_v2_snapshot_unsupported
+PASS CASE E inconsistent reconciliation -> blocked
+PASS CASE E inconsistent reconciliation -> no report
+PASS CASE E inconsistent reconciliation -> vat_v2_snapshot_inconsistent
+PASS CASE E unsupported treatment -> blocked
+PASS CASE E unsupported treatment -> no report
+PASS CASE E unsupported treatment -> vat_v2_snapshot_unsupported
+PASS CASE F VAT V2 without valid snapshot -> blocked
+PASS CASE F VAT V2 without valid snapshot -> no report
+PASS CASE F VAT V2 without valid snapshot -> vat_v2_snapshot_missing
+PASS CASE G VAT V2 net effect -> ready
+PASS CASE G -> field 30
+PASS CASE G -> field 48
+PASS CASE G -> field 49
+
+-----------------------------------
+Passed tests: 159
+Failed tests: 0
+-----------------------------------
+
+All VAT report aggregation tests passed.
+
+(node:37992) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-report-service.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Report Service Tests ===
+
+PASS CASE A V1-only production-shaped rows -> ready
+PASS CASE A -> field 05
+PASS CASE A -> field 10
+PASS CASE A -> field 11
+PASS CASE A -> field 48
+PASS CASE A -> field 49
+PASS KAN-32 legacy/SIE reverse-charge-shaped rows -> blocked
+PASS KAN-32 legacy/SIE reverse-charge-shaped rows -> no report
+PASS KAN-32 legacy/SIE reverse-charge-shaped rows -> aggregation_blocked
+PASS KAN-32 legacy/SIE reverse-charge-shaped rows -> legacy_reverse_charge_ambiguous
+PASS KAN-32 Q3 original transaction from undone SIE batch -> blocked
+PASS KAN-32 Q3 original transaction from undone SIE batch -> no report
+PASS KAN-32 Q3 original transaction from undone SIE batch -> aggregation_blocked
+PASS KAN-32 Q3 original transaction from undone SIE batch -> legacy_reverse_charge_ambiguous
+PASS KAN-32 full-year dashboard shape with undone original and SIE undo -> blocked
+PASS KAN-32 full-year dashboard shape with undone original and SIE undo -> no report
+PASS KAN-32 full-year dashboard shape with undone original and SIE undo -> aggregation_blocked
+PASS KAN-32 full-year dashboard shape with undone original and SIE undo -> legacy_reverse_charge_ambiguous
+PASS KAN-32 other completed SIE batch still blocks -> blocked
+PASS KAN-32 other completed SIE batch still blocks -> no report
+PASS KAN-32 other completed SIE batch still blocks -> aggregation_blocked
+PASS KAN-32 other completed SIE batch still blocks -> legacy_reverse_charge_ambiguous
+PASS CASE B VAT V2-only transaction date inside period -> ready
+PASS CASE B -> field 21
+PASS CASE B -> field 30
+PASS CASE B -> field 48
+PASS CASE B -> field 05
+PASS CASE B -> field 10
+PASS CASE B -> field 49
+PASS CASE C VAT V2 snapshot created outside period -> ready
+PASS CASE C -> field 21
+PASS CASE C -> field 30
+PASS CASE C -> field 48
+PASS CASE C -> field 49
+PASS CASE D VAT V2 transaction outside period -> ready
+PASS CASE D -> field 21
+PASS CASE D -> field 30
+PASS CASE D -> field 48
+PASS CASE D -> field 10
+PASS CASE D -> field 49
+PASS CASE E VAT V2 missing snapshot -> blocked
+PASS CASE E VAT V2 missing snapshot -> no report
+PASS CASE E VAT V2 missing snapshot -> aggregation_blocked
+PASS CASE E VAT V2 missing snapshot -> vat_v2_snapshot_missing
+PASS CASE F VAT V2 duplicate snapshot -> blocked
+PASS CASE F VAT V2 duplicate snapshot -> no report
+PASS CASE F VAT V2 duplicate snapshot -> aggregation_blocked
+PASS CASE F VAT V2 duplicate snapshot -> vat_v2_snapshot_duplicate
+PASS CASE G mixed V1 and VAT V2 -> ready
+PASS CASE G -> field 05
+PASS CASE G -> field 10
+PASS CASE G -> field 21
+PASS CASE G -> field 30
+PASS CASE G -> field 48
+PASS CASE G -> field 49
+PASS CASE G2 customer invoice payment_same_year -> ready
+PASS CASE G2 -> field 05
+PASS CASE G2 -> field 10
+PASS CASE G2 -> field 49
+PASS CASE G2B customer invoice lone VAT row blocks -> blocked
+PASS CASE G2B customer invoice lone VAT row blocks -> no report
+PASS CASE G2B customer invoice lone VAT row blocks -> aggregation_blocked
+PASS CASE G2B customer invoice lone VAT row blocks -> customer_invoice_voucher_inconsistent
+PASS CASE G2C customer invoice mismatched sales base blocks -> blocked
+PASS CASE G2C customer invoice mismatched sales base blocks -> no report
+PASS CASE G2C customer invoice mismatched sales base blocks -> aggregation_blocked
+PASS CASE G2C customer invoice mismatched sales base blocks -> customer_invoice_voucher_inconsistent
+PASS CASE G3 customer invoice year_end_receivable counts once in fiscal year -> ready
+PASS CASE G3 -> field 05
+PASS CASE G3 -> field 10
+PASS CASE G3 -> field 49
+PASS CASE G4 customer invoice receivable_settlement has no new VAT next year -> ready
+PASS CASE G4 -> field 05
+PASS CASE G4 -> field 10
+PASS CASE G4 -> field 49
+PASS CASE G4B customer invoice reversal counts in reversal period -> ready
+PASS CASE G4B -> field 05
+PASS CASE G4B -> field 10
+PASS CASE G4B -> field 49
+PASS CASE G5 customer invoice input VAT blocks instead of being inferred -> blocked
+PASS CASE G5 customer invoice input VAT blocks instead of being inferred -> no report
+PASS CASE G5 customer invoice input VAT blocks instead of being inferred -> aggregation_blocked
+PASS CASE G5 customer invoice input VAT blocks instead of being inferred -> customer_invoice_vat_unsupported
+PASS CASE G5B customer invoice 265x with reverse-charge row blocks -> blocked
+PASS CASE G5B customer invoice 265x with reverse-charge row blocks -> no report
+PASS CASE G5B customer invoice 265x with reverse-charge row blocks -> aggregation_blocked
+PASS CASE G5B customer invoice 265x with reverse-charge row blocks -> customer_invoice_vat_unsupported
+PASS CASE H other tenant rows rejected -> blocked
+PASS CASE H other tenant rows rejected -> no report
+PASS CASE H other tenant rows rejected -> invalid_loaded_scope
+PASS KAN-33 1001 VAT rows -> ready
+PASS KAN-33 1001 VAT rows -> field 05
+PASS KAN-33 1001 VAT rows -> field 10
+PASS KAN-33 1001 VAT rows -> field 49
+PASS CASE I customer invoice DB loader fetches complete voucher rows
+PASS CASE I -> field 05
+PASS CASE I -> field 10
+PASS CASE I -> field 49
+PASS CASE J incomplete customer invoice DB-loaded voucher blocks
+
+-----------------------------------
+Passed tests: 99
+Failed tests: 0
+-----------------------------------
+
+All VAT report service tests passed.
+
+(node:50456) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-inventory-reports.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS inventory report matrix: rates, deduction, activation/expense, closing/declared, unsafe vouchers and reconciliation
+(node:61104) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-report-presentation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT Report Presentation Tests ===
+
+PASS CASE A V1-only field presentation -> ready
+PASS CASE A -> ruta 05
+PASS CASE A -> ruta 10
+PASS CASE A -> ruta 11
+PASS CASE A -> ruta 12
+PASS CASE A -> ruta 48
+PASS CASE A -> ruta 49
+PASS CASE B VAT V2-only field presentation -> ready
+PASS CASE B -> ruta 21
+PASS CASE B -> ruta 30
+PASS CASE B -> ruta 48
+PASS CASE B -> ruta 05
+PASS CASE B -> ruta 10
+PASS CASE B -> ruta 49
+PASS CASE B -> total output VAT
+PASS CASE C mixed V1 and VAT V2 field presentation -> ready
+PASS CASE C -> ruta 05
+PASS CASE C -> ruta 10
+PASS CASE C -> ruta 21
+PASS CASE C -> ruta 30
+PASS CASE C -> shared ruta 48
+PASS CASE C -> ruta 49
+PASS CASE C -> total output VAT
+PASS CASE D malformed/missing VAT V2 -> blocked
+PASS CASE D malformed/missing VAT V2 -> no report
+PASS CASE D malformed/missing VAT V2 -> safe Swedish message
+PASS KAN-32 legacy reverse-charge presentation -> blocked
+PASS KAN-32 legacy reverse-charge presentation -> no report
+PASS KAN-32 legacy reverse-charge presentation -> safe Swedish message
+
+-----------------------------------
+Passed tests: 29
+Failed tests: 0
+-----------------------------------
+
+All VAT report presentation tests passed.
+
+(node:55712) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-transaction-preflight.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger VAT V2 Transaction Preflight Tests ===
+
+✓ EU service, no supplier VAT, full deduction, 25 percent -> ready
+✓ Supported path -> treatment code
+✓ Supported path -> acquisition base
+✓ Supported path -> output VAT
+✓ Supported path -> deductible calculated input VAT
+✓ Supported path -> full deduction
+✓ Supported path -> supplier country fact is preserved
+✓ Supported path -> profile default deduction source is preserved
+✓ Supported software/subscription derives 25 percent -> ready
+✓ Software/subscription -> service fact
+✓ Software/subscription -> 25 percent derived rate
+✓ Software/subscription -> business classification preserved
+✓ Missing supplier country blocks -> blocked
+✓ Missing supplier country blocks -> unknown_supplier_country
+✓ Swedish supplier is not misclassified as EU reverse charge -> blocked
+✓ Swedish supplier is not misclassified as EU reverse charge -> unsupported_vat_treatment
+✓ Non-EU supplier does not become EU reverse charge -> blocked
+✓ Non-EU supplier does not become EU reverse charge -> unsupported_vat_treatment
+✓ Supplier-charged VAT blocks -> blocked
+✓ Supplier-charged VAT blocks -> unsupported_vat_treatment
+✓ Goods do not become supported service path -> blocked
+✓ Goods do not become supported service path -> unsupported_vat_treatment
+✓ Unknown VAT registration blocks -> blocked
+✓ Unknown VAT registration blocks -> unknown_vat_registration_status
+✓ Unknown foreign purchase reporting blocks -> blocked
+✓ Unknown foreign purchase reporting blocks -> unknown_foreign_purchase_reporting
+✓ Not VAT registered does not become supported EU service path -> blocked
+✓ Not VAT registered does not become supported EU service path -> unsupported_vat_treatment
+✓ Foreign purchase reporting not required does not become supported EU service path -> blocked
+✓ Foreign purchase reporting not required does not become supported EU service path -> unsupported_vat_treatment
+✓ Unknown deduction entitlement blocks -> blocked
+✓ Unknown deduction entitlement blocks -> unknown_deduction_entitlement
+✓ EU service, no supplier VAT, no deduction, 25 percent -> ready
+✓ No-deduction path -> calculated output VAT
+✓ EU service transaction override to no deduction -> ready
+✓ Transaction override no deduction -> no deductible input VAT
+✓ Transaction override no deduction -> override source preserved
+✓ No-deduction path -> no deductible input VAT
+✓ No-deduction path -> no field 48
+✓ No-deduction path -> no deduction entitlement
+✓ Partial deduction remains deferred -> blocked
+✓ Partial deduction remains deferred -> unsupported_vat_treatment
+✓ 12 percent rate does not become bookable -> blocked
+✓ 12 percent rate does not become bookable -> unsupported_vat_v2_persistence_path
+✓ 6 percent rate does not become bookable -> blocked
+✓ 6 percent rate does not become bookable -> unsupported_vat_v2_persistence_path
+✓ 0 percent rate does not become bookable -> blocked
+✓ 0 percent rate does not become bookable -> unsupported_vat_v2_persistence_path
+✓ Explicit acquisition base is independent from ordinary amount -> ready
+✓ Preflight uses explicit acquisition base, not ordinary VAT-inclusive amount
+✓ Preflight does not extract VAT from ordinary amount
+✓ Missing acquisition base blocks -> blocked
+✓ Missing acquisition base blocks -> invalid_amount
+✓ Zero acquisition base does not become bookable -> blocked
+✓ Zero acquisition base does not become bookable -> invalid_amount
+
+-----------------------------------
+Godkända tester: 55
+Misslyckade tester: 0
+-----------------------------------
+
+✓ Alla VAT V2 transaction preflight-tester godkända.
+
+(node:51960) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-payment-account-roles.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Payment account role model tests passed.
+(node:43592) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-payment-account-role-status.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Payment account role status tests passed.
+(node:59776) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-payment-source.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+VAT V2 payment-source tests passed.
+(node:51944) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-runtime-booking.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+VAT V2 runtime booking tests passed.
+(node:53532) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-fixed-assets.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+fixed asset domain tests passed
+(node:57264) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-fixed-asset-rule-contract.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KAN-62 rule contract: boundaries, VAT, group expansion, years and short life PASS (pure domain; not DB proof)
+KAN-62 actual service: complete paging, owner/year checks, profile guard and RPC preview contract PASS
+PASS purchase effects full/none/partial/private/blocked and mobile keyboard/touch help; screenshots test-results/inventory-ux-1792653829559
+PASS register-only retirement label/help and unchanged acquisition write path
+KAN-62 actual panel: gross/net preview, exact boundary, short life, complete group and year guard PASS (synthetic transport)
+PASS actual KAN-65 desktop/mobile: two-way verification links, immutable originals, no generic correction
+(node:60148) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-form-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Transaction form UI regression tests passed.
+(node:55120) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-vat-presentation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Transaction VAT presentation tests passed.
+(node:45472) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-ordinary-purchase-vat-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Ordinary purchase VAT UI tests passed.
+(node:58956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-lifecycle-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+VAT lifecycle UI/service tests passed.
+(node:58880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-vat-settlement-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+VAT settlement UI/service tests passed.
+(node:60248) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-tax-account-movement-ui.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Tax-account movement UI/service tests passed.
+(node:53132) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-dashboard-calculations.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Dashboard Calculation Tests ===
+
+PASS ordinary dashboard VAT breakdown does not require manual review
+PASS ordinary dashboard VAT net preserved
+PASS ordinary dashboard safe withdrawal still uses VAT payable
+PASS ambiguous dashboard VAT breakdown carries manual review flag
+PASS ambiguous dashboard VAT breakdown carries manual review message
+PASS ambiguous dashboard VAT net does not invent a payable amount
+PASS ambiguous dashboard VAT blocks safe withdrawal amount
+PASS KAN-71 dashboard includes booked original in its journal period after undo
+PASS KAN-71 dashboard includes SIE undo with its journal sign and period
+PASS dashboard VAT source filter still includes completed SIE batch
+
+-----------------------------------
+Passed tests: 10
+Failed tests: 0
+-----------------------------------
+
+Dashboard calculation tests passed.
+
+PASS KAN-97 rendered amounts, negative deficit, critical missing facts and no legacy fallback
+(node:28676) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-dashboard-vat.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== SoloLedger Dashboard VAT Tests ===
+
+PASS CASE A V1-only -> outgoing VAT
+PASS CASE A V1-only -> deductible input VAT
+PASS CASE A V1-only -> net VAT
+PASS CASE B VAT V2 no deduction -> outgoing VAT
+PASS CASE B VAT V2 no deduction -> deductible input VAT
+PASS CASE B VAT V2 no deduction -> payable VAT
+PASS CASE C VAT V2 full deduction -> outgoing VAT
+PASS CASE C VAT V2 full deduction -> deductible input VAT
+PASS CASE C VAT V2 full deduction -> net VAT
+PASS CASE D mixed full-year -> outgoing VAT
+PASS CASE D mixed full-year -> deductible input VAT
+PASS CASE D mixed full-year -> payable VAT
+PASS CASE D2 customer invoice -> outgoing VAT
+PASS CASE D2 customer invoice -> deductible input VAT
+PASS CASE D2 customer invoice -> payable VAT
+PASS CASE D2 customer invoice -> 25 percent base
+PASS CASE E corrected VAT payable reduces safe withdrawal
+PASS CASE F blocked VAT -> manual review
+PASS CASE F blocked VAT -> no invented VAT balance
+PASS CASE F blocked VAT -> safe withdrawal not presented as spendable
+PASS KAN-78 query_failed must propagate as a load failure, never zero VAT
+PASS KAN-78 invalid_loaded_scope must propagate as a load failure, never zero VAT
+
+-----------------------------------
+Passed tests: 22
+Failed tests: 0
+-----------------------------------
+
+Dashboard VAT tests passed.
+
+PASS actual VAT card/modal: receivable, payable, neutral zero, review guard and unchanged signed accounting value
+(node:60176) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-sie-vat-periods.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-71: signed periods, year crossing, unsafe VAT, historical review, tenant scope, loader, safe withdrawal, NE/result and SIE
+(node:51516) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-74 real server route/parser/client: P2, period rules, UB/IB/RES, 4 MB/4,065,536-byte request/50k boundaries, encoding, auth, sanitized errors and historical hash
+(node:60792) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-booking-category-visibility.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS KAN-89 visibility: legacy/custom IDs, hidden, missing, loading, unknown flag, no mutation
+
+> min-bokforing@0.1.0 test:supplier-year-end
+> node scripts/test-supplier-year-end-reports.ts && node scripts/test-supplier-year-end-service.mjs && node scripts/test-supplier-year-end-panel.mjs
+
+(node:53880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-supplier-year-end-reports.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS supplier reports: 42 combinations; real report/dashboard adapters, signed corrections, payment, B15, protected history
+PASS supplier real read/write service: 1001 invoices and audit links, exact counts, owner pinning, immutable command, rejected vs uncertain receipt, inconsistent snapshot
+PASS supplier actual React/Playwright: 16 checks, desktop/mobile, persistent exact retry, owner/year isolation, read errors, locked original year; test-results/kan98-1792653842318
+
+> min-bokforing@0.1.0 test:history-groups
+> node scripts/test-transaction-attachment-groups.ts
+
+(node:43784) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-attachment-groups.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: attachment grouping, ownership, exact references, originals, filters, sorting, SIE precedence and pagination
+
+> min-bokforing@0.1.0 test:history-presentation
+> node scripts/test-transaction-history-presentation.ts
+
+(node:60080) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-transaction-history-presentation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: KAN-87 verified titles, positive refunds, neutral reclassifications, search, immutable economics and fail-closed provenance
+
+> min-bokforing@0.1.0 test:history-ui
+> node scripts/test-transaction-attachment-ui.mjs
+
+PASS: real TransactionTable at 1440px — opt-in, details, original journal, signed attachment, actions, search/category, sorting, SIE undo and pagination
+PASS: multiple groups at 1440px — counts, pagination, chronology, focus and unchanged data
+PASS: none groups at 1440px — counts, pagination, chronology, focus and unchanged data
+PASS: empty groups at 1440px — counts, pagination, chronology, focus and unchanged data
+PASS: real TransactionTable at 390px — opt-in, details, original journal, signed attachment, actions, search/category, sorting, SIE undo and pagination
+PASS: multiple groups at 390px — counts, pagination, chronology, focus and unchanged data
+PASS: none groups at 390px — counts, pagination, chronology, focus and unchanged data
+PASS: empty groups at 390px — counts, pagination, chronology, focus and unchanged data
+
+> min-bokforing@0.1.0 test:history-presentation-ui
+> node scripts/test-transaction-presentation-ui.mjs
+
+(node:51364) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/fixtures/kan84-presentation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: KAN-87 actual desktop/mobile/group UI at 1440px; signs, colors, names, original details, search, actions and offline isolation
+PASS: KAN-87 actual desktop/mobile/group UI at 390px; signs, colors, names, original details, search, actions and offline isolation
+
+> min-bokforing@0.1.0 test:ui-round
+> node scripts/test-ui-round.mjs
+
+PASS KAN-64 1440: full/none/unknown/missing x 25/0%, individual opt-out
+PASS KAN-85 1440: both IDs, favorites, category switching, hidden VAT, fail-closed stale value
+PASS KAN-67 amount header 1440: unpaid/paid/receivable/exempt, large decimal amount, one prominent total, status preserved, zero calls
+PASS KAN-67/68 1440: empty/invalid/cleared/valid-to-invalid, exact date and RPC choice, amount, undo reset, help and mobile layout; zero remote calls
+PASS KAN-64 390: full/none/unknown/missing x 25/0%, individual opt-out
+PASS KAN-85 390: both IDs, favorites, category switching, hidden VAT, fail-closed stale value
+PASS KAN-67 amount header 390: unpaid/paid/receivable/exempt, large decimal amount, one prominent total, status preserved, zero calls
+PASS KAN-67/68 390: empty/invalid/cleared/valid-to-invalid, exact date and RPC choice, amount, undo reset, help and mobile layout; zero remote calls
+
+> min-bokforing@0.1.0 test:e2e:smoke
+> node scripts/run-playwright-e2e.mjs tests/e2e/public-auth.spec.ts --project=chromium
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+✓ Ready in 825ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package-lock.json
+
+
+ GET / 200 in 80ms (next.js: 9ms, application-code: 71ms)
+
+Running 2 tests using 1 worker
+
+(node:57712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 197ms (next.js: 11ms, application-code: 186ms)
+  ok 1 [chromium] › tests\e2e\public-auth.spec.ts:4:7 › public authentication UI › renders the login screen without an existing session (1.3s)
+ GET / 200 in 86ms (next.js: 9ms, application-code: 77ms)
+  ok 2 [chromium] › tests\e2e\public-auth.spec.ts:14:7 › public authentication UI › can switch between login, registration, and password reset views (2.0s)
+
+  2 passed (5.4s)
+PASS KAN-89 desktop: hide/restore, own/legacy, favorites, stale/unknown/loading, history edit, save failure
+PASS KAN-89 mobile: hide/restore, own/legacy, favorites, stale/unknown/loading, history edit, save failure
+PASS actual Home/TransactionForm desktop: upload once, lost response, real reload, frozen attempt, recovery through changed gates, confirmed result despite refresh failure
+PASS actual Home/TransactionForm mobile: upload once, lost response, real reload, frozen attempt, recovery through changed gates, confirmed result despite refresh failure
+PASS actual Home/TransactionForm desktop-accounting-error: upload once, lost response, real reload, frozen attempt, recovery through changed gates, confirmed result despite refresh failure; KAN-78 load error, owner isolation, hidden dashboard/NE amounts and retry
+PASS actual Home/TransactionForm mobile-accounting-error: upload once, lost response, real reload, frozen attempt, recovery through changed gates, confirmed result despite refresh failure; KAN-78 load error, owner isolation, hidden dashboard/NE amounts and retry

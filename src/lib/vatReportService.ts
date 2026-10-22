@@ -272,7 +272,7 @@ function buildVatReportAggregatorInput(input: {
       knownTransactionIds.has(row.transaction_id) &&
       (
         isVat26Account(row.account_number) ||
-        ['customer_invoice', 'fixed_asset'].includes(transactionById.get(row.transaction_id)?.source ?? '')
+        ['customer_invoice', 'fixed_asset', 'supplier_invoice'].includes(transactionById.get(row.transaction_id)?.source ?? '')
       )
     ))
     .map(row => ({
@@ -526,7 +526,7 @@ export async function getVatReportForPeriodFromDb(
             .like('account_number', '26%') as FetchAllRangeQuery<VatReportJournalEntryRow>,
         })
     const customerInvoiceTransactionIds = allTransactionRowsWithBatchStatus
-      .filter(row => row.source === 'customer_invoice' || row.source === 'fixed_asset')
+      .filter(row => row.source === 'customer_invoice' || row.source === 'fixed_asset' || row.source === 'supplier_invoice')
       .map(row => row.id)
     const customerInvoiceTransactionIdSet = new Set(customerInvoiceTransactionIds)
     const customerInvoiceJournalRows =
