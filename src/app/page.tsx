@@ -4,7 +4,7 @@ import { readStandardBookingAttempt, saveStandardBookingAttempt, clearStandardBo
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useState, useEffect, useRef, type FormEvent } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { bookStandardBookingAttempt, bookVatV2EuServiceReverseChargeTransaction, createCorrectionTransaction, isYearClosed, closeYear, updateTransaction, getCustomerInvoices } from '@/lib/accountingService'
 import { exportSIE } from '@/lib/sieExport'
@@ -25,6 +25,7 @@ import TransactionForm, {
 } from '@/components/TransactionForm'
 import CustomerInvoicesPanel from '@/components/CustomerInvoicesPanel'
 import SupplierYearEndPanel from '@/components/SupplierYearEndPanel'
+import YearEndGuide, { type YearEndDestination } from '@/components/YearEndGuide'
 import FixedAssetsPanel from '@/components/FixedAssetsPanel'
 import SieImportModal from '@/components/SieImportModal'
 
@@ -97,6 +98,12 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
+  const yearEndScope = useMemo(() => ({ owner: user?.id, year: selectedYear, profileContextKey }), [user?.id, selectedYear, profileContextKey])
+  const [yearEndReturnScope, setYearEndReturnScope] = useState<typeof yearEndScope | null>(null)
+  function openYearEndDestination(destination: YearEndDestination) {
+    setYearEndReturnScope(yearEndScope)
+    setActiveTab(destination)
+  }
 
   const {
     accountingDataReady, accountingDataError, retryAccountingData,
@@ -1039,6 +1046,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             : activeTab === 'fakturor'
               ? 'Fakturor'
             : activeTab === 'leverantorsskulder' ? 'Bokslutsskulder'
+            : activeTab === 'arsavslut' ? 'Årsavslut'
             : activeTab === 'inventarier'
               ? 'Inventarier'
             : activeTab === 'faq'
@@ -1127,7 +1135,10 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </div>
       )}
 
-      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
+      {yearEndReturnScope === yearEndScope && activeTab !== 'arsavslut' && (
+        <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={() => setActiveTab('arsavslut')} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {selectedYear}</button></div>
+      )}
+      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
           <DashboardOverview
@@ -1259,6 +1270,10 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     onFavorite={handleFavorite}
   />
 ) : null}        </>
+      ) : activeTab === 'arsavslut' ? (
+        <YearEndGuide key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
+          year={selectedYear} ready={accountingDataReady} error={accountingDataError} locked={isYearLocked}
+          onNavigate={openYearEndDestination} />
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />
       ) : activeTab === 'fakturor' ? (

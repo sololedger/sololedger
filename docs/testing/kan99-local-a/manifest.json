@@ -1,0 +1,58 @@
+[
+  {
+    "file": ".gitattributes",
+    "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+  },
+  {
+    "file": "browser\\overview-1440.png",
+    "sha256": "12fbe860811e994f11a025c9aac7474aec0211400c1e7ccbe497c518a680cab4"
+  },
+  {
+    "file": "browser\\overview-390.png",
+    "sha256": "834d2263dcd6f7f2688a87ee2c7a62b41c19f0c6d91cee4376b4df480d4215f2"
+  },
+  {
+    "file": "browser\\result.json",
+    "sha256": "b49f03485018cc15f798c4d9cabb4484d129f0e9b7e889ba97d3d6ec38fed856"
+  },
+  {
+    "file": "browser\\vat-expanded-1440.png",
+    "sha256": "e36fec70b6d1bd4e13aef635924b5d2518d8db1e6144f9d11c604a1b7d03dd98"
+  },
+  {
+    "file": "browser\\vat-expanded-390.png",
+    "sha256": "f1f7b1e655d5bbb9e76b99c88d43bd7fb7f3c1286b900c5296b4c1ea78ec58b1"
+  },
+  {
+    "file": "built-server.log",
+    "sha256": "583d833237cfdbddfe7dd67fa766965f049d0776a4bb34e3c7055fdb53cd06ae"
+  },
+  {
+    "file": "guide.log",
+    "sha256": "19c982805dfd76f406e11ad520ce3b94ae6862529591d685fae20381a6554ebf"
+  },
+  {
+    "file": "lint-comparison.json",
+    "sha256": "fafd360e681f4d5ac7ce7716e9d91de45316d349ab26d4be26e688369cde96b9"
+  },
+  {
+    "file": "lint.log",
+    "sha256": "eab9d3daf59fe0ec35f9f536e18258dd158ef04c5fd5c0853efeecd11b1109a4"
+  },
+  {
+    "file": "public-smoke-result.json",
+    "sha256": "7185801706b4ab29b588e809538228c5aa9a2414ed3655a9eac7e463617469ec"
+  },
+  {
+    "file": "public-smoke.log",
+    "sha256": "7b5079229156b698995084ec5c04b9a86ca7f4ddffd0e9c4128e0fff40df8c0f"
+  },
+  {
+    "file": "result.json",
+    "sha256": "f702a2038cde6ebcf0fbec20dedbe7ea14e671486ed732618c2ed065db88e61a"
+  },
+  {
+    "file": "typecheck.log",
+    "sha256": "151fc282a9132766072359853da0fedf672dec593ee776d2a02fac7618e36b7a"
+  }
+]

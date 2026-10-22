@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "width": 1440,
+      "test": "Eight actionable controls; no completion/lock/progress/write/network",
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "test": "Seven real Home destinations and return; correct year and explicit independent VAT period",
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "test": "Year A-B-A reset; past/current/future guidance; loading/error hides stale lock",
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "test": "Owner A-B-A, profile rename/missing/error; no saved progress or external requests",
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "test": "Eight actionable controls; no completion/lock/progress/write/network",
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "test": "Seven real Home destinations and return; correct year and explicit independent VAT period",
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "test": "Year A-B-A reset; past/current/future guidance; loading/error hides stale lock",
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "test": "Owner A-B-A, profile rename/missing/error; no saved progress or external requests",
+      "status": "PASS"
+    }
+  ],
+  "scope": "actual Home/Layout/guide; mocked existing data/panels; network denied"
+}

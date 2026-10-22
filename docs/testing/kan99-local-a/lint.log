@@ -1,0 +1,41 @@
+
+> min-bokforing@0.1.0 lint:year-end-guide
+> node scripts/check-year-end-guide-lint.mjs
+
+[
+  {
+    "file": "src/components/YearEndGuide.tsx",
+    "errors": 0,
+    "baselineErrors": 0,
+    "warnings": 0,
+    "noNewErrors": true
+  },
+  {
+    "file": "src/components/Layout.tsx",
+    "errors": 1,
+    "baselineErrors": 1,
+    "warnings": 0,
+    "noNewErrors": true
+  },
+  {
+    "file": "src/app/page.tsx",
+    "errors": 10,
+    "baselineErrors": 10,
+    "warnings": 1,
+    "noNewErrors": true
+  },
+  {
+    "file": "scripts/test-year-end-guide.mjs",
+    "errors": 0,
+    "baselineErrors": 0,
+    "warnings": 0,
+    "noNewErrors": true
+  },
+  {
+    "file": "scripts/check-year-end-guide-lint.mjs",
+    "errors": 0,
+    "baselineErrors": 0,
+    "warnings": 0,
+    "noNewErrors": true
+  }
+]

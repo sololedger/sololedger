@@ -22,6 +22,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { tab: 'fakturor', label: 'Fakturor' },
   { tab: 'leverantorsskulder', label: 'Bokslutsskulder' },
   { tab: 'inventarier', label: 'Inventarier' },
+  { tab: 'arsavslut', label: 'Årsavslut' },
   { tab: 'ne', label: 'NE-Bilaga' },
   { tab: 'moms', label: 'Moms' },
   { tab: 'faq', label: 'Hjälp & FAQ' },

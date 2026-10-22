@@ -1,0 +1,5 @@
+
+> min-bokforing@0.1.0 test:year-end-guide
+> node scripts/test-year-end-guide.mjs
+
+PASS KAN-99: 8 browser groups, desktop/mobile, actual navigation/owner/year/loading/error and zero writes. Evidence coverage/kan99-evidence/browser

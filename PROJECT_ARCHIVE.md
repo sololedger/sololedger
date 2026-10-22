@@ -1058,3 +1058,10 @@ base ad0f54c, and local verification recorded in docs/reviews/INVENTORY-UX-LOCAL
 Subsequent root release audit records accepted Production/Staging 3e7aa0c; that root audit,
 not this old clone state, governs external release claims. KAN-98 starts from 3e7aa0c.
 Existing inventory fixtures and older evidence remain preserved; no reset or replay.
+
+## 2026-10-22 – avslutat plansteg inför KAN-99 Etapp A
+
+- Pontus godkände konkret åttastegsplan efter återanvänd kartläggning och verifierad bas 53b9c82.
+- KAN-98 har därefter accepterad Production PASS/Done; dess produktkopia bevaras oförändrad.
+- Lokal A-implementation ligger nu på separat KAN-99-gren; aktiv status/testgränser i PROJECT_STATE.md
+  och docs/reviews/KAN-99-ETAPP-A-LOCAL-PASS.md. Hela KAN-99 är inte avslutad; B/C inte godkända.

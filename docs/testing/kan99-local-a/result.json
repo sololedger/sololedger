@@ -1,0 +1,115 @@
+{
+  "status": "LOCAL_PASS_STAGE_A_ONLY",
+  "base": "53b9c828eed71d0be17043e4aaf7b95d99d0ad35",
+  "guideBrowser": {
+    "status": "PASS",
+    "results": [
+      {
+        "width": 1440,
+        "test": "Eight actionable controls; no completion/lock/progress/write/network",
+        "status": "PASS"
+      },
+      {
+        "width": 1440,
+        "test": "Seven real Home destinations and return; correct year and explicit independent VAT period",
+        "status": "PASS"
+      },
+      {
+        "width": 1440,
+        "test": "Year A-B-A reset; past/current/future guidance; loading/error hides stale lock",
+        "status": "PASS"
+      },
+      {
+        "width": 1440,
+        "test": "Owner A-B-A, profile rename/missing/error; no saved progress or external requests",
+        "status": "PASS"
+      },
+      {
+        "width": 390,
+        "test": "Eight actionable controls; no completion/lock/progress/write/network",
+        "status": "PASS"
+      },
+      {
+        "width": 390,
+        "test": "Seven real Home destinations and return; correct year and explicit independent VAT period",
+        "status": "PASS"
+      },
+      {
+        "width": 390,
+        "test": "Year A-B-A reset; past/current/future guidance; loading/error hides stale lock",
+        "status": "PASS"
+      },
+      {
+        "width": 390,
+        "test": "Owner A-B-A, profile rename/missing/error; no saved progress or external requests",
+        "status": "PASS"
+      }
+    ],
+    "scope": "actual Home/Layout/guide; mocked existing data/panels; network denied"
+  },
+  "typecheck": "PASS",
+  "build": "PASS (terminal-verified; original log cleaned by Playwright)",
+  "focusedLint": {
+    "status": "PASS_NO_NEW_ERRORS",
+    "base": "53b9c828eed71d0be17043e4aaf7b95d99d0ad35",
+    "results": [
+      {
+        "file": "src/components/YearEndGuide.tsx",
+        "errors": 0,
+        "baselineErrors": 0,
+        "warnings": 0,
+        "noNewErrors": true
+      },
+      {
+        "file": "src/components/Layout.tsx",
+        "errors": 1,
+        "baselineErrors": 1,
+        "warnings": 0,
+        "noNewErrors": true
+      },
+      {
+        "file": "src/app/page.tsx",
+        "errors": 10,
+        "baselineErrors": 10,
+        "warnings": 1,
+        "noNewErrors": true
+      },
+      {
+        "file": "scripts/test-year-end-guide.mjs",
+        "errors": 0,
+        "baselineErrors": 0,
+        "warnings": 0,
+        "noNewErrors": true
+      },
+      {
+        "file": "scripts/check-year-end-guide-lint.mjs",
+        "errors": 0,
+        "baselineErrors": 0,
+        "warnings": 0,
+        "noNewErrors": true
+      }
+    ]
+  },
+  "fullLint": {
+    "errors": 72,
+    "warnings": 6,
+    "scope": "pre-existing"
+  },
+  "safeRegression": {
+    "domainHistoryUi": "PASS (session terminal evidence)",
+    "originalWholeCommand": "EXIT1: local dev HTTP startup timeout",
+    "publicSmoke": {
+      "status": "PASS",
+      "tests": 2,
+      "builtCandidate": true,
+      "syntheticEnvOnly": true,
+      "productionOrStagingAccess": false
+    },
+    "remainingCategoryAndBooking": "PASS (session terminal evidence)"
+  },
+  "databaseWrites": false,
+  "push": false,
+  "deploy": false,
+  "jira": "In Review/Pontus; Stage A only",
+  "broaderAccountingAcceptance": false
+}
