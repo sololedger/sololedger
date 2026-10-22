@@ -1,0 +1,26 @@
+{
+  "status": "LOCAL_PASS",
+  "parent": "41ad08ffdcc81f3a293b990296cd7b82c423c4f4",
+  "redRegression": {
+    "expected": [
+      0
+    ],
+    "actual": []
+  },
+  "browserGroups": 12,
+  "widths": [
+    1440,
+    390
+  ],
+  "typecheck": "PASS",
+  "localBuild": "PASS",
+  "targetedLint": "NO_NEW_ERRORS",
+  "standardBookingPage": "PASS",
+  "profileContext": "PASS",
+  "persistentState": false,
+  "networkRequests": 0,
+  "bookkeepingWrites": 0,
+  "fullSuiteRerun": false,
+  "hostedNewCandidateNotTested": true,
+  "at": "2026-10-22T15:06:54.241Z"
+}

@@ -1072,3 +1072,9 @@ Existing inventory fixtures and older evidence remain preserved; no reset or rep
 - A:s historiska 8 browsergrupper och bredare verifieringsgränser finns i LOCAL-PASS/kan99-local-a;
   aktiv rättelse, riktade10 grupper och hosted delprov ligger i STATE och KAN-99-NAVIGATION-FIX-20261022.md.
 - KAN-99 är fortsatt aktiv In Review/Pontus; ingen B/C eller ny Production-release.
+
+## 2026-10-22 – föregående KAN-99 returknappsfel accepterat i Staging
+
+- Kandidat41ad08f publicerades separat och Pontus bekräftar manuellt att kvarhängande returknapp är löst.
+- Sista UX-detaljen (öppna kontroller vid återgång) fick separat lokalt godkännande; aktiv lokal verifiering i STATE
+  och KAN-99-OPEN-CONTROLS-LOCAL-PASS-20261022.md. Ingen ny Staging/Production-release här.

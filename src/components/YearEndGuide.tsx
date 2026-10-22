@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 
 export type YearEndDestination = 'dashboard' | 'profil' | 'fakturor' | 'leverantorsskulder' | 'inventarier' | 'moms' | 'ne'
 
@@ -137,17 +137,25 @@ const groups = [
 const subscribeCalendar = () => () => {}
 const stockholmYear = () => Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric' }).format(new Date()))
 
-export default function YearEndGuide({ companyName, year, ready, error, locked, onNavigate }: {
+export default function YearEndGuide({ companyName, year, ready, error, locked, initialOpenControls, onNavigate }: {
   companyName: string | null | undefined
   year: number
   ready: boolean
   error: string | null
   locked: boolean
-  onNavigate: (destination: YearEndDestination) => void
+  initialOpenControls: readonly number[]
+  onNavigate: (destination: YearEndDestination, openControls: number[]) => void
 }) {
+  const guide = useRef<HTMLElement>(null)
   const currentYear = useSyncExternalStore(subscribeCalendar, stockholmYear, () => null)
+  function navigate(destination: YearEndDestination) {
+    // Read native details at the click, including toggles whose asynchronous toggle event is pending.
+    const openControls = Array.from(guide.current?.querySelectorAll<HTMLDetailsElement>('details[data-control-index]') ?? [])
+      .filter(control => control.open).map(control => Number(control.dataset.controlIndex))
+    onNavigate(destination, openControls)
+  }
   return (
-    <section aria-label={`Årsavslut för ${year}`} className="mx-auto max-w-3xl space-y-6 px-4 pb-10 sm:px-6">
+    <section ref={guide} aria-label={`Årsavslut för ${year}`} className="mx-auto max-w-3xl space-y-6 px-4 pb-10 sm:px-6">
       <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
         <p className="text-sm text-gray-600 break-words">Företag: {companyName?.trim() || 'Företagsnamn saknas – kontrollera Profil'}</p>
         <h2 className="mt-2 text-xl font-bold text-gray-900">Förbered och avsluta {year}</h2>
@@ -164,7 +172,7 @@ export default function YearEndGuide({ companyName, year, ready, error, locked, 
         <h3 className="mb-3 text-base font-bold text-gray-900">{group.title}</h3>
         <div className="space-y-3">{group.indexes.map(index => {
           const control = controls[index]
-          return <details key={index} className="group rounded-xl border border-gray-200 bg-white">
+          return <details key={index} data-control-index={index} open={initialOpenControls.includes(index)} className="group rounded-xl border border-gray-200 bg-white">
             <summary className="cursor-pointer rounded-xl p-4 font-semibold text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               <span>{control.title}</span><span className="mt-1 block text-xs font-normal text-gray-500">Du behöver kontrollera · öppna instruktionen</span>
             </summary>
@@ -174,7 +182,7 @@ export default function YearEndGuide({ companyName, year, ready, error, locked, 
               <p><strong>Vad kan SoloLedger kontrollera?</strong><br />{control.system}</p>
               <p className="rounded-lg bg-amber-50 p-3"><strong>Om något inte stämmer</strong><br />{control.problem}</p>
               <p><strong>När har du utfört kontrollen?</strong><br />{control.reviewed}</p>
-              <div className="flex flex-wrap gap-2" aria-label="Öppna befintlig vy">{control.links.map(([destination, label]) => <button key={destination} type="button" onClick={() => onNavigate(destination)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Öppna {label}</button>)}</div>
+              <div className="flex flex-wrap gap-2" aria-label="Öppna befintlig vy">{control.links.map(([destination, label]) => <button key={destination} type="button" onClick={() => navigate(destination)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Öppna {label}</button>)}</div>
             </div>
           </details>
         })}</div>

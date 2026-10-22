@@ -99,15 +99,25 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
   const yearEndScope = useMemo(() => ({ owner: user?.id, year: selectedYear, profileContextKey }), [user?.id, selectedYear, profileContextKey])
-  const [yearEndReturnScope, setYearEndReturnScope] = useState<typeof yearEndScope | null>(null)
+  type YearEndVisit = { scope: typeof yearEndScope; openControls: number[] }
+  const [yearEndReturn, setYearEndReturn] = useState<YearEndVisit | null>(null)
+  const [yearEndRestore, setYearEndRestore] = useState<YearEndVisit | null>(null)
   function setActiveTab(tab: string) {
     // Ordinary navigation consumes the guide visit, including return and same-page menu clicks.
-    setYearEndReturnScope(null)
+    setYearEndReturn(null)
+    setYearEndRestore(null)
     setActiveTabState(tab)
   }
-  function openYearEndDestination(destination: YearEndDestination) {
-    setYearEndReturnScope(yearEndScope)
+  function openYearEndDestination(destination: YearEndDestination, openControls: number[]) {
+    setYearEndReturn({ scope: yearEndScope, openControls })
+    setYearEndRestore(null)
     setActiveTabState(destination)
+  }
+  function returnToYearEndGuide() {
+    if (yearEndReturn?.scope !== yearEndScope) return
+    setYearEndRestore(yearEndReturn)
+    setYearEndReturn(null)
+    setActiveTabState('arsavslut')
   }
 
   const {
@@ -1140,8 +1150,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </div>
       )}
 
-      {yearEndReturnScope === yearEndScope && activeTab !== 'arsavslut' && (
-        <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={() => setActiveTab('arsavslut')} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {selectedYear}</button></div>
+      {yearEndReturn?.scope === yearEndScope && activeTab !== 'arsavslut' && (
+        <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {selectedYear}</button></div>
       )}
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
@@ -1278,6 +1288,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       ) : activeTab === 'arsavslut' ? (
         <YearEndGuide key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
           year={selectedYear} ready={accountingDataReady} error={accountingDataError} locked={isYearLocked}
+          initialOpenControls={yearEndRestore?.scope === yearEndScope ? yearEndRestore.openControls : []}
           onNavigate={openYearEndDestination} />
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />

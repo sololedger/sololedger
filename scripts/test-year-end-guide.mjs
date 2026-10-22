@@ -62,6 +62,12 @@ try {
     }
     await navigate('Årsavslut')
     const guide = page.getByRole('region', { name: 'Årsavslut för 2026', exact: true })
+    const opened = () => guide.locator('details').evaluateAll(items => items.flatMap((item, index) => item.open ? [index] : []))
+    const openControl = async index => {
+      const details = guide.locator('details').nth(index)
+      if (await details.getAttribute('open') === null) await details.locator('summary').click()
+      return details
+    }
     await expect(guide).toBeVisible()
     await expect(guide).toContainText('Företag: Syntetiska A')
     await expect(guide.getByRole('status')).toContainText('2026 är inte slut')
@@ -83,16 +89,50 @@ try {
     // Every destination uses real Home navigation. Panels are deliberate sentinels.
     for (const [index, label, sentinel, hasYear] of [[0, 'Bokföring', 'DashboardOverview', false], [0, 'Profil', 'ProfileSettings', false], [1, 'Fakturor', 'CustomerInvoicesPanel', true], [2, 'Bokslutsskulder', 'SupplierYearEndPanel', true], [3, 'Inventarier', 'FixedAssetsPanel', true], [4, 'Moms', 'Momsrapport', false], [5, 'NE-Bilaga', 'NEBilaga', true]]) {
       const details = guide.locator('details').nth(index)
-      await details.locator('summary').click()
+      await openControl(index)
       if (label === 'Moms') await expect(details).toContainText('momsperioden följer inte automatiskt guidens årsväljare')
+      const beforeVisit = await opened()
       await details.getByRole('button', { name: 'Öppna ' + label, exact: true }).click()
       await expect(page.locator(`[data-panel="${sentinel}"]`)).toBeVisible()
       if (hasYear) await expect(page.locator(`[data-panel="${sentinel}"]`)).toContainText('2026')
       await page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026', exact: true }).click()
       await expect(guide).toBeVisible()
-      await expect(guide.locator('details[open]')).toHaveCount(0)
+      assert.deepEqual(await opened(), beforeVisit, label + ' return must restore open controls')
     }
     results.push({ width, test: 'Seven real Home destinations and return; correct year and explicit independent VAT period', status: 'PASS' })
+
+    await navigate('Profil'); await navigate('Årsavslut')
+    for (const index of [0, 3, 5]) await openControl(index)
+    await guide.locator('details').nth(3).getByRole('button', { name: 'Öppna Inventarier', exact: true }).click()
+    await page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026' }).click()
+    assert.deepEqual(await opened(), [0, 3, 5])
+    await guide.locator('details').first().locator('summary').click(); await openControl(7)
+    await guide.locator('details').nth(5).getByRole('button', { name: 'Öppna NE-Bilaga', exact: true }).click()
+    await page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026' }).click()
+    assert.deepEqual(await opened(), [3, 5, 7], 'Capture current DOM, including a closed restored control')
+    await page.evaluate(() => window.harness.set({ ready: false }))
+    await page.evaluate(() => window.harness.set({ ready: true }))
+    assert.deepEqual(await opened(), [3, 5, 7], 'An unrelated render must not reset native details')
+    await navigate('Profil'); await navigate('Årsavslut'); assert.deepEqual(await opened(), [])
+    for (const change of ['year', 'profile', 'owner']) {
+      for (const index of [0, 3]) await openControl(index)
+      await guide.locator('details').nth(3).getByRole('button', { name: 'Öppna Inventarier', exact: true }).click()
+      await page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026' }).click()
+      assert.deepEqual(await opened(), [0, 3])
+      if (change === 'year') {
+        const select = page.getByRole('group', { name: 'Ekonomikontroller' }).getByRole('combobox')
+        await select.selectOption('2027'); await select.selectOption('2026')
+      } else if (change === 'profile') {
+        await page.evaluate(() => window.harness.set({ name: 'Profilprov', revision: 100 }))
+        await page.evaluate(() => window.harness.set({ name: 'Syntetiska A', revision: 101 }))
+      } else {
+        await page.evaluate(() => window.harness.set({ owner: 'owner-b', name: 'Syntetiska B', revision: 102 }))
+        await page.evaluate(() => window.harness.set({ owner: 'owner-a', name: 'Syntetiska A', revision: 103 }))
+        await navigate('Årsavslut')
+      }
+      assert.deepEqual(await opened(), [], change + ' A-B-A must discard restored expansion')
+    }
+    results.push({ width, test: 'Multiple open controls restored; close/reopen snapshot; menu and year/profile/owner A-B-A discard expansion', status: 'PASS' })
 
     // A guide return applies only to the visit started by the guide, not later menu visits.
     const back = page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026', exact: true })
