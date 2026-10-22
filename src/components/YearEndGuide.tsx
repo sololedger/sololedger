@@ -76,7 +76,7 @@ const controls: Control[] = [
       'Ta fram fakturorna, exempelvis Adobe. I Bokföring: jämför fakturans säljare, land, datum, valuta, belopp och fakturamoms med EU-tjänsteposten och dess verifikation. En redan bokförd faktura ska inte bokföras igen.',
       'Kontrollera företagets momsregistrering och avdragsrätt i Profil. Namnet Adobe avgör inte land eller momsbehandling. En obetald utlandsfaktura kan inte hanteras som svensk Bokslutsskuld.',
       `Öppna Moms och välj själv perioden som hör till ${year}; momsperioden följer inte automatiskt guidens årsväljare. Beräkna rapporten och jämför Inköp från andra EU-länder med journalen och fakturorna. Kontrollera att alla perioder som ska redovisas finns.`,
-      'Exempel, bara om underlaget styrker EU-tjänst 228 SEK utan fakturamoms, 25 % omvänd moms och ingen avdragsrätt: ruta 21 är 228 kr, ruta 30 är 57 kr och ruta 48 är 0 kr för denna post.',
+      'Fiktivt exempel, bara om underlaget styrker ett EU-tjänsteinköp på 200 kr exklusive moms och utan fakturamoms, med 25 % omvänd svensk moms (50 kr), ingen avdragsrätt och inga andra momsposter: ruta 21 är 200 kr, ruta 30 är 50 kr och ruta 48 är 0 kr. Verklig momsbehandling beror på fakturan, säljarlandet, tjänsten, avdragsrätten och de faktiska omständigheterna.',
       'När perioden är slut och underlaget stämmer: läs konsekvenserna innan du väljer Stäng momsperiod. Stängningen kan skapa en momsverifikation och låser perioden för vanlig momsrelaterad bokföring.',
     ],
     system: 'SoloLedger beräknar rapporten från bokförda momsfakta och kontrollerar periodens spärrar. Öppnandet av Moms kan skapa perioder enligt vyernas befintliga funktion. Guiden skickar ingen deklaration.',

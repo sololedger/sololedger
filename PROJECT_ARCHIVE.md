@@ -1078,3 +1078,9 @@ Existing inventory fixtures and older evidence remain preserved; no reset or rep
 - Kandidat41ad08f publicerades separat och Pontus bekräftar manuellt att kvarhängande returknapp är löst.
 - Sista UX-detaljen (öppna kontroller vid återgång) fick separat lokalt godkännande; aktiv lokal verifiering i STATE
   och KAN-99-OPEN-CONTROLS-LOCAL-PASS-20261022.md. Ingen ny Staging/Production-release här.
+
+## 2026-10-22 – KAN-99 Etapp A manuellt accepterad på Stagingf7
+
+- Pontus bekräftar navigation, förbrukad retur och bevarade öppna kontroller på exaktf7da31d.
+- Före Production begärdes endast neutralt fiktivt EU-momsexempel. Aktiv liten lokal textkandidat i STATE
+  och KAN-99-FICTIONAL-VAT-LOCAL-PASS-20261022.md; ingen ny publicering eller Done.

@@ -90,7 +90,15 @@ try {
     for (const [index, label, sentinel, hasYear] of [[0, 'Bokföring', 'DashboardOverview', false], [0, 'Profil', 'ProfileSettings', false], [1, 'Fakturor', 'CustomerInvoicesPanel', true], [2, 'Bokslutsskulder', 'SupplierYearEndPanel', true], [3, 'Inventarier', 'FixedAssetsPanel', true], [4, 'Moms', 'Momsrapport', false], [5, 'NE-Bilaga', 'NEBilaga', true]]) {
       const details = guide.locator('details').nth(index)
       await openControl(index)
-      if (label === 'Moms') await expect(details).toContainText('momsperioden följer inte automatiskt guidens årsväljare')
+      if (label === 'Moms') {
+        await expect(details).toContainText('momsperioden följer inte automatiskt guidens årsväljare')
+        const example = details.locator('li').filter({ hasText: 'Fiktivt exempel' })
+        await expect(example).toHaveCount(1)
+        for (const text of ['EU-tjänsteinköp på 200 kr exklusive moms', 'utan fakturamoms', '25 % omvänd svensk moms (50 kr)', 'ingen avdragsrätt och inga andra momsposter', 'ruta 21 är 200 kr', 'ruta 30 är 50 kr', 'ruta 48 är 0 kr', 'bara om underlaget styrker', 'fakturan, säljarlandet, tjänsten, avdragsrätten och de faktiska omständigheterna']) await expect(example).toContainText(text)
+        await expect(example).not.toContainText(/228|57 kr/)
+        await expect(details).toContainText('exempelvis Adobe')
+        await expect(details).toContainText('Namnet Adobe avgör inte land eller momsbehandling')
+      }
       const beforeVisit = await opened()
       await details.getByRole('button', { name: 'Öppna ' + label, exact: true }).click()
       await expect(page.locator(`[data-panel="${sentinel}"]`)).toBeVisible()
