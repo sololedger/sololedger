@@ -1,0 +1,33 @@
+
+> min-bokforing@0.1.0 test:withdrawal
+> node scripts/test-annual-tax.mjs && node scripts/test-withdrawal.ts && node --test scripts/test-withdrawal-regressions.ts scripts/test-withdrawal-invoices.ts && node scripts/test-withdrawal-conflicts.mjs && node scripts/test-withdrawal-transport.mjs && node scripts/check-withdrawal-migration.mjs && node scripts/test-withdrawal-browser.mjs && npm run test:supplier-withdrawal
+
+
+STDERR
+X [ERROR] No matching export in "test:guard" for import "verifyProfileWrite"
+
+    src/lib/withdrawalSupplierProof.ts:2:9:
+      2 │ import { verifyProfileWrite } from './profileWriteGuard'
+        ╵          ~~~~~~~~~~~~~~~~~~
+
+C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1752
+  let error = new Error(text);
+              ^
+
+Error: Build failed with 1 error:
+src/lib/withdrawalSupplierProof.ts:2:9: ERROR: No matching export in "test:guard" for import "verifyProfileWrite"
+    at failureErrorWithLog (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1752:15)
+    at C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1211:25
+    at runOnEndCallbacks (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1592:45)
+    at buildResponseToResult (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1209:7)
+    at C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:1236:16
+    at responseCallbacks.<computed> (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:886:9)
+    at handleIncomingPacket (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:941:12)
+    at Socket.readFromStdout (C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\node_modules\esbuild\lib\main.js:864:7)
+    at Socket.emit (node:events:509:28)
+    at addChunk (node:internal/streams/readable:563:12) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+
+Node.js v24.15.0

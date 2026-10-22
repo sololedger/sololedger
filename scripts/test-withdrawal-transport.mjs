@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import {build} from 'esbuild'
 import {emptyWithdrawal,sealWithdrawal} from '../tests/fixtures/withdrawalFixtures.ts'
-const bundle=await build({entryPoints:['src/lib/withdrawalService.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'synthetic-profile',setup(b){b.onResolve({filter:/profileWriteGuard$/},()=>({path:'guard',namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export async function verifiedProfileRpc(){return globalThis.__withdrawalTransport}'}))}}]})
+const bundle=await build({entryPoints:['src/lib/withdrawalService.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'synthetic-profile',setup(b){
+ b.onResolve({filter:/withdrawalSupplierProof$/},()=>({path:'unused',namespace:'supplier-unused'}));
+ b.onLoad({filter:/.*/,namespace:'supplier-unused'},()=>({contents:'export async function loadWithdrawalSupplierProof(){throw Error("No suppliers in legacy transport fixture")}'}));
+ b.onResolve({filter:/profileWriteGuard$/},()=>({path:'guard',namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export async function verifiedProfileRpc(){return globalThis.__withdrawalTransport}'}))}}]})
 const service=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'))
 const calls=[];let response={data:sealWithdrawal(emptyWithdrawal('2026-10-19')),error:null}
 globalThis.__withdrawalTransport={userId:'synthetic-a',rpc:async(name,args)=>{calls.push({name,args});return response}}

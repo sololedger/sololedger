@@ -1,0 +1,2 @@
+Targeted ESLint: src/lib/withdrawalAssessment.ts, src/lib/withdrawalService.ts, src/lib/withdrawalSupplierValidation.ts, src/lib/withdrawalSupplierProof.ts, tests/fixtures/withdrawalSupplierFixtures.ts, scripts/test-withdrawal-suppliers.ts, scripts/test-withdrawal-supplier-transport.mjs, scripts/test-withdrawal-transport.mjs, scripts/test-withdrawal-conflicts.mjs, scripts/test-annual-tax.mjs
+Exit code: 0

@@ -1,0 +1,208 @@
+
+> min-bokforing@0.1.0 test:withdrawal
+> node scripts/test-annual-tax.mjs && node scripts/test-withdrawal.ts && node --test scripts/test-withdrawal-regressions.ts scripts/test-withdrawal-invoices.ts && node scripts/test-withdrawal-conflicts.mjs && node scripts/test-withdrawal-transport.mjs && node scripts/check-withdrawal-migration.mjs && node scripts/test-withdrawal-browser.mjs && npm run test:supplier-withdrawal
+
+PASS five-card layout, top controls, 6500 at saved 35%, blocked neutral, explicit save/remount; screenshots: C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\coverage\kan97-five-cards-1792656996004
+PASS annual tax: persisted shared rate, explicit save, no read/drag/year writes, history, remount, conflict/failure, other client, owner/late response, NE isolation
+PASS KAN-97: 100 product-domain/adapter assertions; no DB writes
+(node:58204) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal-invoices.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing VAT-only validation accepts unrelated capital rows: it is not an invoice proof (4.4474ms)
+✔ verified same-year payment 0% uses journal once (23.0945ms)
+✔ verified same-year payment 6% uses journal once (1.1399ms)
+✔ verified same-year payment 12% uses journal once (1.0616ms)
+✔ verified same-year payment 25% uses journal once (1.0033ms)
+✔ unpaid current-year invoice adds no bank, income or VAT (0.5217ms)
+✔ paid document without any provable booking stays under review (0.6988ms)
+✔ year-end receivable and later settlement reserve old VAT and tax once (2.3284ms)
+✔ payment, reversal and new payment are separate dated journals (1.0761ms)
+✔ historical manual exempt link has no additional economic effect (0.8759ms)
+✔ fail closed: extra zero row (0.9534ms)
+✔ fail closed: balanced unrelated expense and capital (0.6458ms)
+✔ fail closed: missing sales (0.5719ms)
+✔ fail closed: wrong account (0.5372ms)
+✔ fail closed: wrong invoice amount (1.3936ms)
+✔ fail closed: wrong booking amount (0.783ms)
+✔ fail closed: wrong transaction amount (0.7439ms)
+✔ fail closed: wrong direction (0.6281ms)
+✔ fail closed: missing row (0.4985ms)
+✔ fail closed: split same account (0.6471ms)
+✔ fail closed: wrong year (0.7511ms)
+✔ fail closed: wrong booking date (0.5021ms)
+✔ fail closed: wrong row date (0.4683ms)
+✔ fail closed: wrong VAT account (0.8023ms)
+✔ fail closed: wrong rate (0.4998ms)
+✔ fail closed: missing policy (0.457ms)
+✔ fail closed: manual legacy policy is not auto-authorized (0.4589ms)
+✔ fail closed: mixed historical policy (0.7356ms)
+✔ fail closed: missing booking (0.5136ms)
+✔ fail closed: missing invoice (0.4873ms)
+✔ fail closed: duplicate booking for same transaction (0.5008ms)
+✔ fail closed: foreign invoice owner (0.5068ms)
+✔ fail closed: foreign booking owner (0.2986ms)
+✔ fail closed: foreign transaction owner (0.2976ms)
+✔ fail closed: foreign row owner (0.9692ms)
+✔ fail closed: unknown kind (1.07ms)
+✔ fail closed: import metadata (0.9166ms)
+✔ fail closed: unexpected correction (0.6774ms)
+✔ fail closed: conflicting verification number (0.6478ms)
+✔ unbooked older invoice requires year-end review; unknown current invoice adds no cash (0.5355ms)
+✔ unproven settlement, wrong reversal target and double reversal remain blocked (1.5339ms)
+✔ reversing/rebooking a receivable settlement never adds sales or VAT (2.4254ms)
+✔ overlapping and backdated repayment chains remain blocked (1.0902ms)
+✔ same-day undo/rebooking and reversed payment before year-end receivable are valid (3.6003ms)
+✔ cross-year reversal preserves old positive tax and VAT reserves (0.9619ms)
+✔ read-only mixed manual purchases, corrections and periodization retain shared calculations (2.0807ms)
+✔ invoice VAT periods remain independent across month/quarter/year boundaries (2.933ms)
+✔ invoice reversal in another VAT month cannot release the first month reserve (1.0754ms)
+✔ negative bank never yields a positive recommendation with verified invoices (0.9018ms)
+✔ later generic correction of historical manual link requires review (0.7954ms)
+✔ rounding discrepancy stays blocked by existing VAT engine, no new tolerance/formula (1.5138ms)
+✔ tax decisions remain authoritative, saved annual rate is not bypassed (0.4506ms)
+✔ protocol 1/2 and missing invoice evidence fail closed (1.0418ms)
+✔ unsupported fixed_asset remains blocked alongside verified invoice (0.48ms)
+✔ unsupported fixed_asset_reclassification remains blocked alongside verified invoice (0.4688ms)
+✔ unsupported fixed_asset_depreciation remains blocked alongside verified invoice (0.4522ms)
+✔ unsupported sie_import remains blocked alongside verified invoice (0.4524ms)
+✔ unsupported sie_opening_balance remains blocked alongside verified invoice (0.8769ms)
+✔ unsupported sie_import_undo remains blocked alongside verified invoice (0.4531ms)
+✔ unsupported unknown remains blocked alongside verified invoice (0.4266ms)
+✔ P2 full journal: five rows must block even when two are after valuation date (0.6348ms)
+✔ P2 overlap: an additional zero-day pair inside an active payment must block (0.9229ms)
+✔ P2 overlap: a zero-day pair inside an active settlement across years must block (1.2116ms)
+✔ P2 overlap: zero-day undo before a later payment remains valid (0.7922ms)
+✔ P2 full journal: proof cannot disagree with the economic rows (0.7421ms)
+✔ P2 full journal: foreign proof owner fails closed (0.7017ms)
+✔ P2 full journal: missing row or incomplete proof cannot authorize an invoice (0.6046ms)
+✔ P2 full journal: hidden future row changes proof signature but not dated bank (1.3993ms)
+✔ P2 overlap: zero-day pair followed by later-year receivable settlement is legitimate (0.8733ms)
+(node:58624) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal-regressions.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ R1: standalone 2650 liability must block an unexplained recommendation (23.5921ms)
+✔ R2: uncovered VAT activity cannot be netted annually without proven period boundaries (1.8381ms)
+✔ R4: explicit annual rate overrides legacy income rate for that year (2.2117ms)
+✔ R5: zero model remainder does not turn an estimate into checked final tax (1.8009ms)
+✔ R1: matched closing is reserved once, before and after settlement to S (3.5777ms)
+✔ R1: partial/unexplained liabilities do not hide behind a matching V or S total (3.4675ms)
+✔ R1: a matched refund closing is not added as a positive debt (0.5153ms)
+✔ R2: proven month/quarter/year boundaries; no writes or annual fallback (4.9564ms)
+✔ R2: mixed coverage, missing positive/negative periods and year boundaries (2.3933ms)
+✔ R4: per-year rates, legacy fallback, preliminary decisions, final net and validation (3.1373ms)
+✔ R4: changing one profitable year leaves another profitable year unchanged (1.5519ms)
+ℹ tests 80
+ℹ suites 0
+ℹ pass 80
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 459.7851
+PASS R3: real service → hook → card; conflict hides old amount and reloads changed annual facts
+PASS R3/R4 boundaries: temporary save error, failed reload/retry, canonical rate/prefill, owner change and unmount
+PASS R6: existing coverage invalidated and changed final-tax basis route to the relevant form
+PASS KAN-97 actual transport: protocol/owner/date, missing RPC fail closed, owner-checked save and revision/signature
+PASS KAN-97 static migration inventory/ACL/ownership/deletion contracts; NOT a database execution test
+PASS modal scroll 1280: wheel, both edges, backdrop, Escape/button/unmount restoration
+PASS modal scroll 390: emulated touch, both edges, backdrop, Escape/button/unmount restoration
+PASS KAN-97 browser 1280: real card/hook, save/reuse, year filter, error/retry, A→B→A, keyboard, focus/scroll, 6500, SIE/legacy blocks, open-modal refresh/error/owner/date and layout
+PASS KAN-97 browser 390: real card/hook, save/reuse, year filter, error/retry, A→B→A, keyboard, focus/scroll, 6500, SIE/legacy blocks, open-modal refresh/error/owner/date and layout
+
+> min-bokforing@0.1.0 test:supplier-withdrawal
+> node --test scripts/test-withdrawal-suppliers.ts && node scripts/test-withdrawal-supplier-transport.mjs
+
+(node:60248) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal-suppliers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unpaid 0/full: journal-only debt reserve exactly once (40.6909ms)
+✔ paid 0/full: lower bank, no residual debt or duplicate cost/VAT (5.2062ms)
+✔ unpaid 0/none: journal-only debt reserve exactly once (2.9871ms)
+✔ paid 0/none: lower bank, no residual debt or duplicate cost/VAT (2.7634ms)
+✔ unpaid 6/full: journal-only debt reserve exactly once (2.9523ms)
+✔ paid 6/full: lower bank, no residual debt or duplicate cost/VAT (1.6204ms)
+✔ unpaid 6/none: journal-only debt reserve exactly once (2.4865ms)
+✔ paid 6/none: lower bank, no residual debt or duplicate cost/VAT (2.431ms)
+✔ unpaid 12/full: journal-only debt reserve exactly once (2.5589ms)
+✔ paid 12/full: lower bank, no residual debt or duplicate cost/VAT (1.5826ms)
+✔ unpaid 12/none: journal-only debt reserve exactly once (2.1996ms)
+✔ paid 12/none: lower bank, no residual debt or duplicate cost/VAT (1.2937ms)
+✔ unpaid 25/full: journal-only debt reserve exactly once (1.8125ms)
+✔ paid 25/full: lower bank, no residual debt or duplicate cost/VAT (1.2586ms)
+✔ unpaid 25/none: journal-only debt reserve exactly once (2.0312ms)
+✔ paid 25/none: lower bank, no residual debt or duplicate cost/VAT (1.1643ms)
+✔ payment reversal, repay and cancellation preserve signed journal economics (4.3228ms)
+✔ unpaid at historical year end ignores current paid status and future payment (1.3139ms)
+✔ higher externally confirmed other obligations replace, never add to, booked debt (0.8752ms)
+✔ fail closed: missing proof (1.2856ms)
+✔ fail closed: missing invoice (1.1527ms)
+✔ fail closed: missing event (1.0442ms)
+✔ fail closed: wrong invoice link (1.3662ms)
+✔ fail closed: wrong origin (0.957ms)
+✔ fail closed: duplicate invoice (0.9798ms)
+✔ fail closed: duplicate event (1.2851ms)
+✔ fail closed: duplicate receipt (1.7655ms)
+✔ fail closed: duplicate journal (1.6974ms)
+✔ fail closed: missing full journal (1.8948ms)
+✔ fail closed: extra future row (2.4456ms)
+✔ fail closed: wrong journal sign (1.3772ms)
+✔ fail closed: forged bank payment (1.1051ms)
+✔ fail closed: VAT on settlement (1.0729ms)
+✔ fail closed: partial payment (1.0457ms)
+✔ fail closed: unknown event (1.0776ms)
+✔ fail closed: unknown transaction source (1.1216ms)
+✔ fail closed: wrong transaction type (1.4443ms)
+✔ fail closed: import metadata (1.0214ms)
+✔ fail closed: unbooked transaction (1.3725ms)
+✔ fail closed: mismatching VAT decision (1.0006ms)
+✔ fail closed: foreign country (1.3389ms)
+✔ fail closed: missing receipt (1.3326ms)
+✔ fail closed: foreign attachment (1.3898ms)
+✔ fail closed: foreign proof (1.7594ms)
+✔ fail closed: foreign invoice (2.4096ms)
+✔ fail closed: foreign event (1.7489ms)
+✔ fail closed: foreign journal (1.3707ms)
+✔ fail closed: different snapshot (0.8842ms)
+✔ fail closed: different date (0.8427ms)
+✔ double payment, wrong reversal and cancellation of active payment are rejected (5.5032ms)
+✔ unknown source without any supplier records is still blocked (0.8124ms)
+✔ verification never mutates journal, invoices or advice facts (2.0706ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 584.1965
+PASS supplier withdrawal transport: actual supplemental read, exact counts and before/after server snapshot
+PASS supplier withdrawal transport: snapshot changed during read fails closed without writes
+PASS supplier withdrawal transport: advice changed during read fails closed without writes
+PASS supplier withdrawal transport: second RPC failed fails closed without writes
+PASS supplier withdrawal transport: profile changed while reading fails closed without writes
+PASS supplier withdrawal transport: exact count missing fails closed without writes
+PASS supplier withdrawal transport: read error fails closed without writes
+PASS supplier withdrawal transport: foreign snapshot fails closed without writes
+PASS supplier withdrawal transport: missing event cannot authorize a supplier transaction
+PASS supplier withdrawal transport: owner filters cannot be bypassed by a foreign invoice
+PASS supplier withdrawal transport: silent account switch cannot change the pinned read/RPC bearer
+PASS supplier withdrawal transport: historical cutoff ignores future payment and current paid flag
+PASS supplier withdrawal transport: save preserves the original server concurrency signature
+PASS supplier withdrawal transport 13 checks
+
+STDERR
+(node:28240) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/scripts/test-withdrawal.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58452) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/tests/fixtures/withdrawalFixtures.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57948) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Familjedator/Desktop/Sololedger%20Multi%20User%20App/sololedger_multi_user/audit-packages/KAN-62-rule-contract-local/tests/fixtures/withdrawalSupplierFixtures.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Familjedator\Desktop\Sololedger Multi User App\sololedger_multi_user\audit-packages\KAN-62-rule-contract-local\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

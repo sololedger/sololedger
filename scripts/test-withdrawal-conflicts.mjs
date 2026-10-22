@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { build } from 'esbuild'
 import { chromium, expect } from '@playwright/test'
 const bundle = await build({ entryPoints: ['tests/fixtures/withdrawalConflictHarness.tsx'], bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: 'tsconfig.json', plugins: [{ name: 'only-profile-rpc', setup(b) {
+  b.onResolve({ filter: /withdrawalSupplierProof$/ }, () => ({ path: 'unused', namespace: 'supplier-unused' }))
+  b.onLoad({ filter: /.*/, namespace: 'supplier-unused' }, () => ({ contents: 'export async function loadWithdrawalSupplierProof(){throw Error("No suppliers in legacy conflict fixture")}' }))
   b.onResolve({ filter: /profileWriteGuard$/ }, () => ({ path: 'guard', namespace: 'test' }))
   b.onLoad({ filter: /.*/, namespace: 'test' }, () => ({ contents: 'export async function verifiedProfileRpc(){return window.withdrawalConflictTransport}' }))
 } }] })

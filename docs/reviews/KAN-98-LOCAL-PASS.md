@@ -1,5 +1,10 @@
 # KAN-98 — LOCAL PASS, 2026-10-22
 
+Komplettering: releasegranskningen fann ett stopp i Säkert uttag för supplier_invoice.
+Det är lokalt rättat och riktat verifierat i checkpointen som innehåller
+[KAN-98-withdrawal-integration-fix.md](KAN-98-withdrawal-integration-fix.md).
+Denna rapport beskriver ursprungliga bevis; ny exakt kandidat omfattar även rättningen.
+
 Lokal implementation och verifiering är klara inom avgränsad omfattning. Jira är In Review,
 tilldelad Pontus (återkontrollerat vid slutkontrollen). Rekommendation: redo för kontrollerad
 Staging-acceptans efter separat godkännande, inte för Production.

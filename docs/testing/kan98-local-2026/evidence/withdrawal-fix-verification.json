@@ -1,0 +1,63 @@
+{
+  "kind": "observed-verification-summary",
+  "date": "2026-10-22",
+  "baseCandidate": "e4d71f68c9788a9d587d657abfc68064b4efadb1",
+  "result": "PASS for Staging preparation; not hosted acceptance",
+  "commands": [
+    {
+      "command": "npm run test:withdrawal",
+      "exitCode": 0,
+      "newDomainTests": 52,
+      "newTransportChecks": 13,
+      "existingRegressionTests": 80,
+      "existingDomainAssertions": 100,
+      "log": "withdrawal-fix-tests.log"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "evidence": "terminal observation; also TypeScript checked by final build"
+    },
+    {
+      "command": "targeted ESLint (10 changed code/test files)",
+      "exitCode": 0,
+      "log": "withdrawal-fix-lint.log"
+    },
+    {
+      "command": "Next.js production build",
+      "exitCode": 0,
+      "environment": "synthetic process-local keys, localhost Supabase",
+      "log": "withdrawal-fix-build.log"
+    }
+  ],
+  "localReadOnly": {
+    "result": "PASS",
+    "evidence": "terminal observation",
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "oid": 57199,
+    "uniqueMarkerVerified": true,
+    "role": "authenticated",
+    "asOf": "2026-10-22",
+    "yearEnd": 2025,
+    "paymentYear": 2026,
+    "verifiedEvents": 2,
+    "migrationOrDataWrite": false
+  },
+  "unchangedMigration": {
+    "path": "supabase/migrations/20261022120000_kan98_supplier_year_end.sql",
+    "sha256": "60ea50ce6deed41f80b90d846d7ad76f9f977365d06eeec4c3a64b8f3e79786c"
+  },
+  "reusedEvidence": "Existing DB32, report42, service1001, React16 and safe regression in KAN-98-LOCAL-PASS.md; full suites not rerun.",
+  "preservedFailure": "withdrawal-fix-tests-pre-mock-adjustment.log: earlier test stub lacked export for new dynamic reader; explicit unused-reader mocks added in 3 legacy suites; final suite PASS",
+  "externalActions": {
+    "push": false,
+    "migration": false,
+    "edgeDeploy": false,
+    "vercelDeploy": false,
+    "stagingWrite": false,
+    "productionWrite": false,
+    "jiraMutation": false
+  }
+}

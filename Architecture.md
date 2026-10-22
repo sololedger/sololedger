@@ -497,3 +497,11 @@ remain authoritative. New tables have explicit read-only owner API grants/RLS; c
 identity, replay/locking, supported facts and period locks server-side. Deletion cascades and
 admin/Edge counters include both tables. Migration 20261022120000 is local-only pending separate
 Staging approval. See docs/reviews/KAN-98-LOCAL-PASS.md and current PROJECT_STATE.md.
+
+Withdrawal supplier support is an evidence gate in `withdrawalSupplierValidation.ts`.
+`withdrawalSupplierProof.ts` reads owner-scoped invoices/events/full vouchers with pinned
+verified credentials and exact counts. `withdrawalService.ts` brackets these supplemental
+reads with matching server snapshots/signatures/revisions. Only verified supplier events
+are accepted; all economic amounts still come from the dated journal and existing 2440
+reserve handling. No withdrawal RPC/protocol/schema/formula change is required. See
+`docs/reviews/KAN-98-withdrawal-integration-fix.md` for concurrency/security evidence.

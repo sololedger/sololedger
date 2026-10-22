@@ -2,6 +2,7 @@ import { calculateBusinessResult } from './resultEngine.ts'
 import { calculateVatReportFromLoadedRows, type LoadedVatReportRows } from './vatReportService.ts'
 import { assertOre, calculateWithdrawal, toOre, validWithdrawalDate, type WithdrawalPart } from './withdrawalModel.ts'
 import { validateWithdrawalInvoices, type WithdrawalInvoice, type WithdrawalInvoiceBooking } from './withdrawalInvoiceValidation.ts'
+import { validateWithdrawalSuppliers, type WithdrawalSupplierProof } from './withdrawalSupplierValidation.ts'
 
 export interface WithdrawalTransaction {
   id: string; user_id: string; date: string; source: string | null; booked: boolean
@@ -15,6 +16,7 @@ export interface WithdrawalMovement { id: string; user_id: string; transaction_i
 export interface WithdrawalFact { key: string; value: Record<string, unknown>; source?: string; observed_on?: string }
 export interface WithdrawalRevision { id: string; user_id: string; as_of_date: string; recorded_at: string; facts: WithdrawalFact[] }
 export interface WithdrawalSnapshot {
+  supplierProof?: WithdrawalSupplierProof
   protocol: 3; user_id: string; as_of: string; signature: string
   invoices: WithdrawalInvoice[]; invoice_bookings: WithdrawalInvoiceBooking[]
   invoice_journal: WithdrawalJournal[]
@@ -83,6 +85,8 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
   const issues: string[] = []
   const invoiceValidation = validateWithdrawalInvoices(s)
   issues.push(...invoiceValidation.issues)
+  const supplierValidation = validateWithdrawalSuppliers(s)
+  issues.push(...supplierValidation.issues)
   const parts: WithdrawalPart[] = []
   const allBalances: Record<string, number> = {}
   const transactionTotals = new Map<string, number>()
@@ -90,7 +94,7 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
   const years = new Map<number, Record<string, number>>()
   const txById = new Map(s.transactions.map(t => [t.id, t]))
   const supported = new Set(['manual', 'vat_v2', 'vat_closing', 'vat_settlement', 'tax_account_movement'])
-  if (s.transactions.some(t => t.source !== null && !supported.has(t.source) && !invoiceValidation.verifiedTransactionIds.has(t.id))) issues.push('Underlaget innehåller bokföring utanför den verifierade uttagsberäkningen. Kontrollera historiken.')
+  if (s.transactions.some(t => t.source !== null && !supported.has(t.source) && !invoiceValidation.verifiedTransactionIds.has(t.id) && !supplierValidation.verifiedTransactionIds.has(t.id))) issues.push('Underlaget innehåller bokföring utanför den verifierade uttagsberäkningen. Kontrollera historiken.')
   for (const j of s.journal) {
     const rows = transactionRows.get(j.transaction_id) ?? []
     rows.push(j)

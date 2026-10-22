@@ -2,6 +2,9 @@
 
 Avstämt 2026-10-22. **KAN-98 LOCAL PASS; Jira In Review, Pontus.**
 Permanent regelbok: AGENTS.md. Detaljer och testbevis: docs/reviews/KAN-98-LOCAL-PASS.md.
+Releasegranskningens Säkert uttag-blockerare är lokalt rättad i denna checkpoint.
+Detaljer: docs/reviews/KAN-98-withdrawal-integration-fix.md. **PASS för Staging-förberedelse**,
+inte hosted acceptans. Ingen migration ändrad eller körd; inga externa ändringar.
 
 ## Aktuell kandidat
 
@@ -22,6 +25,10 @@ Permanent regelbok: AGENTS.md. Detaljer och testbevis: docs/reviews/KAN-98-LOCAL
   slutlig Home-återhämtning desktop/mobil PASS. Säker regression och publik smoke 2/2 PASS.
 - Typecheck, riktad lint, slutbygge, admin-delete dry-run, DB invariants och lifecycle PASS.
 - Vid avslut endast logg-/statuskontroll och dokumentationscheckpoint, ingen testomkörning.
+- Senare avgränsad uttagsrättning: 52 nya domänfall + 13 transportkontroller, riktad
+  uttagssvit inklusive 80 befintliga regressionsfall/100 adapterassertioner och UI PASS.
+  Slutlig typecheck, riktad lint och bygge PASS; faktisk äldre lokal DB-fixture läst READ ONLY.
+  Bevis withdrawal-fix-* i samma evidenskatalog; total-/skrivsviter återanvändes utan omkörning.
 - Bevarade credentialfria loggar/bilder/DB-resultat: docs/testing/kan98-local-2026/evidence/.
 - Syntetisk lokal DB sololedger_kan62_disposable_20261021, 127.0.0.1:5432, OID57199.
   Exakt tidigare identitet verifierades före skrivningar. Inga reset eller gamla fixture-raderingar.

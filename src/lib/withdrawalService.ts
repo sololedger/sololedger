@@ -1,5 +1,5 @@
 import { verifiedProfileRpc } from './profileWriteGuard'
-import { buildWithdrawalAssessment, validateWithdrawalSnapshot, type WithdrawalFact, type WithdrawalSnapshot } from './withdrawalAssessment'
+import { buildWithdrawalAssessment, validateWithdrawalSnapshot, stableWithdrawalValue, type WithdrawalFact, type WithdrawalSnapshot } from './withdrawalAssessment'
 
 export class WithdrawalConflictError extends Error {
   constructor() { super('Underlaget har ändrats. Aktuella uppgifter laddas om; kontrollera dem innan du sparar igen.') }
@@ -12,6 +12,15 @@ export async function loadWithdrawal(owner: string, asOf: string) {
   if (error) throw new Error('Uttagsunderlaget kunde inte hämtas. Databasstödet kan behöva förberedas innan funktionen används.')
   const snapshot = data as WithdrawalSnapshot
   validateWithdrawalSnapshot(snapshot, owner, asOf)
+  if (snapshot.transactions.some(t => t.source === 'supplier_invoice')) {
+    const { loadWithdrawalSupplierProof } = await import('./withdrawalSupplierProof')
+    snapshot.supplierProof = await loadWithdrawalSupplierProof(snapshot)
+    const after = await rpc('get_withdrawal_context', { p_as_of: asOf })
+    if (after.error) throw new Error('Uttagsunderlaget kunde inte verifieras efter leverantörsläsningen. Försök igen.')
+    validateWithdrawalSnapshot(after.data as WithdrawalSnapshot, owner, asOf)
+    const identity = (s: WithdrawalSnapshot) => stableWithdrawalValue([s.signature, s.revision, s.financial_signature, s.anchor_financial_signature])
+    if (identity(after.data as WithdrawalSnapshot) !== identity(snapshot)) throw new WithdrawalConflictError()
+  }
   return { snapshot, assessment: buildWithdrawalAssessment(snapshot) }
 }
 export async function saveWithdrawal(owner: string, snapshot: WithdrawalSnapshot, facts: WithdrawalFact[]) {
