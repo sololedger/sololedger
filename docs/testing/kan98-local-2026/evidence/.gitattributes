@@ -1,1 +1,3 @@
-* -text
+* -text -diff
+.gitattributes text eol=lf diff
+SHA256SUMS.txt text eol=lf diff
