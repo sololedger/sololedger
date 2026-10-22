@@ -148,6 +148,11 @@ export default function NEBilaga({
     : hasBalanceDifference
       ? 'Balansräkningen måste balansera innan räkenskapsåret låses.'
       : externalYearCloseBlockReason ?? null
+  // Presentation only: negative bank accounts are already listed in the combined control.
+  // Keep full coverage/status and all blocking conditions unchanged.
+  const separateAccountWarnings = accountsToReview.filter(row => !(hasUnclassifiedNegativeBank &&
+    row.period === 'cumulative' && /^19\d{2}$/.test(row.accountNumber) &&
+    negativeBankBalances.some(bank => bank.accountNumber === row.accountNumber && bank.balance === row.balance)))
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -190,7 +195,7 @@ export default function NEBilaga({
             <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
           </div>
         )}
-        {accountsToReview.length > 0 && (
+        {separateAccountWarnings.length > 0 && (
           <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
             <p className="font-bold">Konton behöver granskas före deklaration</p>
             {hasChartConflicts && (
@@ -198,7 +203,7 @@ export default function NEBilaga({
             )}
             <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
             <ul className="my-2 list-disc space-y-2 pl-5">
-              {accountsToReview.map(row => (
+              {separateAccountWarnings.map(row => (
                 <li key={row.accountNumber}>
                   <span className="font-bold">Konto {row.accountNumber}: {fmt(row.balance)}</span>
                   {' — '}{row.reason}
@@ -228,30 +233,25 @@ export default function NEBilaga({
           </div>
         )}
 
-        {hasBalanceDifference && (
-          <div className="mb-8 bg-red-50 border-2 border-red-200 p-4 sm:p-6 rounded-2xl text-red-600 font-black text-xs uppercase text-center italic tracking-widest animate-pulse">
-            ⚠️ Systemvarning: Obalans upptäckt ({balansDiff.toLocaleString('sv-SE')} kr). Tillgångar matchar inte eget kapital och skulder.
-          </div>
-        )}
-
-        {hasUnclassifiedNegativeBank && (
-          <div className="mb-8 bg-amber-50 border-2 border-amber-200 p-4 sm:p-6 rounded-2xl text-amber-800 text-xs font-black uppercase italic tracking-widest">
-            <div className="text-center">
-              Negativt saldo i kassa/bank ({fmt(unclassifiedNegativeBankBalance)}) är inte automatiskt klassat som skuld.
-            </div>
-            <div className="mt-2 text-center text-[10px] leading-relaxed tracking-normal normal-case font-bold">
-              SoloLedger flyttar inte 19xx till B13/B16 utan underlag. Stäm av bankkontot och bokför/klassificera eventuell kredit eller skuld innan NE används.
-            </div>
-            {negativeBankBalances.length > 0 && (
-              <div className="mt-3 flex flex-wrap justify-center gap-2 text-[10px] tracking-normal normal-case">
-                {negativeBankBalances.map(row => (
-                  <span key={row.accountNumber} className="rounded-full border border-amber-200 bg-white px-2 py-1">
-                    {row.accountNumber}: {fmt(row.balance)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+        {(hasBalanceDifference || hasUnclassifiedNegativeBank) && (
+          <section id="ne-bank-balance-review" role="alert" aria-label="Kontrollera bank och balans" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <h3 className="font-bold">Kontrollera bank och balans</h3>
+            <dl className="mt-2 divide-y divide-amber-200">
+              {hasUnclassifiedNegativeBank && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
+                <dt className="font-semibold">Negativ kassa/bank</dt>
+                <dd>
+                  <p className="font-semibold">{fmt(unclassifiedNegativeBankBalance)}</p>
+                  {negativeBankBalances.length > 0 && <ul className="my-1 flex flex-wrap gap-x-4 gap-y-1">{negativeBankBalances.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}: {fmt(row.balance)}</li>)}</ul>}
+                  <p>Stäm av saldot och underlaget för eventuell kredit eller skuld. SoloLedger flyttar inte beloppet till en skuldruta automatiskt.</p>
+                </dd>
+              </div>}
+              {hasBalanceDifference && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
+                <dt className="font-semibold">Balansdifferens</dt>
+                <dd><p className="font-semibold">{fmt(balansDiff)}</p><p>Tillgångar stämmer inte med eget kapital och skulder. Stäm av bokföringen och NE-underlaget.</p></dd>
+              </div>}
+            </dl>
+            <p className="mt-2">Granska före deklaration. Året kan inte låsas så länge någon av dessa kontroller visar en avvikelse.</p>
+          </section>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
@@ -507,14 +507,12 @@ export default function NEBilaga({
               {showAllNERows ? '− Dölj tomma deklarationsrutor' : '+ Visa alla deklarationsrutor'}
             </button>
 
-            <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
-              !hasBalanceDifference
-                ? accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-gray-50 border-gray-200 text-gray-700'
-                : 'bg-red-50 border-red-200 text-red-600'
+            <div className={hasBalanceDifference ? 'px-4 py-2 text-xs text-gray-600' : `rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
+              accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-gray-50 border-gray-200 text-gray-700'
             }`}>
               {!hasBalanceDifference
                 ? accountsToReview.length > 0 ? `Balansdifferens ${fmt(balansDiff)} — konton behöver granskas` : 'Balansräkningen balanserar – kontroll av bokförda saldon'
-                : `⚠ Balansdifferens ${fmt(balansDiff)}`}
+                : <a href="#ne-bank-balance-review" className="underline">Se bank- och balanskontrollen ovan</a>}
             </div>
           </div>
         </div>
@@ -531,8 +529,10 @@ export default function NEBilaga({
           ) : (
             <div className="w-full sm:w-auto">
               {yearCloseBlockReason && (
-                <div className="mb-3 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-[10px] font-black uppercase italic tracking-wider text-amber-800">
-                  {yearCloseBlockReason}
+                <div className="mb-3 max-w-sm text-center text-xs text-gray-600">
+                  {hasBalanceDifference || hasUnclassifiedNegativeBank
+                    ? <><a href="#ne-bank-balance-review" className="underline">Årslåsning spärrad – se bank och balans ovan.</a>{externalYearCloseBlockReason && <p className="mt-2">{externalYearCloseBlockReason}</p>}</>
+                    : yearCloseBlockReason}
                 </div>
               )}
               <button

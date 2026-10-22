@@ -22,7 +22,7 @@ function EntryList({ owner, year, account }: { owner: string; year: number; acco
   if (state.status === 'loading') return <p role="status">Läser bokföringsposter…</p>
   if (state.status === 'error') return <p role="alert" className="text-amber-950">Ofullständigt underlag: {state.message}</p>
   return <div className="mt-3">
-    <p className="mb-2 text-xs text-gray-600">Alla {state.data.length} journalrader. Original, rättelser och ingående balans behålls.</p>
+    <p className="mb-2 text-xs text-gray-600">{state.data.length} journalrader, inklusive rättelser och ingående balans.</p>
     <table className="w-full table-fixed text-left text-sm">
       <caption className="sr-only">Bokföringsposter för konto {account.accountNumber}</caption>
       <thead className="hidden md:table-header-group bg-gray-100 text-xs text-gray-600"><tr>
@@ -61,15 +61,19 @@ function AccountRows({ row, owner, year }: { row: AccountRow; owner?: string; ye
       <td className="col-span-2 md:p-3 align-top"><span className="text-xs text-gray-600">{row.status === 'review' ? 'Behöver granskas' : row.status === 'excluded' ? 'Undantaget från direkt koppling' : 'Känd koppling'}</span>
         <details onToggle={event => setOpen(event.currentTarget.open)}>
           <summary aria-label={"Visa bokföringsposter för "+row.accountNumber} className="min-h-11 cursor-pointer py-2 font-medium text-gray-800">Visa detaljer</summary>
-          {open && <div className="py-2 text-xs md:hidden"><p>{row.reason}</p><p>Namnkälla: {account.nameSource}</p></div>}
         </details>
       </td>
     </tr>
     {open && <tr className="block md:table-row"><td colSpan={5} className="block min-w-0 bg-gray-50 p-3 md:table-cell">
-      <div className="hidden md:block text-sm"><p>{row.reason}</p><p className="text-xs text-gray-500">Namnkälla: {account.nameSource}</p></div>
+      {row.status === 'review' && <p className="mb-2 text-sm">{row.reason}</p>}
       {row.balance === 0 && <p className="text-sm">Använt konto med nettosaldo 0.</p>}
       {row.contribution !== undefined && <p className="text-sm font-medium">Bidrag till denna R-ruta: {money(row.contribution)}</p>}
-      <p className="mt-1 text-xs text-gray-600">Kontosaldo: debet minus kredit.</p>
+      <details className="my-2 text-sm text-gray-600">
+        <summary className="min-h-11 cursor-pointer py-2 font-medium">Visa beräkningsförklaring</summary>
+        {row.status !== 'review' && <p>{row.reason}</p>}
+        <p>Kontosaldo: debet minus kredit.</p>
+        <p className="text-xs">Namnkälla: {account.nameSource}</p>
+      </details>
       {owner ? <EntryList key={owner+':'+year+':'+row.period+':'+row.accountNumber+':'+row.balance} owner={owner} year={year} account={account} /> : <p>Öppna Kontrollera NE-underlaget för journalspårning.</p>}
     </td></tr>}
   </Fragment>

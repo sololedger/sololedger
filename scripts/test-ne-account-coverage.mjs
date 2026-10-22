@@ -86,10 +86,11 @@ for (const item of cases) {
   for (const locked of [false, true]) {
     const props = { neData: report, selectedYear: year, isYearLocked: locked, onLockYear: async () => { throw Error('No writes') } }
     const html = renderToStaticMarkup(React.createElement(api.NEBilaga, props))
-    assert.equal(html.includes('Konton behöver granskas före deklaration'), item.review.length > 0)
+    const groupedBank = row => (report.unclassifiedNegativeBankBalance ?? 0) > 1 && row.period === 'cumulative' && /^19\d{2}$/.test(row.accountNumber) && (report.negativeBankBalances ?? []).some(bank => bank.accountNumber === row.accountNumber && bank.balance === row.balance)
+    assert.equal(html.includes('Konton behöver granskas före deklaration'), accountCoverage.some(row => row.status === 'review' && !groupedBank(row)))
     for (const row of accountCoverage.filter(row => row.status === 'review')) {
       assert(html.includes('Konto ' + row.accountNumber + ':'))
-      assert(html.includes(row.reason))
+      assert(html.includes(groupedBank(row) ? 'Kontrollera bank och balans' : row.reason))
     }
     for (const warning of before.warnings) assert(html.includes(warning.message), 'KAN-77 preserved')
     if (item.missing || item.unresolved) assert(html.includes('R1/R2 behöver kontrolleras före deklaration'))
@@ -158,7 +159,8 @@ try {
       await expect(heading).toBeVisible()
       if (locked) await expect(page.getByText('Räkenskapsår 2026 är låst',{exact:true})).toBeVisible()
       else await expect(page.getByRole('button',{name:'Lås räkenskapsår 2026'})).toBeVisible()
-      const review = reports[index].report.accountCoverage.filter(row => row.status === 'review')
+      const report = reports[index].report
+      const review = report.accountCoverage.filter(row => row.status === 'review' && !((report.unclassifiedNegativeBankBalance ?? 0) > 1 && row.period === 'cumulative' && /^19\d{2}$/.test(row.accountNumber) && (report.negativeBankBalances ?? []).some(bank => bank.accountNumber === row.accountNumber && bank.balance === row.balance)))
       const alert = page.getByRole('alert').filter({ hasText: 'Konton behöver granskas före deklaration' })
       await expect(alert).toHaveCount(review.length ? 1 : 0)
       if (review.length) {
@@ -173,7 +175,7 @@ try {
         await expect(accountRow).toContainText(row.accountNumber)
         await expect(accountRow).toContainText(row.status === 'review' ? 'Behöver granskas' : row.status === 'excluded' ? 'Undantaget från direkt koppling' : 'Känd koppling')
       }
-      if (!review.length) await expect(page.getByText('Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.',{exact:true})).toBeVisible()
+      if (!report.accountCoverage.some(row => row.status === 'review')) await expect(page.getByText('Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.',{exact:true})).toBeVisible()
       if (index === 18) await expect(page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för 8999',{exact:true})})).toContainText('Tekniskt resultatkonto')
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal overflow')
       if (index === 0 && !locked) await page.screenshot({ path: `test-results/kan90-ne-coverage/${width}.png`, fullPage: true })

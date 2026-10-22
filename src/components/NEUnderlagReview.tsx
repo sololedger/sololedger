@@ -34,11 +34,17 @@ function ReviewContent({ owner, year }: { owner: string; year: number }) {
         </table>}
       <p className="mt-3 text-sm text-gray-600">Du behöver också bedöma uppgifter utanför bokföringen, även när inga kontovarningar visas. Här sparas inga granskningsbeslut.</p>
     </section>
-    <p className="text-sm text-gray-600">Resultatkonton visar årets rörelser; balanskonton och B10 kan omfatta tidigare år. Kontosaldon summerar inte alltid direkt till rutans belopp, bland annat vid nettning i B8/B14 och beräkning av B10. Bidraget till en R-ruta visas under kontots detaljer.</p>
+    <details className="text-sm text-gray-600">
+      <summary className="min-h-11 cursor-pointer py-2 font-medium">Visa beräkningsförklaring</summary>
+      <p>Resultatkonton visar årets rörelser; balanskonton och B10 kan omfatta tidigare år. Kontosaldon summerar inte alltid direkt till rutans belopp, bland annat vid nettning i B8/B14 och beräkning av B10. Bidraget till en R-ruta visas under kontots detaljer.</p>
+    </details>
     <button type="button" className="min-h-11 rounded-xl border px-3 py-2 font-bold text-emerald-800" aria-pressed={showEmpty} onClick={() => setShowEmpty(value => !value)}>{showEmpty ? 'Dölj rutor utan kontounderlag' : 'Visa även rutor utan kontounderlag'}</button>
     {state.data.groups.filter(group => showEmpty || group.accounts.length > 0 || group.amount !== 0 || ['R12','R15','R16','R17','B10'].includes(group.id)).map(group => <details key={group.id} className="min-w-0 rounded-xl border p-4 break-words">
       <summary className="min-h-11 cursor-pointer font-bold text-emerald-800">{group.id} · {group.title}{['R15', 'R16'].includes(group.id) ? ' · Inte bedömt' : group.amount == null ? '' : ` · ${money(group.amount)}`}</summary>
-      <p className="my-3 text-sm text-gray-600">{/^R([1-9]|10)$/.test(group.id) ? 'Årets bokförda belopp. Öppna ett konto för att se hur det bidrar till rutan.' : group.explanation}</p>
+      {group.id === 'B10' ? <>
+        <p className="my-3 text-sm text-gray-600">Eget kapital med bokförda resultat, insättningar och uttag till årets slut.</p>
+        <details className="my-2 text-sm text-gray-600"><summary className="min-h-11 cursor-pointer py-2 font-medium">Visa beräkningsförklaring</summary><p>{group.explanation}</p></details>
+      </> : <p className="my-3 text-sm text-gray-600">{/^R([1-9]|10)$/.test(group.id) ? 'Årets bokförda belopp. Öppna ett konto för att se hur det bidrar till rutan.' : group.explanation}</p>}
       {group.accounts.length === 0 ? <p>Inga direkta kontounderlag att visa. Se förklaringen ovan.</p> : <NEAccountTable rows={group.accounts} owner={owner} year={year} />}
     </details>)}
     <p>Kontonamn är hjälpinformation och avgör inte NE-ruta. Sidan sparar inga beslut och ändrar ingen bokföring. Fullständigt nollade externa resultatkonton kan fortfarande behöva stämmas av mot det externa bokslutet.</p>
