@@ -1,16 +1,36 @@
 # SoloLedger Project State
 
-2026-10-22. **KAN-99 Etapp A fiktivt EU-momsexempel LOCAL PASS**, In Review/Pontus.
-- Kandidat: checkpointens HEAD, gren codex/KAN-99-year-end-guide, produktkopia audit-packages/KAN-99-local.
-- Förälderf7da31df6a8d2c88ad24174e19d1f6977f201d80 är manuellt accepterad i Staging av Pontus.
-- Enda produktändring är en textsträng i YearEndGuide.tsx: fiktivt200kr/50kr, ruta21/30/48=200/50/0,
-  ingen avdragsrätt/andra momsposter. Alla förbehåll och Adobe-/EU-/bokföringsvägledning kvar.
-- Enda teständring är nya textassertioner i befintligt guidetest. Ingen ekonomisk logik/DB/navigationsändring.
--12 browsergrupper1440/390, typkontroll, lokalt optimerat bygge och riktad lint utan nya fel PASS.
-  Äldre Home/Layout10+1lintfel kvar; ingen bred svit omkörd. Guidetestet kör utan externåtkomst/skrivningar.
-- Rapport docs/reviews/KAN-99-FICTIONAL-VAT-LOCAL-PASS-20261022.md, bevis docs/testing/kan99-fictional-vat-local-20261022/.
-- Ny kandidat inte publicerad. Staging senastf7da31d, READY dpl_5XsrMUicBmMGC7RyVf1Tbd4uDZLi.
-- Nästa steg: nytt exakt SHA-godkännande för slutlig Staging-textkontroll, därefter separat Production-beslut.
-- Origin är lokal KAN98-kopia, inte GitHub. Root docsgren får aldrig publiceras som produkt.
-- Ingen push/deploy/migration/DB-skrivning eller Jira-mutation här. KAN-99 In Review/Pontus, inte Done.
-- Stående begränsad aliasrutin och övriga AGENTS-godkännanden gäller. Bevara tidigare fixtures/bevis/kopior.
+2026-10-22. **KAN-101 Etapp 1 LOCAL PASS – inväntar beslut om Staging.**
+
+## Aktuellt arbete och produktmål
+
+- En användare utan bokföringsutbildning ska förstå och spåra NE-underlaget år efter år.
+- Gren: codex/KAN-101-ne-presentation i audit-packages/KAN-99-local. Bas65918796460741cc0a05ee281a8fe7f893d1ea28.
+- Lokal checkpoint omfattar endast denna etapp; exakt SHA i git log. Ingen publicering godkänd.
+- Origin är lokal äldre arbetskopia, inte GitHub. Root staging är docs-historik och får inte publiceras som produkt.
+- Denna state ersätter kopians gamla KAN-99-vänteläge. Root PROJECT_STATE/ARCHIVE har bredare aktuellt miljö-/testresursnav.
+
+## Leverans och verifiering
+
+- Tre presentationskomponenter: NEBilaga, NEUnderlagReview, gemensam NEAccountTable.
+- Synliga R15/R16 med Inte bedömt, neutral R17 och avgränsad kontotäckning. Inga nya skattebelopp.
+- Kontotabeller med öppningsbar journal, mobilkort, bevarade rättelser/historiska beslut/IB och B8/B14/B10-underlag.
+- Inga ändringar i src/lib, hooks, src/app, Supabase, RPC/migrationer, kontokopplingar, årslås eller dependencies.
+- 16 NE-kontrollgrupper och browser1440/390/320 PASS, service/renderade valutabelopp identiska mot basen.
+- Kontotäckning21 service/renderfall/8000 kontotillstånd samt mobil/dator PASS. Lästillstånd/ägare/år/sena svar PASS.
+- Säkra regressionens samtliga delar PASS, körda i delar efter nödvändiga UI-assertionsuppdateringar.
+- Publik smoke2/2 mot byggd lokal app PASS. Inga riktiga DB-anslutningar/skrivningar eller hosted tester.
+- Typkontroll, fokuserad ESLint (0 fel/varningar), slutligt optimerat bygge och whitespace PASS.
+- Full repo-lint inte körd; äldre lintskuld utanför scope. Bygget använder syntetisk localhost-konfiguration.
+- Rapport: docs/reviews/KAN-101-ETAPP-1-LOCAL-20261022.md. Bilder: docs/testing/kan101-local-20261022/.
+- Råa lokala loggar coverage/kan101/ är ignorerade. Skärmbilderna innehåller enbart syntetiska data.
+
+## Kvarstående gränser och nästa steg
+
+- R15/R16, fullständiga skattejusteringar, underskott och egenavgiftsavstämning kräver egen bedömning.
+- KAN-96/108/83/34 fortsatt öppna. Ingen full deklarationsacceptans, ny skattedetektion eller lösning på SIE-riskerna.
+- KAN-94/95/99 Done gäller deras avgränsade leveranser. KAN-100 äger framtida sparade årsunderlag/versioner.
+- Årslås sparar inte en fryst NE-version; inga KAN-100-funktioner byggda.
+- Jira KAN-101 återläst To Do/otilldelad/High; ingen mutation utförd eller godkänd i detta steg.
+- Nästa beslut: Pontus godkänner exakt lokal produktcommit för Staging. Följ sedan permanent staging-flöde och riktad visuell acceptans.
+- Ingen push/deploy/migration/DB-skrivning eller Jira Done är godkänd. Bevara gamla fixtures, arbetskopior och alla orelaterade ändringar.

@@ -9,9 +9,12 @@ import { chromium, expect } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 const require = createRequire(import.meta.url)
-const baseline = execFileSync('git', ['show', 'fa4997d:src/lib/accountingService.ts'], { encoding: 'utf8' })
-const bundle = await build({ stdin: { contents: "export {getNEData} from './src/lib/accountingService';export {getNeReviewData,getNeReviewEntries} from './src/lib/neReviewService';export {buildNeReview} from './src/lib/neReview';export {default as NE} from './src/components/NEBilaga';export {getNEData as beforeNE} from 'before'", resolveDir: process.cwd(), loader: 'ts' },
+const baseline = execFileSync('git', ['show', '6591879:src/lib/accountingService.ts'], { encoding: 'utf8' })
+const baselineUI = execFileSync('git', ['show', '6591879:src/components/NEBilaga.tsx'], { encoding: 'utf8' })
+const bundle = await build({ stdin: { contents: "export {getNEData} from './src/lib/accountingService';export {getNeReviewData,getNeReviewEntries} from './src/lib/neReviewService';export {buildNeReview} from './src/lib/neReview';export {default as NE} from './src/components/NEBilaga';export {getNEData as beforeNE} from 'before';export {default as beforeUI} from 'beforeUI'", resolveDir: process.cwd(), loader: 'ts' },
   tsconfig: 'tsconfig.json', bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', plugins: [{ name: 'read-only-fixture', setup(b) {
+    b.onResolve({ filter: /^beforeUI$/ }, () => ({ path: 'beforeUI', namespace: 'baseline-ui' }))
+    b.onLoad({ filter: /.*/, namespace: 'baseline-ui' }, () => ({ contents: baselineUI, loader: 'tsx', resolveDir: path.resolve('src/components') }))
     b.onResolve({ filter: /^before$/ }, () => ({ path: 'before', namespace: 'baseline' }))
     b.onLoad({ filter: /.*/, namespace: 'baseline' }, () => ({ contents: baseline, loader: 'ts', resolveDir: path.resolve('src/lib') }))
     b.onResolve({ filter: /supabaseClient$/ }, () => ({ path: 'mock', namespace: 'fixture' }))
@@ -121,7 +124,7 @@ await test('more than 1000 journal rows are loaded with exact count, not silentl
   transactions=tx;journal=j;decisions=d
 })
 await test('default view still omits zero accounts, review remains non-mutating',async()=>{
-  const after=await api.getNEData(2026);const {reviewSources,...expected}=report;assert.deepEqual(after,expected)
+  const after=await api.getNEData(2026);const expected={...report};delete expected.reviewSources;assert.deepEqual(after,expected)
   assert(calls.every(c=>c.table||['get_ne_sales_summary','get_cumulative_account_balances'].includes(c.rpc)))
 })
 await test('next-year loss keeps annual result separate from cumulative equity explanation',async()=>{
@@ -144,9 +147,20 @@ await test('actual NE integration is available in locked and open years without 
   }assert.deepEqual(calls,[])
 })
 
+await test('KAN-101: every rendered currency amount equals Production, for profit/loss/zero and locked/open views', async()=>{
+  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server')
+  const amounts=html=>(html.match(/[−-]?\d[\d\s,.]* kr/g)??[]).map(v=>v.replaceAll('−','-').replace(/\s/g,'')).sort()
+  for(const year of [2025,2026,2027,2028]) for(const locked of [false,true]) {
+    const data=await api.getNEData(year), saved=structuredClone(data), props={userId:owner,selectedYear:year,neData:data,isYearLocked:locked,onLockYear:async()=>{throw Error('No writes')}}
+    const before=renderToStaticMarkup(React.createElement(api.beforeUI,props)), after=renderToStaticMarkup(React.createElement(api.NE,props))
+    assert.deepEqual(amounts(after),amounts(before));assert.deepEqual(data,saved)
+    assert(after.includes('Inte bedömt'));assert(after.includes('Inte automatiskt ditt slutliga deklarationsresultat'));assert(!after.includes('✓'))
+  }
+})
+
 const fixture=JSON.stringify(view)
-const browserBundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Review from './src/components/NEUnderlagReview';const root=createRoot(document.getElementById('root'));window.showReview=(owner,year)=>root.render(<Review key={owner+':'+year} owner={owner} year={year}/>);window.showReview('synthetic-owner',2026);`,resolveDir:process.cwd(),loader:'tsx'},tsconfig:'tsconfig.json',bundle:true,write:false,platform:'browser',format:'iife',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'synthetic-browser-reads',setup(b){b.onResolve({filter:/neReviewService$/},()=>({path:'mock',namespace:'browser-fixture'}));b.onLoad({filter:/.*/,namespace:'browser-fixture'},()=>({contents:'export const getNeReviewData=(owner,year)=>window.readReview(owner,year);export const getNeReviewEntries=(...args)=>window.readEntries(...args);'}))}}]})
-const styles=(await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";','@import "tailwindcss" source(none);\n@source "./src/components/NEUnderlagReview.tsx";')
+const browserBundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Review from './src/components/NEUnderlagReview';import NE from './src/components/NEBilaga';const root=createRoot(document.getElementById('root'));window.showReview=(owner,year)=>root.render(<Review key={owner+':'+year} owner={owner} year={year}/>);window.showReview('synthetic-owner',2026);window.showNE=(owner='synthetic-owner',year=2026)=>root.render(<NE userId={owner} selectedYear={year} neData={window.report} isYearLocked={false} onLockYear={async()=>{throw Error('No writes')}}/>);`,resolveDir:process.cwd(),loader:'tsx'},tsconfig:'tsconfig.json',bundle:true,write:false,platform:'browser',format:'iife',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'synthetic-browser-reads',setup(b){b.onResolve({filter:/neReviewService$/},()=>({path:'mock',namespace:'browser-fixture'}));b.onLoad({filter:/.*/,namespace:'browser-fixture'},()=>({contents:'export const getNeReviewData=(owner,year)=>window.readReview(owner,year);export const getNeReviewEntries=(...args)=>window.readEntries(...args);'}))}}]})
+const styles=(await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";','@import "tailwindcss" source(none);\n@source "./src/components/NEUnderlagReview.tsx";\n@source "./src/components/NEAccountTable.tsx";\n@source "./src/components/NEBilaga.tsx";')
 const css=await postcss([tailwind()]).process(styles,{from:path.resolve('kan94-test.css')})
 await mkdir('test-results/kan94',{recursive:true})
 const browser=await chromium.launch({headless:true})
@@ -154,19 +168,19 @@ try{
   for(const width of [1440,390,320]){
     const page=await browser.newPage({viewport:{width,height:1000}}),errors=[],requests=[]
     page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));await page.route('**/*',r=>r.abort())
-    await page.setContent(`<style>${css.css}</style><div id="root"></div><script>window.fixture=${fixture};window.reads=[];window.readReview=async(owner,year)=>{window.reads.push([owner,year]);if(window.fail)throw Error('Syntetiskt läsfel');if(window.delay)return new Promise(resolve=>window.release=()=>resolve(window.fixture));return window.fixture};window.readEntries=async()=>{if(window.entryDelay)return new Promise(resolve=>window.entryRelease=()=>resolve(window.fixture.sales));return window.fixture.sales};</script><script>${browserBundle.outputFiles[0].text}</script>`)
+    await page.setContent(`<style>${css.css}</style><div id="root"></div><script>window.fixture=${fixture};window.report=${JSON.stringify(report)};window.reads=[];window.readReview=async(owner,year)=>{window.reads.push([owner,year]);if(window.fail)throw Error('Syntetiskt läsfel');if(window.delay)return new Promise(resolve=>window.release=()=>resolve(window.fixture));return window.fixture};window.readEntries=async()=>{if(window.entryDelay)return new Promise(resolve=>window.entryRelease=()=>resolve(window.fixture.sales));return window.fixture.sales};</script><script>${browserBundle.outputFiles[0].text}</script>`)
     assert.equal(await page.evaluate(()=>window.reads.length),0,'Closed section performs no new reads')
     await page.getByText('Kontrollera NE-underlaget · 2026',{exact:true}).click()
     await expect(page.getByRole('heading',{name:'Granskningsbehov för 2026'})).toBeVisible()
     await page.locator('summary').filter({hasText:/^R1 ·/}).click()
-    await page.locator('summary').filter({hasText:/^R1 ·/}).locator('..').getByText('Visa bokföringsposter för 3010',{exact:true}).click()
+    await page.locator('summary').filter({hasText:/^R1 ·/}).locator('..').getByLabel('Visa bokföringsposter för 3010',{exact:true}).click()
     await expect(page.getByText('Syntetiskt underlag tx-1',{exact:true})).toBeVisible()
     await expect(page.getByText(/Sparat historiskt beslut: R2/).first()).toBeVisible()
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow')
     await page.screenshot({path:`test-results/kan94/review-${width}.png`,fullPage:true})
     await page.locator('summary').filter({hasText:/^R1 ·/}).scrollIntoViewIfNeeded()
     await page.screenshot({path:`test-results/kan94/detail-${width}.png`})
-    const entryToggle=page.locator('summary').filter({hasText:/^R1 ·/}).locator('..').getByText('Visa bokföringsposter för 3010',{exact:true})
+    const entryToggle=page.locator('summary').filter({hasText:/^R1 ·/}).locator('..').getByLabel('Visa bokföringsposter för 3010',{exact:true})
     await entryToggle.click();await page.evaluate(()=>window.entryDelay=true);await entryToggle.click()
     await expect(page.getByRole('status')).toHaveText('Läser bokföringsposter…')
     await page.waitForFunction(()=>typeof window.entryRelease==='function')
@@ -185,6 +199,34 @@ try{
     await page.evaluate(()=>{window.fail=false;window.fixture={...window.fixture,reviews:[]};window.showReview('synthetic-owner',2028)})
     await page.getByText('Kontrollera NE-underlaget · 2028',{exact:true}).click()
     await expect(page.getByText('Inga granskningsbesked från de befintliga kontrollerna. Detta betyder inte att deklarationen är fullständigt kontrollerad.',{exact:true})).toBeVisible()
+    await page.evaluate(()=>{window.entryDelay=false;window.showNE()})
+    await expect(page.getByText('R15 Intäkter som inte bokförts men ska tas upp',{exact:true})).toBeVisible()
+    await expect(page.getByText('R16 Kostnader som inte bokförts men ska dras av',{exact:true})).toBeVisible()
+    await expect(page.getByText('Inte bedömt',{exact:true})).toHaveCount(2)
+    await expect(page.getByText(/Inte automatiskt ditt slutliga deklarationsresultat/)).toBeVisible()
+    await page.getByText(/^Kontotäckning \(/).click()
+    const coverage=page.getByText(/^Kontotäckning \(/).locator('..')
+    await coverage.getByLabel('Visa bokföringsposter för 3010',{exact:true}).click()
+    await expect(coverage.getByText('Syntetiskt underlag tx-1',{exact:true})).toBeVisible()
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Full NE has no horizontal overflow')
+    await page.screenshot({path:'test-results/kan94/ne-presentation-'+width+'.png',fullPage:true})
+    await coverage.scrollIntoViewIfNeeded()
+    await page.screenshot({path:'test-results/kan94/ne-coverage-'+width+'.png'})
+    await coverage.getByLabel('Visa bokföringsposter för 3010',{exact:true}).click()
+    await page.evaluate(()=>window.readEntries=async()=>{throw Error('Syntetiskt journalfel')})
+    await coverage.getByLabel('Visa bokföringsposter för 6072',{exact:true}).click()
+    await expect(coverage.getByRole('alert')).toContainText('Syntetiskt journalfel')
+    await expect(coverage.getByText('Syntetiskt underlag tx-1',{exact:true})).toHaveCount(0)
+    await coverage.getByLabel('Visa bokföringsposter för 6072',{exact:true}).click()
+    await page.evaluate(()=>window.readEntries=()=>new Promise(resolve=>window.lateEntry=()=>resolve(window.fixture.sales)))
+    await coverage.getByLabel('Visa bokföringsposter för 3010',{exact:true}).click()
+    await expect(coverage.getByRole('status')).toHaveText('Läser bokföringsposter…')
+    await page.waitForFunction(()=>typeof window.lateEntry==='function')
+    await page.evaluate(()=>window.showNE('different-owner',2027))
+    await expect(page.getByText('Kontrollera NE-underlaget · 2027',{exact:true})).toBeVisible()
+    await page.evaluate(()=>window.lateEntry())
+    await expect(coverage.getByText('Syntetiskt underlag tx-1',{exact:true})).toHaveCount(0)
+    await expect(coverage.getByRole('status')).toHaveCount(0)
     assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);await page.close()
   }
   console.log('PASS browser: desktop 1440, mobile 390/320, actual React drilldown, zero network, no writes/errors/overflow, year/owner stale response and read error')

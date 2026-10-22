@@ -140,7 +140,7 @@ const uiBundle = await build({
   stdin: { contents: `import React,{useState} from 'react'; import {createRoot} from 'react-dom/client'; import NEBilaga from './src/components/NEBilaga'; const reports=${JSON.stringify(reports)}; function App(){const [state,setState]=useState({index:0,locked:false}); window.configure=(index,locked)=>setState({index,locked});return <NEBilaga key={state.index+':'+state.locked} neData={reports[state.index].report} selectedYear={2026} isYearLocked={state.locked} onLockYear={async()=>{throw Error('No writes')}}/>} createRoot(document.getElementById('root')).render(<App/>);`, resolveDir: process.cwd(), loader: 'tsx' },
   tsconfig: 'tsconfig.json', bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"production"' },
 })
-const styles = (await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";', '@import "tailwindcss" source(none);\n@source "./src/components/NEBilaga.tsx";')
+const styles = (await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";', '@import "tailwindcss" source(none);\n@source "./src/components/NEBilaga.tsx";\n@source "./src/components/NEAccountTable.tsx";')
 const css = await postcss([tailwindcss()]).process(styles, { from: path.resolve('kan90-test.css') })
 const browser = await chromium.launch({ headless: true })
 try {
@@ -167,8 +167,14 @@ try {
         assert(box && box.x >= 0 && box.x + box.width <= width, 'Warning fits viewport')
       }
       await page.locator('summary').filter({ hasText: 'Kontotäckning' }).click()
-      await expect(page.getByText('Uttryckligen undantagna',{exact:true})).toBeVisible()
-      if (index === 18) await expect(page.locator('details').getByText(/8999:.*Tekniskt resultatkonto/)).toBeVisible()
+      for (const row of reports[index].report.accountCoverage) {
+        const accountRow=page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för '+row.accountNumber,{exact:true})})
+        await expect(accountRow).toBeVisible()
+        await expect(accountRow).toContainText(row.accountNumber)
+        await expect(accountRow).toContainText(row.status === 'review' ? 'Behöver granskas' : row.status === 'excluded' ? 'Undantaget från direkt koppling' : 'Känd koppling')
+      }
+      if (!review.length) await expect(page.getByText('Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.',{exact:true})).toBeVisible()
+      if (index === 18) await expect(page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för 8999',{exact:true})})).toContainText('Tekniskt resultatkonto')
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal overflow')
       if (index === 0 && !locked) await page.screenshot({ path: `test-results/kan90-ne-coverage/${width}.png`, fullPage: true })
     }

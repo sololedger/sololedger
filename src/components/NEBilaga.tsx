@@ -6,6 +6,7 @@ import type { NeAccountCoverage } from '@/lib/neAccountCoverage'
 import type { NeTaxReview } from '@/lib/neTaxAdjustments'
 import { getNeChartReviewReason } from '@/lib/neChartReview'
 import NEUnderlagReview from './NEUnderlagReview'
+import NEAccountTable from './NEAccountTable'
 
 interface NEData {
   equityReviewRequired?: boolean;
@@ -117,8 +118,8 @@ export default function NEBilaga({
   const accountsToReview = accountCoverage.filter(row => row.status === 'review')
   const hasChartConflicts = accountsToReview.some(row => getNeChartReviewReason(row.accountNumber) !== null)
   const R17 = neData.R17 ?? 0
-  const r17Color = R17 > 0 ? 'text-green-600' : R17 < 0 ? 'text-red-500' : 'text-gray-400'
-  const r17Bg   = R17 > 0 ? 'bg-green-50 border-green-200' : R17 < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+  const r17Color = R17 < 0 ? 'text-red-500' : 'text-gray-800'
+  const r17Bg = 'bg-gray-50 border-gray-200'
 
   // Balanskontroll ska alltid köras, även om bankkontot är 0 eller negativt.
   // Ett negativt banksaldo är fortfarande en del av balansräkningen och får
@@ -154,6 +155,8 @@ export default function NEBilaga({
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-Bilaga Specifikation
         </h2>
+
+        <p className="mb-5 text-sm leading-relaxed text-gray-600">Beloppen bygger på bokföringen. Kända kontokopplingar och en balanserad balansräkning betyder inte att skatteuppgifterna är granskade eller att deklarationen är färdig.</p>
 
         {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
 
@@ -210,21 +213,9 @@ export default function NEBilaga({
         {neData.accountCoverage && (
           <details className="mb-6 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 break-words">
             <summary className="cursor-pointer font-bold">Kontotäckning ({accountCoverage.length} konton med saldo)</summary>
-            <p className="my-2">Visar befintliga kontokopplingar och undantag. Detta är ingen fullständig kontroll av skattejusteringar eller av att kontona används rätt. Sparade R1/R2-beslut och varningar gäller fortfarande.</p>
-            {(['review', 'mapped', 'excluded'] as const).map(status => (
-              <div key={status} className="mt-3">
-                <p className="font-bold">{status === 'review' ? 'Behöver granskning' : status === 'mapped' ? 'Kopplade enligt befintliga regler' : 'Uttryckligen undantagna'}</p>
-                <ul className="mt-1 space-y-2">
-                  {accountCoverage.filter(row => row.status === status).map(row => (
-                    <li key={row.accountNumber}>
-                      <span className="font-bold">{row.accountNumber}: {fmt(row.balance)} — {row.handling}</span>
-                      <p>{row.reason}</p>
-                    </li>
-                  ))}
-                </ul>
-                {!accountCoverage.some(row => row.status === status) && <p>Inga konton.</p>}
-              </div>
-            ))}
+            <p className="my-3 text-sm">Kända kopplingar visar hur SoloLedger placerar bokförda belopp. De intygar inte att kontot använts rätt eller att skattebehandlingen är granskad.</p>
+            <p className="mb-3 text-sm text-gray-600">{accountsToReview.length > 0 ? accountsToReview.length+' konton behöver granskas.' : 'Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.'}</p>
+            <NEAccountTable key={userId+':'+selectedYear} rows={accountCoverage} owner={userId} year={selectedYear} />
           </details>
         )}
         {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
@@ -359,15 +350,17 @@ export default function NEBilaga({
               <span className="whitespace-nowrap">{fmt(neData.R14)}</span>
             </div>
 
-            <div className={`${!showAllNERows && Math.abs(neData.R15 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm text-gray-700">
               <span>R15 Intäkter som inte bokförts men ska tas upp</span>
-              <span className="whitespace-nowrap">{fmt(neData.R15)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R15)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
             </div>
 
-            <div className={`${!showAllNERows && Math.abs(neData.R16 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
+            <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm text-gray-700">
               <span>R16 Kostnader som inte bokförts men ska dras av</span>
-              <span className="whitespace-nowrap">{fmt(neData.R16)}</span>
+              <span className="whitespace-nowrap">{fmt(neData.R16)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
             </div>
+
+            <p className="mt-2 text-xs leading-relaxed text-gray-600">R15/R16: SoloLedger saknar individuell bedömning och använder 0 i beräkningen. Kontrollera om du har intäkter eller avdrag utanför det bokförda resultatet. Nollan är inte ett granskat skattebelopp.</p>
 
             <div className={`mt-4 p-4 sm:p-6 rounded-2xl border flex flex-wrap justify-between items-center gap-3 font-black italic ${r17Bg}`}>
               <span className={`text-xs uppercase flex items-center flex-wrap ${r17Color}`}>
@@ -375,7 +368,7 @@ export default function NEBilaga({
                 <Tooltip text="R17 är resultatet efter skattemässiga justeringar: R12 + R13 − R14 + R15 − R16." />
               </span>
               <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{fmt(R17)}</span>
-              {taxReviews.length > 0 && <p className="w-full text-sm text-amber-950">Preliminärt – skattejusteringar behöver granskas före deklaration.</p>}
+              <p className="w-full text-sm font-normal not-italic text-gray-700">Enligt SoloLedgers beräkning. Inte automatiskt ditt slutliga deklarationsresultat; egna skatteuppgifter och fler justeringar kan återstå hos Skatteverket.</p>
             </div>
           </div>
 
@@ -516,11 +509,11 @@ export default function NEBilaga({
 
             <div className={`rounded-2xl border px-4 py-3 text-[10px] font-black uppercase italic tracking-wider ${
               !hasBalanceDifference
-                ? accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                ? accountsToReview.length > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-gray-50 border-gray-200 text-gray-700'
                 : 'bg-red-50 border-red-200 text-red-600'
             }`}>
               {!hasBalanceDifference
-                ? accountsToReview.length > 0 ? `Balansdifferens ${fmt(balansDiff)} — konton behöver granskas` : '✓ Balansräkningen balanserar'
+                ? accountsToReview.length > 0 ? `Balansdifferens ${fmt(balansDiff)} — konton behöver granskas` : 'Balansräkningen balanserar – kontroll av bokförda saldon'
                 : `⚠ Balansdifferens ${fmt(balansDiff)}`}
             </div>
           </div>

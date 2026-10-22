@@ -118,7 +118,7 @@ for (const item of cases) {
     const html=renderToStaticMarkup(React.createElement(mod.exports.NEBilaga,{neData:report,selectedYear:year,isYearLocked:locked,onLockYear:async()=>{throw Error('No writes')}}))
     assert.equal(html.includes('Skattejusteringar behöver granskas'),!!item.review?.length)
     if (item.review?.length) {
-      assert(html.includes('Preliminärt – skattejusteringar'))
+      assert(html.includes('Inte automatiskt ditt slutliga deklarationsresultat'))
       assert(html.includes('Använd inte NE-underlaget för deklaration'))
     }
     // Positive bank fixture isolates the new review from existing balance blockers.

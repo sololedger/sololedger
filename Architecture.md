@@ -151,7 +151,9 @@ SIE-export finns i `src/lib/sieExport.ts`. Exporten laddar transaktioner, journa
 
 ### NE Och Förenklat Årsbokslut
 
-`src/components/NEBilaga.tsx` visar NE-underlag och balansrader.
+`src/components/NEBilaga.tsx` visar NE-underlag och balansrader i befintlig tvåkolumnslayout. R15/R16 märks som inte individuellt bedömda; R17 är inte ett slutligt deklarationsresultat.
+
+`NEUnderlagReview.tsx` visar befintliga kontroller och rutunderlag. `NEAccountTable.tsx` är gemensam presentation för kontotäckning och rutdetaljer: kontonamn, saldo/period, NE-koppling och öppningsbar journal. Mobil använder märkta radkort. Komponenterna återanvänder oförändrad `neReviewService` och sparar inga bedömningar. Kända kopplingar intygar inte skattebehandling.
 
 Beräkningen hämtas via `getNEData()` i `accountingService.ts`, som bygger på:
 

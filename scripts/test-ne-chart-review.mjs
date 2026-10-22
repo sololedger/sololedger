@@ -120,7 +120,7 @@ const browserBundle=await build({
     b.onLoad({filter:/.*/,namespace:'deny'},args=>({contents:args.path==='sieImport'?"export class SieImportError extends Error{};export const importSieBatch=()=>{throw Error('No imports')}":"export const getFreeTransactionUsage=()=>{throw Error('No subscription reads')};export const canCreateTransactions=()=>{throw Error('No quota reads')}"}))
   }}],
 })
-const styles=(await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";','@import "tailwindcss" source(none);\n@source "./src/components/NEBilaga.tsx";\n@source "./src/components/SieImportModal.tsx";')
+const styles=(await readFile('src/app/globals.css','utf8')).replace('@import "tailwindcss";','@import "tailwindcss" source(none);\n@source "./src/components/NEBilaga.tsx";\n@source "./src/components/NEAccountTable.tsx";\n@source "./src/components/SieImportModal.tsx";')
 const css=await postcss([tailwind()]).process(styles,{from:path.resolve('kan92-test.css')})
 await mkdir('test-results/kan92',{recursive:true})
 const browser=await chromium.launch({headless:true})
@@ -138,7 +138,7 @@ try {
     await expect(warning.getByText('Konto 3105:',{exact:false})).toBeVisible()
     await expect(warning.getByText('Konto 3231:',{exact:false})).toBeVisible()
     await page.locator('summary').filter({hasText:'Kontotäckning'}).click()
-    await expect(page.locator('details').getByText('3105:',{exact:false})).toBeVisible()
+    await expect(page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för 3105',{exact:true})})).toBeVisible()
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'NE fits viewport')
     await page.screenshot({path:`test-results/kan92/ne-${width}.png`,fullPage:true})
     await page.evaluate(()=>window.showNE('saved-3010-reversal'))

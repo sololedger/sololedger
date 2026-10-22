@@ -84,7 +84,7 @@ try {
    await expect(help).toContainText('En bokförd momsfordran visas i B8 Övriga fordringar.')
    const row=help.locator('..')
    await expect(row.locator('span.whitespace-nowrap')).toHaveText(expectedCase.b14.toLocaleString('sv-SE')+' kr')
-   await expect(current.getByText('✓ Balansräkningen balanserar',{exact:true})).toBeVisible()
+   await expect(current.getByText('Balansräkningen balanserar – kontroll av bokförda saldon',{exact:true})).toBeVisible()
    if(compareHead)assert.deepEqual(await amounts('#current'),await amounts('#baseline'),'All displayed NE amounts match HEAD')
    const rect=await help.boundingBox()
    assert(rect&&rect.x>=0&&rect.x+rect.width<=width,`Help fits ${width}px`)
