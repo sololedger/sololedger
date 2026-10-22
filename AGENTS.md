@@ -115,6 +115,15 @@ Routine Staging push:
    deployment status if quickly available. Do not repeat Vercel env review,
    URL fetches, or long polling when configuration is unchanged.
 
+Standing Staging alias authorization (Pontus approved 2026-10-22):
+
+- Applies only within an already explicitly approved Staging publication. It does not authorize a new push, build, deployment, migration or database write.
+- After verifying the exact approved commit, READY deployment, Git branch, Preview environment, project and team, Codex may inspect and if necessary correct only the ordinary Staging alias `sololedger-git-staging-sololedger1.vercel.app` to that approved deployment without another approval for the alias action.
+- Established project: `prj_chkSdedE06ppK2PlsqdtOhZfAKpT`, team `team_0Mrj7LMvSEfpbV8y5juQ5IiL` / `sololedger1`, Git branch `staging`, Supabase Staging `fzxqiqenqjzhlyxxpvhg`. Verify these identities; do not assume a similarly named address is Staging.
+- Compare actual alias-to-deployment mappings before and after; all other aliases, especially Production, must remain unchanged. Verify the final alias, approved SHA, actual client and Staging configuration/data. READY or automaticAliases alone is insufficient evidence.
+- Do not change any other domain, branch rule, environment variable or project setting. Production address, deployment and database must never be changed under this authority. If any identity, scope or safety condition is uncertain, stop and report.
+- Document whether correction was needed, the old/new deployment and SHA, and the before/after verification. Existing separate push/deploy/DB/Jira approval requirements remain in force.
+
 Production release:
 
 1. Require explicit Pontus approval for the exact commit or commit set.

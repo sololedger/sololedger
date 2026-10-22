@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "deployment": {
+    "id": "dpl_DGYHJKc89A36zs465zKNdywTv2jc",
+    "url": "sololedger-ojgkplbli-sololedger1.vercel.app",
+    "state": "READY",
+    "sha": "81ea7e98b576cb599354f3f4e611ae28af1b0e36",
+    "branch": "staging",
+    "target": null,
+    "alias": "sololedger-git-staging-sololedger1.vercel.app"
+  },
+  "all30PublicTableCountsAndFingerprintsUnchanged": true,
+  "migrationVersionsUnchanged": 59,
+  "at": "2026-10-22T14:06:03.866Z"
+}

@@ -1,0 +1,28 @@
+{
+  "status": "PASS within executed read-only scope",
+  "approved": "81ea7e98b576cb599354f3f4e611ae28af1b0e36",
+  "url": "https://sololedger-git-staging-sololedger1.vercel.app",
+  "actualHostedClient": true,
+  "syntheticExistingAccounts": 2,
+  "results": [
+    "Synthetic owner switch after actual logout reload: correct company/year lock and no old return context PASS"
+  ],
+  "apiHosts": [
+    "fzxqiqenqjzhlyxxpvhg.supabase.co"
+  ],
+  "rpc": [
+    "get_period_account_balances",
+    "get_cumulative_account_balances",
+    "get_ne_sales_summary",
+    "get_sie_vat_history_review"
+  ],
+  "vatInitializationDenied": [],
+  "unexpectedBlockedWrites": [],
+  "pageErrors": [],
+  "noBookingsOrYearLocks": true,
+  "limitations": [
+    "Moms navigation and return only; existing write-capable period initialization blocked before network, full report loading not tested",
+    "Deployed SHA81 still has known stale guide-return bug; local fix is not deployed or assessed by these hosted tests"
+  ],
+  "at": "2026-10-22T14:05:18.448Z"
+}

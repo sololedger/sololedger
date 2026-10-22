@@ -1,0 +1,22 @@
+{
+  "status": "PASS within local UI scope",
+  "redRegressionObserved": {
+    "expectedReturnButtons": 0,
+    "actualReturnButtons": 1
+  },
+  "localBrowserGroups": 10,
+  "widths": [
+    1440,
+    390
+  ],
+  "typecheck": "PASS",
+  "optimizedLocalBuild": "PASS",
+  "targetedLint": "NO_NEW_ERRORS",
+  "existingHomeErrors": 10,
+  "existingLayoutErrors": 1,
+  "standardBookingPageRegression": "PASS",
+  "profileContextRegression": "PASS",
+  "fullSuiteNotRerun": "UI navigation only; prior approved A evidence retained",
+  "noNewPublication": true,
+  "at": "2026-10-22T14:09:54.788Z"
+}

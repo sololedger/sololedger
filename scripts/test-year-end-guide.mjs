@@ -56,6 +56,7 @@ try {
         if (await mobile.isVisible()) await mobile.click()
         else await page.getByRole('button', { name: /^Mer/ }).click()
         button = page.getByRole('button', { name: label, exact: true }).filter({ visible: true })
+        if (!await button.count()) button = page.getByRole('menuitem', { name: label, exact: true })
       }
       await button.click()
     }
@@ -92,6 +93,42 @@ try {
       await expect(guide.locator('details[open]')).toHaveCount(0)
     }
     results.push({ width, test: 'Seven real Home destinations and return; correct year and explicit independent VAT period', status: 'PASS' })
+
+    // A guide return applies only to the visit started by the guide, not later menu visits.
+    const back = page.getByRole('button', { name: 'Tillbaka till årsavslutet 2026', exact: true })
+    for (const [destination, menu] of [['Profil', 'Fakturor'], ['Profil', 'Profil'], ['NE-Bilaga', 'Fakturor'], ['NE-Bilaga', 'NE-Bilaga']]) {
+      const details = guide.locator('details').nth(destination === 'Profil' ? 0 : 5)
+      await details.locator('summary').click()
+      await details.getByRole('button', { name: 'Öppna ' + destination, exact: true }).click()
+      await expect(back).toBeVisible()
+      await navigate(menu) // Even selecting the current page is an independent menu action.
+      await expect(back).toHaveCount(0)
+      await navigate('Fakturor'); await expect(back).toHaveCount(0)
+      await navigate('Årsavslut')
+      await guide.locator('details').first().locator('summary').click()
+      await guide.getByRole('button', { name: 'Öppna Profil', exact: true }).click()
+      await expect(back).toBeVisible(); await back.click(); await expect(back).toHaveCount(0)
+      await navigate('Profil'); await expect(back).toHaveCount(0)
+      await navigate('Årsavslut')
+    }
+    // An accepted profile replacement must invalidate an outstanding ticket, including A -> B -> A.
+    await guide.locator('details').first().locator('summary').click()
+    await guide.getByRole('button', { name: 'Öppna Profil', exact: true }).click()
+    await expect(back).toBeVisible()
+    await page.evaluate(() => window.harness.set({ name: 'Nytt profilnamn', revision: 20 }))
+    await expect(back).toHaveCount(0)
+    await page.evaluate(() => window.harness.set({ name: 'Syntetiska A', revision: 21 }))
+    await expect(back).toHaveCount(0)
+    await navigate('Årsavslut')
+    await guide.locator('details').first().locator('summary').click()
+    await guide.getByRole('button', { name: 'Öppna Profil', exact: true }).click()
+    await expect(back).toBeVisible()
+    await page.evaluate(() => window.harness.set({ owner: 'owner-b', name: 'Syntetiska B', revision: 22 }))
+    await expect(back).toHaveCount(0)
+    await page.evaluate(() => window.harness.set({ owner: 'owner-a', name: 'Syntetiska A', revision: 23 }))
+    await expect(back).toHaveCount(0)
+    await navigate('Årsavslut')
+    results.push({ width, test: 'Guide return consumed on menu/current-page menu/return; no revival after profile or owner A-B-A', status: 'PASS' })
 
     const year = page.getByRole('group', { name: 'Ekonomikontroller' }).getByRole('combobox')
     await guide.locator('details').first().locator('summary').click()

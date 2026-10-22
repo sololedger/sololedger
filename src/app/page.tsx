@@ -93,16 +93,21 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeTab, setActiveTabState] = useState('dashboard')
   const [profileDraft, setProfileDraft] = useState<ProfileSettingsDraft | null>(null)
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
   const yearEndScope = useMemo(() => ({ owner: user?.id, year: selectedYear, profileContextKey }), [user?.id, selectedYear, profileContextKey])
   const [yearEndReturnScope, setYearEndReturnScope] = useState<typeof yearEndScope | null>(null)
+  function setActiveTab(tab: string) {
+    // Ordinary navigation consumes the guide visit, including return and same-page menu clicks.
+    setYearEndReturnScope(null)
+    setActiveTabState(tab)
+  }
   function openYearEndDestination(destination: YearEndDestination) {
     setYearEndReturnScope(yearEndScope)
-    setActiveTab(destination)
+    setActiveTabState(destination)
   }
 
   const {

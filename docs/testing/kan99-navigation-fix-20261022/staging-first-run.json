@@ -1,0 +1,34 @@
+{
+  "message": "locator.waitFor: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/Inloggad som:/) to be visible\u001b[22m\n",
+  "results": [
+    "Eight controls, real synthetic company/year, preparation and distinct states PASS",
+    "Hosted navigation and return Bokföring PASS",
+    "Hosted navigation and return Profil PASS",
+    "Hosted navigation and return Fakturor PASS",
+    "Hosted navigation and return Bokslutsskulder PASS",
+    "Hosted navigation and return Inventarier PASS",
+    "Hosted navigation and return Moms PASS",
+    "Hosted navigation and return NE-Bilaga PASS",
+    "Year 2026→2027→2026 context reset PASS",
+    "Mobile390 and desktop1440 PASS"
+  ],
+  "blocked": [],
+  "errors": [],
+  "rpc": [
+    "get_period_account_balances",
+    "get_cumulative_account_balances",
+    "get_ne_sales_summary",
+    "get_sie_vat_history_review",
+    "get_withdrawal_context",
+    "ensure_vat_periods",
+    "get_tax_rule_parameters_for_year",
+    "get_fixed_asset_depreciation_preview"
+  ],
+  "ensure": [
+    {
+      "blockedBeforeNetwork": true,
+      "reason": "Existing write-capable VAT initialization is outside read-only smoke approval"
+    }
+  ],
+  "at": "2026-10-22T14:03:08.647Z"
+}

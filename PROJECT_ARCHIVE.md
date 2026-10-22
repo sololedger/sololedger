@@ -1065,3 +1065,10 @@ Existing inventory fixtures and older evidence remain preserved; no reset or rep
 - KAN-98 har därefter accepterad Production PASS/Done; dess produktkopia bevaras oförändrad.
 - Lokal A-implementation ligger nu på separat KAN-99-gren; aktiv status/testgränser i PROJECT_STATE.md
   och docs/reviews/KAN-99-ETAPP-A-LOCAL-PASS.md. Hela KAN-99 är inte avslutad; B/C inte godkända.
+
+## 2026-10-22 – KAN-99 ursprunglig lokal A-checkpoint ersatt av lokal navigationsrättelse
+
+- Ursprunglig A-kandidat81ea7e9 publicerades efter Pontus godkännande och fick separat godkänd aliasrättning.
+- A:s historiska 8 browsergrupper och bredare verifieringsgränser finns i LOCAL-PASS/kan99-local-a;
+  aktiv rättelse, riktade10 grupper och hosted delprov ligger i STATE och KAN-99-NAVIGATION-FIX-20261022.md.
+- KAN-99 är fortsatt aktiv In Review/Pontus; ingen B/C eller ny Production-release.

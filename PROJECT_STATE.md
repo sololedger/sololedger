@@ -1,43 +1,45 @@
 # SoloLedger Project State
 
-2026-10-22. **KAN-99 Etapp A LOCAL PASS, In Review / Pontus. Ingen publicering.**
-Produktmål och permanenta regler: AGENTS.md. Bara läsande guidad årsavslutning är godkänd här.
+2026-10-22. **KAN-99 Etapp A navigationsrättelse LOCAL PASS. In Review/Pontus. Ingen ny publicering.**
 
-## Aktiv produktkopia och kandidat
+## Kandidat och avgränsning
 
-- Katalog **audit-packages/KAN-99-local**, gren **codex/KAN-99-year-end-guide**.
-- Bas **53b9c828eed71d0be17043e4aaf7b95d99d0ad35**, KAN-98 Production PASS och Done.
-- Kandidat: denna lokala checkpoints HEAD (git log -1). Origin är den lokala KAN-98-kopian,
-  **inte GitHub**. Publicera aldrig via värdprojektets staging-/dokumentationshistorik.
-- Ingen produkt- eller databasändring i KAN-98-kopian. Installerade beroenden återanvänds via lokal junction;
-  inga dependency-/package-lock-/envändringar. coverage/.next/test-results/node_modules är lokala/ignorerade.
+- Produktkopia audit-packages/KAN-99-local, gren codex/KAN-99-year-end-guide.
+- Lokal kandidat: checkpointens HEAD (git log -1). Förälder 81ea7e98b576cb599354f3f4e611ae28af1b0e36.
+- Ursprunglig produktbas 53b9c82, KAN-98 Production PASS/Done. Produktens origin är lokal KAN-98-kopia, inte GitHub.
+- Enda nya produktkod: src/app/page.tsx. Vanligt sidbyte förbrukar guidens returbiljett;
+  bara guideknappar skapar ny biljett. Ingen bokföringslogik, DB/RPC, lagring eller ny funktion.
+- AGENTS innehåller Pontus stående, begränsade aliasbehörighet för redan godkända Staging-publiceringar.
+- Inga dependency-/lock-/envändringar. Lokala genererade filer/junction bevarade och ej committade.
 
-## Levererad Etapp A
+## Verifierat
 
-- Årsavslut i menyn: åtta öppningsbara HUR-kontroller under fem rubriker.
-- Rätt företag/år; pågående/framtida år visas som förberedelser. Ingen komplett-status eller progress.
-- Navigation till sju befintliga vyer, återgång i samma kontext; ägar-/års-/profilbyte rensar kontext.
-- Bara redan känd låsstatus visas; laddning/fel döljer tidigare besked. Ingen egen låsknapp.
-- Inga nya RPC/tabeller/migrationer, bokningar, bankimport/avstämningsmotor eller PDF-funktioner.
-- Moms har egen periodväljare och befintlig periodinitiering; detta står uttryckligen i instruktionen.
-- Rapport **docs/reviews/KAN-99-ETAPP-A-LOCAL-PASS.md**, plan och bevis **docs/testing/kan99-local-a/**.
+- Regression före rättelse: förväntat 0 returknappar efter menyval, faktiskt 1.
+- 10 lokala browsergrupper PASS på1440/390: sju mål/retur, annan/samma sida via meny,
+  förbrukad retur, ägare/år/profil A→B→A, laddningsfel, noll skrivningar/nätverk.
+- Typkontroll, optimerat lokalt Next16.2.6-bygge och riktad lint utan nya fel PASS.
+  Home/Layout har kvar samma äldre10+1 lintfel; full äldre lint inte omkörd.
+- Befintliga säkra standard-booking-page och profile-context regressioner PASS.
+- Rapport docs/reviews/KAN-99-NAVIGATION-FIX-20261022.md och bevis docs/testing/kan99-navigation-fix-20261022/.
+  Ursprunglig A-plan/LOCAL-PASS och docs/testing/kan99-local-a/ bevarade som historik.
 
-## Verifierat och begränsat
+## Faktisk Staging – annan kandidat än lokal rättelse
 
-- Verklig Home/Layout/guide med syntetiska Auth-/datagränser: 8 browsergrupper PASS på 1440/390px,
-  alla mål/retur, ägare/år A→B→A, saknad profil, laddning/fel, inga skrivförsök/nätanrop/progress.
-- Typkontroll och optimerat Next16.2.6-bygge PASS; bara syntetiska lokala processvariabler.
-- Ny guide/testfiler lint 0; Home/Layout samma 10+1 äldre fel. Full lint 72 äldre fel/6 varningar kvar.
-- Säkra regressionsdelar PASS. Ordinarie dev-start timeout; samma publika smoke 2/2 PASS mot byggd
-  lokal server, resterande kategori-/bokningsprov PASS. Den ursprungliga wrapperns exit1 är dokumenterad.
-- Delar av tidiga råloggar städades av Playwright; slutliga riktade bevis flyttade till separat coverage/docs.
-- Inga riktiga Auth-/databaskonton användes. Verklig nybörjaracceptans och Staging-acceptans återstår.
-- Jira KAN-99 Story/High **In Review / Pontus** gäller endast A. B/C inte levererade; ingen Done.
+- Ordinarie Staging-adress sololedger-git-staging-sololedger1.vercel.app är rättad och verifierad.
+- Staging kör alltjämt exakt81ea7e98b576cb599354f3f4e611ae28af1b0e36,
+  READY dpl_DGYHJKc89A36zs465zKNdywTv2jc, Preview/target null; nytt lokalt fix inte deployat.
+- Återstående läsande hosted navigation, mobil390, årsbyte och ägarbyte PASS inom scope.
+  Första körningen exit1 vid utloggningsomladdning; endast riktad ägaromkontroll kördes och PASS.
+- Momsinitiering blockerad före nätverket; full Moms-laddning ej verifierad. Endast Staging API observerat.
+- 30 public-tabellers antal/fingeravtryck och59 migrationsversioner oförändrade före/efter.
+- Ingen push, ny Vercel-build/deploy, aliasändring, DB-skrivning/migration eller Production-åtgärd i fixsteget.
+  Normala Auth-sessioner vid befintliga syntetiska testkontons login; inga konton skapade.
 
 ## Nästa säkra steg
 
-- Separat granskning och uttryckligt Staging-publiceringsgodkännande för exakt ny kandidat.
-- Ingen push, deploy eller live DB-skrivning godkänd av denna lokala implementation.
-- Pontus provar instruktionerna utan muntlig hjälp på dator/mobil. Ingen riktig bokning/låsning krävs.
-- B/C-idéer: faktiska kontrollaggregat, eventuell attestlagring, förbättrad slutlig låsbekräftelse,
-  boksluts-/deklarationsutgång och flerårsacceptans. De kräver separata beslut.
+- Pontus måste godkänna exakt ny lokal SHA innan Staging-push/publicering.
+- Därefter alias/SHA/Preview/Staging-klient kontroll och riktad acceptans av guide→Profil/NE→meny,
+  retur→senare meny och kontextbyten på dator/mobil. Aliasregeln kräver inte separat aliasgodkännande.
+- Ingen bokning/låsning/periodinitiering behövs. KAN-99 kvar In Review/Pontus, inte Done. B/C utanför scope.
+- Root PROJECT_STATE och aktuell uppföljningsrapport har exakt publiceringsbeslut/kandidat efter checkpoint;
+  root docsgren får aldrig publiceras som produktrelease. Bevara KAN-98-kopian och orelaterade ändringar.
