@@ -138,13 +138,14 @@ const groups = [
 const subscribeCalendar = () => () => {}
 const stockholmYear = () => Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric' }).format(new Date()))
 
-export default function YearEndGuide({ companyName, year, ready, error, locked, initialOpenControls, onNavigate }: {
+export default function YearEndGuide({ companyName, year, ready, error, locked, initialOpenControls, showNEGuideReturn, onNavigate }: {
   companyName: string | null | undefined
   year: number
   ready: boolean
   error: string | null
   locked: boolean
   initialOpenControls: readonly number[]
+  showNEGuideReturn?: boolean
   onNavigate: (destination: YearEndDestination, openControls: number[]) => void
 }) {
   const guide = useRef<HTMLElement>(null)
@@ -158,6 +159,7 @@ export default function YearEndGuide({ companyName, year, ready, error, locked, 
   return (
     <section ref={guide} aria-label={`Årsavslut för ${year}`} className="mx-auto max-w-3xl space-y-6 px-4 pb-10 sm:px-6">
       <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        {showNEGuideReturn && <button type="button" onClick={() => navigate('ne')} className="mb-4 min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Tillbaka till NE-guiden</button>}
         <p className="text-sm text-gray-600 break-words">Företag: {companyName?.trim() || 'Företagsnamn saknas – kontrollera Profil'}</p>
         <h2 className="mt-2 text-xl font-bold text-gray-900">Förbered och avsluta {year}</h2>
         <p className="mt-3 text-sm leading-relaxed text-gray-700">Följ en kontroll i taget. Här får du hjälp att jämföra dina underlag och hitta rätt vy. Guiden bedömer inte att bokslutet är komplett och sparar inga klarmarkeringar.</p>

@@ -63,7 +63,8 @@ interface NEData {
 interface NEBilagaProps {
   userId?: string;
   companyName?: string | null;
-  onOpenYearEnd?: () => void;
+  onOpenYearEnd?: (openDetails: number[]) => void;
+  initialGuideOpenDetails?: readonly number[];
   neData: NEData | null;
   selectedYear: number;
   isYearLocked: boolean;
@@ -108,6 +109,7 @@ export default function NEBilaga({
   userId,
   companyName,
   onOpenYearEnd,
+  initialGuideOpenDetails,
   neData,
   selectedYear,
   isYearLocked,
@@ -168,7 +170,7 @@ export default function NEBilaga({
 
         <p className="mb-5 text-sm leading-relaxed text-gray-600">Beloppen bygger på bokföringen. Kända kontokopplingar och en balanserad balansräkning betyder inte att skatteuppgifterna är granskade eller att deklarationen är färdig.</p>
 
-        <NEDeclarationGuide key={`${userId}:${selectedYear}:${companyName}`} year={selectedYear} companyName={companyName} onOpenYearEnd={onOpenYearEnd} />
+        <NEDeclarationGuide key={`${userId}:${selectedYear}:${companyName}`} year={selectedYear} companyName={companyName} onOpenYearEnd={onOpenYearEnd} initialOpenDetails={initialGuideOpenDetails} />
 
         {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useCallback, useRef, type ReactNode } from 'react'
 
 const sources = {
   ne: 'https://www.skatteverket.se/foretag/inkomstdeklaration/deklareraenskildnaringsverksamhet/fyllainebilagan/skattemassigajusteringar.4.361dc8c15312eff6fd2c7d1.html',
@@ -20,12 +20,28 @@ function Step({ title, why, children }: { title: string; why: string; children: 
   </details>
 }
 
-export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd }: {
+export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, initialOpenDetails }: {
   year: number
   companyName?: string | null
-  onOpenYearEnd?: () => void
+  onOpenYearEnd?: (openDetails: number[]) => void
+  initialOpenDetails?: readonly number[]
 }) {
-  return <details className="mb-6 rounded-2xl border border-gray-200 text-sm text-gray-700 break-words">
+  const guide = useRef<HTMLDetailsElement | null>(null)
+  const restoreGuide = useCallback((node: HTMLDetailsElement | null) => {
+    guide.current = node
+    if (!node || !initialOpenDetails) return
+    // Restore native disclosures only on this visit's mount, with no saved answers.
+    const details = [node, ...node.querySelectorAll<HTMLDetailsElement>('details')]
+    details.forEach((detail, index) => { detail.open = initialOpenDetails.includes(index) })
+    node.querySelector<HTMLElement>(':scope > summary')?.focus()
+  }, [initialOpenDetails])
+  function openYearEnd() {
+    if (!guide.current || !onOpenYearEnd) return
+    const openDetails = [guide.current, ...guide.current.querySelectorAll<HTMLDetailsElement>('details')]
+      .flatMap((detail, index) => detail.open ? [index] : [])
+    onOpenYearEnd(openDetails)
+  }
+  return <details ref={restoreGuide} className="mb-6 rounded-2xl border border-gray-200 text-sm text-gray-700 break-words">
     <summary className="min-h-11 cursor-pointer p-4 text-base font-bold text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Från NE-underlag till deklaration · fem steg</summary>
     <section aria-label={`Deklarationsvägledning för ${year}`} className="space-y-3 border-t border-gray-100 p-3 sm:p-4">
       <p className="font-semibold">{companyName?.trim() || 'Företagsnamn saknas – kontrollera Profil'} · Inkomstår {year}</p>
@@ -38,7 +54,7 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd }:
           <li>Saknas en faktura eller ett kvitto? Hämta en kopia från leverantören. Hämta kontoutdrag i banken. Jämför sedan datum och belopp med Bokföring.</li>
         </ol>
         <p><strong>Om något inte stämmer:</strong> utred posten mot underlaget innan du använder befintlig bokning eller rättelse i Bokföring. Kringgå inte ett låst år eller en spärr.</p>
-        {onOpenYearEnd && <button type="button" onClick={onOpenYearEnd} className="min-h-11 rounded-lg border px-3 py-2 font-semibold text-emerald-800">Öppna Årsavslut</button>}
+        {onOpenYearEnd && <button type="button" onClick={openYearEnd} className="min-h-11 rounded-lg border px-3 py-2 font-semibold text-emerald-800">Öppna Årsavslut</button>}
       </Step>
       <Step title="2. Hitta beloppen och kontrollera dem" why="Bokförda belopp är inte automatiskt bedömda skatteuppgifter.">
         <ol className="list-decimal space-y-2 pl-5">

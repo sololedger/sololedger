@@ -31,7 +31,7 @@ const bundle = await build({ stdin: { contents: entry, loader: 'tsx', resolveDir
     if (args.importer.replaceAll('\\', '/').endsWith('/src/app/page.tsx') && args.path.startsWith('@/components/') && !['Layout', 'YearEndGuide', 'AccountingDataBoundary'].includes(leaf)) return { path: 'panel-' + leaf, namespace: 'offline' }
   })
   b.onLoad({ filter: /.*/, namespace: 'offline' }, args => ({ contents: mock[args.path] || (args.path === 'panel-NEBilaga'
-    ? `import Guide from './src/components/NEDeclarationGuide';export default function Panel(p){return <section data-panel="NEBilaga">NEBilaga<span>{p.selectedYear}</span><Guide key={p.userId+':'+p.selectedYear+':'+p.companyName} year={p.selectedYear} companyName={p.companyName} onOpenYearEnd={p.onOpenYearEnd}/></section>}`
+    ? `import Guide from './src/components/NEDeclarationGuide';export default function Panel(p){return <section data-panel="NEBilaga">NEBilaga<span>{p.selectedYear}</span><Guide key={p.userId+':'+p.selectedYear+':'+p.companyName} year={p.selectedYear} companyName={p.companyName} onOpenYearEnd={p.onOpenYearEnd} initialOpenDetails={p.initialGuideOpenDetails}/></section>}`
     : `export default function Panel(p){if('isOpen' in p&&!p.isOpen)return null;return <section data-panel="${args.path.slice(6)}">${args.path.slice(6)}<span>{p.selectedYear??'egen period'}</span>{p.children}</section>}`), loader: 'tsx', resolveDir: process.cwd() }))
 } }] })
 const css = (await postcss([tailwind({ base: process.cwd() })]).process(await readFile('src/app/globals.css', 'utf8'), { from: 'src/app/globals.css' })).css
@@ -128,6 +128,52 @@ try {
     await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
     await expect(guide).toBeVisible();assert.deepEqual(await opened(),[],'Ordinary NE visit must not restore an earlier guide ticket')
     results.push({ width, test: 'KAN-101 declaration entry, company/year and nested return restore real Home guide context', status: 'PASS' })
+
+    // NE-origin visit offers a scoped, one-visit return with native disclosures restored.
+    const neReturn = page.getByRole('button', { name: 'Tillbaka till NE-guiden', exact: true })
+    await expect(neReturn).toBeVisible()
+    await neReturn.click()
+    await expect(declaration).toBeVisible()
+    await declaration.getByText('3. Ta fram uppgifter som bokföringen inte räcker till för', { exact: true }).click()
+    await declaration.getByText('Behöver du komplettera R15 eller R16?', { exact: true }).click()
+    const disclosureState = () => declaration.locator('details').evaluateAll(items => items.map(item => item.open))
+    const beforeNE = await disclosureState()
+    await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+    await openControl(3)
+    await neReturn.click()
+    await expect(declaration).toBeVisible()
+    assert.deepEqual(await disclosureState(), beforeNE)
+    await expect(page.getByText('Från NE-underlag till deklaration · fem steg', { exact: true })).toBeFocused()
+    await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+    assert.deepEqual(await opened(), [3], 'NE return keeps the current YearEnd controls')
+    await page.screenshot({ path: out + `/ne-return-${width}.png`, fullPage: true })
+    await navigate('Årsavslut')
+    await expect(neReturn).toHaveCount(0)
+    await navigate('NE-Bilaga')
+    await expect(declaration).toHaveCount(0)
+    results.push({ width, test: 'NE return restores expanded steps/cards and keyboard focus; repeated visits retain YearEnd controls; ordinary menu consumes ticket', status: 'PASS' })
+
+    for (const invalidate of ['year', 'owner', 'profile']) {
+      await navigate('NE-Bilaga')
+      await page.getByText('Från NE-underlag till deklaration · fem steg', { exact: true }).click()
+      await declaration.getByText('1. Gör bokslutsunderlaget klart', { exact: true }).click()
+      await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+      await expect(neReturn).toBeVisible()
+      if (invalidate === 'year') {
+        const years = page.getByRole('group', { name: 'Ekonomikontroller' }).getByRole('combobox')
+        await years.selectOption('2027'); await expect(neReturn).toHaveCount(0); await years.selectOption('2026')
+      } else if (invalidate === 'owner') {
+        await page.evaluate(() => window.harness.set({ owner: 'owner-b', name: 'Syntetiska B' }))
+        await expect(neReturn).toHaveCount(0)
+        await page.evaluate(() => window.harness.set({ owner: 'owner-a', name: 'Syntetiska A' }))
+      } else {
+        await page.evaluate(() => window.harness.set({ revision: 2 }))
+        await expect(neReturn).toHaveCount(0)
+        await page.evaluate(() => window.harness.set({ revision: 1 }))
+      }
+      await expect(neReturn).toHaveCount(0)
+    }
+    results.push({ width, test: 'NE return cannot revive after year, owner or profile A-B-A', status: 'PASS' })
 
     await navigate('Profil'); await navigate('Årsavslut')
     for (const index of [0, 3, 5]) await openControl(index)

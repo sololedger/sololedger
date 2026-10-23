@@ -102,21 +102,37 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   type YearEndVisit = { scope: typeof yearEndScope; openControls: number[] }
   const [yearEndReturn, setYearEndReturn] = useState<YearEndVisit | null>(null)
   const [yearEndRestore, setYearEndRestore] = useState<YearEndVisit | null>(null)
+  type NEGuideVisit = { scope: typeof yearEndScope; openDetails: number[] }
+  const [neGuideReturn, setNEGuideReturn] = useState<NEGuideVisit | null>(null)
+  const [neGuideRestore, setNEGuideRestore] = useState<NEGuideVisit | null>(null)
   function setActiveTab(tab: string) {
     // Ordinary navigation consumes the guide visit, including return and same-page menu clicks.
     setYearEndReturn(null)
     setYearEndRestore(null)
+    setNEGuideReturn(null)
+    setNEGuideRestore(null)
     setActiveTabState(tab)
   }
   function openYearEndDestination(destination: YearEndDestination, openControls: number[]) {
     setYearEndReturn({ scope: yearEndScope, openControls })
     setYearEndRestore(null)
+    setNEGuideRestore(destination === 'ne' && neGuideReturn?.scope === yearEndScope ? neGuideReturn : null)
+    setNEGuideReturn(null)
     setActiveTabState(destination)
   }
   function returnToYearEndGuide() {
     if (yearEndReturn?.scope !== yearEndScope) return
     setYearEndRestore(yearEndReturn)
     setYearEndReturn(null)
+    setNEGuideReturn(null)
+    setNEGuideRestore(null)
+    setActiveTabState('arsavslut')
+  }
+  function openYearEndFromNEGuide(openDetails: number[]) {
+    setYearEndRestore(yearEndReturn?.scope === yearEndScope ? yearEndReturn : null)
+    setYearEndReturn(null)
+    setNEGuideRestore(null)
+    setNEGuideReturn({ scope: yearEndScope, openDetails })
     setActiveTabState('arsavslut')
   }
 
@@ -1289,6 +1305,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         <YearEndGuide key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
           year={selectedYear} ready={accountingDataReady} error={accountingDataError} locked={isYearLocked}
           initialOpenControls={yearEndRestore?.scope === yearEndScope ? yearEndRestore.openControls : []}
+          showNEGuideReturn={neGuideReturn?.scope === yearEndScope}
           onNavigate={openYearEndDestination} />
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />
@@ -1385,10 +1402,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             userId={user.id}
             neData={neData}
             companyName={profile?.company_name}
-            onOpenYearEnd={() => {
-              if (yearEndReturn?.scope === yearEndScope) returnToYearEndGuide()
-              else setActiveTab('arsavslut')
-            }}
+            onOpenYearEnd={openYearEndFromNEGuide}
+            initialGuideOpenDetails={neGuideRestore?.scope === yearEndScope ? neGuideRestore.openDetails : undefined}
             selectedYear={selectedYear}
             isYearLocked={isYearLocked}
             externalYearCloseBlockReason={customerInvoiceYearCloseBlocker}
