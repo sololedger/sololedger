@@ -1384,6 +1384,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             key={`${user.id}:${selectedYear}`}
             userId={user.id}
             neData={neData}
+            companyName={profile?.company_name}
+            onOpenYearEnd={() => {
+              if (yearEndReturn?.scope === yearEndScope) returnToYearEndGuide()
+              else setActiveTab('arsavslut')
+            }}
             selectedYear={selectedYear}
             isYearLocked={isYearLocked}
             externalYearCloseBlockReason={customerInvoiceYearCloseBlocker}

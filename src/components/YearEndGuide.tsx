@@ -117,11 +117,12 @@ const controls: Control[] = [
       'Lämna momsdeklarationen hos Skatteverket och spara kvittot. Öppna därefter rätt period i Moms och använd befintlig bekräftelse med det verkliga inlämningsdatumet. Bekräftelsen i SoloLedger skickar inte deklarationen.',
       'Jämför skattekontots faktiska avräkning med momsbeslutet och bankens överföring var för sig. Registrera endast styrkta händelser i de befintliga vyerna. En insättning på skattekontot bevisar inte att just denna moms är slutbetald.',
       `Lämna inkomstdeklarationen med NE för ${year} under ${year + 1} och spara inlämningskvittot. Kontrollera då aktuella blanketter och datum hos Skatteverket.`,
+      'Öppna NE-Bilaga och guiden Från NE-underlag till deklaration · fem steg. Där får du hjälp att hitta skatteunderlag, komplettera hos Skatteverket och spara kvittensen.',
     ],
     system: 'SoloLedger kan visa registrerade deklarations- och betalningsuppgifter. Programmet skickar inte inkomstdeklarationen och kan inte kontrollera myndighetens inlämningskvitto åt dig.',
     problem: 'Om beslut, bank och skattekonto inte stämmer: utred skillnaden innan du registrerar en händelse. Markera inte något som deklarerat eller betalt för att få en klarstatus.',
     reviewed: 'Varje extern åtgärd är utförd först när du har rätt kvitto eller har stämt av betalningen. En inskickad deklaration är inte bevis för betalning eller för att bokföringsåret är låst.',
-    links: [['moms', 'Moms'], ['dashboard', 'Bokföring']],
+    links: [['ne', 'NE-Bilaga'], ['moms', 'Moms'], ['dashboard', 'Bokföring']],
   },
 ]
 

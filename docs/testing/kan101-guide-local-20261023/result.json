@@ -1,0 +1,114 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "width": 1440,
+      "scenario": "normal",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "scenario": "normal",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "scenario": "deviation",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "scenario": "deviation",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "scenario": "import-zero",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 1440,
+      "scenario": "import-zero",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "normal",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "normal",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "deviation",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "deviation",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "import-zero",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 390,
+      "scenario": "import-zero",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "normal",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "normal",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "deviation",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "deviation",
+      "locked": true,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "import-zero",
+      "locked": false,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "scenario": "import-zero",
+      "locked": true,
+      "status": "PASS"
+    }
+  ],
+  "scope": "Actual NE with accepted Production comparison; context/keyboard/read-error; no network or writes"
+}

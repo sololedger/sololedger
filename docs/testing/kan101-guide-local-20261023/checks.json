@@ -1,0 +1,31 @@
+{
+  "status": "PASS_WITH_EXISTING_LINT_DEBT",
+  "baseline": "f7469a0cc4fbcaffc1b77bddf01a8947cbc5ec68",
+  "typecheck": "PASS",
+  "focusedLintComponentsAndScripts": "PASS",
+  "pageLint": {
+    "existingErrors": 10,
+    "existingWarnings": 1,
+    "identicalToBaseline": true
+  },
+  "safeRegression": "PASS",
+  "publicSmoke": {
+    "passed": 2,
+    "total": 2
+  },
+  "guideCases": 18,
+  "navigationGroups": 14,
+  "build": "PASS_SYNTHETIC_LOCALHOST",
+  "unchanged": [
+    "src/lib",
+    "src/hooks",
+    "supabase",
+    "package-lock.json",
+    "NE balance/warning/lock conditions"
+  ],
+  "newExternalIO": false,
+  "persistedUserState": false,
+  "hostedTests": false,
+  "databaseWrites": false,
+  "at": "2026-10-23T04:13:53.245Z"
+}

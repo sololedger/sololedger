@@ -7,6 +7,7 @@ import type { NeTaxReview } from '@/lib/neTaxAdjustments'
 import { getNeChartReviewReason } from '@/lib/neChartReview'
 import NEUnderlagReview from './NEUnderlagReview'
 import NEAccountTable from './NEAccountTable'
+import NEDeclarationGuide from './NEDeclarationGuide'
 
 interface NEData {
   equityReviewRequired?: boolean;
@@ -61,6 +62,8 @@ interface NEData {
 
 interface NEBilagaProps {
   userId?: string;
+  companyName?: string | null;
+  onOpenYearEnd?: () => void;
   neData: NEData | null;
   selectedYear: number;
   isYearLocked: boolean;
@@ -103,6 +106,8 @@ function Tooltip({ text }: { text: string }) {
 
 export default function NEBilaga({
   userId,
+  companyName,
+  onOpenYearEnd,
   neData,
   selectedYear,
   isYearLocked,
@@ -162,6 +167,8 @@ export default function NEBilaga({
         </h2>
 
         <p className="mb-5 text-sm leading-relaxed text-gray-600">Beloppen bygger på bokföringen. Kända kontokopplingar och en balanserad balansräkning betyder inte att skatteuppgifterna är granskade eller att deklarationen är färdig.</p>
+
+        <NEDeclarationGuide key={`${userId}:${selectedYear}:${companyName}`} year={selectedYear} companyName={companyName} onOpenYearEnd={onOpenYearEnd} />
 
         {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
 

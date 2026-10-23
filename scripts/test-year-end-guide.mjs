@@ -30,7 +30,9 @@ const bundle = await build({ stdin: { contents: entry, loader: 'tsx', resolveDir
     if (mock[leaf]) return { path: leaf, namespace: 'offline' }
     if (args.importer.replaceAll('\\', '/').endsWith('/src/app/page.tsx') && args.path.startsWith('@/components/') && !['Layout', 'YearEndGuide', 'AccountingDataBoundary'].includes(leaf)) return { path: 'panel-' + leaf, namespace: 'offline' }
   })
-  b.onLoad({ filter: /.*/, namespace: 'offline' }, args => ({ contents: mock[args.path] || `export default function Panel(p){if('isOpen' in p&&!p.isOpen)return null;return <section data-panel="${args.path.slice(6)}">${args.path.slice(6)}<span>{p.selectedYear??'egen period'}</span>{p.children}</section>}`, loader: 'tsx', resolveDir: process.cwd() }))
+  b.onLoad({ filter: /.*/, namespace: 'offline' }, args => ({ contents: mock[args.path] || (args.path === 'panel-NEBilaga'
+    ? `import Guide from './src/components/NEDeclarationGuide';export default function Panel(p){return <section data-panel="NEBilaga">NEBilaga<span>{p.selectedYear}</span><Guide key={p.userId+':'+p.selectedYear+':'+p.companyName} year={p.selectedYear} companyName={p.companyName} onOpenYearEnd={p.onOpenYearEnd}/></section>}`
+    : `export default function Panel(p){if('isOpen' in p&&!p.isOpen)return null;return <section data-panel="${args.path.slice(6)}">${args.path.slice(6)}<span>{p.selectedYear??'egen period'}</span>{p.children}</section>}`), loader: 'tsx', resolveDir: process.cwd() }))
 } }] })
 const css = (await postcss([tailwind({ base: process.cwd() })]).process(await readFile('src/app/globals.css', 'utf8'), { from: 'src/app/globals.css' })).css
 const out = 'coverage/kan99-evidence/browser'
@@ -108,6 +110,24 @@ try {
       assert.deepEqual(await opened(), beforeVisit, label + ' return must restore open controls')
     }
     results.push({ width, test: 'Seven real Home destinations and return; correct year and explicit independent VAT period', status: 'PASS' })
+
+    // New declaration entry and real Home return callback; preserve the original guide's open controls.
+    await openControl(7)
+    await expect(guide.locator('details').nth(7)).toContainText('Från NE-underlag till deklaration')
+    const beforeDeclaration = await opened()
+    await guide.locator('details').nth(7).getByRole('button', { name: 'Öppna NE-Bilaga', exact: true }).click()
+    await page.getByText('Från NE-underlag till deklaration · fem steg', { exact: true }).click()
+    const declaration = page.getByRole('region', { name: 'Deklarationsvägledning för 2026', exact: true })
+    await expect(declaration).toContainText('Syntetiska A · Inkomstår 2026')
+    await declaration.getByText('1. Gör bokslutsunderlaget klart', { exact: true }).click()
+    await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+    await expect(guide).toBeVisible();assert.deepEqual(await opened(),beforeDeclaration)
+    await navigate('NE-Bilaga')
+    await page.getByText('Från NE-underlag till deklaration · fem steg', { exact: true }).click()
+    await declaration.getByText('1. Gör bokslutsunderlaget klart', { exact: true }).click()
+    await declaration.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+    await expect(guide).toBeVisible();assert.deepEqual(await opened(),[],'Ordinary NE visit must not restore an earlier guide ticket')
+    results.push({ width, test: 'KAN-101 declaration entry, company/year and nested return restore real Home guide context', status: 'PASS' })
 
     await navigate('Profil'); await navigate('Årsavslut')
     for (const index of [0, 3, 5]) await openControl(index)

@@ -151,6 +151,8 @@ SIE-export finns i `src/lib/sieExport.ts`. Exporten laddar transaktioner, journa
 
 ### NE Och Förenklat Årsbokslut
 
+KAN-101 Etapp2A (lokal): `NEDeclarationGuide.tsx` är en läsande femstegsguide i NE med korta instruktioner och öppningsbara skattefrågor/källänkar. Den får bara företag/år och en navigationscallback; inga belopp beräknas, inget hämtas eller sparas. `NEBilaga` nycklar guiden per ägare/år/företagsnamn. Årsavslutets sista kontroll länkar till NE. Återgången från NE återanvänder Home:s kontextbundna återgång när sådan finns, annars öppnas Årsavslut som vanlig navigation. Befintlig ekonomisk laddningsgräns gäller. KAN-96:s importbegränsning förklaras utan ny detektion eller ändrad spärr. KAN-100:s historik är fortsatt separat.
+
 `src/components/NEBilaga.tsx` visar NE-underlag och balansrader i befintlig tvåkolumnslayout. R15/R16 märks som inte individuellt bedömda; R17 är inte ett slutligt deklarationsresultat.
 
 `NEUnderlagReview.tsx` visar befintliga kontroller och rutunderlag. `NEAccountTable.tsx` är gemensam presentation för kontotäckning och rutdetaljer: kontonamn, saldo/period, NE-koppling och öppningsbar journal. Mobil använder märkta radkort. Komponenterna återanvänder oförändrad `neReviewService` och sparar inga bedömningar. Kända kopplingar intygar inte skattebehandling.
