@@ -9,7 +9,7 @@ async function archiveRequest(owner: string, query: string, init: RequestInit = 
   if(error || !data.session || data.session.user.id!==owner) throw new DeclarationArchiveError('Inloggningen har ändrats. Logga in igen.',401,'unauthorized')
   let response: Response
   try {
-    response=await fetch('/api/declaration-archive'+query,{...init,signal:init.signal??AbortSignal.timeout(30000),cache:'no-store',credentials:'omit',headers:{
+    response=await fetch('/api/declaration-archive'+query,{...init,signal:init.signal??AbortSignal.timeout(30000),cache:'no-store',credentials:'same-origin',headers:{
       Authorization:`Bearer ${data.session.access_token}`,...(writing?{'Content-Type':'application/json'}:{}),
     }})
   } catch {throw new DeclarationArchiveError(writing?'Utfallet är okänt. Försök igen med samma sparbegäran.':'Historiken kunde inte hämtas.',503,writing?'uncertain':'unavailable',writing)}
