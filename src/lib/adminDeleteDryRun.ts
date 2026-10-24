@@ -1,4 +1,6 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
+  'declaration_revisions',
+  'declaration_source_snapshots',
   'supplier_year_end_events',
   'supplier_year_end_invoices',
   'profiles',
@@ -39,6 +41,8 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   AdminDeleteDryRunCountKey,
   string
 > = {
+  declaration_revisions: 'deklarationsversioner',
+  declaration_source_snapshots: 'frysta deklarationsunderlag',
   supplier_year_end_events: 'leverantörsskuldshändelser',
   supplier_year_end_invoices: 'bokslutsförda leverantörsfakturor',
   profiles: 'profil',

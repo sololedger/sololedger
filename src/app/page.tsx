@@ -12,6 +12,7 @@ import { encodeCP437 } from '@/lib/cp437'
 import { getBankSaldo } from '@/lib/calculations'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
+import NEDeclarationArchive from '@/components/NEDeclarationArchive'
 import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
@@ -1169,7 +1170,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       {yearEndReturn?.scope === yearEndScope && activeTab !== 'arsavslut' && (
         <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {selectedYear}</button></div>
       )}
-      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
+      <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut', 'ne'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
         <>
           <DashboardOverview
@@ -1397,6 +1398,10 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           requiredLevel="paid"
           fallback={<Paywall feature="NE-Bilaga" user={user} />}
         >
+          <div className="mx-auto mb-5 max-w-7xl px-4 sm:px-6 lg:px-8">
+            <NEDeclarationArchive key={`${user.id}:${selectedYear}`} owner={user.id} year={selectedYear} locked={accountingDataReady&&isYearLocked}/>
+          </div>
+          <AccountingDataBoundary ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
           <NEBilaga
             key={`${user.id}:${selectedYear}`}
             userId={user.id}
@@ -1409,6 +1414,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             externalYearCloseBlockReason={customerInvoiceYearCloseBlocker}
             onLockYear={handleLockYear}
           />
+          </AccountingDataBoundary>
         </SubscriptionGuard>
       )}
       </AccountingDataBoundary>

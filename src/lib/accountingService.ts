@@ -1,10 +1,9 @@
+import { calculateCumulativeNeResult, calculateNeReport } from './neCalculation'
 import { verifiedProfileRpc } from './profileWriteGuard'
 import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBookingSubmissionError, type StandardBookingAttempt } from './standardBookingAttempt'
 import { parseStandardBookingAmount } from './standardBookingAmount'
 import { supabase } from './supabaseClient'
-import { calculateBusinessResult } from './resultEngine'
-import { calculateNeEquityResult } from './neEquity'
-import { allocateNeSales, parseNeSalesSummary, unavailableNeSalesClassification } from './neSalesClassification'
+import { parseNeSalesSummary, unavailableNeSalesClassification } from './neSalesClassification'
 import type { PaymentAccountRole } from './paymentAccountRoles'
 import type { VatTreatment } from './vatDomain'
 import type { VatV2BusinessFacts } from './vatBusinessFacts'
@@ -41,9 +40,7 @@ import {
   fetchAllRowsByChunks,
   type FetchAllRangeQuery,
 } from './supabaseFetchAll'
-import { calculateNeBalanceRows } from './neBalance'
 import { readFixedAssetGroupPlan } from './fixedAssets'
-import { collectNeAccountCoverage } from './neAccountCoverage'
 import type {
   FixedAsset,
   FixedAssetAcquisitionInput,
@@ -1837,88 +1834,6 @@ export async function closeYear(year: number): Promise<void> {
 }
 
 /**
- * Steg 1 av B10-arbetet: ren, fristående resultatformel - extraherad ur
- * getNEData() utan någon beteendeförändring. Tar emot VILKET balansobjekt
- * som helst (idag: årsvist balances från getAccountBalances; i ett senare
- * steg: ett kumulativt balansobjekt) och returnerar samma R1-R10/R11-R17
- * som tidigare låg inline. Ingen kumulativ logik här - bara en flytt.
- */
-/**
- * Gemensam resultatmotor för SoloLedger.
- *
- * Själva klassificeringen av resultatkonton, teckenhanteringen och
- * NE-raderna R1-R10 finns i resultEngine.ts.
- *
- * Den här adaptern behåller accountingService.ts befintliga returformat
- * så att getNEData(), getCumulativeResultat() och B10-logiken kan fortsätta
- * fungera utan andra ändringar i detta steg.
- */
-function computeResultat(balances: Record<string, number>) {
-  const result = calculateBusinessResult(balances)
-
-  const {
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    R8,
-    R9,
-    R10,
-  } = result.neRows
-
-  const bokfRes = result.bokfortResultat
-  const ejAvdr = result.ejAvdragsgillt
-
-  // NE sida 2 – skattemässiga justeringar:
-  // R12 = bokfört resultat från R11
-  // R13 = bokförda kostnader som inte ska dras av
-  // R14 = bokförda intäkter som inte ska tas upp
-  // R15 = intäkter som inte bokförts men ska tas upp
-  // R16 = kostnader som inte bokförts men ska dras av
-  //
-  // Endast uttryckligt verifierade BAS-underkonton justeras automatiskt.
-  // Osäkra fördelningar och personalrelaterade konton följer med för granskning.
-  const R11 = bokfRes
-  const R12 = R11
-  const R13 = ejAvdr
-  const R14 = result.skattefriaIntakter
-  const R15 = 0
-  const R16 = 0
-  const R17 = result.skattemassigtResultat
-
-  return {
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    R8,
-    R9,
-    R10,
-    ejAvdr,
-    bokfRes,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
-    R16,
-    R17,
-
-    // Bevara klassificeringsvarningar och olöst resultatpåverkan för NE-vyn.
-    warnings: result.warnings,
-    taxReviews: result.taxReviews,
-    unresolvedResultEffect: result.unresolvedResultEffect,
-    reconciliationDifference: result.reconciliationDifference,
-  }
-}
-
-/**
  * Steg 2 av B10-arbetet: kumulativt bokfört resultat (R1-R10/R11-R17) för
  * ALLA resultatkonton (3xxx-8xxx), från bokföringens start t.o.m. 31
  * december angivet år - till skillnad från getAccountBalances(year) som
@@ -1927,13 +1842,13 @@ function computeResultat(balances: Record<string, number>) {
  * Bygger INGEN egen R1-R8-logik. Bygger bara ett kumulativt balansobjekt,
  * exakt samma mönster som getBalanceSheetBalances() (ingen nedre
  * datumgräns och samma debit-credit-konvention), men utan kontoprefix-filter.
- * computeResultat() läser ändå bara de resultatkonton (3xxx-8xxx) den bryr
+ * calculateNeResult() läser ändå bara de resultatkonton (3xxx-8xxx) den bryr
  * sig om, så en äkta öppningsbalans (som bara innehåller balanskonton, t.ex.
  * 1930/2010) påverkar aldrig detta resultat, oavsett dess source/type.
  *
- * Returnerar HELA computeResultat()-resultatet (inte bara bokfRes), så att
+ * Returnerar HELA calculateNeResult()-resultatet (inte bara bokfRes), så att
  * R1-R8-nedbrytningen också går att inspektera isolerat vid verifiering -
- * kostar inget extra eftersom computeResultat() redan räknar ut alla
+ * kostar inget extra eftersom calculateNeResult() redan räknar ut alla
  * fälten tillsammans.
  * KAN-93: resultAfterTransfers används bara för B10 och inkluderar nettot
  * av tekniska 899x-konton. bokfRes och samtliga R-rader behåller sin betydelse.
@@ -1942,17 +1857,16 @@ function computeResultat(balances: Record<string, number>) {
  * behöver ladda alla journalrader när datamängden växer.
  */
 export async function getCumulativeResultat(year: number, includeReviewSources = false) {
-  const endDate = `${year}-12-31`
+  return calculateCumulativeNeResult(await loadCumulativeNeBalances(year), includeReviewSources)
+}
 
+// Preserve the existing RPC, normalization, order and error behavior.
+async function loadCumulativeNeBalances(year: number) {
   const { data, error } = await supabase.rpc('get_cumulative_account_balances', {
-    p_through_date: endDate,
+    p_through_date: `${year}-12-31`,
   })
-
   if (error) throw error
-
-  const balances = normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
-  const result = computeResultat(balances)
-  return { ...result, ...calculateNeEquityResult(balances, result.bokfRes), ...(includeReviewSources ? { reviewBalances: balances } : {}) }
+  return normalizeAccountBalanceRows(data as AccountBalanceRpcRow[] | null)
 }
 
 export async function getNEData(year: number, includeReviewSources = false) {
@@ -1963,85 +1877,10 @@ export async function getNEData(year: number, includeReviewSources = false) {
   const neSalesClassification = unavailable ? unavailableNeSalesClassification : parseNeSalesSummary(salesData)
   if (!unavailable && !Array.isArray(salesData?.balances)) throw new Error('NE-kontosaldon saknas.')
   const balances = unavailable ? await getAccountBalances(year) : normalizeAccountBalanceRows(salesData.balances as AccountBalanceRpcRow[])
-  // Steg 3: hämtas ENDAST för att ge B13_forutbetalda (konto 1790) ett
-  // kumulativt saldo istället för årets egna rörelse. Används inte för
-  // något annat fält i denna funktion i detta steg.
+  // Preserve both cumulative reads. They are not one atomic source snapshot;
+  // KAN-100 step 1 extracts arithmetic only, not an archive-safe reader.
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
-  const { R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, ejAvdr, bokfRes, R11, R12, R13, R14, R15, R16, R17, warnings, taxReviews, unresolvedResultEffect } = computeResultat(balances)
-
-  // B10 är kumulativt och ska följa K1:s eget-kapital-konton för
-  // enskild näringsverksamhet. BAS K1 placerar 2010, 2011, 2012, 2013,
-  // 2014, 2017 och 2019 i B10. SoloLedger använder dessutom 2018
-  // ("Övriga egna insättningar"), som i nuvarande BAS också tillhör
-  // eget-kapitalgruppen.
-  //
-  // Carry-forward utan nya journalrader:
-  //   kapital + kumulativt resultat efter överföringar + insättningar - uttag.
-  // KAN-93: 899x nettas endast i B10, så ett redan överfört resultat på
-  // 2019/2010 inte räknas en gång till. Äkta ingående kapital bevaras.
-  //
-  // Viktigt: vi klipper inte längre uttag/insättningar till >= 0. En kredit
-  // på ett uttagskonto eller en debet på ett insättningskonto kan vara en
-  // legitim rättning/återföring och ska då påverka B10 åt motsatt håll.
-  // Det bevarar även balansidentiteten.
-  const kumulativtEgetKapitalStart =
-    -(balanceSheetBalances['2010'] || 0) -
-    (balanceSheetBalances['2019'] || 0)
-
-  // Uttagskonton i K1:
-  // 2011 Egna varuuttag
-  // 2012 Avräkning för skatter och avgifter
-  // 2013 Övriga egna uttag
-  // 2014 Uttag förmåner
-  const kumulativaUttag =
-    (balanceSheetBalances['2011'] || 0) +
-    (balanceSheetBalances['2012'] || 0) +
-    (balanceSheetBalances['2013'] || 0) +
-    (balanceSheetBalances['2014'] || 0)
-
-  // Insättningskonton:
-  // 2017 Egna insättningar / Årets kapitaltillskott (K1/BAS)
-  // 2018 Övriga egna insättningar (SoloLedgers standard och nuvarande BAS)
-  // Båda är kreditnormala i vår debet-minus-kredit-konvention och vänds därför.
-  const kumulativaInsattningar =
-    -(
-      (balanceSheetBalances['2017'] || 0) +
-      (balanceSheetBalances['2018'] || 0)
-    )
-
-  const cumulativeResult = await getCumulativeResultat(year, includeReviewSources)
-
-  const IB_kapital = Math.round(kumulativtEgetKapitalStart * 100) / 100
-  const uttag = Math.round(kumulativaUttag * 100) / 100
-  const insattningar = Math.round(kumulativaInsattningar * 100) / 100
-  const B10_total = Math.round(
-    (IB_kapital + cumulativeResult.resultAfterTransfers + insattningar - uttag) * 100
-  ) / 100
-
-  const neBalanceRows = calculateNeBalanceRows(balanceSheetBalances, B10_total)
-
-  // Behåll dessa alias under övergången så att annan befintlig UI-kod inte
-  // behöver gå sönder medan NE-vyn flyttas till korrekta B-rutor.
-  const bank = neBalanceRows.B9
-  const B13_forutbetalda = Math.round(Math.max(0, balanceSheetBalances['1790'] || 0) * 100) / 100
-
-  const neIncomeRows = allocateNeSales({ R1, R2 }, neSalesClassification)
-  return {
-    R1: neIncomeRows.R1, R2: neIncomeRows.R2, R3, R4, R5, R6, R7, R8, R9, R10,
-    neSalesClassification,
-    accountCoverage: collectNeAccountCoverage(balances, balanceSheetBalances, neSalesClassification),
-    warnings, taxReviews, unresolvedResultEffect,
-    bokfortResultat: bokfRes,
-    ejAvdragsgillt: ejAvdr,
-    R11, R12, R13, R14, R15, R16, R17,
-    IB_kapital, insattningar, uttag,
-    // Account totals cannot establish whether external closing journals also
-    // zeroed the income/expense accounts. Explain that limit without guessing R rows.
-    ...(cumulativeResult.technicalResultBalance !== 0 ? { equityReviewRequired: true } : {}),
-    bank,
-    ...neBalanceRows,
-    B13_forutbetalda,
-    ...(includeReviewSources ? { reviewSources: { annual: balances, cumulative: cumulativeResult.reviewBalances! } } : {}),
-  }
+  const cumulativeBalances = await loadCumulativeNeBalances(year)
+  return calculateNeReport({ annualBalances: balances, balanceSheetBalances, cumulativeBalances, neSalesClassification }, includeReviewSources)
 }
