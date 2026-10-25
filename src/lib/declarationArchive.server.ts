@@ -17,7 +17,7 @@ export async function saveDeclarationRevision(authClient: SupabaseClient, servic
     // Dedicated trusted server client, never the bearer-scoped browser client.
     const { data, error } = await serviceClient.rpc('save_declaration_revision_atomic', { ...args, p_candidate: candidate })
     if (error) {
-      if (['40001','23505'].includes(error.code)) throw new DeclarationArchiveError('Underlaget eller historiken har ändrats. Läs in senaste versionen innan du fortsätter.',409,'conflict')
+      if (['PT409','40001','23505'].includes(error.code)) throw new DeclarationArchiveError('Underlaget eller historiken har ändrats. Läs in senaste versionen innan du fortsätter.',409,'conflict')
       if (['23503','23514','22023','22P02'].includes(error.code)) throw new DeclarationArchiveError('Uppgifterna eller underlagskopplingen kunde inte godkännas. Kontrollera versionen.',400,'invalid')
       if (['PGRST202','42883'].includes(error.code)) throw new DeclarationArchiveError('Deklarationsarkivet är inte installerat i denna miljö.',503,'not_installed')
       if (error.code==='P0002') throw new DeclarationArchiveError('Kontot finns inte längre. Logga in igen.',401,'unauthorized')
