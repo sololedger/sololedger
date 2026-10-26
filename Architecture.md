@@ -519,3 +519,18 @@ reads with matching server snapshots/signatures/revisions. Only verified supplie
 are accepted; all economic amounts still come from the dated journal and existing 2440
 reserve handling. No withdrawal RPC/protocol/schema/formula change is required. See
 `docs/reviews/KAN-98-withdrawal-integration-fix.md` for concurrency/security evidence.
+
+## KAN-112 – årsavslutets arbetschecklista
+
+Befintlig YearEndGuide använder fyra utfällbara delar. YearEndChecklistControls
+kopplar en ägar-/årsbunden extern React-store till YearEndChecklistClient och
+RPC:erna get_year_end_checklist/save_year_end_checklist. Servern härleder ägaren,
+jämför revision och underlagskontrollvärde samt serialiserar med befintlig
+lock_accounting_year_boundary. Checklistan förändrar ingen ekonomidata.
+
+year_end_checklist har egen RLS, explicit läsbehörighet och inga direkta
+API-skrivgrants. Den privata kan112_checklist_basis begränsar källornas storlek
+och jämför avgränsade källgrupper utan att lagra kopior av ekonomidata. Stora
+underlag ger tydligt utebliven ändringsjämförelse men bevarat redigerbart svar.
+Raderings-RPC och Edge-räkning/restkontroll inkluderar den nya tabellen.
+Kandidat och testgränser: docs/reviews/KAN-112-LOCAL-IMPLEMENTATION-20261026.md.

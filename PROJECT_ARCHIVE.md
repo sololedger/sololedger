@@ -1084,3 +1084,12 @@ Existing inventory fixtures and older evidence remain preserved; no reset or rep
 - Pontus bekräftar navigation, förbrukad retur och bevarade öppna kontroller på exaktf7da31d.
 - Före Production begärdes endast neutralt fiktivt EU-momsexempel. Aktiv liten lokal textkandidat i STATE
   och KAN-99-FICTIONAL-VAT-LOCAL-PASS-20261022.md; ingen ny publicering eller Done.
+
+### KAN-110/KAN-111 – ersatt lokalt checkpoint (2026-10-26)
+
+Denna kopias ärvda PROJECT_STATE beskrev LOCAL PASS före publicering. Produktbas
+6ad27f1 innehåller de två färdiga säkerhetsändringarna; KAN-110/111 är Done enligt
+återläst Jira. Den tidigare release-/test-/docsgrenen
+codex/KAN-110-111-vat-year-safety är bevarad. KAN-112 fortsätter på separat gren
+från produktbasen och upprepar ingen release eller ändrar befintliga fixtures.
+Äldre lokala bevis finns i coverage/kan110111-local och respektive reviewrapport.

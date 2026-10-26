@@ -1303,7 +1303,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   />
 ) : null}        </>
       ) : activeTab === 'arsavslut' ? (
-        <YearEndGuide key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
+        <YearEndGuide owner={user.id} key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
           year={selectedYear} ready={accountingDataReady} error={accountingDataError} locked={isYearLocked}
           initialOpenControls={yearEndRestore?.scope === yearEndScope ? yearEndRestore.openControls : []}
           showNEGuideReturn={neGuideReturn?.scope === yearEndScope}

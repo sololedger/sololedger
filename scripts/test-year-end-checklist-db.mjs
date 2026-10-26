@@ -1,0 +1,100 @@
+// Rollback-only KAN-112 tests on the previously identified synthetic database.
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {randomUUID,createHash} from 'node:crypto'
+import {LocalSession,validateManifest,literal,json} from './kan62-local-db-guard.mjs'
+assert.equal(process.env.SOLOLEDGER_KAN112_LOCAL_APPROVAL,'local-implementation-and-tests')
+const manifest=validateManifest(JSON.parse(fs.readFileSync('coverage/kan110111-local/result.json','utf8')).manifest)
+const env={...process.env,SOLOLEDGER_KAN62_TEST_DB:manifest.database,SOLOLEDGER_KAN62_APPROVED_OPERATION:'rollback',PGPASSFILE:'C:/SoloLedger/LocalTest/pgpass.conf'}
+const s=await new LocalSession(manifest,env,'kan112-rollback').open()
+const competing=await new LocalSession(manifest,env,'kan112-competing-session').open()
+const migration='20261026092741_kan112_year_end_checklist.sql',sql=fs.readFileSync('supabase/migrations/'+migration,'utf8')
+const checks=[];const pass=x=>{checks.push(x);console.log('PASS '+x)}
+const one=async q=>(await s.run(q))[0]
+const owner=randomUUID(),other=randomUUID()
+const load=year=>one(`SELECT public.get_year_end_checklist(${year});`)
+const save=(year,key,confirmed,rev,basis,id=randomUUID())=>one(`SELECT public.save_year_end_checklist(${year},${literal(key)},${confirmed},${rev},${literal(basis)},${literal(id)});`)
+const expectedReject=async(q,code)=>{const r=await one(`SELECT pg_temp.attempt(${literal(q)});`);assert.equal(r.code,code,JSON.stringify(r));return r}
+const protectedTables=['profiles','accounts','transactions','journal_entries','vat_periods','closed_years','customer_invoices','fixed_assets','supplier_year_end_invoices','tax_account_events','tax_account_movements']
+const protectedState=()=>one('SELECT jsonb_build_object('+protectedTables.map(t=>literal(t)+",(SELECT md5(coalesce(jsonb_agg(to_jsonb(x) ORDER BY to_jsonb(x)::text)::text,'')) FROM public."+t+' x)').join(',')+');')
+const initialProtected=await protectedState()
+try{
+ await s.run('BEGIN;')
+ // This retained test DB predates KAN-100. Reconstruct that already released
+ // dependency inside this rollback transaction only; no persistent installation.
+ const dependency=await one("SELECT jsonb_build_object('present',to_regclass('public.declaration_revisions') IS NOT NULL);")
+ if(!dependency.present)for(const file of ['20261023205734_kan100_declaration_archive.sql','20261025093000_kan100_archive_conflict_sqlstate.sql'])await s.run(fs.readFileSync('supabase/migrations/'+file,'utf8'))
+ await s.run(sql)
+ pass('migration compiles on exact guarded LOCAL identity; transaction not committed')
+ await s.run(`CREATE FUNCTION pg_temp.attempt(q text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN EXECUTE q; RETURN jsonb_build_object('code','success'); EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('code',SQLSTATE,'message',SQLERRM); END $$;`)
+ await s.run(`INSERT INTO auth.users(id) VALUES(${literal(owner)}),(${literal(other)}); INSERT INTO profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement) VALUES(${literal(owner)},'kan112-a@example.invalid','KAN112 synthetic A','registered','year','2025-01-01','taxable','full'),(${literal(other)},'kan112-b@example.invalid','KAN112 synthetic B','registered','year','2025-01-01','taxable','full');`)
+ await s.asUser(owner)
+ let d=await load(2025);assert.equal(d.owner,owner);assert.equal(d.checks.length,0)
+ const id=randomUUID(),basis=d.basis.bank
+ d=await save(2025,'bank',true,0,basis,id);assert.equal(d.checks[0].confirmed,true);assert.equal(d.checks[0].revision,1)
+ const replay=await save(2025,'bank',true,0,basis,id);assert.equal(replay.checks[0].revision,1)
+ pass('mark persists on read and uncertain identical retry replays without duplicate revision')
+ const contention=(await competing.run(`SELECT jsonb_build_object('same_owner_available',pg_try_advisory_xact_lock(hashtextextended('sololedger:accounting_year_boundary:'||${literal(owner)},0)),'other_owner_available',pg_try_advisory_xact_lock(hashtextextended('sololedger:accounting_year_boundary:'||${literal(other)},0)));`))[0]
+ assert.equal(contention.same_owner_available,false);assert.equal(contention.other_owner_available,true)
+ pass('real second session confirms save holds owner-exclusive gate without blocking other owner')
+ await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',false,0,${literal(basis)},${literal(randomUUID())})`,'40001')
+ await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',false,1,${literal(basis)},${literal(id)})`,'22023')
+ pass('stale tab rejected and request-id reuse with changed intent rejected')
+ d=await save(2025,'bank',false,1,basis);assert.equal(d.checks[0].confirmed,false)
+ assert.equal((await load(2026)).checks.length,0)
+ await s.asUser(other);assert.equal((await load(2025)).checks.length,0)
+ assert.equal((await one('SELECT jsonb_build_object(\'n\',count(*)) FROM public.year_end_checklist;')).n,0)
+ pass('unmark, other year and actual RLS user B isolation')
+ await expectedReject(`INSERT INTO public.year_end_checklist(user_id,fiscal_year,check_key,confirmed,revision,last_request_id,last_request) VALUES(${literal(owner)},2025,'tax',false,1,${literal(randomUUID())},'{}')`,'42501')
+ await s.run('RESET ROLE;SET ROLE anon;')
+ await expectedReject('SELECT public.get_year_end_checklist(2025)','42501')
+ await expectedReject('SELECT * FROM public.year_end_checklist','42501')
+ await s.run('RESET ROLE;SET ROLE service_role;')
+ await expectedReject('SELECT public.get_year_end_checklist(2025)','42501')
+ await expectedReject('DELETE FROM public.year_end_checklist','42501')
+ pass('anon and service RPC denial; direct API writes denied')
+ await s.run('RESET ROLE;');await s.asUser(owner)
+ d=await load(2025);d=await save(2025,'bank',true,2,d.basis.bank)
+ await s.run(`RESET ROLE; INSERT INTO accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('forsaljning',${literal(owner)},'KAN112 synthetic sale','1930','3010',25);`)
+ await s.asUser(owner)
+ const oldBasis=d.basis.bank
+ await s.run('SAVEPOINT native;')
+ const booking=await one(`SELECT public.book_transaction_atomic(${json({idempotency_key:randomUUID(),date:'2025-06-20',description:'KAN112 isolated native booking',type:'forsaljning',amount:1250,vat_rate:25,ne_sales_basis:'taxable',ne_sales_basis_confirmed:true})});`)
+ assert.equal(booking.success,true,JSON.stringify(booking))
+ d=await load(2025);assert.notEqual(d.basis.bank,oldBasis);assert(d.checks[0].confirmed)
+ await s.run('ROLLBACK TO SAVEPOINT native;')
+ await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',true,3,${literal(d.basis.bank)},${literal(randomUUID())})`,'40001')
+ d=await load(2025);d=await save(2025,'bank',true,3,d.basis.bank);assert.equal(d.checks[0].basis_fingerprint,d.basis.bank)
+ pass('actual native booking changes bank basis; stale confirmation rejected; recheck accepted')
+ const before=structuredClone(d)
+ await s.run(`RESET ROLE; INSERT INTO customer_invoices(user_id,invoice_number,customer_name,customer_country,currency,invoice_date,service_date,due_date,gross_amount,net_amount,vat_amount,vat_rate,vat_treatment,payment_status) VALUES(${literal(owner)},'KAN112-1','synthetic','SE','SEK','2025-12-01','2025-12-01','2026-01-01',100,NULL,NULL,NULL,'unknown','unpaid');`)
+ await s.asUser(owner);d=await load(2025)
+ assert.equal(d.basis.bank,before.basis.bank);assert.notEqual(d.basis.customers,before.basis.customers)
+ assert.deepEqual(d.checks,before.checks)
+ assert.equal(Object.keys(d.basis).filter(k=>d.basis[k]!==before.basis[k]).length,2)
+ pass('unbooked customer invoice affects customers/next-year only; confirmations preserved')
+ await s.run(`RESET ROLE; INSERT INTO closed_years(user_id,year) VALUES(${literal(owner)},2025);`)
+ await s.asUser(owner);d=await load(2025);assert.equal(d.system.locked,true)
+ d=await save(2025,'bank',false,4,d.basis.bank);assert.equal(d.checks[0].confirmed,false)
+ pass('manual answers remain freely editable on locked year; no lock action')
+ await s.run(`RESET ROLE; SAVEPOINT capacity; INSERT INTO accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('capacity',${literal(other)},'KAN112 capacity fixture','1930','3010',0);
+ INSERT INTO transactions(user_id,date,description,amount,type,vat_rate,booked) SELECT ${literal(other)},'2025-01-01','KAN112 unbooked capacity fixture',1,'capacity',0,false FROM generate_series(1,50001);`)
+ await s.asUser(other);let big=await load(2025);assert.equal(big.basis,null)
+ big=await one(`SELECT public.save_year_end_checklist(2025,'bank',true,0,NULL,${literal(randomUUID())});`);assert.equal(big.checks[0].confirmed,true);assert.equal(big.checks[0].basis_fingerprint,null)
+ big=await one(`SELECT public.save_year_end_checklist(2025,'bank',false,1,NULL,${literal(randomUUID())});`);assert.equal(big.checks[0].confirmed,false)
+ await s.run('RESET ROLE;ROLLBACK TO SAVEPOINT capacity;')
+ pass('50001-row capacity fallback preserves readable answers and free mark/unmark without claiming comparison')
+ // Verify exact deletion through authoritative service RPC including counts/cascade.
+ await s.run('RESET ROLE;')
+ const retained=await one(`SELECT jsonb_build_object('profiles',(SELECT count(*) FROM profiles WHERE id=${literal(other)}),'journal',(SELECT count(*) FROM journal_entries WHERE user_id=${literal(other)}));`)
+ const del=await one(`SET ROLE service_role;SELECT public.delete_user_data_atomic(${literal(owner)});`)
+ assert.equal(del.deleted.year_end_checklist,1)
+ await s.run('RESET ROLE;')
+ assert.equal((await one(`SELECT jsonb_build_object('n',count(*)) FROM public.year_end_checklist WHERE user_id=${literal(owner)};`)).n,0)
+ assert.deepEqual(await one(`SELECT jsonb_build_object('profiles',(SELECT count(*) FROM profiles WHERE id=${literal(other)}),'journal',(SELECT count(*) FROM journal_entries WHERE user_id=${literal(other)}));`),retained)
+ pass('authoritative deletion count, residual check and other owner preservation')
+ await s.run('ROLLBACK;')
+ assert.deepEqual(await protectedState(),initialProtected)
+ pass('exact protected-table digests unchanged after rollback: journal, VAT, NE sources and year locks')
+ fs.mkdirSync('coverage/kan112-local',{recursive:true});fs.writeFileSync('coverage/kan112-local/db-result.json',JSON.stringify({status:'PASS',manifest,migration,sha256:createHash('sha256').update(sql).digest('hex'),checks,rollback:true},null,2))
+}finally{await s.close();await competing.close()}

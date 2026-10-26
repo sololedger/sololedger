@@ -49,8 +49,10 @@
     "test:supplier-year-end": "node scripts/test-supplier-year-end-reports.ts && node scripts/test-supplier-year-end-service.mjs && node scripts/test-supplier-year-end-panel.mjs && npm run test:supplier-withdrawal",
     "test:supplier-year-end:db": "node scripts/test-supplier-year-end-db.mjs",
     "test:supplier-withdrawal": "node --test scripts/test-withdrawal-suppliers.ts && node scripts/test-withdrawal-supplier-transport.mjs",
-    "test:year-end-guide": "node scripts/test-year-end-guide.mjs",
-    "lint:year-end-guide": "node scripts/check-year-end-guide-lint.mjs"
+    "test:year-end-guide": "npm run test:year-end-checklist && node scripts/test-year-end-guide.mjs",
+    "lint:year-end-guide": "node scripts/check-year-end-guide-lint.mjs",
+    "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs",
+    "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

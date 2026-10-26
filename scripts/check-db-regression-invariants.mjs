@@ -108,14 +108,24 @@ for (const name of [
 function latestBody(name, beforeFile) {
   const file = beforeFile ? readdirSync(migrationDir).filter(file => file.endsWith('.sql') && file < beforeFile).sort()
     .filter(file => new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\(`).test(read(join(migrationDir,file)))).at(-1)
-    : latestCriticalDefinitions[name]
+    : latestCriticalDefinitions[name] ?? latestMigrationTouching(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\(`))
   if (!file) { fail(`Missing definition: ${name}`); return '' }
   const source = read(join(migrationDir, file))
   const match = source.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?AS (\\$[a-zA-Z_]*\\$)([\\s\\S]*?)\\1\\s*;`))
   if (!match) { fail(`Cannot inspect complete body: ${name} in ${file}`); return '' }
   return match[2]
 }
-const currentDelete = latestBody('delete_user_data_atomic')
+let currentDelete = latestBody('delete_user_data_atomic')
+if (latestCriticalDefinitions.delete_user_data_atomic === '20261026092741_kan112_year_end_checklist.sql') {
+  // KAN-112 extends the released wrapper; retain checks on the real preserved
+  // inner deletion boundary rather than requiring duplicated security logic.
+  for (const needle of ['public.lock_accounting_year_boundary(p_user_id,true)',
+    'DELETE FROM public.year_end_checklist WHERE user_id=p_user_id',
+    'public.delete_user_data_atomic_pre_kan98(p_user_id)',
+    'IF EXISTS(SELECT 1 FROM public.year_end_checklist',
+    "'year_end_checklist',checklist_count"]) assertIncludes(currentDelete, needle, 'KAN112 deletion wrapper')
+  currentDelete = latestBody('delete_user_data_atomic_pre_kan98')
+}
 for (const needle of [
   'PERFORM public.lock_accounting_year_boundary(p_user_id, true)',
   "IF v_role = 'admin'", 'public.delete_user_data_atomic_lifecycle_context',

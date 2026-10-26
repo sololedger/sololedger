@@ -31,6 +31,7 @@ const legacyKeys: AdminDeleteDryRunCountKey[] = [
 ]
 
 const lifecycleKeys: AdminDeleteDryRunCountKey[] = [
+  'year_end_checklist',
   'ne_sales_classifications',
   'fixed_asset_depreciation_runs',
   'fixed_asset_events',

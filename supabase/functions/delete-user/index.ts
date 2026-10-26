@@ -9,6 +9,7 @@ const corsHeaders = {
 type Action = 'dry-run' | 'delete'
 
 const TABLES = [
+  'year_end_checklist',
   'declaration_revisions',
   'declaration_source_snapshots',
   'supplier_year_end_events',
