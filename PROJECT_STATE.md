@@ -1,15 +1,16 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 sista mobiljusteringen PASS lokalt inför separat Staging-beslut.**
+2026-10-26 – **KAN-112 mobilnavigation publicerad, PASS för manuell Staging-acceptans med 320-observation.**
 Produktmål och prioriteringar enligt AGENTS.md: begriplig och tillförlitlig bokföring
 för Jessikas enskilda firma år efter år. Aktuellt arbete förbättrar bara guidens navigation.
-Ingen ny push/deployment, migration, DB-/Edge-/Production-/Jira-ändring.
+Exakt godkänd staging-push/deployment utförd. Ingen appdata-/migrations-/Edge-/Production-/Jira-ändring.
 
 ## Arbetskopia och lokal kandidat
 
 - L = audit-packages/KAN-100-app-release-20261024.
 - Gren codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
-- Lokal produktcommit 1e4a32a44fde6173633c2deef92940cc682ced84, inte pushad.
+- Publicerad produktcommit 1e4a32a44fde6173633c2deef92940cc682ced84, bara Staging.
+- Före publicering docs-HEAD b57e16cda81a2e429c6b1eb138084bde91bc3c99; inte pushad.
 - Förälder 50aa868e062f0b425722296fc32d53e1f6cc3727 (tidigare hosted docs).
 - Senare rapport/STATE-checkpoint enligt git log är bara lokal.
 - Rootens tidigare dirty AGENTS/STATE/arkiv/rapporter/verktyg bevarade; aldrig produktpushkälla.
@@ -29,7 +30,7 @@ Ingen ny push/deployment, migration, DB-/Edge-/Production-/Jira-ändring.
 - Ingen ändring av checklist-store/klient/Auth, sparregler, bekräftelser, varningar eller ekonomi.
 - Gemensam sticky fel-/pendingstatus och dess fokusprioritet bevarade.
 
-## Aktuell lokal verifiering
+## Tidigare lokal verifiering av samma kandidat
 
 - npm run test:year-end-guide PASS/exit 0, inkl store/klient/Auth/guide-regression.
 - 320x568 och 390x844 med korrekt viewport-meta, mobile/touch och native scroll-/focusin-händelser.
@@ -46,14 +47,27 @@ Ingen ny push/deployment, migration, DB-/Edge-/Production-/Jira-ändring.
 - Rapport docs/reviews/KAN-112-MOBILE-NAVIGATION-LOCAL-20261026.md.
 - Bevis coverage/kan112-modern/: mobile-navigation-regression.log, result.json och mobil-/breddbilder.
 
-## Senast publicerat (oförändrat av detta lokala uppdrag)
+## Aktuellt hosted omtest och databevarande
 
-- Staging a02e3e30403e56969a55fbc4156213e04a829164,
-  dpl_GRTbB87v2xSZQBFf7vHnb7USNkV6 READY, Preview/staging på ordinarie alias.
-- Alias korrigerades från dpl_EGHhDGsXoZE3XXgsWDqD9F7ZxZhW/934ce9b inom godkänd release.
+- 1440/390 första körningen PASS: mobil list-/instruktionstopp, native smooth-scroll,
+  snabba val, returknapp, reduced-motion, tangentbord, NE/Moms-retur och sparade svar/varningar.
+- Första 320-körningen stannade på 20,25 px avvikelse från avsedd toppmarginal.
+  Ett begränsat 320-omtest av exakt samma kandidat passerade alla kontroller, listtoppar 16,25 px.
+  Orsak till första avvikelsen ej fastställd; kontrollera särskilt på riktig mobil vid acceptans.
+- Sammanställda PASS-resultat är från delade körningar; ingen helt avvikelsefri helkörning påstås.
+- Enbart befintlig syntetisk A använd. Appdataskrivningar spärrade: ingen checkbox/save aktiverad.
+- Alla 15 checklistrader och övriga publika appdata/schema/ledger exakt oförändrade före/efter.
+- Rapport docs/reviews/KAN-112-MOBILE-NAVIGATION-STAGING-20261026.md; bevis root/audit-packages/
+  KAN-112-mobile-staging-20261026/. Browserar avslutade, ingen fysisk mobil/Safari omkörd.
+
+## Aktuellt publicerat, slutverifierat
+
+- Staging 1e4a32a44fde6173633c2deef92940cc682ced84,
+  dpl_58afdvJM1RQ7hpSoiYnWAgGsw5Bh READY, Preview/staging på ordinarie alias.
+- Alias korrigerades från dpl_GRTbB87v2xSZQBFf7vHnb7USNkV6/a02e3e3 inom godkänd release.
   Andra alias/envmetadata, särskilt Production, verifierades oförändrade då.
 - Supabase Staging fzxqiqenqjzhlyxxpvhg, KAN-112-versioner 20261026092741/20261026110015.
-- GitHub main senast verifierad 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e. Ingen ny fjärrkontroll behövdes lokalt.
+- GitHub main slutverifierad kvar 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e, Production orörd.
 - Föregående hosted desktop/mobil-smoke PASS, alla ursprungliga data bevarade utom avsedd syntetisk bankrad.
   Extra momsrad 2026 avstämd som Pontus avsiktliga samtidiga manuella test, lämnad orörd.
 - Rapport docs/reviews/KAN-112-SCROLL-FIX-STAGING-20261026.md, bevis root/audit-packages/KAN-112-scroll-staging-20261026/.
@@ -71,6 +85,6 @@ Ingen ny push/deployment, migration, DB-/Edge-/Production-/Jira-ändring.
 
 ## Nästa säkra steg
 
-- Invänta separat Staging-godkännande för exakt lokal produkt 1e4a32a44fde6173633c2deef92940cc682ced84.
-- Stanna efter lokal verifiering. Ingen push/deployment, migration, Production eller Jira Done godkänd.
+- Pontus manuell acceptans av mobilnavigationen på Staging 1e4a32a, särskilt 320-observationen.
+- Stanna efter hosted verifiering. Ingen ytterligare push/deployment, migration, Production eller Jira Done godkänd.
 - Alla testbrowserar avslutade; ingen lokal server startad av dessa tester. Inga pågående tester.
