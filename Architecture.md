@@ -1,13 +1,25 @@
 # SoloLedger - Arkitektur
 
-## KAN-110/111 – lokal säkerhetskandidat
+## KAN-117 – lokal kandidat för momsperiodskapande
+
+`get_vat_period_creation_plan(year)` läser en ägarbunden plan för enbart valt år.
+`VatPeriodCreationPanel` visar täckning/luckor och en separat native bekräftelsedialog.
+`create_missing_vat_periods(year,basis)` tar den exklusiva befintliga ägarlåsgränsen,
+låser profilen och jämför aktuell plan före atomisk infogning av nya öppna perioder.
+Ingen gissad första delperiod, journal eller ändring av befintliga periodrader.
+Privat planhjälpare, uttryckliga API-grants, ingen ny lagrad domän. `vatPeriodCreation.ts`
+binder verifierad ägare/bearer; oförändrad `ensure_vat_periods` används inte i nya momsvyn.
+Endast lokal kandidat: migration `20261026210000_kan117_vat_period_preview.sql`.
+Verifiering/kompatibilitet/Staging-gräns: `docs/reviews/KAN-117-LOCAL-IMPLEMENTATION-20261026.md`.
+
+## KAN-110/111 – befintligt skydd för momsperioder
 
 `assert_vat_year_coverage` kontrollerar hanterade momsperioder under den exklusiva
 årslåsgränsen före befintliga inventarie-/kundfaktura-/balanskontroller. Saknad
 eller osäker täckning stoppar nya lås; befintliga explicit fastställda första
 delperioder bevaras. Hjälparen är privat och lagrar inga data. `Momsrapport`
-läser utan periodgenerering; `Skapa saknade momsperioder` är en separat åtgärd.
-Skapandefel döljer inte läsbar historik. Kandidat, migrationsbeslut och testgränser:
+läser utan periodgenerering; skapande är en separat åtgärd (KAN-117-kandidaten ovan
+lägger till granskning/bekräftelse). Skapandefel döljer inte läsbar historik. Ursprungligt underlag:
 `docs/reviews/KAN-110-KAN-111-LOCAL-IMPLEMENTATION-20261026.md` och `PROJECT_STATE.md`.
 
 ## KAN-104: ägarbunden profil och skrivkontext (lokal kandidat)

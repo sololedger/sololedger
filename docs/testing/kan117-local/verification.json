@@ -1,0 +1,80 @@
+{
+  "issue": "KAN-117",
+  "scope": "LOCAL only",
+  "productBase": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "branch": "codex/KAN-117-vat-period-preview",
+  "migration": {
+    "file": "20261026210000_kan117_vat_period_preview.sql",
+    "sha256": "157469939451edc5ceed54d2cfadd843d94e4726cc12e90ca452a97c3002f93e",
+    "remoteApplied": false,
+    "localOnly": true
+  },
+  "database": {
+    "status": "PASS",
+    "name": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "oid": "57199",
+    "syntheticOnly": true,
+    "checks": [
+      "candidate installed only in identified local synthetic database",
+      "effective API grants: private helper, authenticated only, no anon or service-role API access",
+      "actual anon/service-role/private-helper calls denied; authenticated without identity cannot read a plan",
+      "synthetic first annual partial period matches supplied scenario; plan works READ ONLY without mutation",
+      "year: exact missing dates created once; replay rejected; no journals or transactions",
+      "quarter: exact missing dates created once; replay rejected; no journals or transactions",
+      "month: exact missing dates created once; replay rejected; no journals or transactions",
+      "selected historical year only; no hidden generation in earlier years",
+      "interior month gap only; all existing closed period rows remain byte-equivalent",
+      "existing first partial year retained while selected next calendar year can be created",
+      "unresolved first partial periods blocked for all frequencies",
+      "not registered/unknown cannot create; incomplete profile denied by existing DB constraint",
+      "profile changes, owner changes and changed year reject stale preview",
+      "overlap, incompatible interval and imported-history ambiguity cannot become complete or create",
+      "historical year lock changes invalidate preview; future years cannot create",
+      "unmatched/old token and non-fresh transaction snapshot fail closed",
+      "rollback-only Stockholm year boundary: old-day preview rejected; only started periods in new year",
+      "concurrent double confirmation serializes; only one exact period is inserted",
+      "confirmation waits for concurrent profile save then rechecks fresh state",
+      "new confirmation waits for legacy generator and rejects stale dates without duplicate",
+      "concurrent year-lock boundary waits then prevents insertion in newly locked year",
+      "all earlier public/Auth/Storage rows and existing function definitions/ACL unchanged"
+    ]
+  },
+  "browser": {
+    "status": "PASS",
+    "checks": [
+      "1280: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+      "1280: stale server state rejected; owner/profile remount discards preview",
+      "1280: invalid/unknown/not registered/read failure fail closed; uncertain result re-read; help and no horizontal overflow",
+      "390: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+      "390: stale server state rejected; owner/profile remount discards preview",
+      "390: invalid/unknown/not registered/read failure fail closed; uncertain result re-read; help and no horizontal overflow"
+    ],
+    "transport": "synthetic only",
+    "noHostedWrites": true
+  },
+  "checks": {
+    "typecheck": "PASS",
+    "focusedEslint": "PASS",
+    "accountingPanelLoads": "PASS",
+    "dbInvariants": "PASS",
+    "safeRegression": "PASS",
+    "publicSmokeTests": 2,
+    "productionBuild": "PASS",
+    "historicalYearSelection": "PASS, actual loader with no journal or period rows"
+  },
+  "configuration": "Synthetic process-local loopback configuration only; initial missing-env build/smoke failures resolved without changing env files.",
+  "dataPreservation": "All prior public/Auth/Storage data and existing public function definitions/ACL equal before/after local tests.",
+  "limitations": [
+    "Separate local browser transport and PostgreSQL tests; hosted UI-RPC-DB acceptance awaits approval.",
+    "No actual taxpayer-register integration or automatic first partial-period creation."
+  ],
+  "publication": {
+    "staging": false,
+    "production": false,
+    "jiraMutation": false,
+    "push": false
+  },
+  "status": "LOCAL PASS"
+}

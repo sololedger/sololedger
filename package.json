@@ -29,7 +29,7 @@
     "test:history-ui": "node scripts/test-transaction-attachment-ui.mjs",
     "test:history-presentation": "node scripts/test-transaction-history-presentation.ts",
     "test:history-presentation-ui": "node scripts/test-transaction-presentation-ui.mjs",
-    "test:regression": "node scripts/test-declaration-archive-client.mjs && npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:ui-round && npm run test:e2e:smoke && node scripts/test-category-visibility-ui.mjs && node scripts/test-standard-booking-browser.mjs",
+    "test:regression": "npm run test:vat-periods && node scripts/test-declaration-archive-client.mjs && npm run test:domain && npm run test:history-groups && npm run test:history-presentation && npm run test:history-ui && npm run test:history-presentation-ui && npm run test:ui-round && npm run test:e2e:smoke && node scripts/test-category-visibility-ui.mjs && node scripts/test-standard-booking-browser.mjs",
     "test:ne-review": "node scripts/test-ne-review.mjs",
     "test:kan93:db": "node scripts/test-ne-equity-local-db.mjs",
     "test:kan74:db": "node scripts/test-sie-opening-guard.mjs",
@@ -53,7 +53,9 @@
     "test:year-close-date:db": "node scripts/test-year-close-date-db.mjs",
     "lint:year-end-guide": "node scripts/check-year-end-guide-lint.mjs",
     "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs && node scripts/test-year-end-auth.mjs",
-    "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs && node scripts/test-year-end-checklist-fixes-db.mjs"
+    "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs && node scripts/test-year-end-checklist-fixes-db.mjs",
+    "test:vat-periods": "node scripts/test-vat-period-creation-browser.mjs",
+    "test:vat-periods:db": "node scripts/test-vat-period-creation-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

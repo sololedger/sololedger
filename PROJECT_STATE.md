@@ -1,8 +1,34 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 + KAN-113 PRODUCTION PASS. Lokal Prepare Handoff klar, ej pushad.**
+2026-10-26 – **KAN-117 LOCAL PASS. Ingen fjärrpublicering beställd.**
 Produktmål enligt AGENTS: begriplig/tillförlitlig bokföring för Jessikas enskilda firma år efter år.
-Ingen ytterligare utveckling beställd. Nästa steg: Pontus Production-granskning och separat Jira-/avslutsbeslut.
+KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdrag.
+
+## Aktuellt KAN-117 – lokal implementation/verifiering
+
+- Gren codex/KAN-117-vat-period-preview, parent 02af89d, produktbas e992e4f.
+  Lokal checkpoint enligt git log. L-origin är lokal kopia; ingen push gjord.
+- Jira KAN-117 läst To Do/otilldelad, inga mutationer. KAN-112/113 lämnas Done.
+- Ny periodplan för valt år, komplett status utan skapandeknapp, exakta luckdatum,
+  native förhandsgranskning/Avbryt och separat bekräftelse. Ingen gissad delperiod.
+- Ny migration 20261026210000_kan117_vat_period_preview.sql: tre funktioner,
+  uttryckliga API-grants; inga tabeller eller befintliga RPC-definitioner ändras.
+  Bekräftelse omkontrollerar ägare/år/Stockholmsdag/profil/perioder/lås under ägarlås.
+- Endast lokal DB-kandidat på verifierad sololedger_kan62_disposable_20261021,
+  127.0.0.1:5432/PG17/OID57199/unique syntheticOnly-markör. Nya syntetiska
+  testkohorter bevarade. Alla tidigare public/Auth/Storage-dataavtryck oförändrade.
+- Databas22 kontrollgrupper, faktisk panel/klient på dator1280/mobil390,
+  TypeScript/riktad ESLint/laddningsregression/DB-invarianter och lokal build PASS.
+  Slutlig säker regression PASS med syntetisk lokal processkonfiguration, inklusive
+  nya browserprovet och båda publika smokeproven. Historiska år utan rader kan väljas.
+- Rapport docs/reviews/KAN-117-LOCAL-IMPLEMENTATION-20261026.md.
+  Tidigare läsande analys VAT-PERIOD-BUTTON-READONLY-20261026.md bevaras och
+  checkpointas som underlag. Ingen period saknades i det då granskade scenariot.
+- Kod/SQL/tester/docs för detta uppdrag omfattas av lokal checkpoint. Rootens
+  orelaterade diff, övriga worktrees, fixtures samt auth/envfiler bevarade.
+- Nästa steg efter lokal PASS: Pontus beslutar separat om exakt Staging-kandidat,
+  denna migration via officiell CLI och syntetisk hosted UI→RPC→DB-acceptans.
+  Ingen Staging-/Production-skrivning, fjärrmigration, push, deploy eller Jira-mutation.
 
 ## Läs detta först på nästa konto
 
@@ -11,7 +37,7 @@ Ingen ytterligare utveckling beställd. Nästa steg: Pontus Production-gransknin
 - Läs root/L AGENTS.md, detta STATE, KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md
   och KAN-112-KAN-113-BACKUP-RECOVERY-20261026.md i L/docs/reviews/.
 - Kort startprompt: docs/reviews/KAN-112-KAN-113-NEXT-CHAT-20261026.md.
-- Gren codex/KAN-113-year-lock-analysis; arbetskopian var ren på120fcd8 före release/handoff.
+- Historisk KAN-112/113-gren codex/KAN-113-year-lock-analysis; ren på120fcd8 före release/handoff.
   Efter produktcommit e992e4f finns lokala rapportcommits; aktuell handoff-checkpoint enligt git log.
 - L-origin är lokal KAN62-kopia, INTE GitHub. Lokala main/staging-refar är äldre6ad27f1.
   Extern verifierad GitHub https://github.com/sololedger/sololedger.git har båda på e992e4f.
@@ -42,7 +68,8 @@ Ingen ytterligare utveckling beställd. Nästa steg: Pontus Production-gransknin
   eller pageerror; skyddat deklarationsindex401. Inga inloggningar/sparningar i live.
 - Staging kvar e992e4f, dpl_3eVEv5x5fxQnHJYztofWZbEePSfn/ledger66. Tidigare teknisk/manuell
   dator-/fysisk mobilacceptans bevarad; inga nya UX-/kosmetikändringar.
-- Jira återläst båda To Do/otilldelade, ingen mutation eller Done. Pontus bestämmer separat.
+- Jira vid releasen båda To Do/otilldelade; färskt återlästa Done 2026-10-26 efter Pontus avslut.
+  Ingen Jira-mutation gjord i denna läsande granskning.
 - Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md; sanerat kvitto
   docs/testing/kan112113-production-release-20261026/release.json. Råbevis root/audit-packages/KAN112113-release-20261026/.
 
@@ -75,11 +102,11 @@ Ingen ytterligare utveckling beställd. Nästa steg: Pontus Production-gransknin
 
 ## Stopp, begränsningar och handoff
 
-- Alla godkända releasesteg slutförda. Inga ytterligare migrationer/Edge/push/deploy/Jira-/produktändringar.
+- KAN-112/113-releasen slutförd. KAN-117 är enbart lokal kandidat; inga nya fjärråtgärder godkända.
 - Approllback återställer inte DB/Edge/ledger. Ingen automatisk Production-restore/rollback/repair.
   Vid incident: stoppa, verifiera faktiskt läge, begär nytt granskat åtgärdsbeslut och bevara nyare data.
 - Retention: avslutad release/ersatta readiness-stopp komprimerade i ARCHIVE; originalrapporter bevarade.
-- Endast dokumentation/Architecture/sanerat kvitto ändras i sista lokala checkpointen. Ingen AGENTS-ändring.
-  Lokal handoff är committad och arbetskopian kontrolleras ren. **Dokumentationen är inte pushad**;
+- KAN-117 checkpointar lokal kod/migration/tester/docs efter verifiering. Ingen AGENTS-ändring.
+  Äldre handoff och nya kandidaten är **inte pushade**;
   full HANDOFF READY enligt AGENTS kräver separat godkänd push/remoteverifiering. Ingen sådan push ingår.
-- Nästa session börjar läsande från startprompten och inväntar Pontus granskning/avslutsbeslut.
+- Nästa session börjar läsande från aktuell STATE och KAN-117-rapporten; nästa beslut gäller Staging.

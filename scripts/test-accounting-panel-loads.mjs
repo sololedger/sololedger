@@ -83,6 +83,9 @@ const periodReads = deferredReads()
 const reportReads = deferredReads()
 const vatContext = {
   year: 2026, currentYear: 2026, canEnsurePeriods: false,
+  vatManagementFrom: '2024-06-02',
+  supabase: { auth: { getUser: async () => ({ data: { user: { id: 'synthetic-period-owner' } } }) } },
+  fetchAllRows: async () => [],
   periodLoadSequence: { current: 0 }, reportRequestSeqRef: { current: 0 },
   settlementRequestSeqRef: { current: 0 }, movementRequestSeqRef: { current: 0 },
   selectionContextRef: { current: { periodId: '2026', contextKey: '2026' } },
@@ -92,7 +95,10 @@ const vatContext = {
   isVatReportRequestCurrent: (a, b) => a.periodId === b.periodId && a.contextKey === b.contextKey,
   buildVatReportPresentation: report => report,
 }
-const vat = await callbacks('src/components/Momsrapport.tsx', ['loadVatPeriods', 'handleYearChange', 'handlePeriodChange', 'fetchMomsForPeriod'], vatContext)
+const vat = await callbacks('src/components/Momsrapport.tsx', ['loadAvailableYears', 'loadVatPeriods', 'handleYearChange', 'handlePeriodChange', 'fetchMomsForPeriod'], vatContext)
+await vat.loadAvailableYears()
+assert.deepEqual(Array.from(vat.state.setAvailableYears), [2026, 2025, 2024])
+console.log('PASS KAN117: historical managed years selectable even without journal or period rows')
 const period = year => [{ id: String(year), period_start: `${year}-01-01`, period_end: `${year}-12-31` }]
 first = vat.loadVatPeriods(); const oldPeriodRead = periodReads.requests.shift()
 vat.handleYearChange(2027)
@@ -108,23 +114,17 @@ first = vat.loadVatPeriods(); periodReads.requests.shift().resolve(period(2027))
 assert.equal(vat.state.setPeriodError, null)
 console.log('PASS VAT actual period loader: immediate clear, stale response, failure and retry')
 
-// KAN-111: configured/locked companies read without invoking period generation.
+// KAN-117: all loader options remain read-only; creation lives in a separate confirmed panel.
 vatContext.canEnsurePeriods = true
 vatContext.currentYear = 2027
 let generationCalls = 0
-vatContext.ensureVatPeriods = async () => { generationCalls++; throw new Error('Synthetic creation refused for historical gap') }
-first = vat.loadVatPeriods()
-periodReads.requests.shift().resolve(period(2027)); await first
-assert.equal(generationCalls, 0, 'mount/revisit/retry must be a pure period read')
-assert.equal(vat.state.setVatPeriods[0].id, '2027')
+vatContext.ensureVatPeriods = async () => { generationCalls++; throw new Error('No legacy writes') }
 first = vat.loadVatPeriods(undefined, { ensure: true, preserveReport: true, preservePeriodsOnError: true })
-await new Promise(resolve => setImmediate(resolve))
 periodReads.requests.shift().resolve(period(2027)); await first
-assert.equal(generationCalls, 1)
-assert.match(vat.state.setPeriodGenerationError, /Synthetic creation refused/)
-assert.equal(vat.state.setPeriodError, null, 'creation failure is not a read failure')
-assert.equal(vat.state.setVatPeriods[0].id, '2027', 'readable closed period remains accessible')
-console.log('PASS KAN111: pure reads, explicit creation only, readable history survives creation failure')
+assert.equal(generationCalls, 0)
+assert.equal(vat.state.setPeriodError, null)
+assert.equal(vat.state.setVatPeriods[0].id, '2027')
+console.log('PASS KAN117: pure period reads, no legacy generation path')
 
 vatContext.selectionContextRef.current = { periodId: '2027', contextKey: '2027' }
 first = vat.fetchMomsForPeriod(period(2027)[0], '2027')
