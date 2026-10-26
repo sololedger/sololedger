@@ -1,0 +1,29 @@
+{
+  "issue": "KAN-113",
+  "dateStockholm": "2026-10-26",
+  "target": "local implementation only",
+  "databaseChecks": "PASS: 14 groups, original local schema and public data restored, synthetic cohort residual 0",
+  "clientDateChecks": "PASS: four timezones and Stockholm midnight boundary",
+  "actualHomeNeBrowser": "PASS: 1280/390 px, current/future blocked, previous year permitted, readable server rejection",
+  "browserTransport": "offline synthetic; real PostgreSQL RPC verified separately",
+  "typecheck": "PASS",
+  "changedHelperAndTestFilesLint": "PASS",
+  "pageLint": "PASS_NO_NEW_ERRORS: 9 baseline errors remain",
+  "dbInvariantCheck": "PASS",
+  "diffCheck": "PASS",
+  "safeRegressionOriginalCommand": "BLOCKED_CONFIGURATION at public smoke: supabaseUrl is required; prior steps passed",
+  "safeRegressionRemainingVerification": "PASS: one process-local synthetic public-smoke retry (2 tests), category visibility, standard booking browser including year lock",
+  "safeRegressionAllSubsteps": "PASS after bounded configuration retry; original full command exit was 1",
+  "productionReadOnlyAggregate": {
+    "project": "wbaxmuvudpnkvuliicuy",
+    "checkedDateStockholm": "2026-10-26",
+    "currentYearLockRows": 0,
+    "futureYearLockRows": 0,
+    "affectedUserCount": 0
+  },
+  "remoteWrites": false,
+  "remoteMigrations": false,
+  "pushOrDeployment": false,
+  "jiraMutation": false,
+  "nextStep": "Leader decision for exact Staging candidate and migration, followed by hosted client-to-RPC acceptance"
+}

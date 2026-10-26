@@ -1,0 +1,83 @@
+{
+  "status": "PASS",
+  "migration": "20261026162305_kan113_calendar_year_close_guard.sql",
+  "sha256": "1b5214198bb86142b6fe3847d967d76f9e4d90ba45020054b0eac6b7e70bcda6",
+  "manifest": {
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "postgresMajor": 17,
+    "oid": "57199",
+    "marker": "KAN62 disposable synthetic only 24656ce5-f60d-479e-8664-040667dc021c",
+    "syntheticOnly": true
+  },
+  "checks": [
+    {
+      "name": "only wrapper changed; all downstream checks, ACL, other functions and table boundaries preserved"
+    },
+    {
+      "name": "past year closes with real balanced journal, preserved VAT/report balances and post-lock rejection no VAT",
+      "details": {
+        "period": {
+          "1930": 1250,
+          "3010": -1250
+        },
+        "cumulative": {
+          "1930": 1250,
+          "3010": -1250
+        }
+      }
+    },
+    {
+      "name": "current/future direct RPC denied without data/lock changes no VAT"
+    },
+    {
+      "name": "past year closes with real balanced journal, preserved VAT/report balances and post-lock rejection VAT",
+      "details": {
+        "period": {
+          "1930": 1250,
+          "2611": 0,
+          "2650": -250,
+          "3010": -1000
+        },
+        "cumulative": {
+          "1930": 1250,
+          "2611": 0,
+          "2650": -250,
+          "3010": -1000
+        }
+      }
+    },
+    {
+      "name": "current/future direct RPC denied without data/lock changes VAT closed fixture"
+    },
+    {
+      "name": "invalid years, anonymous, missing identity, and lock read isolation preserved"
+    },
+    {
+      "name": "negative bank still blocks a completed year"
+    },
+    {
+      "name": "candidate RPC body at Stockholm midnight ±1ms, independent of three session timezones; temp clone rolled back"
+    },
+    {
+      "name": "booking first: close waits and includes committed journal; exact replay remains safe"
+    },
+    {
+      "name": "close first: later booking waits, then is rejected without a journal"
+    },
+    {
+      "name": "concurrent past-year closure inserts exactly one lock"
+    },
+    {
+      "name": "current/future closure after lock wait and concurrent attempts denied with no data changes"
+    },
+    {
+      "name": "shared-to-exclusive upgrade protection preserved; rollback restores synthetic write"
+    },
+    {
+      "name": "synthetic cohort removed via authoritative deletion RPC; all public data, auth count and schema restored"
+    }
+  ],
+  "restored": true
+}

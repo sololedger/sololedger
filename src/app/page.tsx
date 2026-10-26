@@ -1,5 +1,6 @@
 'use client'
 import { parseStandardBookingAmount } from '@/lib/standardBookingAmount'
+import { yearCloseDateBlockReason } from '@/lib/yearCloseDate'
 import { readStandardBookingAttempt, saveStandardBookingAttempt, clearStandardBookingAttempt, StandardBookingSubmissionError, type StandardBookingAttempt, type StandardBookingReceipt } from '@/lib/standardBookingAttempt'
 
 export const dynamic = 'force-dynamic'
@@ -768,6 +769,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   }
 
   async function handleLockYear() {
+    const dateBlockReason = yearCloseDateBlockReason(selectedYear)
+    if (dateBlockReason) {
+      alert(dateBlockReason)
+      return
+    }
     const confirmed = confirm(
       `Är du säker på att du vill låsa ${selectedYear}?\n\nDetta låser alla verifikationer permanent och kan inte ångras enligt god redovisningssed.`
     )
@@ -1413,7 +1419,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             initialGuideOpenDetails={neGuideRestore?.scope === yearEndScope ? neGuideRestore.openDetails : undefined}
             selectedYear={selectedYear}
             isYearLocked={isYearLocked}
-            externalYearCloseBlockReason={customerInvoiceYearCloseBlocker}
+            externalYearCloseBlockReason={yearCloseDateBlockReason(selectedYear) ?? customerInvoiceYearCloseBlocker}
             onLockYear={handleLockYear}
           />
           </AccountingDataBoundary>

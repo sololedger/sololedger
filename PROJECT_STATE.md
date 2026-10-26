@@ -2,7 +2,7 @@
 
 2026-10-26 – **KAN-112 tekniskt och manuellt accepterad i Staging, inkl fysisk mobil. Production återstår.**
 Produktmål/prioriteringar enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas
-enskilda firma år efter år. KAN-113 analyserad/reproducerad; invänta beslut före rättning.
+enskilda firma år efter år. KAN-113 lokalt rättad/verifierad; invänta Staging-beslut.
 
 ## Läs detta först efter Codex-kontobyte
 
@@ -35,29 +35,35 @@ enskilda firma år efter år. KAN-113 analyserad/reproducerad; invänta beslut f
 - Jira KAN-112 Task/Medium/To Do/otilldelad, acceptanskommentar 11687 tillagd och återläst.
   Status/assignee oförändrade, inte Done. KAN-113 Bug/Medium/To Do/otilldelad, oförändrad.
 
-## KAN-113 – REPRODUCERAT 2026-10-26, invänta ledarbeslut
+## KAN-113 – lokal implementation/verifiering klar 2026-10-26
 
-- Rapport: docs/reviews/KAN-113-ANALYSIS-REPRODUCTION-20261026.md. Produkt oförändrad 1e4a32a.
-- Jira återläst Bug/Medium/To Do/otilldelad, inga kommentarer/mutationer.
-- L var ren på f352355; separat analysgren codex/KAN-113-year-lock-analysis.
-  Rootens samtliga orelaterade ändringar bevarade; inga KAN-112-produktändringar.
-- Klient/tjänst/RPC saknar datumstopp. Live Staging-schema/ACL/RLS lästa.
-  Tre centrala Production-definitioner/ACL matchar Staging; bara katalog läst där.
-- Nya syntetiska ej momsregistrerade företag kunde låsa tomma 2025, 2026, 2027.
-  Efterbokning nekades. 2026 pågående/2027 framtida = reproducerad defekt.
-- Normal momsperiodstängning nekar 2026/2027; öppen/saknad moms stoppar årslås.
-  Med konstgjort färdig momsstatus tillåter RPC ändå lås; separat fixturebevis.
-- Sluttest 42 assertions PASS, samma session, full rollback, 33 publika tabelldigester
-  och auth-antal oförändrade; 0 auth/profiles-residual. Inga bestående sluttestdata.
-- Första testverktygsförsöket sparade sex syntetiska konton genom escapingfel.
-  Exakt cohort avstämd utan bokföring, raderad under stående synthetic-behörighet;
-  residual=0. Andra försöket återställt, befintlig låsuppgraderingsspärr fungerade.
-- SIE route/parser/client-test PASS; fem periodprov dokumenterar brutet/förlängt
-  nekas över årsskifte, vissa förkortade accepteras men styr inte årslåsets slutdatum.
-- Rekommendation: separat liten servermigration + klientbesked, Stockholm-gräns,
-  före KAN-112 Production. Ingen automatisk upplåsning eller generell periodmodell.
-- Inget produktfix, migration, push/deploy/Edge/Jira. Bred regression/UI-E2E ej körd;
-  ingen implementation. Nästa steg: Pontus beslutar exakt rättningsscope, sedan riktade tester.
+- Lokal implementation godkänd av Pontus efter analys ded55d7. Gren oförändrad
+  codex/KAN-113-year-lock-analysis; lokal fixcheckpoint enligt git log. Ingen push.
+- Rapport: docs/reviews/KAN-113-LOCAL-IMPLEMENTATION-20261026.md; exakt filförteckning,
+  avgränsningar, tidigare verktygsavbrott och Staging-plan finns där. Analysrapporten bevarad.
+- Ny migration 20261026162305_kan113_calendar_year_close_guard.sql: årtal måste ha
+  passerat helt i Europe/Stockholm enligt serverklocka efter exklusiv ägargräns.
+  Befintliga efterföljande skydd, ACL och signatur identiska. Ingen ny tabell/datareparation.
+- src/lib/yearCloseDate.ts + page.tsx visar begriplig spärr före bekräftelse/anrop.
+  Ingen ombyggnad för brutna/förlängda år eller andra KAN-112-UX-ändringar.
+- Verifierad befintlig lokal DB 127.0.0.1:5432, sololedger_kan62_disposable_20261021,
+  PG17/OID57199/marker matchade. Inga nya databaser/reset eller fjärrinstallationer.
+- DB 14 grupper PASS: riktiga journal-/momssaldon, föregående/pågående/framtida,
+  båda momsprofiler, Stockholm ±1ms, samtidighet/replay/isolering/befintliga spärrar.
+  Syntetiska konton borttagna via auktoritativ RPC; alla publika data/schema/auth-antal
+  återställda. Ursprunglig lokalfunktion återställd; inga nya testkonton kvar.
+- Datumdomän, faktisk Home/NE på 1280/390 och typecheck PASS. Lint inga nya fel;
+  page.tsx har samma nio äldre fel. Fokuserade nya/ändrade testfiler lint PASS.
+- Säker regression: alla delsteg PASS, men ursprungskommandot stoppades vid saknad
+  lokal Supabase-konfiguration. En syntetisk processlokal smoke-omkörning 2/2 PASS;
+  återstående delsteg separat PASS. Ingen miljöfil ändrad. Se exakt begränsning i rapporten.
+- Production READ ONLY 2026-10-26 Stockholm: 0 pågående lås, 0 framtida lås,
+  0 berörda användare. Endast aggregat hämtade. Ingen Production-ändring.
+- Testkvitto docs/testing/kan113-local-20261026; råa lokala coverage-loggar bevarade.
+- Jira återläst To Do/otilldelad, inga mutationer. Rootens samtliga orelaterade
+  ändringar bevarade. Ingen Staging-/Production-migration, push/deploy eller Edge.
+- Nästa steg: Pontus godkänner exakt kandidat och KAN-113-migration för Staging,
+  därefter verklig publicerad klient → RPC-verifiering. Stanna före publicering nu.
 
 ## Sparade bevis och bevarande
 
@@ -75,8 +81,9 @@ enskilda firma år efter år. KAN-113 analyserad/reproducerad; invänta beslut f
 
 ## Stopp och kvarvarande publicering
 
-- Lokal handoff sparas i docs-commits, ingen push/deploy/migration/Edge/DB-skrivning eller ny implementation.
+- KAN-112-handoff är lokal/opushad. KAN-113 har nu godkänd lokal implementation
+  och återställda syntetiska lokala DB-tester; inga fjärrskrivningar/publiceringar.
 - AGENTS fulla publicerade handoff kräver push och ren verifiering. Push förbjuden enligt aktuellt beslut:
   lokal checkpoint, ej pushad, inte HANDOFF READY. L ren efter checkpoint; root avsiktligt dirty av separat arbete.
-- Nästa steg är ledarbeslut om KAN-113-rättning enligt rapporten ovan.
-  KAN-112 ska inte Done-sättas före Production-beslut; ingen implementation ingår ännu.
+- Nästa steg är ledarbeslut om KAN-113 Staging-kandidat enligt rapporten ovan.
+  KAN-112 ska inte Done-sättas före Production-beslut. Ingen ytterligare implementation nu.

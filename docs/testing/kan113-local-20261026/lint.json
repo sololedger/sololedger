@@ -1,0 +1,20 @@
+{
+  "status": "PASS_NO_NEW_ERRORS",
+  "base": "ded55d7",
+  "pageBaselineErrors": 9,
+  "pageCurrentErrors": 9,
+  "otherFiles": [
+    {
+      "file": "yearCloseDate.ts",
+      "errors": 0
+    },
+    {
+      "file": "test-year-close-date.ts",
+      "errors": 0
+    },
+    {
+      "file": "test-year-close-date-db.mjs",
+      "errors": 0
+    }
+  ]
+}

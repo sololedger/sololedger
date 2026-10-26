@@ -141,9 +141,30 @@ for (const [child, parent] of [['withdrawal_assessment_facts', 'withdrawal_asses
   if (currentDelete.indexOf(`DELETE FROM public.${child}`) >= currentDelete.indexOf(`DELETE FROM public.${parent}`)) fail(`delete order: ${child} must precede ${parent}`)
 }
 let currentClose = latestBody('close_year_atomic')
+let currentCloseFile = latestCriticalDefinitions.close_year_atomic
+const dateGuardMigration = '20261026162305_kan113_calendar_year_close_guard.sql'
+const coverageMigration = '20261026090000_kan110_vat_year_coverage.sql'
+if (currentCloseFile === dateGuardMigration) {
+  for (const needle of ["clock_timestamp() AT TIME ZONE 'Europe/Stockholm'", 'p_year >= extract(year',
+    'p_year IS NULL OR p_year < 1900 OR p_year > 9999', "USING ERRCODE='23514'", '1 januari']) {
+    assertIncludes(currentClose, needle, 'KAN113 server date guard')
+  }
+  const previous = latestBody('close_year_atomic', dateGuardMigration)
+  const downstream = body => body.slice(body.indexOf('  PERFORM public.assert_vat_year_coverage'))
+  if (downstream(currentClose) !== downstream(previous)) fail('KAN113 changed downstream year-close checks')
+  if (currentClose.indexOf('lock_accounting_year_boundary') >= currentClose.indexOf('clock_timestamp()')) fail('KAN113 must check the clock after the accounting gate')
+  assertIncludes(read(join(migrationDir,dateGuardMigration)), '9a93f74704913fc47ed5fff93223e236', 'KAN113 reviewed preimage')
+  currentClose = previous
+  currentCloseFile = coverageMigration
+}
+if (currentCloseFile === coverageMigration) {
+  assertIncludes(currentClose, 'PERFORM public.assert_vat_year_coverage(p_year)', 'KAN110 coverage wrapper')
+  currentClose = latestBody('close_year_atomic', coverageMigration)
+  currentCloseFile = '20261021120000_inventory_k1_depreciation_contract.sql'
+}
 if (currentClose.includes('RETURN public.close_year_unchecked_inventory(p_year)')) {
   const file = '20261021120000_inventory_k1_depreciation_contract.sql'
-  if (latestCriticalDefinitions.close_year_atomic !== file) fail('Unexpected close-year delegate transformation')
+  if (currentCloseFile !== file) fail('Unexpected close-year delegate transformation')
   for (const needle of ['lock_accounting_year_boundary(auth.uid(),true)', 'inventory_depreciation_state(p_year)',
     "s->>'status'='ready'", 'public.lock_inventory_boundary()']) assertIncludes(currentClose,needle,'inventory close-year wrapper')
   const migration = read(join(migrationDir,file))

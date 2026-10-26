@@ -24,9 +24,12 @@ export const bookStandardBookingAttempt=async attempt=>submitStandardBookingAtte
  const result={success:true,transaction_id:crypto.randomUUID(),ver_nr:1,idempotent_replay:false,...(attempt.kind==='periodized'?{reversal_transaction_id:crypto.randomUUID(),reversal_ver_nr:2,periodization_group_id:crypto.randomUUID()}: {})};
  localStorage.setItem(key,JSON.stringify(result));throw Error('synthetic response lost after DB commit');
 });
-export const bookVatV2EuServiceReverseChargeTransaction=async()=>{};export const createCorrectionTransaction=async()=>{};export const closeYear=async()=>{};export const updateTransaction=async()=>{};`,
+export const bookVatV2EuServiceReverseChargeTransaction=async()=>{};export const createCorrectionTransaction=async()=>{};
+export const closeYear=async year=>{const calls=JSON.parse(localStorage.getItem('yearCloseCalls')||'[]');calls.push(year);localStorage.setItem('yearCloseCalls',JSON.stringify(calls));if(localStorage.getItem('yearCloseReject'))throw Error(localStorage.getItem('yearCloseReject'))};export const updateTransaction=async()=>{};`,
  supabaseClient:`export const supabase={from:()=>({select:()=>({eq:()=>({order:()=>Promise.resolve({data:[],error:null})})})}),storage:{from:()=>({upload:async(path,file)=>{localStorage.setItem('testUploads',String(Number(localStorage.getItem('testUploads')||0)+1));return {error:null}}})}};`,
 }
+// Preserve the existing accounting fixture; add the state setter exercised by year closure.
+mock.useAccountingData=mock.useAccountingData.replace('refreshData:async()=>{},',"setIsYearLocked:locked=>localStorage.setItem('yearCloseUiLocked',String(locked)),refreshData:async()=>{},")
 const bundle=await build({stdin:{contents:"import React from 'react';import{createRoot}from'react-dom/client';import Home from './src/app/page';createRoot(document.getElementById('root')).render(<Home/>);",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'synthetic-boundaries',setup(b){
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
@@ -38,6 +41,7 @@ const bundle=await build({stdin:{contents:"import React from 'react';import{crea
 const css=(await postcss([tailwind({base:process.cwd()})]).process(await readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css
 const browser=await chromium.launch({headless:true})
 await mkdir('test-results/kan80',{recursive:true})
+await mkdir('coverage/kan113-local/ui',{recursive:true})
 try {
  for(const [label,width,periodized,accountingError] of [['desktop',1280,false,false],['mobile',390,true,false],['desktop-accounting-error',1280,false,true],['mobile-accounting-error',390,true,true]]) {
   const context=await browser.newContext({viewport:{width,height:1000}})
@@ -150,6 +154,39 @@ try {
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('supplierReplay')).request_key),'frozen')
   await expect(page.locator('main')).not.toContainText(/987\s654\s321|123\s456\s789/)
   await context.close();console.log('PASS KAN98 actual Home '+width+': supplier retry visible despite global accounting read error; new booking blocked; exact saved request')
+ }
+ // KAN-113: the actual Home -> NE button -> handleLockYear flow, offline RPC boundary.
+ for(const width of [1280,390])for(const time of ['2026-12-31T22:59:59.999Z','2026-12-31T23:00:00Z']){
+  const context=await browser.newContext({viewport:{width,height:1000},timezoneId:'Pacific/Honolulu'})
+  await context.route('**/*',r=>r.request().url()==='http://127.0.0.1:47880/kan113'?r.fulfill({contentType:'text/html',body:'<html lang="sv"><meta charset="utf-8"><style>'+css+'</style><div id="root"></div><script>'+bundle.outputFiles[0].text+'</script></html>'}):r.abort())
+  const page=await context.newPage(),errors=[],notices=[]
+  page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async d=>{notices.push(d.message());await d.accept()})
+  await page.clock.setFixedTime(new Date(time))
+  await page.goto('http://127.0.0.1:47880/kan113');await page.getByRole('button',{name:'Test NE',exact:true}).click()
+  const select=page.getByRole('group',{name:'Ekonomikontroller'}).locator('select'),midnight=time.includes('23:00:00')
+  await select.selectOption('2026')
+  const button=()=>page.getByRole('button',{name:/Lås räkenskapsår/})
+  if(!midnight){
+   await expect(button()).toBeDisabled();await expect(page.getByText('År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid).',{exact:true})).toBeVisible()
+   await page.screenshot({path:'coverage/kan113-local/ui/'+width+'-blocked.png',fullPage:true})
+   await select.selectOption('2027');await expect(button()).toBeDisabled();await expect(page.getByText(/År 2027 är inte avslutat/)).toBeVisible()
+   assert.equal(await page.evaluate(()=>localStorage.getItem('yearCloseCalls')),null)
+   await select.selectOption('2026');await select.selectOption('2025');await expect(button()).toBeEnabled();await button().click()
+   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('yearCloseCalls'))),[2025])
+   assert.equal(await page.evaluate(()=>localStorage.getItem('yearCloseUiLocked')),'true');assert(!notices.some(msg=>msg.includes('Fel vid låsning')))
+  }else{
+   await expect(button()).toBeEnabled()
+   // Client clock can be ahead: the real service forwards the server's readable rejection.
+   const rejection='År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid).'
+   await page.evaluate(msg=>localStorage.setItem('yearCloseReject',msg),rejection);await button().click()
+   assert(notices.at(-1).includes(rejection));await expect(button()).toBeEnabled()
+   await page.evaluate(()=>localStorage.removeItem('yearCloseReject'));await button().click()
+   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('yearCloseCalls'))),[2026,2026])
+   assert.equal(await page.evaluate(()=>localStorage.getItem('yearCloseUiLocked')),'true')
+  }
+  await page.screenshot({path:'coverage/kan113-local/ui/'+width+'-'+(midnight?'after':'before')+'.png',fullPage:true})
+  assert.deepEqual(errors,[]);await context.close()
+  console.log('PASS KAN113 actual Home/NE '+width+' Stockholm midnight '+(midnight?'after: previous year enabled, readable server rejection':'before: current/future disabled, previous year locks')+'; browser timezone Honolulu')
  }
 }finally{await browser.close()}
 await writeFile('test-results/kan80/browser-result.json',JSON.stringify({result:'PASS',viewports:[1280,390],accountingLoadError:true,ownerIsolation:true,surface:'actual Home and TransactionForm',transport:'synthetic offline only'},null,2))
