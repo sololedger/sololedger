@@ -1,22 +1,22 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 lokal scrollrättning PASS inför separat Staging-beslut.**
-Pontus har granskat layouten i Staging och beställt liten lokal scrollrättning.
-Säkra regressionens alla delar PASS i delade körningar. Ingen ny push/deployment/migration/Edge/Production/Jira-ändring.
+2026-10-26 – **KAN-112 scrollrättning publicerad, PASS för manuell Staging-acceptans.**
+Exakt godkänd a02e3e3 publicerad och hosted omtest PASS. Extra momsrad avstämd som
+Pontus samtidiga manuella test. Ingen migration/Edge/Production/Jira-ändring.
 
 ## Aktuell arbetskopia och kandidat
 
 - L = audit-packages/KAN-100-app-release-20261024.
 - Gren codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
-- Publicerad produktcheckpoint 934ce9becf31ac7d86f486632275ef9f32295d86, bara Staging.
-- Före publicering docs-HEAD 6ce0537378de76d000faa0cd5dd789821ce56f73, ej pushad.
+- Publicerad produktcheckpoint a02e3e30403e56969a55fbc4156213e04a829164, bara Staging.
+- Före publicering docs-HEAD 1d6b33bb5a3ce1db69797a8c704b2f287baef6ec, ej pushad.
 - Senare hosted-rapport/STATE-checkpoint enligt git log är bara lokal.
 - Root:s tidigare dirty docs/AGENTS/arkiv/verktyg bevarade; inte produktpushkälla.
 - Endast KAN-112-navigeringsnotisen uppdateras i root:s redan dirty STATE.
 
-## Aktuell lokal scrollrättning
+## Aktuell scrollrättning
 
-- Lokal produktcommit a02e3e30403e56969a55fbc4156213e04a829164, inte pushad.
+- Produktcommit a02e3e30403e56969a55fbc4156213e04a829164 nu publicerad enbart till Staging.
 - Orsak: varje punktval scrollade ovillkorligen hela sidan till rubriken.
   Regressionstest reproducerade 267 → 900 px på tidigare produkt i 1440 px.
 - Fokus med preventScroll på dator. Staplad layout scrollar bara om rubriken/status
@@ -28,7 +28,23 @@ Säkra regressionens alla delar PASS i delade körningar. Ingen ny push/deployme
   Samlat kommando stannade på saknad lokal env; publik smoke 2/2 och återstående
   browserdelar PASS separat med syntetisk env. Ingen sammanhängande exit 0 påstås.
 - Rapport docs/reviews/KAN-112-SCROLL-FIX-LOCAL-20261026.md; bevis coverage/kan112-modern/.
-- Ingen DB-/ekonomilogik/sparregel ändrad. Ingen ny hosted verifiering/publicering.
+- Ingen DB-/ekonomilogik/sparregel ändrad. Hosted verifiering/publicering nedan.
+
+## Aktuellt hosted scrollomtest och databevarande
+
+- Dator 1440: olika instruktionshöjder, fyra befintliga scrollpositioner exakt stabila,
+  huvuddel vid scrollY 0 och Space/rubrikfokus utan scrollanrop PASS.
+- Mobil 390: synlig rubrik 1410 → 1410, ingen scroll; offscreen vid Enter en nearest-scroll PASS.
+- Alla elva punkter, noll navigationswrites, sparat/avmarkerat/omladdat, varningar och
+  synliga sparfel/pending PASS. Retur via sex destinationer inkl NE/Moms rätt år/punkt/fokus/scroll.
+- Alla data/checklistor identiska direkt efter publicering. Efter tester bara syntetiska
+  A:s bankkontroll ändrad enligt scope, flagga återställd; övriga ursprungliga 13 rader oförändrade.
+- En ny momsrad 2026 utanför kohorten (14 → 15) stoppade skrivtester och utlöste läsande
+  kontroll. Pontus bekräftade avsiktlig samtidig manuell testning. Exakt observerad hash/rad
+  avstämd i slutkontroll, bevarad utan åtgärd. Inga oförklarade dataändringar kvar.
+- Andra publika data, schema/ACL/RLS/migrationsledger och Production oförändrade.
+- Rapport docs/reviews/KAN-112-SCROLL-FIX-STAGING-20261026.md; bevis i root/audit-packages/
+  KAN-112-scroll-staging-20261026/. Browserar avslutade, inga produktändringar efter godkännandet.
 
 ## Godkänd och nu lokalt genomförd layout
 
@@ -42,7 +58,7 @@ Säkra regressionens alla delar PASS i delade körningar. Ingen ny push/deployme
 - Enda ändrade produktkällfil YearEndGuide.tsx. Store/klient/Auth/RPC och ekonomisk
   logik oförändrade. Befintligt navigationskontrakt bevarat; ingen ny global navigation.
 
-## Hosted smoke och databevarande
+## Tidigare hosted layoutsmoke (934ce9b)
 
 - Rätt READY-deployment/SHA/Preview/staging/projekt/team och verklig Staging-ref verifierade.
 - 1440/390: fyra kort/full bredd, alla elva punkter/en instruktion, inga navigationswrites.
@@ -90,11 +106,11 @@ Säkra regressionens alla delar PASS i delade körningar. Ingen ny push/deployme
   Återläst. Endast planering; ingen implementation. KAN-112 inte Done; KAN-113 separat.
 - Retention genomgången: aktiv KAN-112 behålls, äldre rapporter bär tidigare evidens.
 
-## Senast verifierat publicerat, oförändrat av lokal scrollrättning
+## Aktuellt publicerat, slutverifierat
 
-- Staging 934ce9becf31ac7d86f486632275ef9f32295d86,
-  dpl_EGHhDGsXoZE3XXgsWDqD9F7ZxZhW READY, Preview/staging på ordinarie alias.
-- Alias korrigerat från dpl_A1o8HmvWaxv9BqZJHRn3T97jVFtN/6673030. Alla andra alias
+- Staging a02e3e30403e56969a55fbc4156213e04a829164,
+  dpl_GRTbB87v2xSZQBFf7vHnb7USNkV6 READY, Preview/staging på ordinarie alias.
+- Alias korrigerat från dpl_EGHhDGsXoZE3XXgsWDqD9F7ZxZhW/934ce9b. Alla andra alias
   och envmetadata oförändrade. Projekt/team verifierade enligt tidigare releasekontext.
 - Supabase Staging fzxqiqenqjzhlyxxpvhg, KAN-112-migrationer 20261026092741 och
   20261026110015 enligt senaste hosted verifiering. Ingen ny DB-/Edge-åtgärd.
@@ -103,6 +119,6 @@ Säkra regressionens alla delar PASS i delade körningar. Ingen ny push/deployme
 
 ## Nästa säkra steg
 
-- Invänta separat Staging-beslut för lokal scrollrättning a02e3e3.
-- Staging kvar 934ce9b. Ingen ytterligare push, deployment eller Production godkänd.
+- Pontus manuell acceptans av scrollrättningen i Staging a02e3e3.
+- Stanna efter verifiering. Ingen ytterligare push, deployment eller Production godkänd.
 - Alla testbrowserar och lokal smoke-server avslutade; inga pågående tester.
