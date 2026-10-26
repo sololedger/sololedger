@@ -151,11 +151,23 @@ const subscribeCalendar=()=>()=>{}
 const stockholmYear=()=>Number(new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric'}).format(new Date()))
 const button='min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2'
 
+function focusWorkspace(target:HTMLElement|null){
+ if(!target)return
+ target.focus({preventScroll:true})
+ if(!window.matchMedia('(min-width: 1024px)').matches){
+  const margin=parseFloat(getComputedStyle(target).scrollMarginTop)||0
+  if(Math.abs(target.getBoundingClientRect().top-margin)>2){
+   target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})
+  }
+ }
+}
+
 export default function YearEndGuide({owner,companyName,year,ready,error,locked,contextKey,contextReady,initialOpenControls,initialControl,showNEGuideReturn,onNavigate}: {
  owner:string;companyName:string|null|undefined;year:number;ready:boolean;error:string|null;locked:boolean;contextKey:number;contextReady:boolean;initialOpenControls:readonly number[];initialControl:number|null;showNEGuideReturn?:boolean;onNavigate:(destination:YearEndDestination,openControls:number[],control:number|null)=>void
 }) {
  const savedControl=initialControl??initialOpenControls.find(i=>i<11||i===200)??null
  const [activeControl,setActiveControl]=useState<number|null>(savedControl)
+ const [focusRequest,setFocusRequest]=useState<{target:'list'|'instruction'}|null>(null)
  const [activeGroup,setActiveGroup]=useState(()=>{
   if(savedControl!==null)return savedControl===200?1:Math.max(0,groups.findIndex(g=>g.indexes.includes(savedControl)))
   const groupIndex=initialOpenControls.find(i=>i>=100&&i<104)
@@ -165,19 +177,13 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
  const currentYear=useSyncExternalStore(subscribeCalendar,stockholmYear,()=>null)
  const checklist=useYearEndChecklist(owner,year,contextKey,contextReady),data=checklist.state.data
  const restored=useRef(false)
- function focusWorkspace(target:HTMLElement|null){
-  if(!target)return
-  // The desktop workspace is side by side. Only the stacked layout may need
-  // a small scroll to expose the newly selected heading; return navigation is separate.
-  if(!window.matchMedia('(min-width: 1024px)').matches){
-   const rect=target.getBoundingClientRect()
-   if(rect.top<0||rect.bottom>window.innerHeight)target.scrollIntoView({block:'nearest'})
-  }
-  target.focus({preventScroll:true})
- }
- function focusInstruction(){
-  focusWorkspace(checklist.store.state.error||checklist.store.state.pending?notice.current:heading.current)
- }
+ useEffect(()=>{
+  if(!focusRequest)return
+  // Read refs after the selected content commits. A newer selection/unmount
+  // cancels the old request rather than starting a second competing scroll.
+  const frame=requestAnimationFrame(()=>focusWorkspace(focusRequest.target==='list'?list.current:checklist.store.state.error||checklist.store.state.pending?notice.current:heading.current))
+  return()=>cancelAnimationFrame(frame)
+ },[focusRequest,checklist.store])
  useEffect(()=>{
   if(restored.current||initialControl===null||!data||checklist.state.busy)return
   if(heading.current){heading.current.scrollIntoView({block:'start'});heading.current.focus({preventScroll:true});restored.current=true}
@@ -193,9 +199,9 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
  }
  function chooseGroup(index:number){
   if(index!==activeGroup){setActiveGroup(index);setActiveControl(null)}
-  requestAnimationFrame(()=>focusWorkspace(list.current))
+  setFocusRequest({target:'list'})
  }
- function chooseControl(index:number){setActiveControl(index);requestAnimationFrame(focusInstruction)}
+ function chooseControl(index:number){setActiveControl(index);setFocusRequest({target:'instruction'})}
  return <section aria-label={'Årsavslut för '+year} className="min-w-0 space-y-5 pb-10">
   <header className="min-w-0 space-y-4 rounded-[2rem] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
    {showNEGuideReturn&&<button type="button" className={button} onClick={()=>navigate('ne',null)}>Tillbaka till NE-guiden</button>}
@@ -229,7 +235,7 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
    })}
   </nav>
   <div ref={notice} tabIndex={-1} data-testid="checklist-save-status" className={(checklist.state.error||checklist.state.pending?'sticky top-2 z-10 rounded-2xl border border-amber-300 bg-white p-4 shadow-sm ':'')+'scroll-mt-4 text-sm focus-visible:outline-2'}><ChecklistNotice checklist={checklist}/></div>
-  <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+  <div className="grid min-h-dvh min-w-0 content-start items-start gap-5 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
    <aside className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Kontrollpunkter">
     <h3 ref={list} tabIndex={-1} className="scroll-mt-4 text-base font-semibold text-gray-900 focus-visible:outline-2">{group.title}</h3><p className="mb-4 mt-1 text-sm text-gray-500">Välj en kontrollpunkt för att läsa hur du gör.</p>
     <div className="space-y-2">{group.indexes.map(index=>{
@@ -248,7 +254,7 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
       <p><strong>Vad kan SoloLedger kontrollera?</strong><br/>{control.system}</p>
       <p className="rounded-xl bg-amber-50 p-4"><strong>Om något inte stämmer</strong><br/>{control.problem}</p>
       {checkKey?<ChecklistConfirmation checklist={checklist} checkKey={checkKey} label={control.reviewed}/>:<p>Årslåset har ingen manuell kryssruta. Dina avbockningar påverkar inte möjligheten att låsa året.</p>}
-      <button type="button" className={button+' lg:hidden'} onClick={()=>{list.current?.scrollIntoView({block:'start'});list.current?.focus({preventScroll:true})}}>Till kontrollpunkterna</button>
+      <button type="button" className={button+' lg:hidden'} onClick={()=>setFocusRequest({target:'list'})}>Till kontrollpunkterna</button>
      </div>
     </article>:<div className="py-8 text-center sm:py-16"><p className="text-lg font-semibold text-gray-900">En kontrollpunkt i taget</p><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600">Välj en kontrollpunkt för instruktioner och din egen avstämning. Att öppna en punkt ändrar inte dina bekräftelser.</p></div>}
    </div>
