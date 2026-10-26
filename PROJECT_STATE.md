@@ -1,15 +1,16 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 modern layout PASS lokalt inför separat Staging-beslut.**
+2026-10-26 – **KAN-112 modern layout publicerad, PASS för manuell Staging-acceptans.**
 Funktionell grund manuellt accepterad av Pontus, inkl flikbyten/sparande/navigation.
-Ingen ny push, publicering, migration eller Supabase-/Production-ändring.
+Exakt godkänd Staging-push/publicering utförd. Ingen migration/Edge/Production/Jira-ändring.
 
 ## Aktuell arbetskopia och kandidat
 
 - L = audit-packages/KAN-100-app-release-20261024.
 - Gren codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
-- Ny produktcheckpoint 934ce9becf31ac7d86f486632275ef9f32295d86, endast lokal.
-- Föregående docs-HEAD 16e47ff; efterföljande layout-rapport/STATE-checkpoint enligt git log.
+- Publicerad produktcheckpoint 934ce9becf31ac7d86f486632275ef9f32295d86, bara Staging.
+- Före publicering docs-HEAD 6ce0537378de76d000faa0cd5dd789821ce56f73, ej pushad.
+- Senare hosted-rapport/STATE-checkpoint enligt git log är bara lokal.
 - Root:s tidigare dirty docs/AGENTS/arkiv/verktyg bevarade; inte produktpushkälla.
 - Endast KAN-112-navigeringsnotisen uppdateras i root:s redan dirty STATE.
 
@@ -25,7 +26,21 @@ Ingen ny push, publicering, migration eller Supabase-/Production-ändring.
 - Enda ändrade produktkällfil YearEndGuide.tsx. Store/klient/Auth/RPC och ekonomisk
   logik oförändrade. Befintligt navigationskontrakt bevarat; ingen ny global navigation.
 
-## Verifierat lokalt
+## Hosted smoke och databevarande
+
+- Rätt READY-deployment/SHA/Preview/staging/projekt/team och verklig Staging-ref verifierade.
+- 1440/390: fyra kort/full bredd, alla elva punkter/en instruktion, inga navigationswrites.
+- Verkligt markera/avmarkera/spara/omladda, sparfel/pending kvar efter huvuddel-/punktbyte,
+  samma kommando vid retry, fördröjt verkligt sparsvar och bevarad omkontrollvarning PASS.
+- Sex riktiga returdestinationer inkl NE/Moms: år/huvuddel/punkt/scroll/fokus PASS.
+- Två visibility-återkomster per bredd, inga falska läsfel; B nekad A:s rader PASS.
+- Alla tidigare data/checklistor identiska vid publicering. Efter tester bara syntetiska
+  A:s bankkontroll 2025 ändrad, flagga återställd; övriga 13 checklistrader och andra
+  publika data exakt oförändrade. Schema/ACL/RLS/migrationsledger identiska.
+- test:year-end-checklist och test:e2e:safety PASS efter publicering. Inga produktavvikelser.
+- Browserar avslutade, fixtures bevarade. Ingen ny DB-/Edge-åtgärd eller Jira-mutation.
+
+## Tidigare lokal verifiering, exakt samma produktkandidat
 
 - Verklig Home/Layout/guide, syntetisk data och blockerade externa anrop.
 - 1440/1024/768/390/320 px: alla elva instruktioner och länkar, ett aktivt innehåll,
@@ -41,12 +56,14 @@ Ingen ny push, publicering, migration eller Supabase-/Production-ändring.
 - npm run test:regression fullständig PASS/exit 0, inklusive publik smoke 2/2.
 - test:year-end-guide, test:e2e:safety, typecheck efter dev, guide-lint utan nya fel,
   git diff --check PASS. Ändrad produktfil har 0 lintfel.
-- Ingen ny hosted/DB-test eller optimerad build: avgränsad UI-ändring utan ändrad
-  bokföring/moms/NE/RPC/RLS/Auth. Inga verkliga användaruppgifter eller fjärrskrivningar.
+- Ingen ändring av bokföring/moms/NE/RPC/RLS/Auth. Vercel-bygget READY.
+  Hosted verifiering ovan; ingen ny ekonomisk DB-test behövdes för UI-scope.
 
 ## Bilder, rapport och Jira
 
 - docs/reviews/KAN-112-MODERN-LAYOUT-LOCAL-20261026.md: scope, exakt fillista, tester/luckor.
+- docs/reviews/KAN-112-MODERN-LAYOUT-STAGING-20261026.md: aktuellt release-/smokeresultat.
+- root/audit-packages/KAN-112-modern-staging-20261026/: före/efter-, alias- och browserbevis.
 - docs/testing/kan112-modern-layout/: jämförbara före-/efteröversikter för 1440/390,
   valda instruktioner/arbetsyta och visual-results.json, alla syntetiska.
 - coverage/kan112-modern/: fem bredders bilder, 200 %-bilder och regression.log.
@@ -57,17 +74,19 @@ Ingen ny push, publicering, migration eller Supabase-/Production-ändring.
   Återläst. Endast planering; ingen implementation. KAN-112 inte Done; KAN-113 separat.
 - Retention genomgången: aktiv KAN-112 behålls, äldre rapporter bär tidigare evidens.
 
-## Publicerad funktionell bas (oförändrad av detta lokala arbete)
+## Aktuellt publicerat, efter slutverifiering
 
-- Senast verifierad Staging 667303026ecf41b75e31c3f69e292a1c1aabbfd0,
-  dpl_A1o8HmvWaxv9BqZJHRn3T97jVFtN READY, Preview/staging på ordinarie alias.
+- Staging 934ce9becf31ac7d86f486632275ef9f32295d86,
+  dpl_EGHhDGsXoZE3XXgsWDqD9F7ZxZhW READY, Preview/staging på ordinarie alias.
+- Alias korrigerat från dpl_A1o8HmvWaxv9BqZJHRn3T97jVFtN/6673030. Alla andra alias
+  och envmetadata oförändrade. Projekt/team verifierade enligt tidigare releasekontext.
 - Supabase Staging fzxqiqenqjzhlyxxpvhg, KAN-112-migrationer 20261026092741 och
   20261026110015 enligt senaste hosted verifiering. Ingen ny DB-/Edge-åtgärd.
-- Senast verifierad GitHub main 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e.
-  Inga nya fjärrkontroller behövdes för UI-arbetet. Production orörd.
+- GitHub main verifierad kvar 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e. Production orörd.
+- Jira KAN-112 återläst To Do/otilldelad, inga ändringar/Done. KAN-113/KAN-114 orörda.
 
 ## Nästa säkra steg
 
-- Pontus granskar före-/efterbilder och beslutar om exakt 934ce9b för Staging.
-- Stanna efter lokal verifiering. Ingen push, deployment eller migration godkänd.
+- Pontus manuella acceptans av nya layouten på Staging 934ce9b, särskilt dator/mobil och NE/Moms-retur.
+- Stanna efter hosted verifiering. Ingen ytterligare push, deployment eller Production godkänd.
 - Alla testbrowserar och lokala smoke-servern avslutade. Inga pågående tester.
