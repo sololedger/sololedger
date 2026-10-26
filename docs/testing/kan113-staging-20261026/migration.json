@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "ref": "fzxqiqenqjzhlyxxpvhg",
+  "version": "20261026162305",
+  "migration": "20261026162305_kan113_calendar_year_close_guard.sql",
+  "hash": "1b5214198bb86142b6fe3847d967d76f9e4d90ba45020054b0eac6b7e70bcda6",
+  "ledger": 66,
+  "functionHash": "09839e674ce07177d774fe23bfe1608e",
+  "aclAndAllOtherSchemaUnchanged": true,
+  "allPublicDataUnchanged": true
+}

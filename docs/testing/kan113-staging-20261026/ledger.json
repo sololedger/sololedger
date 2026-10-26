@@ -1,0 +1,336 @@
+{
+  "project": "fzxqiqenqjzhlyxxpvhg",
+  "count": 66,
+  "versions": [
+    {
+      "version": "20260925000000",
+      "name": "pre_kan17_cli_baseline",
+      "statements_md5": "0074b1eb59054a1b234c87b33b4ffb66"
+    },
+    {
+      "version": "20260925050113",
+      "name": "20260925_add_vat_account_classification",
+      "statements_md5": "96351d2e35a7a6b222df333635ccc9e0"
+    },
+    {
+      "version": "20260925070346",
+      "name": "20260925_delegate_vat_concurrency_account",
+      "statements_md5": "c8fa85150be61ff398fb01f131cb02c8"
+    },
+    {
+      "version": "20260925124023",
+      "name": "delegate_vat_close_account_classification",
+      "statements_md5": "097c523ef40ede909e5a5a4075939dd2"
+    },
+    {
+      "version": "20260926132107",
+      "name": "add_2645_vat_account_classification",
+      "statements_md5": "2f1fbc7fc462c02330e665cf557b649d"
+    },
+    {
+      "version": "20260926174535",
+      "name": "add_vat_v2_reverse_charge_booking",
+      "statements_md5": "da682d1bafdd451ae5ba62aceee82ae0"
+    },
+    {
+      "version": "20260927070224",
+      "name": "add_vat_profile_runtime_fields",
+      "statements_md5": "ad21559de33bddf1d29b82e5fbf10d22"
+    },
+    {
+      "version": "20260927151231",
+      "name": "add_payment_account_roles",
+      "statements_md5": "f195af0e9cae1ed78c9dc47d9f4152a5"
+    },
+    {
+      "version": "20260927174627",
+      "name": "harden_payment_account_roles_acl",
+      "statements_md5": "071bdc24f0658d2de7e7accbd9bf260c"
+    },
+    {
+      "version": "20260928193000",
+      "name": "add_vat_declaration_submission_date",
+      "statements_md5": "c9e486d06df589a739ac3f54388a402a"
+    },
+    {
+      "version": "20260929101500",
+      "name": "add_vat_lifecycle_source_taxonomy",
+      "statements_md5": "9cb503fa6943f0484ae4e9621e26a77d"
+    },
+    {
+      "version": "20260929143000",
+      "name": "add_vat_settlement_foundation",
+      "statements_md5": "f504335904c6df6c08072c08eac38a25"
+    },
+    {
+      "version": "20260929183000",
+      "name": "add_tax_account_movement",
+      "statements_md5": "c98ad3057bd7f44757f2b8aa32455c88"
+    },
+    {
+      "version": "20260930120000",
+      "name": "audit1_p0_vat_lifecycle_semantics",
+      "statements_md5": "0f9875cbe4bad1760624feb70b9a2214"
+    },
+    {
+      "version": "20260930163000",
+      "name": "kan30_delete_user_data_vat_lifecycle",
+      "statements_md5": "b4239dda3a46c39f64a9c7a4afb5983e"
+    },
+    {
+      "version": "20260930190000",
+      "name": "kan31_idempotency_replay",
+      "statements_md5": "125f2884530a541ca82ca09ad51a5745"
+    },
+    {
+      "version": "20261001060000",
+      "name": "kan31_vat_v2_idempotency_acl_fix",
+      "statements_md5": "b0768dc94d84d6d3e607ee33ce3dc222"
+    },
+    {
+      "version": "20261001120000",
+      "name": "kan33_account_balance_rpcs",
+      "statements_md5": "ca2b4d5f6584446a96b6114226205dc7"
+    },
+    {
+      "version": "20261004152057",
+      "name": "kan38_vat_v2_payment_role_enforcement",
+      "statements_md5": "e76c0f9d52c0b6f3b867e5d2e29e0fa5"
+    },
+    {
+      "version": "20261005105538",
+      "name": "kan42_close_year_ne_guard",
+      "statements_md5": "022607d0723672c9337426b8594546d3"
+    },
+    {
+      "version": "20261005193000",
+      "name": "kan46_customer_invoice_lifecycle",
+      "statements_md5": "fd50333b96547d56747b48766a3f985f"
+    },
+    {
+      "version": "20261005203000",
+      "name": "ensure_attachments_storage_bucket",
+      "statements_md5": "9472835b999da16eae1320a7e9687001"
+    },
+    {
+      "version": "20261005210000",
+      "name": "fix_customer_invoice_year_end_scope",
+      "statements_md5": "a745fe4793a5ba2a8fb20c8e1280979c"
+    },
+    {
+      "version": "20261005213000",
+      "name": "allow_customer_invoice_controlled_reversal",
+      "statements_md5": "dd8ad6c4dc297b6b74c58ec23b02b4a5"
+    },
+    {
+      "version": "20261006120000",
+      "name": "kan14_vat_v2_no_deduction",
+      "statements_md5": "ae44a90436f4b5a9774227083e4447cf"
+    },
+    {
+      "version": "20261006143000",
+      "name": "add_profile_vat_number",
+      "statements_md5": "bf0add74e7d99f5986614f31e7af91f1"
+    },
+    {
+      "version": "20261007110000",
+      "name": "kan51_historical_customer_invoice_linkage",
+      "statements_md5": "c3eca87baff5045aba4dd708eebba353"
+    },
+    {
+      "version": "20261007130000",
+      "name": "kan22_vat_v2_business_facts",
+      "statements_md5": "da5f4443c2f0c3463d9e6e71a243f340"
+    },
+    {
+      "version": "20261007160000",
+      "name": "kan36_fixed_assets",
+      "statements_md5": "30dac690e3ef5f4dba5f07aa1151a9c9"
+    },
+    {
+      "version": "20261008110000",
+      "name": "kan36_redirect_manual_equipment_purchases",
+      "statements_md5": "f0edf234db9c79dd59c6383630af7274"
+    },
+    {
+      "version": "20261008170000",
+      "name": "kan54_fixed_asset_vat_deduction_guard",
+      "statements_md5": "f708336125e997325370562cd8b3bbf9"
+    },
+    {
+      "version": "20261008173000",
+      "name": "kan54_revoke_internal_delegate_service_role",
+      "statements_md5": "5655774cc4cffe7b4eec608829a51e6c"
+    },
+    {
+      "version": "20261008175927",
+      "name": "kan55_purchase_input_vat_deduction",
+      "statements_md5": "f4fac2030e14dee4b94db0dc66290d6e"
+    },
+    {
+      "version": "20261009203900",
+      "name": "kan56_kan57_db_regression_repair",
+      "statements_md5": "a7920d83a8a790a61a78895ade13565a"
+    },
+    {
+      "version": "20261009220552",
+      "name": "kan56_customer_invoice_booking_delete_context",
+      "statements_md5": "77794d08b7ef30aea1b4ce2535a63b45"
+    },
+    {
+      "version": "20261012123000",
+      "name": "kan62_fixed_asset_gross_vat_rate",
+      "statements_md5": "c6a55a841cd9ad47d6826c71cabaf7b3"
+    },
+    {
+      "version": "20261012153000",
+      "name": "kan62_fixed_asset_group_locking",
+      "statements_md5": "fdc33c457fc1ba1c6d4a4d59adc6f428"
+    },
+    {
+      "version": "20261013103000",
+      "name": "kan63_customer_invoice_vat_guard",
+      "statements_md5": "04b5782f7af7d950b2fa0fb6f5a3db46"
+    },
+    {
+      "version": "20261014100000",
+      "name": "kan72_standard_booking_integrity",
+      "statements_md5": "efd1ff0ac74ab4dd046d1f8f95afe084"
+    },
+    {
+      "version": "20261014123000",
+      "name": "kan72_journal_user_ver_index",
+      "statements_md5": "19f1f2884472ad92423f852bc06f1a35"
+    },
+    {
+      "version": "20261014162850",
+      "name": "kan71_sie_undo_vat_period_guard",
+      "statements_md5": "1811b6258c20c9d6501a11881d6fb2ab"
+    },
+    {
+      "version": "20261014171038",
+      "name": "kan71_sie_correction_period_guard",
+      "statements_md5": "ee3693d1de60ec48dffcdad6b2c725fb"
+    },
+    {
+      "version": "20261014174218",
+      "name": "kan71_legacy_sie_correction_history_guard",
+      "statements_md5": "f1ac4bcd1fbb2f5fdf007be3afe4190f"
+    },
+    {
+      "version": "20261015115900",
+      "name": "kan74_sie_verified_inputs",
+      "statements_md5": "118f0b2fb20665a4ace9fff28f8d6d1f"
+    },
+    {
+      "version": "20261015120000",
+      "name": "kan74_sie_opening_balance_guard",
+      "statements_md5": "d5f128d540ac17871040e1b53b4435a3"
+    },
+    {
+      "version": "20261015121000",
+      "name": "kan74_sie_receipt_deletion",
+      "statements_md5": "838f239672566e10a104daeef528d527"
+    },
+    {
+      "version": "20261015180458",
+      "name": "kan84_explicit_first_vat_year_period",
+      "statements_md5": "ed6607751f0fa61f0d84a4814d4b970f"
+    },
+    {
+      "version": "20261017122027",
+      "name": "kan88_ne_sales_classification",
+      "statements_md5": "bcf909c06ba98861b08024cfb4d95d38"
+    },
+    {
+      "version": "20261017164431",
+      "name": "kan89_category_visibility",
+      "statements_md5": "c617b4c1132ac7e8d8397014ab879121"
+    },
+    {
+      "version": "20261017190000",
+      "name": "kan80_standard_booking_idempotency",
+      "statements_md5": "7786e301a4428d5edd09e91c3abea269"
+    },
+    {
+      "version": "20261018190000",
+      "name": "kan93_ne_equity_transfers",
+      "statements_md5": "9eef8ee1fa328e34eaae0da78eeb9a63"
+    },
+    {
+      "version": "20261019120000",
+      "name": "kan75_year_close_concurrency",
+      "statements_md5": "b505fa2fa3075a349a1849f8e9db7827"
+    },
+    {
+      "version": "20261019200000",
+      "name": "kan97_withdrawal_assessments",
+      "statements_md5": "15db359f9a6902d6ee75c93003d33008"
+    },
+    {
+      "version": "20261020130000",
+      "name": "kan97_withdrawal_invoice_context",
+      "statements_md5": "5e97c0b8f1804631a72a3403969df296"
+    },
+    {
+      "version": "20261020233000",
+      "name": "kan62_rule_contract",
+      "statements_md5": "7ebb02752264e54e093679ef9d29bc35"
+    },
+    {
+      "version": "20261021120000",
+      "name": "inventory_k1_depreciation_contract",
+      "statements_md5": "b0c0dc309afa6d4e8229727ab5ce13ba"
+    },
+    {
+      "version": "20261021123000",
+      "name": "inventory_journal_boundary",
+      "statements_md5": "afe6c5fc12d0fd0673ce1a483354c531"
+    },
+    {
+      "version": "20261021130000",
+      "name": "inventory_prior_year_validation",
+      "statements_md5": "186f9d1454bb7075eed8a3e9686313ff"
+    },
+    {
+      "version": "20261022120000",
+      "name": "kan98_supplier_year_end",
+      "statements_md5": "179f97506f44c217334e455e68ce77c2"
+    },
+    {
+      "version": "20261023205734",
+      "name": "kan100_declaration_archive",
+      "statements_md5": "729dc216c9798765b3a57b9ce195c39b"
+    },
+    {
+      "version": "20261025093000",
+      "name": "kan100_archive_conflict_sqlstate",
+      "statements_md5": "8088246f805f5eeb0896ca398bef458b"
+    },
+    {
+      "version": "20261026090000",
+      "name": "kan110_vat_year_coverage",
+      "statements_md5": "41e904b263ae34fa82deddb73e03ecf4"
+    },
+    {
+      "version": "20261026091000",
+      "name": "kan111_explicit_vat_period_generation",
+      "statements_md5": "4ea90f4ecf0e319a4594d6c8e986c20a"
+    },
+    {
+      "version": "20261026092741",
+      "name": "kan112_year_end_checklist",
+      "statements_md5": "3e2cfeed2808e792136a9c6377cd3ba9"
+    },
+    {
+      "version": "20261026110015",
+      "name": "kan112_conflict_and_profile_scope",
+      "statements_md5": "691b3151d787d7731e33930bdacab12b"
+    },
+    {
+      "version": "20261026162305",
+      "name": "kan113_calendar_year_close_guard",
+      "statements_md5": "8d595889661fa0134cb8d7871aa76ae4"
+    }
+  ]
+}

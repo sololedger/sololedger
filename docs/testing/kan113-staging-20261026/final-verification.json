@@ -1,0 +1,55 @@
+{
+  "status": "PASS_FOR_MANUAL_ACCEPTANCE",
+  "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "ref": "fzxqiqenqjzhlyxxpvhg",
+  "migration": "20261026162305_kan113_calendar_year_close_guard.sql",
+  "version": "20261026162305",
+  "ledger": 66,
+  "deployment": {
+    "id": "dpl_3eVEv5x5fxQnHJYztofWZbEePSfn",
+    "url": "sololedger-kx1gp3kxz-sololedger1.vercel.app",
+    "state": "READY",
+    "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "branch": "staging",
+    "project": "prj_chkSdedE06ppK2PlsqdtOhZfAKpT",
+    "team": "team_0Mrj7LMvSEfpbV8y5juQ5IiL",
+    "target": null
+  },
+  "alias": "sololedger-git-staging-sololedger1.vercel.app",
+  "aliasCorrection": {
+    "needed": true,
+    "oldDeployment": "dpl_58afdvJM1RQ7hpSoiYnWAgGsw5Bh",
+    "oldSha": "1e4a32a44fde6173633c2deef92940cc682ced84",
+    "newDeployment": "dpl_3eVEv5x5fxQnHJYztofWZbEePSfn",
+    "newSha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "otherAliasesAndEnvUnchanged": true
+  },
+  "remote": {
+    "refs/heads/main": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "refs/heads/staging": "e992e4f97e1d74c91b24947d61f1774596340bc1"
+  },
+  "hostedCases": 11,
+  "browserWidths": [
+    1440,
+    390
+  ],
+  "directRpcBothVatProfiles": true,
+  "actualPositiveUiRpcDatabaseLocks": 2,
+  "concurrencyCases": 4,
+  "missingOpenVatAndInventoryGuards": true,
+  "allPreExistingPublicTablesPreserved": 33,
+  "allExistingChecklistsPreserved": true,
+  "syntheticActorsDeleted": 4,
+  "residual": {
+    "auth": 0,
+    "locks": 0,
+    "journal": 0,
+    "periods": 0,
+    "profiles": 0,
+    "checklists": 0,
+    "clientTLS": true
+  },
+  "allOtherSchemaAndPermissionsUnchanged": true,
+  "productionUnchanged": true,
+  "noJiraMutation": true
+}

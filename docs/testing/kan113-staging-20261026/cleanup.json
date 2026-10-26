@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "deletedNewSyntheticActors": 4,
+  "preExistingPublicDataAndChecklistsExactlyPreserved": true,
+  "schemaAndLedgerUnchanged": true,
+  "residualAuthAndProfiles": 0
+}

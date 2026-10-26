@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "results": [
+    {
+      "name": "booking first: closure waits for committed journal; exact replay does not duplicate",
+      "status": "PASS"
+    },
+    {
+      "name": "closure first: booking waits then is denied without new journal",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent past-year closures: only one lock row",
+      "status": "PASS"
+    },
+    {
+      "name": "current closure after lock wait and simultaneous HTTPS future closures denied with identical data",
+      "status": "PASS"
+    }
+  ],
+  "distinctBackendPids": true,
+  "sessionContinuity": true,
+  "clientTLS": true,
+  "preExistingDataPreserved": true
+}

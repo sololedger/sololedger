@@ -1,0 +1,133 @@
+{
+  "status": "PASS",
+  "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "origin": "https://sololedger-git-staging-sololedger1.vercel.app",
+  "results": [
+    {
+      "label": "N",
+      "width": 1440,
+      "year": 2026,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "label": "N",
+      "width": 1440,
+      "year": 2027,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2027 är inte avslutat. Du kan låsa året tidigast den 1 januari 2028 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "width": 1440,
+      "kan112ActualSaveReloadAndNavigation": true,
+      "manualConfirmationOnLockedYear": true
+    },
+    {
+      "label": "V",
+      "width": 1440,
+      "year": 2026,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "label": "V",
+      "width": 1440,
+      "year": 2027,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2027 är inte avslutat. Du kan låsa året tidigast den 1 januari 2028 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "label": "V",
+      "width": 1440,
+      "year": 2025,
+      "actualUiRpcDatabaseLock": true,
+      "journalAndVatUnchanged": true
+    },
+    {
+      "label": "N",
+      "width": 390,
+      "year": 2026,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "label": "N",
+      "width": 390,
+      "year": 2027,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2027 är inte avslutat. Du kan låsa året tidigast den 1 januari 2028 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "width": 390,
+      "kan112ActualSaveReloadAndNavigation": true,
+      "manualConfirmationOnLockedYear": true
+    },
+    {
+      "label": "V",
+      "width": 390,
+      "year": 2026,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2026 är inte avslutat. Du kan låsa året tidigast den 1 januari 2027 (svensk tid)."
+      },
+      "noDataChanges": true
+    },
+    {
+      "label": "V",
+      "width": 390,
+      "year": 2027,
+      "uiBlocked": true,
+      "disabledClickNoRpc": true,
+      "directBrowserRpc": {
+        "status": 400,
+        "code": "23514",
+        "message": "År 2027 är inte avslutat. Du kan låsa året tidigast den 1 januari 2028 (svensk tid)."
+      },
+      "noDataChanges": true
+    }
+  ],
+  "origins": [
+    "https://fzxqiqenqjzhlyxxpvhg.supabase.co"
+  ],
+  "actualDeliveredStagingClient": true,
+  "noProductionClient": true
+}

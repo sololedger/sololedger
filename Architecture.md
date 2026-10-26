@@ -184,7 +184,8 @@ KAN-113-kandidaten kräver att hela kalenderåret har passerat enligt serverns t
 före befintliga moms-/inventarie-/bokslutskontroller. Klienten visar samma regel
 via `yearCloseDateBlockReason`; direkt RPC skyddas alltid av databasen. Detta
 ändrar inte modellen till brutna/förlängda räkenskapsår. Kräver migrationen
-`20261026162305_kan113_calendar_year_close_guard.sql`; ännu endast lokalt verifierad.
+`20261026162305_kan113_calendar_year_close_guard.sql`; verifierad i Staging
+2026-10-26 på kandidat e992e4f (ledger 66). Production har ännu inte rättningen.
 
 Bokförings-RPC:er kontrollerar låsta år innan relevanta skrivningar. UI:t döljer eller blockerar också ändringar, men databasen är den viktiga gränsen.
 
