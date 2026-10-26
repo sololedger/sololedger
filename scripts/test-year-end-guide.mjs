@@ -52,6 +52,7 @@ try {
    external.push(route.request().url());return route.abort()
   })
   await page.goto('https://kan99.test/');await page.addScriptTag({content:bundle.outputFiles[0].text})
+  await page.evaluate(()=>{window.scrollCalls=[];const original=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(options){window.scrollCalls.push({text:this.textContent,options});return original.call(this,options)}})
   async function navigate(label){
    let b=page.getByRole('button',{name:label,exact:true}).filter({visible:true})
    if(!await b.count()){const mobile=page.getByRole('button',{name:'Öppna meny',exact:true});if(await mobile.isVisible())await mobile.click();else await page.getByRole('button',{name:/^Mer/}).click();b=page.getByRole('button',{name:label,exact:true}).filter({visible:true});if(!await b.count())b=page.getByRole('menuitem',{name:label,exact:true})}
@@ -60,7 +61,13 @@ try {
   await navigate('Årsavslut');const guide=page.getByRole('region',{name:'Årsavslut för 2026',exact:true}),cards=guide.locator('[data-group-index]'),notice=guide.getByTestId('checklist-save-status')
   const year=page.getByRole('group',{name:'Ekonomikontroller'}).getByRole('combobox')
   async function group(index){await cards.nth(index).click()}
-  async function open(key,index=0){await group(index);await guide.locator('[data-check-nav="'+key+'"]').click();return guide.locator('article[data-check-key="'+key+'"]')}
+  async function open(key,index=0){
+   await group(index);await guide.locator('[data-check-nav="'+key+'"]').click()
+   const item=guide.locator('article[data-check-key="'+key+'"]')
+   // Selection focuses on the next animation frame. Wait before further keyboard actions.
+   await expect.poll(()=>item.locator('h3').evaluate(el=>document.activeElement===el||document.activeElement===document.querySelector('[data-testid="checklist-save-status"]'))).toBe(true)
+   return item
+  }
   const bank=guide.locator('article[data-check-key="bank"]'),checkbox=bank.getByRole('checkbox')
   async function noOverflow(){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'horizontal overflow at '+width)}
   await expect(guide).toContainText('0 av 11 bekräftade av dig');await expect(cards).toHaveCount(4);await expect(guide.locator('article')).toHaveCount(0)
@@ -68,6 +75,45 @@ try {
   const dimensions=await guide.evaluate(el=>{const main=el.closest('main'),r=main.getBoundingClientRect(),s=getComputedStyle(main),own=el.getBoundingClientRect();return{actual:own.width,expected:r.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)}})
   assert(Math.abs(dimensions.actual-dimensions.expected)<2,'guide fills invoice/layout content width')
   await noOverflow();await page.screenshot({path:out+'/overview-'+width+'.png',fullPage:true})
+  // Ordinary selection must not hide the overview on desktop. Test actual short/long
+  // instructions in both directions, at different existing scroll positions.
+  if(width>=1024){
+   await page.evaluate(()=>{scrollTo(0,0);window.scrollCalls=[]})
+   await group(1);await expect(guide.getByRole('heading',{name:'2. Färdigställ bokslutet',exact:true})).toBeFocused()
+   assert.equal(await page.evaluate(()=>scrollY),0,'desktop group selection keeps overview')
+   for(const [key,offset] of [['statements',0],['vat',650],['statements',650],['vat',0]]){
+    const nav=guide.locator('[data-check-nav="'+key+'"]')
+    await nav.evaluate((el,offset)=>window.scrollTo(0,offset?Math.max(0,el.getBoundingClientRect().top+scrollY-offset):0),offset)
+    await nav.scrollIntoViewIfNeeded() // Test a visible button, not Playwright's preparatory scroll.
+    const before=await page.evaluate(()=>scrollY)
+    await nav.click();await expect(guide.locator('article h3')).toBeFocused()
+    await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(before)
+   }
+   // Space must also move focus to the new instruction without scrolling.
+   const nav=guide.locator('[data-check-nav="statements"]')
+   await nav.focus();const before=await page.evaluate(()=>scrollY)
+   await page.keyboard.press('Space');await expect(guide.locator('article h3')).toBeFocused()
+   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(before)
+   assert.deepEqual(await page.evaluate(()=>window.scrollCalls),[],'no automatic desktop scroll calls')
+  }else{
+   await open('vat',1)
+   const nav=guide.locator('[data-check-nav="statements"]'),heading=guide.locator('article h3')
+   // Put both the selected instruction heading and next button on screen.
+   await heading.evaluate(el=>scrollTo(0,el.getBoundingClientRect().top+scrollY-650))
+   await expect(nav).toBeInViewport();await expect(heading).toBeInViewport()
+   await page.evaluate(()=>window.scrollCalls=[]);const before=await page.evaluate(()=>scrollY)
+   await nav.click();await expect(heading).toBeFocused()
+   assert.equal(await page.evaluate(()=>scrollY),before,'visible mobile instruction does not scroll')
+   assert.deepEqual(await page.evaluate(()=>window.scrollCalls),[])
+   // A deliberate keyboard selection may expose an offscreen heading, minimally.
+   const vatNav=guide.locator('[data-check-nav="vat"]')
+   await vatNav.evaluate(el=>el.scrollIntoView({block:'end'}));await vatNav.focus()
+   await page.evaluate(()=>window.scrollCalls=[])
+   await page.keyboard.press('Enter');await expect(heading).toBeFocused();await expect(heading).toBeInViewport()
+   const calls=await page.evaluate(()=>window.scrollCalls)
+   assert.equal(calls.length,1,'offscreen mobile instruction needs one scroll')
+   assert.equal(calls[0].options.block,'nearest','mobile scroll is minimal')
+  }
   await open('documents');await open('bank');assert.equal(await page.evaluate(()=>window.checklistWrites?.length??0),0,'navigation does not write confirmations');await expect(guide.locator('article')).toHaveCount(1)
   for(const [index,keys]of [['documents','bank','customers','suppliers','inventory'],['vat','statements'],['tax','submission'],['payments','next_year']].entries())for(const key of keys){
    const item=await open(key,index);await expect(item.getByText('Varför behövs kontrollen?',{exact:true})).toBeVisible();await expect(item.getByText('Om något inte stämmer',{exact:true})).toBeVisible();assert(await item.getByRole('button',{name:/^Öppna /}).count()>0);await expect(guide.locator('article')).toHaveCount(1)
@@ -85,7 +131,7 @@ try {
   await page.evaluate(()=>{window.checklistDB['owner-a:2026'].basis.bank='b'.repeat(32)})
   await notice.getByRole('button',{name:'Läs om checklistan'}).click();await expect(bank).toContainText('Kontrollera igen');await expect(checkbox).toBeChecked();await expect(cards.nth(0)).toContainText('1 behöver ses över')
   await page.screenshot({path:out+'/selected-'+width+'.png',fullPage:true})
-  if([1440,390].includes(width)){await page.screenshot({path:'docs/testing/kan112-modern-layout/after-'+width+'.png',fullPage:true});await bank.screenshot({path:'docs/testing/kan112-modern-layout/instruction-'+width+'.png'})}
+  if(process.env.KAN112_UPDATE_VISUALS==='1'&&[1440,390].includes(width)){await page.screenshot({path:'docs/testing/kan112-modern-layout/after-'+width+'.png',fullPage:true});await bank.screenshot({path:'docs/testing/kan112-modern-layout/instruction-'+width+'.png'})}
   await bank.getByRole('button',{name:'Jag har kontrollerat igen'}).click();await expect(bank.getByRole('button',{name:'Jag har kontrollerat igen'})).toHaveCount(0)
   // A failed bank save remains visible when navigating elsewhere. Retry still targets bank.
   await page.evaluate(()=>window.failSave=true);await checkbox.click();await expect(notice.getByRole('alert')).toContainText('Sparandet kunde inte bekräftas');await expect(checkbox).toBeChecked()
@@ -120,7 +166,7 @@ try {
   await page.evaluate(()=>document.documentElement.style.fontSize='200%');await noOverflow();await expect(checkbox).toBeVisible();await expect(guide.locator('[data-check-nav="bank"]')).toBeVisible()
   await page.screenshot({path:out+'/text-200-'+width+'.png',fullPage:true});await page.evaluate(()=>document.documentElement.style.fontSize='');await noOverflow()
   assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage)),[]);assert.deepEqual(await page.evaluate(()=>window.writes),[]);assert.deepEqual(external,[]);assert.deepEqual(errors,[])
-  results.push({width,status:'PASS',singleInstruction:true,invoiceWidth:true,navigationNeverWrites:true,saveErrorAndPendingVisibleAcrossNavigation:true,keyboard:true,text200Percent:true,longCompanyName:true,ownerYearIsolation:true,restoredYearAndFocus:true,profileFocusCycles:5,noOverflow:true})
+  results.push({width,status:'PASS',singleInstruction:true,invoiceWidth:true,navigationNeverWrites:true,desktopScrollStable:width>=1024,mobileScrollOnlyWhenNeeded:width<1024,saveErrorAndPendingVisibleAcrossNavigation:true,keyboard:true,text200Percent:true,longCompanyName:true,ownerYearIsolation:true,restoredYearAndFocus:true,profileFocusCycles:5,noOverflow:true})
   await context.close();console.log('PASS modern guide '+width)
  }
  await writeFile(out+'/result.json',JSON.stringify({status:'PASS',results},null,2));console.log('PASS KAN112 modern desktop/mobile browser; screenshots '+out)

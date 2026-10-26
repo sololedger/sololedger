@@ -165,9 +165,18 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
  const currentYear=useSyncExternalStore(subscribeCalendar,stockholmYear,()=>null)
  const checklist=useYearEndChecklist(owner,year,contextKey,contextReady),data=checklist.state.data
  const restored=useRef(false)
+ function focusWorkspace(target:HTMLElement|null){
+  if(!target)return
+  // The desktop workspace is side by side. Only the stacked layout may need
+  // a small scroll to expose the newly selected heading; return navigation is separate.
+  if(!window.matchMedia('(min-width: 1024px)').matches){
+   const rect=target.getBoundingClientRect()
+   if(rect.top<0||rect.bottom>window.innerHeight)target.scrollIntoView({block:'nearest'})
+  }
+  target.focus({preventScroll:true})
+ }
  function focusInstruction(){
-  const target=checklist.store.state.error||checklist.store.state.pending?notice.current:heading.current
-  target?.scrollIntoView({block:'start'});target?.focus({preventScroll:true})
+  focusWorkspace(checklist.store.state.error||checklist.store.state.pending?notice.current:heading.current)
  }
  useEffect(()=>{
   if(restored.current||initialControl===null||!data||checklist.state.busy)return
@@ -184,7 +193,7 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
  }
  function chooseGroup(index:number){
   if(index!==activeGroup){setActiveGroup(index);setActiveControl(null)}
-  requestAnimationFrame(()=>{list.current?.scrollIntoView({block:'nearest'});list.current?.focus({preventScroll:true})})
+  requestAnimationFrame(()=>focusWorkspace(list.current))
  }
  function chooseControl(index:number){setActiveControl(index);requestAnimationFrame(focusInstruction)}
  return <section aria-label={'Årsavslut för '+year} className="min-w-0 space-y-5 pb-10">
