@@ -1,0 +1,136 @@
+{
+  "status": "BACKUP_VERIFIED",
+  "releaseReadiness": "READY_FOR_NEW_EXPLICIT_RELEASE_DECISION",
+  "at": "2026-10-26T18:38:48.135Z",
+  "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "backup": {
+    "path": "C:\\SoloLedger\\Backups\\KAN112113-20261026\\production-20261026T182848Z.zip.dpapi",
+    "status": "PASS",
+    "project": "wbaxmuvudpnkvuliicuy",
+    "dumpStartedUtc": "2026-10-26T18:28:34.487258Z",
+    "packagedUtc": "20261026T182848Z",
+    "encryptedBytes": 1280502,
+    "ciphertextSha256": "0365cc2b1621e4e9906b00455203bebbd462961a5e6cf6fd9685647480d04620",
+    "customDumpBytes": 1272788,
+    "roleExportBytes": 5840,
+    "schemaTableDataEntries": {
+      "auth": 27,
+      "vault": 1,
+      "public": 32,
+      "storage": 8,
+      "realtime": 2,
+      "supabase_migrations": 1
+    },
+    "partitionedTables": [
+      {
+        "name": "messages",
+        "schema": "realtime",
+        "partitions": 0
+      }
+    ],
+    "publicFunctionPreimagesVerified": 103,
+    "tocEntries": 1220,
+    "outsideRepositoryAndSyncedDesktop": true,
+    "noReparseDirectories": true,
+    "originalOwnersAclPoliciesIncluded": true,
+    "rolesWithoutPasswords": true,
+    "productionWrites": false,
+    "plaintextDiskFiles": false
+  },
+  "independentVerification": {
+    "status": "PASS_INDEPENDENT_PROCESS_INTEGRITY_NOT_RESTORE",
+    "atUtc": "2026-10-26T18:29:03.3377509Z",
+    "backupPath": "C:\\SoloLedger\\Backups\\KAN112113-20261026\\production-20261026T182848Z.zip.dpapi",
+    "ciphertextSha256": "0365cc2b1621e4e9906b00455203bebbd462961a5e6cf6fd9685647480d04620",
+    "encryptedBytes": 1280502,
+    "directoryAndFileAclRestricted": true,
+    "manifestAndComponentHashes": true,
+    "separateProcessDecrypt": true,
+    "fullArchiveDecodedToNull": true,
+    "requiredDataEntries": 8,
+    "tocEntries": 1220,
+    "oldBackupUnchanged": true,
+    "reviewedFunctionPreimagesPresent": 5,
+    "restoreExecuted": false,
+    "productionWrites": false,
+    "plaintextFilesWritten": false
+  },
+  "restore": {
+    "status": "PASS_SCOPED_RESTORE",
+    "publicTables": 32,
+    "publicFunctionBodiesOwnerAclSecurityAndConfig": 103,
+    "publicPolicies": 33,
+    "ledgerEntries": 61,
+    "authFunctions": 4,
+    "foreignServers": 0,
+    "subscriptions": 0,
+    "postgresMinorVersionDeparserDifferences": 3,
+    "normalization": "CRLF/LF in function body; collection order; exactly three known equivalent AND-group CHECK renderings from PostgreSQL17.6 to17.11",
+    "customerRowsRestored": false,
+    "realAuthRowsRestored": false,
+    "platformGrantStatementsSkipped": 37
+  },
+  "target": {
+    "marker": "KAN112113 recovery synthetic only 66edae0b-22d8-4221-8bbf-a16666f838b7",
+    "createdUtc": "2026-10-26T18:29:45.7957706Z",
+    "host": "127.0.0.1",
+    "database": "sololedger_kan112113_recovery_20261026",
+    "oid": "66958",
+    "port": 5432
+  },
+  "synthetic": {
+    "rollbackResidualZero": true,
+    "authenticatedOwnerRead": true,
+    "productionWrites": false,
+    "otherOwnerHidden": true,
+    "syntheticAuthProfileTrigger": true,
+    "status": "PASS",
+    "database": "sololedger_kan112113_recovery_20261026",
+    "authUid": true
+  },
+  "productionPreflight": {
+    "at": "2026-10-26T18:34:56.183Z",
+    "status": "PASS_READ_ONLY_PREFLIGHT",
+    "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "remote": {
+      "refs/heads/main": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+      "refs/heads/staging": "e992e4f97e1d74c91b24947d61f1774596340bc1"
+    },
+    "ledger": 61,
+    "publicTables": 32,
+    "publicFunctions": 103,
+    "productionCatalogueAndPreconditionsUnchanged": true,
+    "productionDeployment": {
+      "id": "dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q",
+      "sha": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+      "state": "READY",
+      "target": "production"
+    },
+    "aliasesAndEnvMetadataUnchanged": true,
+    "locks": {
+      "future": 0,
+      "ongoing": 0,
+      "affected_users": 0
+    },
+    "productionWrites": false,
+    "migrationsApplied": [],
+    "noPushOrDeployment": true
+  },
+  "productionEdge": {
+    "version": 16,
+    "status": "ACTIVE",
+    "verify_jwt": true
+  },
+  "limitations": [
+    "Windows DPAPI CurrentUser and keys required; no portable/offsite copy",
+    "Actual customer/Auth data restore and Supabase services not tested",
+    "Storage file bytes and external/platform settings/secrets excluded",
+    "Scoped local platform owner/grant/bootstrap mappings documented",
+    "No automatic Production restore or release authorized in this task"
+  ],
+  "productionWrites": false,
+  "stagingWrites": false,
+  "push": false,
+  "deployment": false,
+  "jiraMutation": false
+}

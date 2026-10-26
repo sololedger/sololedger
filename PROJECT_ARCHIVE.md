@@ -1102,3 +1102,13 @@ från produktbasen och upprepar ingen release eller ändrar befintliga fixtures.
   Historiskt READY är därför inget bevis på genomförd Production-release eller backupverifiering.
 - Aktiv release och senare preflightstopp kvarstår i PROJECT_STATE.md och
   docs/reviews/KAN-112-KAN-113-PRODUCTION-PREFLIGHT-20261026.md; inte arkiverad som färdig.
+
+## KAN-112 + KAN-113 – ersatt backupstopp 2026-10-26
+
+- Production-preflight stoppades före första migrationen på docs-checkpoint2b86dda när
+  hanterad backup/PITR inte kunde verifieras. Ingen extern skrivning utfördes. Stopprapporten bevaras.
+- Separat backupuppdrag gav aktuell DPAPI-krypterad full pg_dump och faktiskt avgränsat lokalt
+  struktur-/funktions-/Auth-isolationsprov. Backupkravet för exakt e992e4f/tre migrationer
+  bedöms nu uppfyllt med dokumenterade begränsningar; se aktuell BACKUP-RECOVERY-rapport/STATE.
+- Production-release är fortfarande aktiv/ej genomförd och kräver nytt beslut. Ingen full
+  Supabase-/kunddata-/Storage-tjänsteåterställning har certifierats. Äldre backuper/fixtures bevarade.
