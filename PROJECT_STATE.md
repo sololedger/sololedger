@@ -1,15 +1,16 @@
 # SoloLedger Project State
 
-2026-10-26 – KAN-112 endast i Staging; hosted avvikelse återstår.
+2026-10-26 – KAN-112 två avvikelser rättade lokalt; PASS lokal / BLOCKED hosted.
 
 ## Aktuellt uppdrag och arbetskopia
 
-- KAN-112: Pontus godkände exakt 91233be, migration och delete-user för Staging.
+- KAN-112: Pontus godkände lokal rättning av samtidighet och för bred namnvarning.
+- Ny produktkandidat: bf845c21955552a4bfb26e67cd45c189064663fa, endast lokal.
 - Kopia: audit-packages/KAN-100-app-release-20261024.
 - Gren: codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
 - Produktbas: 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e.
 - Publicerad produkt: 91233be3a7da0887d4821583b96f54e847c54844.
-- Senare checkpoint innehåller endast denna state och Staging-rapporten lokalt.
+- Senare checkpoint innehåller endast denna state och den nya lokalrapporten.
 - Root och andra grenars tidigare ändringar/fixtures är bevarade.
 
 ## Installerat i Staging
@@ -40,14 +41,14 @@
 - Före/efter: äldre tabeller, data/funktioner bevarade utom godkänd delete-wrapper.
 - Tidigare lokal regression/12 DB-grupper finns i lokalrapport; inte nykörda här.
 
-## Kvarstående avvikelse – inte redo för slutlig acceptans
+## Ursprungliga Staging-avvikelser – ännu inte omtestade hosted
 
 - Samtidiga hosted sparbegäran: en lyckas, konkurrenten får timeout i stället
   för snabbt konfliktbesked. API-test 30 s; produktklient avbryter efter 25 s.
 - Två faktiska browserflikar: en revision, ingen överskrivning/falsk sparad-status;
   Läs om återställer båda. UX-avvikelsen kvarstår ändå.
-- SQLSTATE 40001 används för konflikt. Exakt timeoutorsak är inte fastställd.
-  Ingen rättning eller ny migration har implementerats.
+- SQLSTATE 40001 triggar PostgREST-transaktionsretry vid avsiktlig konflikt.
+  Grundorsak verifierad i kod/reproduktion och Supabases dokumentation.
 - Namnbyte ändrar documents/vat/statements/tax. Moms/skattevarning är onödigt bred.
   Svar bevaras och bank påverkas inte. Första profiltestet skrev samma namn och
   är ogiltigförklarat; nytt test verifierade faktisk ändring och dessa fyra värden.
@@ -56,15 +57,34 @@
 - KAN-113 årslås-Bug separat; inga tester av pågående/framtida årslås här.
 - FAQ/KAN-102, NE-historik/KAN-109 och bokförings-/moms-/årslåslogik oförändrade.
 
+## Ny lokal rättning och verifiering
+
+- Ny migration 20261026110015_kan112_conflict_and_profile_scope.sql, inte fjärrkörd.
+- SHA256 4d65559fe06bca24ce57cdbb65c8c6c2380c857598f1672d6b6abbb3f0fcaef1.
+- PT409 för två avsiktliga konflikter. Samma ägar-/radlås, revision, replay och ACL.
+- Klienten visar begriplig Läs om checklistan-text; äldre 40001 förstås också.
+- Ekonomiskt profildigest utesluter endast företagsnamn; övriga fält oförändrade.
+- Migration översätter bara bekräftelser vars gamla digest är aktuellt. Kryss/datum
+  och request-id bevaras; revision ökar. Redan stale/okända bekräftelser lämnas kvar.
+- 19 lokala rollback-DB-grupper PASS, inklusive före/efter-reproduktion, profilfält,
+  verklig bokning/moms/faktura, bevarad ACL, replay och tidigare svar.
+- Klient/store, hela säkra test:regression och offentlig smoke 2/2 PASS.
+- Typecheck och riktad lint PASS efter Next-generering av skadad cachevalidator.
+- Ingen persistent lokal migration, fjärrskrivning, deployment, push eller Jira-mutation.
+
 ## Dokumentation och nästa säkra steg
 
 - Rapport: docs/reviews/KAN-112-STAGING-ACCEPTANCE-20261026.md.
+- Ny rapport: docs/reviews/KAN-112-LOCAL-FIXES-20261026.md, exakt 6 produktfiler.
 - Lokalrapport: docs/reviews/KAN-112-LOCAL-IMPLEMENTATION-20261026.md.
 - Bevis/testverktyg i root/audit-packages/KAN-112-staging-20261026/.
 - Lokal open-staging-review.ps1 där öppnar syntetiskt A, Årsavslut 2025.
 - Hemligheter endast i redan ignorerade lokala auth-/konfigurationsfiler.
-- Pontus kan granska UI nu. Nästa beslut: avgränsad lokal rättning av hosted
-  konfliktvägen och profilfältens varningsavgränsning, ny migration vid behov,
-  omtest och ny exakt kandidat före push.
-  Ändra inte installerad migrationsfil. Ingen ytterligare publicering utförd.
+- Lokala bevis: coverage/kan112-fixes/. Hosted API-test förberett men inte kört:
+  root/audit-packages/KAN-112-staging-20261026/fix-acceptance.mjs.
+- Nästa beslut: godkänn exakt bf845c2 + nya migrationen/SHA för Staging, kontrollera
+  ledger/preimage, installera endast nya migrationen, publicera exakt kandidaten.
+  Edge v9 oförändrad. Testa två verkliga separata sessioner OCH browserflikar,
+  snabb 409/omläsning, namn/relevanta fakta, isolering, nätverksfel och mobil.
+- Stanna lokalt tills nytt godkännande. Inga korrigerade hosted resultat påstås.
 - Ingen Production-release godkänd. KAN-112 har inte satts Done/annan status.
