@@ -2,7 +2,7 @@
 
 import type { User } from '@supabase/supabase-js'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { beginProfileContext, isCurrentProfileContext, acceptProfileContext, requireProfileContext, type ProfileTicket } from '@/lib/profileContext'
+import { beginProfileContext, isCurrentProfileContext, isProfileContextReady, acceptProfileContext, requireProfileContext, type ProfileTicket } from '@/lib/profileContext'
 import { verifyProfileWrite } from '@/lib/profileWriteGuard'
 import { supabase } from '@/lib/supabaseClient'
 import type {
@@ -227,6 +227,7 @@ export function useAuth() {
     authLoading,
     profileError,
     profileContextKey: renderedTicket?.sequence ?? 0,
+    profileContextReady: isProfileContextReady(renderedTicket),
     verifyProfile,
     retryProfile,
     authNotice,

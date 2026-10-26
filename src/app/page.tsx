@@ -82,7 +82,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     user, profile, authLoading, profileError, retryProfile,
     authNotice, dismissAuthNotice, resetPassword, updatePassword,
     passwordRecoveryMode, exitPasswordRecoveryMode,
-    handleAuth, handleLogout, setProfile, verifyProfile, profileContextKey,
+    handleAuth, handleLogout, setProfile, verifyProfile, profileContextKey, profileContextReady,
   } = auth
 
   const [isRegistering, setIsRegistering] = useState(false)
@@ -99,30 +99,30 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
   const [selectedYear, setSelectedYear] = useState(2025)
-  const yearEndScope = useMemo(() => ({ owner: user?.id, year: selectedYear, profileContextKey }), [user?.id, selectedYear, profileContextKey])
-  type YearEndVisit = { scope: typeof yearEndScope; openControls: number[] }
+  const yearEndScope = useMemo(() => ({ owner: user?.id, year: selectedYear }), [user?.id, selectedYear])
+  type YearEndVisit = { scope: typeof yearEndScope; openControls: number[]; control: number | null }
   const [yearEndReturn, setYearEndReturn] = useState<YearEndVisit | null>(null)
   const [yearEndRestore, setYearEndRestore] = useState<YearEndVisit | null>(null)
   type NEGuideVisit = { scope: typeof yearEndScope; openDetails: number[] }
   const [neGuideReturn, setNEGuideReturn] = useState<NEGuideVisit | null>(null)
   const [neGuideRestore, setNEGuideRestore] = useState<NEGuideVisit | null>(null)
   function setActiveTab(tab: string) {
-    // Ordinary navigation consumes the guide visit, including return and same-page menu clicks.
-    setYearEndReturn(null)
-    setYearEndRestore(null)
+    if(tab==='arsavslut'&&yearEndReturn?.scope.owner===user?.id){returnToYearEndGuide();return}
+    if(tab==='arsavslut')setYearEndRestore(null)
     setNEGuideReturn(null)
     setNEGuideRestore(null)
     setActiveTabState(tab)
   }
-  function openYearEndDestination(destination: YearEndDestination, openControls: number[]) {
-    setYearEndReturn({ scope: yearEndScope, openControls })
+  function openYearEndDestination(destination: YearEndDestination, openControls: number[], control: number | null) {
+    setYearEndReturn({ scope: yearEndScope, openControls, control })
     setYearEndRestore(null)
     setNEGuideRestore(destination === 'ne' && neGuideReturn?.scope === yearEndScope ? neGuideReturn : null)
     setNEGuideReturn(null)
     setActiveTabState(destination)
   }
   function returnToYearEndGuide() {
-    if (yearEndReturn?.scope !== yearEndScope) return
+    if (!yearEndReturn||yearEndReturn.scope.owner!==user?.id) return
+    setSelectedYear(yearEndReturn.scope.year)
     setYearEndRestore(yearEndReturn)
     setYearEndReturn(null)
     setNEGuideReturn(null)
@@ -1167,8 +1167,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </div>
       )}
 
-      {yearEndReturn?.scope === yearEndScope && activeTab !== 'arsavslut' && (
-        <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {selectedYear}</button></div>
+      {yearEndReturn?.scope.owner === user?.id && activeTab !== 'arsavslut' && (
+        <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {yearEndReturn.scope.year}</button></div>
       )}
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut', 'ne'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {activeTab === 'dashboard' ? (
@@ -1303,9 +1303,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   />
 ) : null}        </>
       ) : activeTab === 'arsavslut' ? (
-        <YearEndGuide owner={user.id} key={`${user.id}:${selectedYear}:${profileContextKey}`} companyName={profile?.company_name}
+        <YearEndGuide owner={user.id} key={`${user.id}:${selectedYear}`} companyName={profile?.company_name}
+          contextKey={profileContextKey} contextReady={profileContextReady}
           year={selectedYear} ready={accountingDataReady} error={accountingDataError} locked={isYearLocked}
-          initialOpenControls={yearEndRestore?.scope === yearEndScope ? yearEndRestore.openControls : []}
+          initialOpenControls={yearEndRestore?.scope.owner === user.id && yearEndRestore.scope.year === selectedYear ? yearEndRestore.openControls : []}
+          initialControl={yearEndRestore?.scope.owner === user.id && yearEndRestore.scope.year === selectedYear ? yearEndRestore.control : null}
           showNEGuideReturn={neGuideReturn?.scope === yearEndScope}
           onNavigate={openYearEndDestination} />
       ) : activeTab === 'kontoplan' ? (

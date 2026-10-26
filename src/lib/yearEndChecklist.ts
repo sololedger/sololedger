@@ -23,7 +23,14 @@ export class ChecklistStore {
  constructor(public port:ChecklistPort,public newId=()=>crypto.randomUUID()){}
  subscribe=(fn:()=>void)=>{this.listeners.add(fn);return()=>{this.listeners.delete(fn)}}
  snapshot=()=>this.state
- start(){this.disposed=false;return this.load()}
+ activate(){this.disposed=false}
+ start(){this.activate();return this.load()}
+ // A same-owner Auth refresh invalidates replies, not the user's pending command.
+ suspend(){++this.generation;this.emit({busy:true,error:'',notice:'Kontrollerar inloggningen…'})}
+ resume(){
+  if(this.state.pending){this.emit({busy:false,notice:'',error:'Sparandet kunde inte bekräftas efter förnyad inloggning. Försök spara igen med samma begäran eller läs om.'});return}
+  return this.load()
+ }
  emit(p:Partial<State>){if(this.disposed)return;this.state={...this.state,...p};this.listeners.forEach(fn=>fn())}
  async load(){if(this.disposed)return;const generation=++this.generation;this.emit({busy:true,error:'',notice:''});try{const data=await this.port.load();if(generation===this.generation)this.emit({data,busy:false,pending:null})}catch{if(generation===this.generation)this.emit({data:null,busy:false,error:'Checklistan kunde inte hämtas. Dina sparade svar har inte raderats.'})}}
  async set(key:CheckKey,confirmed:boolean){if(this.state.busy||this.state.pending||!this.state.data||this.disposed)return;const d=this.state.data;await this.send({key,confirmed,revision:d.checks.find(r=>r.check_key===key)?.revision??0,basis:d.basis?.[key]??null,requestId:this.newId()})}

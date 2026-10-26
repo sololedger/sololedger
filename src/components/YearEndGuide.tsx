@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { CHECK_KEYS, needsReview } from '@/lib/yearEndChecklist'
-import { useYearEndChecklist, ChecklistNotice, ChecklistConfirmation } from './YearEndChecklistControls'
+import { useYearEndChecklist, ChecklistNotice, ChecklistConfirmation, ChecklistStatus } from './YearEndChecklistControls'
 
 export type YearEndDestination = 'dashboard' | 'profil' | 'fakturor' | 'leverantorsskulder' | 'inventarier' | 'moms' | 'ne'
 
@@ -72,13 +72,12 @@ const original: Control[] = [
     links: [['inventarier', 'Inventarier'], ['dashboard', 'Bokföring'], ['ne', 'NE-Bilaga']],
   },
   {
-    title: 'Moms och inköp från EU',
-    why: 'Momsfri försäljning innebär inte automatiskt att exempelvis tjänsteinköp från ett annat EU-land saknar svensk moms.',
+    title: 'Granska årets momsunderlag',
+    why: 'Momsrapporten behöver stämma med bokföringen och underlagen för de perioder företaget ska redovisa.',
     actions: year => [
-      'Ta fram fakturorna, exempelvis Adobe. I Bokföring: jämför fakturans säljare, land, datum, valuta, belopp och fakturamoms med EU-tjänsteposten och dess verifikation. En redan bokförd faktura ska inte bokföras igen.',
-      'Kontrollera företagets momsregistrering och avdragsrätt i Profil. Namnet Adobe avgör inte land eller momsbehandling. En obetald utlandsfaktura kan inte hanteras som svensk Bokslutsskuld.',
-      `Öppna Moms och välj själv perioden som hör till ${year}; momsperioden följer inte automatiskt guidens årsväljare. Beräkna rapporten och jämför Inköp från andra EU-länder med journalen och fakturorna. Kontrollera att alla perioder som ska redovisas finns.`,
-      'Fiktivt exempel, bara om underlaget styrker ett EU-tjänsteinköp på 200 kr exklusive moms och utan fakturamoms, med 25 % omvänd svensk moms (50 kr), ingen avdragsrätt och inga andra momsposter: ruta 21 är 200 kr, ruta 30 är 50 kr och ruta 48 är 0 kr. Verklig momsbehandling beror på fakturan, säljarlandet, tjänsten, avdragsrätten och de faktiska omständigheterna.',
+      'Kontrollera företagets sparade momsuppgifter och avdragsrätt i Profil. Jämför försäljning, inköp och bokförd moms med fakturor och kvitton. Bokför inte samma underlag igen.',
+      `Öppna Moms och välj de perioder som hör till ${year}. Momsperioden följer inte automatiskt guidens årsväljare. Kontrollera att alla perioder som ska redovisas finns.`,
+      'Beräkna rapporten för varje period och jämför med bokföringen och underlagen. Utred avvikelser och osäker momsbehandling innan du går vidare, även vid utlandshandel.',
       'När perioden är slut och underlaget stämmer: läs konsekvenserna innan du väljer Stäng momsperiod. Stängningen kan skapa en momsverifikation och låser perioden för vanlig momsrelaterad bokföring.',
     ],
     system: 'SoloLedger beräknar rapporten från bokförda momsfakta och kontrollerar periodens spärrar. Moms visar befintliga perioder. Skapa saknade momsperioder är en separat åtgärd. Guiden skickar ingen deklaration.',
@@ -152,24 +151,30 @@ const subscribeCalendar=()=>()=>{}
 const stockholmYear=()=>Number(new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric'}).format(new Date()))
 const button='min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2'
 
-export default function YearEndGuide({owner,companyName,year,ready,error,locked,initialOpenControls,showNEGuideReturn,onNavigate}: {
- owner:string;companyName:string|null|undefined;year:number;ready:boolean;error:string|null;locked:boolean;initialOpenControls:readonly number[];showNEGuideReturn?:boolean;onNavigate:(destination:YearEndDestination,openControls:number[])=>void
+export default function YearEndGuide({owner,companyName,year,ready,error,locked,contextKey,contextReady,initialOpenControls,initialControl,showNEGuideReturn,onNavigate}: {
+ owner:string;companyName:string|null|undefined;year:number;ready:boolean;error:string|null;locked:boolean;contextKey:number;contextReady:boolean;initialOpenControls:readonly number[];initialControl:number|null;showNEGuideReturn?:boolean;onNavigate:(destination:YearEndDestination,openControls:number[],control:number|null)=>void
 }) {
  const guide=useRef<HTMLElement>(null)
  const currentYear=useSyncExternalStore(subscribeCalendar,stockholmYear,()=>null)
- const checklist=useYearEndChecklist(owner,year),data=checklist.state.data
+ const checklist=useYearEndChecklist(owner,year,contextKey,contextReady),data=checklist.state.data
+ const restored=useRef(false)
+ useEffect(()=>{
+  if(restored.current||initialControl===null||!data||checklist.state.busy)return
+  const summary=guide.current?.querySelector<HTMLElement>(`details[data-control-index="${initialControl}"] > summary`)
+  if(summary){summary.scrollIntoView({block:'start'});summary.focus({preventScroll:true});restored.current=true}
+ },[initialControl,data,checklist.state.busy])
  const confirmed=data?.checks.filter(c=>c.confirmed).length??0
  const review=data?CHECK_KEYS.filter(k=>needsReview(data,k)).length:0
- function navigate(destination:YearEndDestination){
+ function navigate(destination:YearEndDestination,control:number|null=null){
   const open=Array.from(guide.current?.querySelectorAll<HTMLDetailsElement>('details[data-control-index]')??[]).filter(d=>d.open).map(d=>Number(d.dataset.controlIndex))
-  onNavigate(destination,open)
+  onNavigate(destination,open,control)
  }
- function instructions(control:Control){return <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+ function instructions(control:Control,index:number){return <div className="space-y-4 text-sm leading-relaxed text-gray-700">
   <p><strong>Varför behövs kontrollen?</strong><br/>{control.why}</p>
   <div><h4 className="font-semibold">Så gör du och jämför</h4><ol className="mt-2 list-decimal space-y-2 pl-5">{control.actions(year).map(action=><li key={action}>{action}</li>)}</ol></div>
   <p><strong>Vad kan SoloLedger kontrollera?</strong><br/>{control.system}</p>
   <p className="rounded-lg bg-amber-50 p-3"><strong>Om något inte stämmer</strong><br/>{control.problem}</p>
-  <div className="flex flex-wrap gap-2">{control.links.map(([destination,label])=><button key={destination} type="button" className={button} onClick={()=>navigate(destination)}>Öppna {label}</button>)}</div>
+  <div className="flex flex-wrap gap-2">{control.links.map(([destination,label])=><button key={destination} type="button" className={button} onClick={()=>navigate(destination,index)}>Öppna {label}</button>)}</div>
  </div>}
  return <section ref={guide} aria-label={'Årsavslut för '+year} className="mx-auto max-w-3xl space-y-5 px-4 pb-10 sm:px-6">
   <header className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
@@ -185,9 +190,9 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
    <p className="rounded-lg border border-gray-200 p-3 text-sm"><strong>Moms har egna tidsfrister.</strong> Deklarera och betala i rätt tid. Vänta inte på årslåset. Kontrollera aktuella datum hos Skatteverket. <button className={button} type="button" onClick={()=>navigate('moms')}>Öppna Moms</button></p>
   </header>
   <details className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm" aria-label="Systemstatus">
-   <summary className="min-h-11 cursor-pointer font-semibold">Status i SoloLedger – separata systembesked</summary>
+   <summary className="min-h-11 cursor-pointer font-semibold">Status i SoloLedger – separata systembesked<span className="mt-1 block text-sm font-normal">{error?'Årslåsstatus kunde inte hämtas':!ready?'Årslåsstatus laddas':'Bokföringsår '+year+': '+(locked?'låst':'öppet')}{data&&!checklist.state.busy?' · '+data.system.periods.length+' momsperioder · '+data.system.declaration_versions+' sparade deklarationsversioner': ' · Moms- och deklarationsstatus inväntar checklistan'}</span></summary>
    {error?<p role="alert">Årslåsstatus kunde inte hämtas. Ingen tidigare status visas.</p>:<p>{!ready?'Årslåsstatus laddas. Inget besked visas ännu.':'Bokföringsår '+year+': '+(locked?'låst enligt SoloLedger':'öppet enligt SoloLedger')+'.'}</p>}
-   {data&&!checklist.state.busy?<><p>Moms: {data.system.periods.length} registrerade perioder, {data.system.periods.filter(p=>p.status==='closed'||p.status==='declared').length} stängda eller deklarerade. Antalet bevisar inte fullständig periodtäckning.</p><p>Sparade deklarationsversioner: {data.system.declaration_versions}. Ingen kontroll av Skatteverkets mottagande.</p></>:<p>Moms- och deklarationsstatus visas när checklistan kan läsas.</p>}
+   {data&&!checklist.state.busy?<><p>Moms: {data.system.periods.length} registrerade perioder, {data.system.periods.filter(p=>p.status==='closed'||p.status==='declared').length} stängda eller deklarerade. Antalet bevisar inte fullständig periodtäckning.</p><ul className="space-y-1">{data.system.periods.map(p=><li key={p.start+':'+p.end}>{p.start}–{p.end}: {p.status==='open'?'öppen':p.status==='closed'?'stängd':p.status==='declared'?'inlämning registrerad av användaren – inte verifierad av Skatteverket':'status kunde inte tolkas'}</li>)}</ul><p>Sparade deklarationsversioner: {data.system.declaration_versions}. En sparad version är inte bevis för inlämning. Ingen kontroll av Skatteverkets mottagande.</p></>:<p>Moms- och deklarationsstatus visas när checklistan kan läsas.</p>}
    <p>Låst år, stängd momsperiod, inlämnad deklaration och betalning är olika saker.</p>
   </details>
   {groups.map((group,g)=><details key={group.title} data-control-index={100+g} open={initialOpenControls.includes(100+g)||(initialOpenControls.length===0&&g===0)} className="rounded-xl border border-gray-200 bg-white">
@@ -195,11 +200,11 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
    <div className="space-y-3 border-t border-gray-100 p-3 sm:p-4">{group.indexes.map(index=>{
     const control=controls[index],key=CHECK_KEYS[index],row=data?.checks.find(c=>c.check_key===key)
     return <details key={key} data-check-key={key} data-control-index={index} open={initialOpenControls.includes(index)} className="rounded-lg border border-gray-200">
-     <summary className="min-h-11 cursor-pointer p-4 font-semibold focus-visible:outline-2">{control.title}<span className="mt-1 block text-sm font-normal">{!data?'Sparade svar är inte tillgängliga':row?.confirmed?(needsReview(data,key)?'Bekräftat av dig · Kontrollera igen':'Bekräftat av dig'):'Behöver din kontroll'}</span></summary>
-     <div className="space-y-4 border-t border-gray-100 p-4">{instructions(control)}<ChecklistConfirmation checklist={checklist} checkKey={key} label={control.reviewed}/></div>
+     <summary className="min-h-11 cursor-pointer scroll-mt-6 p-4 font-semibold focus-visible:outline-2">{control.title}<span className="mt-1 block text-sm font-normal">{!data?'Sparade svar är inte tillgängliga':<ChecklistStatus confirmed={row?.confirmed??false} review={needsReview(data,key)}/>}</span></summary>
+     <div className="space-y-4 border-t border-gray-100 p-4">{instructions(control,index)}<ChecklistConfirmation checklist={checklist} checkKey={key} label={control.reviewed}/></div>
     </details>
    })}
-   {g===1&&<details data-control-index={200} open={initialOpenControls.includes(200)} className="rounded-lg border border-gray-200"><summary className="min-h-11 cursor-pointer p-4 font-semibold">Förbered årslåset – separat systemåtgärd</summary><div className="space-y-4 p-4">{instructions(original[6])}<p className="text-sm">Årslåset har ingen manuell kryssruta. Dina avbockningar påverkar inte möjligheten att låsa året.</p></div></details>}
+   {g===1&&<details data-control-index={200} open={initialOpenControls.includes(200)} className="rounded-lg border border-gray-200"><summary className="min-h-11 cursor-pointer scroll-mt-6 p-4 font-semibold">Förbered årslåset – separat systemåtgärd</summary><div className="space-y-4 p-4">{instructions(original[6],200)}<p className="text-sm">Årslåset har ingen manuell kryssruta. Dina avbockningar påverkar inte möjligheten att låsa året.</p></div></details>}
    </div>
   </details>)}
  </section>

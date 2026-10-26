@@ -18,7 +18,12 @@ for (const file of files) {
     const [before] = await eslint.lintText(source, { filePath: file })
     baseline = errors(before)
   }
-  assert.deepEqual(errors(current), baseline, file + ' introduces lint errors')
+  const remaining = [...baseline]
+  for (const error of errors(current)) {
+    const index = remaining.indexOf(error)
+    assert(index >= 0, file + ' introduces lint error: ' + error)
+    remaining.splice(index, 1)
+  }
   results.push({ file, errors: current.errorCount, baselineErrors: baseline.length, warnings: current.warningCount, noNewErrors: true })
 }
 mkdirSync('coverage/kan99-evidence', { recursive: true })

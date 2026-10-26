@@ -51,7 +51,7 @@
     "test:supplier-withdrawal": "node --test scripts/test-withdrawal-suppliers.ts && node scripts/test-withdrawal-supplier-transport.mjs",
     "test:year-end-guide": "npm run test:year-end-checklist && node scripts/test-year-end-guide.mjs",
     "lint:year-end-guide": "node scripts/check-year-end-guide-lint.mjs",
-    "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs",
+    "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs && node scripts/test-year-end-auth.mjs",
     "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs && node scripts/test-year-end-checklist-fixes-db.mjs"
   },
   "dependencies": {

@@ -14,6 +14,10 @@ export function isCurrentProfileContext(ticket: ProfileTicket): boolean {
   return ticket === current
 }
 
+export function isProfileContextReady(ticket: ProfileTicket | null): boolean {
+  return !!ticket?.userId && ready && isCurrentProfileContext(ticket)
+}
+
 export function acceptProfileContext(ticket: ProfileTicket, profileId: string): boolean {
   if (!isCurrentProfileContext(ticket) || ticket.userId !== profileId) return false
   ready = true
