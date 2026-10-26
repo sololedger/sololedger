@@ -2,6 +2,13 @@
 
 2026-10-26. **PASS för manuell acceptans, med dokumenterad positionsobservation vid 320 px.**
 
+**Senare produktägarbeslut 2026-10-26:** Pontus har godkänt hela KAN-112 i Staging
+på dator och fysisk mobil. Den lilla kosmetiska scroll-/kortramsdetaljen är
+uttryckligen accepterad, blockerar inte release och ska inte rättas nu. Inga fler
+UX-ändringar önskas. Nedanstående tekniska observationer bevaras som historik,
+inte öppna acceptansspärrar. Production-release återstår, ingen Done.
+Aktuell överlämning: KAN-112-HANDOFF-20261026.md och PROJECT_STATE.md.
+
 ## Exakt publicerat
 
 - Produktcommit `1e4a32a44fde6173633c2deef92940cc682ced84`.

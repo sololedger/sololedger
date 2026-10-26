@@ -1,90 +1,69 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 mobilnavigation publicerad, PASS för manuell Staging-acceptans med 320-observation.**
-Produktmål och prioriteringar enligt AGENTS.md: begriplig och tillförlitlig bokföring
-för Jessikas enskilda firma år efter år. Aktuellt arbete förbättrar bara guidens navigation.
-Exakt godkänd staging-push/deployment utförd. Ingen appdata-/migrations-/Edge-/Production-/Jira-ändring.
+2026-10-26 – **KAN-112 tekniskt och manuellt accepterad i Staging, inkl fysisk mobil. Production återstår.**
+Produktmål/prioriteringar enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas
+enskilda firma år efter år. Nästa arbetsområde är KAN-113, börja läsande; ingen implementation nu.
 
-## Arbetskopia och lokal kandidat
+## Läs detta först efter Codex-kontobyte
 
-- L = audit-packages/KAN-100-app-release-20261024.
-- Gren codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
-- Publicerad produktcommit 1e4a32a44fde6173633c2deef92940cc682ced84, bara Staging.
-- Före publicering docs-HEAD b57e16cda81a2e429c6b1eb138084bde91bc3c99; inte pushad.
-- Förälder 50aa868e062f0b425722296fc32d53e1f6cc3727 (tidigare hosted docs).
-- Senare rapport/STATE-checkpoint enligt git log är bara lokal.
-- Rootens tidigare dirty AGENTS/STATE/arkiv/rapporter/verktyg bevarade; aldrig produktpushkälla.
-- Bara KAN-112-navigeringsnotisen uppdateras i rootens redan dirty STATE.
+- Aktuell produktkopia L = audit-packages/KAN-100-app-release-20261024 under root
+  C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user.
+- Läs rootens och L:s AGENTS.md, detta STATE och docs/reviews/KAN-112-HANDOFF-20261026.md.
+- L-gren codex/KAN-112-year-end-checklist; origin är lokal KAN-62-kopia, inte GitHub.
+- Root staging är äldre docs/verktygskopia med orelaterad dirty diff, aldrig produktpushkälla.
+- Inga worktrees/fixtures/ignorerade miljöer får tas bort; se worktree-regler i L/AGENTS.
 
-## Aktuell mobilrättning
+## KAN-112 – slutstatus och exakta versioner
 
-- Orsak: nearest/synlig rubrik räckte inte för instruktionens början/inledning.
-  Nytt regressionstest reproducerade listrubrik vid y=580 på 390 px i stället för y=16.
-- Mobil/staplat: mjuk start-scroll till lista/instruktion med befintliga scrollmarginaler.
-  Redan rätt position ger ingen extra scroll. Reduced-motion respekteras.
-- Post-render-effekt och avbrytbar animation frame för rätt innehåll/ett senaste uppdrag.
-  Fokus med preventScroll, befintlig returknapp använder samma väg.
-- Staplad arbetsyta minst 100dvh för att även korta listor ska kunna nå toppen.
-- Dator från 1024 px fortsatt stabil vid punkt-/huvuddelsbyte. Separat NE/Moms-retureffekt oförändrad.
-- Endast YearEndGuide.tsx som produktfil och befintliga test-year-end-guide.mjs ändrade.
-- Ingen ändring av checklist-store/klient/Auth, sparregler, bekräftelser, varningar eller ekonomi.
-- Gemensam sticky fel-/pendingstatus och dess fokusprioritet bevarade.
+- Produktcommit/GitHub staging 1e4a32a44fde6173633c2deef92940cc682ced84, återverifierad.
+- Vercel dpl_58afdvJM1RQ7hpSoiYnWAgGsw5Bh READY, Preview/staging, rätt SHA/projekt/team/alias.
+  https://sololedger-git-staging-sololedger1.vercel.app
+- Supabase Staging fzxqiqenqjzhlyxxpvhg: 65 ledger-versioner; schema/ledger återlästa och
+  identiska med senaste release. KAN-112-versioner 20261026092741/20261026110015.
+- GitHub main återverifierad kvar 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e. Ingen Production-åtgärd.
+- L var ren på 3640141c0e324a9b8f2468094e52766ef5bc8f8a före denna docs-checkpoint.
+- Efter produkten finns lokala docs b57e16c och 3640141 samt aktuell handoff-checkpoint enligt git log.
+  Alla rapporter/produktändringar ligger i lokala commits. Senare docs är inte pushade.
+- Teknisk testhistorik: fokuserad checklist/Auth/guide-regression, fem bredder, typecheck/lint PASS.
+  Hosted 1440/390 + begränsat 320-omtest PASS. Senaste test bevarade alla 15 checklistrader/övriga appdata, 0 appdataskrivningar.
+- Pontus har nu uttryckligen accepterat layout, checklista, sparande, navigation och mobilscroll på dator/fysisk mobil.
+- Liten kosmetisk önskan om synlig övre kortram är accepterad, blockerar inte release och ska INTE rättas.
+  Tidigare 320-observation är inte längre en öppen manuell acceptansspärr. Inga fler KAN-112-UX-ändringar.
+- Production-release återstår. Hela leveransen omfattar också två KAN-112-migrationer och delete-user-stöd.
+  En framtida release behöver läsande Production-förkontroll och separata exakta godkännanden; anta inte app-only release.
+- Jira KAN-112 Task/Medium/To Do/otilldelad, acceptanskommentar 11687 tillagd och återläst.
+  Status/assignee oförändrade, inte Done. KAN-113 Bug/Medium/To Do/otilldelad, oförändrad.
 
-## Tidigare lokal verifiering av samma kandidat
+## KAN-113 – nästa säkra steg, ännu ingen reproducerad defekt
 
-- npm run test:year-end-guide PASS/exit 0, inkl store/klient/Auth/guide-regression.
-- 320x568 och 390x844 med korrekt viewport-meta, mobile/touch och native scroll-/focusin-händelser.
-  Alla fyra kort når listtopp, instruktionstopp/inledning synlig, ingen övertäckning PASS.
-- En smooth-scroll per val, upprepning vid rätt position utan scroll, snabba val och reduced-motion PASS.
-- 1440/1024 stabil scroll vid olika instruktionslängd och tidigare scrollposition; 768 staplat PASS.
-- Sex returdestinationer inkl NE/Moms: rätt år/huvuddel/punkt/rubrikfokus/scroll PASS.
-- Noll bekräftelseskrivningar från navigation, sparade svar/avmarkering/omkontroll PASS.
-- Fel/retry/pending över vybyte, års-/ägarbyte, StrictMode, fem visibilitycykler och 35 min inaktivitet PASS.
-- Tab/Enter/Space, 200 % rottext, långt företagsnamn, ingen horisontell scroll/pageerror PASS.
-- Typecheck och riktad lint PASS; ändrad guide/test har 0 lintfel/varningar. git diff --check PASS.
-- Bilder mobile-start-320/390 inspekterade. Alla externa anrop blockerade, ingen fjärrdata läst/skriven.
-- Ingen ny full ekonomisk regression/build/hosted test eller fysisk mobil/Safari körd för denna UI-ändring.
-- Rapport docs/reviews/KAN-112-MOBILE-NAVIGATION-LOCAL-20261026.md.
-- Bevis coverage/kan112-modern/: mobile-navigation-regression.log, result.json och mobil-/breddbilder.
+- Misstänkt saknat generellt kalenderstopp mot låsning av pågående/framtida bokföringsår.
+- Läs Jira KAN-113, handoffrapporten och relevant tidigare KAN-112-/KAN-110/111-underlag.
+- Orientera läsande i page.tsx handleLockYear → accountingService.closeYear → live close_year_atomic/kedjan.
+  Läs aktuell pg_get_functiondef och relevanta constraints/grants/RLS före slutsatser. Gissa inte utifrån migrationer.
+- Börja med riktad reproduktion i verifierad säker testmiljö, inte implementation. Gamla tester för 2026/2027 är inte aktuell KAN-113-reproduktion.
+- Tidigare lokal miljö: sololedger_kan62_disposable_20261021, 127.0.0.1:5432, PG17/OID57199.
+  Verifiera faktiskt mål, manifest/markör och aktuellt schema först; detta är historisk identifiering, inte dagens DB-verifiering.
+- Inga nya DB:er, migrationsinstallationer, reset, rensning eller Production-fallback ingår. Bevara tidigare fixtures.
+- Skilj avslutat/pågående/framtida år och Europe/Stockholm-gräns med övriga årslåsvillkor uppfyllda.
+  Dokumentera evidens, bevarande och minsta eventuella rättningsplan innan implementation.
 
-## Aktuellt hosted omtest och databevarande
+## Sparade bevis och bevarande
 
-- 1440/390 första körningen PASS: mobil list-/instruktionstopp, native smooth-scroll,
-  snabba val, returknapp, reduced-motion, tangentbord, NE/Moms-retur och sparade svar/varningar.
-- Första 320-körningen stannade på 20,25 px avvikelse från avsedd toppmarginal.
-  Ett begränsat 320-omtest av exakt samma kandidat passerade alla kontroller, listtoppar 16,25 px.
-  Orsak till första avvikelsen ej fastställd; kontrollera särskilt på riktig mobil vid acceptans.
-- Sammanställda PASS-resultat är från delade körningar; ingen helt avvikelsefri helkörning påstås.
-- Enbart befintlig syntetisk A använd. Appdataskrivningar spärrade: ingen checkbox/save aktiverad.
-- Alla 15 checklistrader och övriga publika appdata/schema/ledger exakt oförändrade före/efter.
-- Rapport docs/reviews/KAN-112-MOBILE-NAVIGATION-STAGING-20261026.md; bevis root/audit-packages/
-  KAN-112-mobile-staging-20261026/. Browserar avslutade, ingen fysisk mobil/Safari omkörd.
+- Handoff: docs/reviews/KAN-112-HANDOFF-20261026.md, färskt sanerat versionskvitto
+  docs/testing/kan112-handoff-20261026/verified-environments.json.
+- Senaste rapporter KAN-112-MOBILE-NAVIGATION-LOCAL/STAGING-20261026.md; äldre SCROLL-FIX, MODERN-LAYOUT och UX-rapporter behålls.
+- Versionshanterade före-/efterbilder docs/testing/kan112-modern-layout/. Ignorerade loggar/bilder coverage/kan112-modern/ och kan112-auth/.
+- Hosted verktyg/bevis bevarade i root/audit-packages/KAN-112-*-20261026/. Inget av detta ska rensas vid kontobyte.
+- Syntetiska konton/fixtures och lokala auth-/envfiler bevarade. Endast filmetadata inspekterade i handoff; inga hemligheter i Git/docs.
+- Jira/GitHub/Vercel/Supabase kan behöva återanslutas för nya kontot; be aldrig om hemligheter i chatten.
+- Rootens orelaterade M AGENTS/ARCHIVE/STATE och untracked rapporter/verktyg bevaras, se exakt lista i handoffrapporten.
+  Bara KAN-112-navigeringsnotisen indexeras separat i root; root förblir därför dirty.
+- Retention genomgången: STATE komprimerat, KAN-112 fortfarande aktiv inför Production; inte arkiverad som Production-klar.
+  Inga AGENTS-/ARCHIVE-ändringar i detta uppdrag. KAN-114 framtida Task/Medium för generell design, orörd.
 
-## Aktuellt publicerat, slutverifierat
+## Stopp och kvarvarande publicering
 
-- Staging 1e4a32a44fde6173633c2deef92940cc682ced84,
-  dpl_58afdvJM1RQ7hpSoiYnWAgGsw5Bh READY, Preview/staging på ordinarie alias.
-- Alias korrigerades från dpl_GRTbB87v2xSZQBFf7vHnb7USNkV6/a02e3e3 inom godkänd release.
-  Andra alias/envmetadata, särskilt Production, verifierades oförändrade då.
-- Supabase Staging fzxqiqenqjzhlyxxpvhg, KAN-112-versioner 20261026092741/20261026110015.
-- GitHub main slutverifierad kvar 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e, Production orörd.
-- Föregående hosted desktop/mobil-smoke PASS, alla ursprungliga data bevarade utom avsedd syntetisk bankrad.
-  Extra momsrad 2026 avstämd som Pontus avsiktliga samtidiga manuella test, lämnad orörd.
-- Rapport docs/reviews/KAN-112-SCROLL-FIX-STAGING-20261026.md, bevis root/audit-packages/KAN-112-scroll-staging-20261026/.
-
-## Historik, Jira och bevarande
-
-- Fyra huvudkort/full sidbredd, delad arbetsyta och separat systemstatus enligt modern layout.
-- Funktionell grund accepterad av Pontus inkl flikbyten/sparande; modern layout granskad på dator/riktig mobil.
-- Tidigare rapporter KAN-112-MODERN-LAYOUT-LOCAL/STAGING och KAN-112-SCROLL-FIX-LOCAL/STAGING-20261026.md.
-  Tidigare före-/efterbilder docs/testing/kan112-modern-layout/, spar-/flikbytesrapporter KAN-112-UX-*.
-- Jira KAN-112 återläst To Do/otilldelad, inga mutationer/Done. KAN-113 separat, KAN-114 orört.
-- KAN-114 är tidigare godkänd Task/Medium för framtida enhetlig visuell modernisering, enbart planering.
-- Retention genomgången: aktiv KAN-112 och relevanta jämförelser behålls; inga ARCHIVE/AGENTS-ändringar här.
-- Befintliga worktrees, ignorerade fixtures/credentials och syntetiska konton bevarade. Ingen rensning ingår.
-
-## Nästa säkra steg
-
-- Pontus manuell acceptans av mobilnavigationen på Staging 1e4a32a, särskilt 320-observationen.
-- Stanna efter hosted verifiering. Ingen ytterligare push/deployment, migration, Production eller Jira Done godkänd.
-- Alla testbrowserar avslutade; ingen lokal server startad av dessa tester. Inga pågående tester.
+- Lokal handoff sparas i docs-commits, ingen push/deploy/migration/Edge/DB-skrivning eller ny implementation.
+- AGENTS fulla publicerade handoff kräver push och ren verifiering. Push förbjuden enligt aktuellt beslut:
+  lokal checkpoint, ej pushad, inte HANDOFF READY. L ren efter checkpoint; root avsiktligt dirty av separat arbete.
+- Nästa chatt börjar med KAN-113 läsande orientering och säker reproduktion. KAN-112 ska inte Done-sättas före Production-beslut.
