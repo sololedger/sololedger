@@ -1,40 +1,50 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 + KAN-113: BACKUP VERIFIED, READY inför nytt Production-releasebeslut.**
-Produktmål enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas enskilda firma år efter år.
-Båda ändringarna tekniskt/manuellt accepterade i Staging. Production ännu inte publicerad.
+2026-10-26 – **KAN-112 + KAN-113 PRODUCTION PASS. Lokal Prepare Handoff klar, ej pushad.**
+Produktmål enligt AGENTS: begriplig/tillförlitlig bokföring för Jessikas enskilda firma år efter år.
+Ingen ytterligare utveckling beställd. Nästa steg: Pontus Production-granskning och separat Jira-/avslutsbeslut.
 
-## Arbetskopia och bevarande
+## Läs detta först på nästa konto
 
 - Produktkälla L = audit-packages/KAN-100-app-release-20261024 under root
   C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user.
-- Läs root/L AGENTS.md, detta STATE och senaste backup-/readiness-rapport nedan.
-- Gren codex/KAN-113-year-lock-analysis. Lokal HEAD före backupdokumentation
-  2b86ddaac44c5aae8ce6d592ec5f47d837733630, ren; ingen produktdiff mot e992e4f.
-  Senare rapport/checkpoint-commits är lokala/opushade, aldrig produktpushkälla.
-- L-origin är lokal KAN-62-kopia; extern GitHub är https://github.com/sololedger/sololedger.git.
-- Root staging är äldre docs/verktygskopia med orelaterad dirty diff, aldrig produktpushkälla.
-  Bevara M AGENTS/ARCHIVE/STATE och untracked audit-packages, KAN96/KAN110111-rapporter/verktyg.
-- Bevara alla worktrees, fixtures och ignorerade auth-/env-/coveragefiler. Ingen rensning ingår.
-  Inga credentials i Git/docs. Worktree-skydd enligt L/AGENTS kvarstår.
+- Läs root/L AGENTS.md, detta STATE, KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md
+  och KAN-112-KAN-113-BACKUP-RECOVERY-20261026.md i L/docs/reviews/.
+- Kort startprompt: docs/reviews/KAN-112-KAN-113-NEXT-CHAT-20261026.md.
+- Gren codex/KAN-113-year-lock-analysis; arbetskopian var ren på120fcd8 före release/handoff.
+  Efter produktcommit e992e4f finns lokala rapportcommits; aktuell handoff-checkpoint enligt git log.
+- L-origin är lokal KAN62-kopia, INTE GitHub. Lokala main/staging-refar är äldre6ad27f1.
+  Extern verifierad GitHub https://github.com/sololedger/sololedger.git har båda på e992e4f.
+- Root staging är äldre docs/verktygskopia, aldrig produktpushkälla. Alla orelaterade
+  M AGENTS/ARCHIVE/STATE och untracked audit-packages/KAN96/KAN110111-rapporter/verktyg bevarade.
+- Bevara alla worktrees, fixtures, backuper och ignorerade auth/env/coveragefiler. Ingen rensning.
+  Bara genererad .temp/cli-latest (8 byte) i L verifierad via metadata; ingen källkodsavvikelse.
 
-## Accepterad kandidat och verkligt publicerat läge
+## Faktisk verifierad Production-release
 
-- Exakt gemensam produkt e992e4f97e1d74c91b24947d61f1774596340bc1.
-  Accepterad KAN112-bas1e4a32a44fde6173633c2deef92940cc682ced84 ingår.
-- GitHub staging=e992e4f; main fortfarande6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e.
-  Main kan fast-forwardas; ingen senare docs-HEAD eller root ska publiceras.
-- Staging Vercel dpl_3eVEv5x5fxQnHJYztofWZbEePSfn READY, Preview/staging/e992e4f;
-  ordinarie alias sololedger-git-staging-sololedger1.vercel.app korrekt vid senaste verifiering.
-- Production Vercel dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q READY, main/production/6ad27f1.
-  Projekt prj_chkSdedE06ppK2PlsqdtOhZfAKpT/team_0Mrj7LMvSEfpbV8y5juQ5IiL.
-  Production-alias/envmetadata oförändrade i ny preflight19:34:56 svensk tid.
-- Supabase Production wbaxmuvudpnkvuliicuy ACTIVE_HEALTHY:61 ledger/32 tabeller/103 funktioner.
-  Full katalog/RPC-preconditions/grants exakt lika readiness. delete-user ACTIVE v16/verify_jwt=true.
-  Aggregerat0 pågående2026-lås/0 framtida/0 berörda användare. Ingen datarättning planeras.
-- Staging fzxqiqenqjzhlyxxpvhg:66 ledger/33 tabeller/106 funktioner efter godkända migrationer.
-- Jira senast läst: båda To Do/otilldelade, KAN112 Task/KAN113 Bug, Medium; kommentar11687
-  dokumenterar KAN112-acceptans. Ledaracceptansen är nyare än Jira-texten. Ingen Jira-mutation/Done.
+- Exakt produkt **e992e4f97e1d74c91b24947d61f1774596340bc1**, accepterad KAN112-bas1e4a32a ingår.
+  GitHub main och staging samma SHA; endast main pushad i detta uppdrag, utan force/history rewrite.
+- Vercel Production **dpl_DkAV5rsNfKxtvyijW7jG2QYY6nf9 READY**, main/production/exakt kandidat.
+  https://sololedger.vercel.app; projekt prj_chkSdedE06ppK2PlsqdtOhZfAKpT/
+  team_0Mrj7LMvSEfpbV8y5juQ5IiL. Alla Production-alias rätt; Staging/övriga alias/envmetadata bevarade.
+- Supabase Production wbaxmuvudpnkvuliicuy: **64 ledger-versioner/33 tabeller/106 funktioner**.
+  Installerat i ordning SQL20261026092741 →20261026110015 →20261026162305 via officiell CLI.
+  Exakta filhashar, tidigare definitioner/preconditions och per-steg dry-run/efterkontroller PASS.
+  Två äldre Staging-only KAN62-versioner exkluderade; ingen baseline/replay/repair/seeds/roller.
+- delete-user **ACTIVE v17, verify_jwt=true**, hämtad källa exakt kandidat; oinloggad GET401.
+- Före/efter varje steg och efter READY: **67 tidigare public/Auth/Storage-tabeller** har
+  samma fulla radantal/digester. Tidigare konton/bokföring/moms/årslås/deklarationshistorik bevarade.
+  Checklistan tom vid efterkontroll. Befintliga61 ledgerposter och övrigt schema/ACL/RLS bevarade.
+- Verklig authenticated READ ONLY checklist-läsning av2025 PASS, ägare/år/formatskydd rätt.
+  Kalenderwrapper hash09839e674ce07177d774fe23bfe1608e exakt granskad Stockholmsregel.
+  **0 pågående2026-/framtida lås/berörda användare**. Inga Production-testskrivningar eller raderingar.
+- Browser Production/Staging HTTP200,9 JS-resurser/rätt Supabase-ref/ingen korskoppling
+  eller pageerror; skyddat deklarationsindex401. Inga inloggningar/sparningar i live.
+- Staging kvar e992e4f, dpl_3eVEv5x5fxQnHJYztofWZbEePSfn/ledger66. Tidigare teknisk/manuell
+  dator-/fysisk mobilacceptans bevarad; inga nya UX-/kosmetikändringar.
+- Jira återläst båda To Do/otilldelade, ingen mutation eller Done. Pontus bestämmer separat.
+- Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md; sanerat kvitto
+  docs/testing/kan112113-production-release-20261026/release.json. Råbevis root/audit-packages/KAN112113-release-20261026/.
 
 ## Backup och faktisk lokal återställning 2026-10-26
 
@@ -58,27 +68,18 @@ Båda ändringarna tekniskt/manuellt accepterade i Staging. Production ännu int
 - Full återställning av riktiga kund-/Auth-rader eller Supabase-tjänster är INTE provad.
   Storage-filbytes/extern konfiguration/nycklar ingår inte. DPAPI kräver samma Windows-profil;
   ingen portabel/offsite-kopia. Full katastrofåterställning certifieras inte.
-- Backupkravet bedöms uppfyllt proportionerligt för just dessa tre migrationer; nytt
-  releasebeslut krävs. Äldre managed-backup/PITR-stopp är historik, inte kvarvarande scope-spärr.
+- Backupkravet godkändes för denna genomförda release. Äldre managed-backup/PITR-stopp är historik.
 - Prov-DB, äldre backuper/fixtures och nya recovery-tools bredvid backupen bevaras.
-  Inga Production-/Staging-skrivningar, migrationer, Edge, push, deploy eller Jira-ändringar.
+  Backupuppdraget var läsande mot hosted miljöer; den därefter godkända releasen redovisas ovan.
 
-## Nästa säkra steg och tidigare bevis
 
-- Stanna efter backup/verifiering enligt senaste uppdrag. Invänta nytt uttryckligt
-  Production-releasebeslut. Återkontrollera backupens aktualitet och live preconditions då.
-- Releaseordning kvar: SQL20261026092741 →20261026110015 →20261026162305,
-  sedan exakt kandidatens delete-user/verify_jwt=true, sedan main/e992e4f och Vercel Production.
-  Endast dessa3 migrationer; förväntad ledger64, inte66. Äldre KAN62-versioner exkluderas.
-  Ingen automatisk rollback/Production-restore/history repair. Approllback återställer inte DB.
-- Läs docs/reviews/KAN-112-KAN-113-PRODUCTION-READINESS-20261026.md och aktuell backuprapport.
-  Tidigare stopp docs/reviews/KAN-112-KAN-113-PRODUCTION-PREFLIGHT-20261026.md bevaras oförändrat.
-- KAN112-handoff och slutlig mobile-navigation-rapport bevaras. Pontus accepterade layout,
-  sparande/navigation/scroll på fysisk mobil; kosmetisk kortram accepterad, ska inte rättas.
-- KAN113-STAGING-20261026.md: verkligt2025-lås med/utan moms,2026/2027 UI/direkt RPC nekat,
-  databevarande, efterbokning/moms/inventarier/samtidighet och KAN112-sparande/navigation PASS.
-  Fyra nya syntetiska aktörer raderade, tidigare33 tabelldigester/15 checklistor bevarade.
-- Lokal KAN113-rapport:14 DB-grupper/årsskifte±1ms/UI/typecheck PASS. Alla breda regressionsdelsteg
-  PASS efter begränsat miljöomtest; originalkommandot hade inte grönt slutexit. Nio äldre page-lintfel.
-- Nya verktyg/bevis root/audit-packages/KAN112113-backup-20261026/. Endast lokal docs-checkpoint;
-  inte full HANDOFF READY. Retention: ersatt backupstopp komprimerat till ARCHIVE, release aktiv.
+## Stopp, begränsningar och handoff
+
+- Alla godkända releasesteg slutförda. Inga ytterligare migrationer/Edge/push/deploy/Jira-/produktändringar.
+- Approllback återställer inte DB/Edge/ledger. Ingen automatisk Production-restore/rollback/repair.
+  Vid incident: stoppa, verifiera faktiskt läge, begär nytt granskat åtgärdsbeslut och bevara nyare data.
+- Retention: avslutad release/ersatta readiness-stopp komprimerade i ARCHIVE; originalrapporter bevarade.
+- Endast dokumentation/Architecture/sanerat kvitto ändras i sista lokala checkpointen. Ingen AGENTS-ändring.
+  Lokal handoff är committad och arbetskopian kontrolleras ren. **Dokumentationen är inte pushad**;
+  full HANDOFF READY enligt AGENTS kräver separat godkänd push/remoteverifiering. Ingen sådan push ingår.
+- Nästa session börjar läsande från startprompten och inväntar Pontus granskning/avslutsbeslut.

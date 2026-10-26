@@ -1,0 +1,130 @@
+{
+  "status": "PRODUCTION_PASS",
+  "at": "2026-10-26T18:55:27.903Z",
+  "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "previousMain": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+  "refs": {
+    "refs/heads/main": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "refs/heads/staging": "e992e4f97e1d74c91b24947d61f1774596340bc1"
+  },
+  "productionProject": "wbaxmuvudpnkvuliicuy",
+  "deployment": {
+    "id": "dpl_DkAV5rsNfKxtvyijW7jG2QYY6nf9",
+    "url": "sololedger-jtfipkx7a-sololedger1.vercel.app",
+    "status": "READY",
+    "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "branch": "main",
+    "target": "production",
+    "project": "prj_chkSdedE06ppK2PlsqdtOhZfAKpT",
+    "team": "team_0Mrj7LMvSEfpbV8y5juQ5IiL"
+  },
+  "migrations": [
+    {
+      "status": "PASS",
+      "file": "20261026092741_kan112_year_end_checklist.sql",
+      "version": "20261026092741",
+      "ledger": 62,
+      "allExistingDataUnchanged": true,
+      "aclAndOtherContractsPreserved": true
+    },
+    {
+      "status": "PASS",
+      "file": "20261026110015_kan112_conflict_and_profile_scope.sql",
+      "version": "20261026110015",
+      "ledger": 63,
+      "allExistingDataUnchanged": true,
+      "aclAndOtherContractsPreserved": true
+    },
+    {
+      "status": "PASS",
+      "file": "20261026162305_kan113_calendar_year_close_guard.sql",
+      "version": "20261026162305",
+      "ledger": 64,
+      "allExistingDataUnchanged": true,
+      "aclAndOtherContractsPreserved": true
+    }
+  ],
+  "edge": {
+    "status": "PASS",
+    "id": "d4126e3f-59ce-4cdb-8f0e-cc4e4c19864b",
+    "version": 17,
+    "verify_jwt": true,
+    "sourceMatchesCandidate": true,
+    "sourceSha256": "5c749cf1bb36e94fefebcb5e816dde0965ed18b0a7b299275454b601f3e9542f",
+    "bundleSha256": "25e3b027b3f25bc1b534f34e7e9a9aecc8571a58c44689720c8d007ca06b2d58",
+    "anonymousGetDenied401": true
+  },
+  "database": {
+    "status": "PASS",
+    "at": "2026-10-26T18:52:54.535Z",
+    "ledger": 64,
+    "migrations": [
+      "20261026092741_kan112_year_end_checklist.sql",
+      "20261026110015_kan112_conflict_and_profile_scope.sql",
+      "20261026162305_kan113_calendar_year_close_guard.sql"
+    ],
+    "publicTables": 33,
+    "functions": 106,
+    "allPreExistingDataTablesUnchanged": 67,
+    "checklistRows": 0,
+    "checklistAuthenticatedRead": {
+      "checksArray": true,
+      "yearMatches": true,
+      "ownerMatches": true,
+      "periodsArray": true
+    },
+    "locks": {
+      "future": 0,
+      "ongoing": 0,
+      "affectedUsers": 0
+    },
+    "exactCalendarGuardHash": "09839e674ce07177d774fe23bfe1608e",
+    "ownersGrantsRlsAndOtherSchemaPreserved": true,
+    "noProductionTestWrites": true
+  },
+  "clientSmoke": [
+    {
+      "name": "production",
+      "host": "sololedger.vercel.app",
+      "status": 200,
+      "assets": 9,
+      "correctRef": "wbaxmuvudpnkvuliicuy",
+      "wrongRefAbsent": true,
+      "anonymousApi": 401,
+      "noLoginOrWrites": true,
+      "errors": []
+    },
+    {
+      "name": "staging",
+      "host": "sololedger-git-staging-sololedger1.vercel.app",
+      "status": 200,
+      "assets": 9,
+      "correctRef": "fzxqiqenqjzhlyxxpvhg",
+      "wrongRefAbsent": true,
+      "anonymousApi": 401,
+      "noLoginOrWrites": true,
+      "errors": []
+    }
+  ],
+  "allProductionAliasesVerified": true,
+  "stagingOtherAliasesAndEnvMetadataUnchanged": true,
+  "jira": {
+    "KAN-112": {
+      "status": "To Do",
+      "assignee": null
+    },
+    "KAN-113": {
+      "status": "To Do",
+      "assignee": null
+    },
+    "mutations": false
+  },
+  "noProductionTestWrites": true,
+  "backup": {
+    "path": "C:/SoloLedger/Backups/KAN112113-20261026/production-20261026T182848Z.zip.dpapi",
+    "sha256": "0365cc2b1621e4e9906b00455203bebbd462961a5e6cf6fd9685647480d04620",
+    "verifiedBeforeFirstWrite": true,
+    "dpapiCurrentUser": true,
+    "automaticRestoreAuthorized": false
+  }
+}

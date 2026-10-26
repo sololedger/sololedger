@@ -1112,3 +1112,17 @@ från produktbasen och upprepar ingen release eller ändrar befintliga fixtures.
   bedöms nu uppfyllt med dokumenterade begränsningar; se aktuell BACKUP-RECOVERY-rapport/STATE.
 - Production-release är fortfarande aktiv/ej genomförd och kräver nytt beslut. Ingen full
   Supabase-/kunddata-/Storage-tjänsteåterställning har certifierats. Äldre backuper/fixtures bevarade.
+
+## KAN-112 + KAN-113 – verifierad Production-release 2026-10-26
+
+- Produkt e992e4f97e1d74c91b24947d61f1774596340bc1, GitHub main/staging lika. Vercel
+  dpl_DkAV5rsNfKxtvyijW7jG2QYY6nf9 READY, Production/main/rätta alias. Staging/övriga alias och env bevarade.
+- Endast SQL20261026092741/20261026110015/20261026162305 installerade via CLI, ledger61→64.
+  delete-user ACTIVE v17/verify_jwt=true; källa exakt kandidat, oinloggad GET401.
+- Fulla före/efter-digester för67 tidigare public/Auth/Storage-tabeller oförändrade. Nya
+  checklistkontrakt/RLS/grants och autentiserad läsning PASS;0 pågående/framtida lås.
+  Läsande browser/klientkoppling/API-smoke PASS; inga Production-testskrivningar.
+- Krypterad backup/DPAPI verifierad före skrivning, avgränsat lokalt restoreprov tidigare PASS.
+  Begränsningar och plats i aktuell STATE/backup-/releaserapport. Ingen automatisk restore.
+- Lokal Prepare Handoff sparas, inte pushad. Jira båda To Do/otilldelade; ingen mutation/Done.
+  Pontus Production-granskning och separat avslutsbeslut kvarstår i STATE.

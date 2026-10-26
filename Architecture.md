@@ -185,7 +185,8 @@ före befintliga moms-/inventarie-/bokslutskontroller. Klienten visar samma rege
 via `yearCloseDateBlockReason`; direkt RPC skyddas alltid av databasen. Detta
 ändrar inte modellen till brutna/förlängda räkenskapsår. Kräver migrationen
 `20261026162305_kan113_calendar_year_close_guard.sql`; verifierad i Staging
-2026-10-26 på kandidat e992e4f (ledger 66). Production har ännu inte rättningen.
+2026-10-26 på kandidat e992e4f (Staging-ledger66). Samma kandidat är nu verifierad
+i Production med migrationen registrerad i ledger64; se Production-releaserapporten.
 
 Bokförings-RPC:er kontrollerar låsta år innan relevanta skrivningar. UI:t döljer eller blockerar också ändringar, men databasen är den viktiga gränsen.
 
@@ -542,3 +543,6 @@ och jämför avgränsade källgrupper utan att lagra kopior av ekonomidata. Stor
 underlag ger tydligt utebliven ändringsjämförelse men bevarat redigerbart svar.
 Raderings-RPC och Edge-räkning/restkontroll inkluderar den nya tabellen.
 Kandidat och testgränser: docs/reviews/KAN-112-LOCAL-IMPLEMENTATION-20261026.md.
+
+KAN-112/KAN-113 publicerade i Production 2026-10-26: e992e4f, ledger64 och
+delete-user v17/verify_jwt=true. Se docs/reviews/KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md.
