@@ -1,5 +1,10 @@
 # KAN-117 – minimal rättning av profilkonflikt över år
 
+Uppföljning: Pontus godkände därefter Staging-publicering av eacdc5b. Hosted
+acceptans är **BLOCKED** av fördröjt skapande från gammal HTTP-bekräftelse.
+Se [KAN-117-STAGING-20261026.md](KAN-117-STAGING-20261026.md) och aktuell PROJECT_STATE.
+Nedanstående lokala PASS och dåvarande publiceringsspärr är historiska resultat.
+
 2026-10-26. Lokal rättning enligt Pontus uttryckliga beslut efter granskningen
 av ac96638. **Ingen Staging-/Production-publicering är godkänd eller utförd.**
 **Slutlig teknisk bedömning: PASS för Staging för den rättade kandidaten.**

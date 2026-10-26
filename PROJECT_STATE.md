@@ -1,37 +1,42 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-117 säkerhetsrättning LOCAL PASS. Publicering fortsatt blockerad.**
-Produktmål enligt AGENTS: begriplig/tillförlitlig bokföring för Jessikas enskilda firma år efter år.
-KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdrag.
+2026-10-26 – **KAN-117 publicerad i Staging, acceptans BLOCKED.**
+KAN-112/KAN-113 Production PASS och Done. Ingen Production-åtgärd godkänd för KAN-117.
 
-## Aktuellt KAN-117 – minimal säkerhetsrättning
+## Aktuellt KAN-117 – Staging och blockerande fördröjd skrivning
 
-- Pontus godkände lokal rättning efter granskningen4bf1acd. Äldre ac96638 ska inte
-  publiceras ensam. Ny checkpoint enligt git log på codex/KAN-117-vat-period-preview.
-- Ny följdmigration20261026220000_kan117_cross_year_profile_guard.sql ändrar bara
-  privata planhjälparen. Kända interna första delperioder granskas även i andra år
-  och deras relevanta uppgifter ingår i planavtrycket. Publika API:er/lås/grants bevarade.
-- Obligatorisk regression var röd mot gammal kod, grön efter rättning: felaktig
-  profilstart2025 med känd delperiod2026 blockerar båda åren och direkt bekräftelse.
-  Återställd profil ger korrekt/oförändrad befintlig period. Rollback gav0 restrader.
-- Lokal DB identitetsverifierad: sololedger_kan62_disposable_20261021,
-  127.0.0.1:5432/PG17/OID57199/unique syntheticOnly-markör.28 DB-kontrollgrupper
-  plus obligatorisk regression PASS; tidigare public/Auth/Storage-dataavtryck lika.
-- Samtidighet med profil, årslås, generator, dubbelbekräftelse och fastställande av
-  första delperiod PASS; nya/ändrade underlag i annat år gör gammal preview ogiltig.
-- TypeScript, ändrade testfilers lint utan varningar, DB-invarianter, build,
-  full säker regression och riktad browser på dator1280/mobil390 PASS.
-- Teknisk bedömning PASS för Staging för rättad kandidat. **Inget tillstånd att
-  publicera**: Staging/Production förblir spärrade tills separat exakt ledarbeslut.
-- Efter sådant beslut krävs båda KAN-117-migrationerna210000→220000 samt syntetisk
-  hosted UI→RPC→DB-acceptans på dator/fysisk mobil. Inga riktiga kundfixtures.
-- Rapport docs/reviews/KAN-117-CROSS-YEAR-FIX-20261026.md; sanerat kvitto
-  docs/testing/kan117-cross-year-fix-20261026.json. Äldre blockerare/evidens bevarade
-  i säkerhetsrapporten och komprimerad historik i ARCHIVE; KAN-117 är fortsatt aktivt.
-- Jira återläst To Do; ingen Jira-mutation/Done. KAN-112/113 förblir avslutade.
-  Rootens orelaterade diff, worktrees, tidigare fixtures och auth/envfiler bevarade.
-- Endast lokal checkpoint; ingen fjärrmigration, Staging-/Production-skrivning,
-  deployment eller push. Nästa steg: Pontus granskar rättningen och beslutar separat.
+- Pontus godkände exakt eacdc5b75bb082c5cbafc784ee7d1f63d6ec528d för Staging.
+  GitHub staging verifierad på denna SHA; main kvar e992e4f97e1d74c91b24947d61f1774596340bc1.
+  Arbetsgren codex/KAN-117-vat-period-preview. Senare lokal dokumentcheckpoint enligt git log.
+- Vercel dpl_FacRqpemttBpPsGtvmNkmkT8dJgy READY, staging/Preview, korrekt projekt/team.
+  Vanliga Staging-aliaset korrigerat till kandidaten. Övriga alias/envmetadata oförändrade.
+  Faktisk klient och observerade anrop använder enbart Supabase fzxqiqenqjzhlyxxpvhg.
+- Godkända migrationer20261026210000 →20261026220000 applicerade via officiell CLI
+  och verifierade före app-publicering. Exakta hashförbilder/källor/ACL PASS. Ledger66→68,
+  33 tabeller/109 funktioner. Tidigare schema/grants/ledger/data bevarade efter varje steg.
+- Vanlig hosted UI→RPC→DB på1440/390 PASS: komplett helårsdelperiod utan knapp;
+  exakta saknade datum, dialog, Avbryt/Escape0 skrivningar, separat bekräftelse,
+  dubbelklick1 RPC. Obligatorisk korsårskonflikt2025/2026 blockerad på båda bredderna
+  och vid direkt HTTPS-anrop. Korrekt återställd syntetisk helårsperiod/journal oförändrad.
+- Historiska år, första delperioder/följande år, månad/kvartal/helår, okänd/ej registrerad/
+  ofullständig profil och ägarisolering PASS. SQL-låsväntan/dubbelbekräftelse/profilrace PASS.
+- **BLOCKER:** gammal preview efter profiländring ger40001 snabbt i SQL men inget
+  HTTP-svar inom35s i verklig browser; dialog kvar på Skapar med Avbryt inaktiverad.
+  Vid35s oförändrat, men efter browserstängning och testprofilens återställning till
+  ursprunglig kvartalstyp tillkom4 perioder utan ny bekräftelse. Bevisade tidsstämplar.
+  Transportens exakta fortsättnings-/omkörningsorsak ej fastställd. Ingen rättning gjord.
+- Alla skrivande tester stoppades efter fyndet.8 nya syntetiska konton behålls:
+  35 periodrader (5 fixtures+26 avsiktliga+4 fördröjda),1 försäljning/3 journalrader,
+  8 kategorier och nödvändiga stödposter. Inga årslås/deklarationer/momsavslut.
+  Samtliga33 public-tabellers tidigare rader utanför kohorten bevarade. Ingen rensning.
+- Rapport docs/reviews/KAN-117-STAGING-20261026.md och sanerat kvitto
+  docs/testing/kan117-staging-20261026/verification.json. Råbevis i root/audit-packages/
+  KAN-117-staging-20261026/. Inga credentials eller riktiga kunduppgifter i rapporterna.
+- Lokal full regression/build från eacdc5b gäller; ingen produktkod ändrad vid publicering.
+  Fysisk mobil ej testad. Slutacceptans stoppad; ingen Jira-mutation/Done.
+- **Nästa steg:** Pontus beslutar om riktad lokal utredning/rättning av gamla HTTP-anrop.
+  Ingen ytterligare migration/deployment/push eller Production-åtgärd ingår.
+  Rootens orelaterade diff, alla worktrees/fixtures och auth/envfiler bevarade.
 
 ## Läs detta först på nästa konto
 
@@ -43,7 +48,7 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
 - Historisk KAN-112/113-gren codex/KAN-113-year-lock-analysis; ren på120fcd8 före release/handoff.
   Efter produktcommit e992e4f finns lokala rapportcommits; aktuell handoff-checkpoint enligt git log.
 - L-origin är lokal KAN62-kopia, INTE GitHub. Lokala main/staging-refar är äldre6ad27f1.
-  Extern verifierad GitHub https://github.com/sololedger/sololedger.git har båda på e992e4f.
+  Extern GitHub https://github.com/sololedger/sololedger.git: main e992e4f, staging eacdc5b.
 - Root staging är äldre docs/verktygskopia, aldrig produktpushkälla. Alla orelaterade
   M AGENTS/ARCHIVE/STATE och untracked audit-packages/KAN96/KAN110111-rapporter/verktyg bevarade.
 - Bevara alla worktrees, fixtures, backuper och ignorerade auth/env/coveragefiler. Ingen rensning.
@@ -52,7 +57,7 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
 ## Faktisk verifierad Production-release
 
 - Exakt produkt **e992e4f97e1d74c91b24947d61f1774596340bc1**, accepterad KAN112-bas1e4a32a ingår.
-  GitHub main och staging samma SHA; endast main pushad i detta uppdrag, utan force/history rewrite.
+  Vid Production-releasen var GitHub main/staging samma SHA; nu KAN-117 i Staging enligt ovan.
 - Vercel Production **dpl_DkAV5rsNfKxtvyijW7jG2QYY6nf9 READY**, main/production/exakt kandidat.
   https://sololedger.vercel.app; projekt prj_chkSdedE06ppK2PlsqdtOhZfAKpT/
   team_0Mrj7LMvSEfpbV8y5juQ5IiL. Alla Production-alias rätt; Staging/övriga alias/envmetadata bevarade.
@@ -69,8 +74,8 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
   **0 pågående2026-/framtida lås/berörda användare**. Inga Production-testskrivningar eller raderingar.
 - Browser Production/Staging HTTP200,9 JS-resurser/rätt Supabase-ref/ingen korskoppling
   eller pageerror; skyddat deklarationsindex401. Inga inloggningar/sparningar i live.
-- Staging kvar e992e4f, dpl_3eVEv5x5fxQnHJYztofWZbEePSfn/ledger66. Tidigare teknisk/manuell
-  dator-/fysisk mobilacceptans bevarad; inga nya UX-/kosmetikändringar.
+- Historisk KAN-113 Staging-acceptans på e992e4f/dpl_3eVEv5x5fxQnHJYztofWZbEePSfn/ledger66
+  bevarad. Aktuell KAN-117 Staging-kandidat/ledger68/acceptansstopp beskrivs överst.
 - Jira vid releasen båda To Do/otilldelade; färskt återlästa Done 2026-10-26 efter Pontus avslut.
   Ingen Jira-mutation gjord i denna läsande granskning.
 - Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md; sanerat kvitto
@@ -105,12 +110,11 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
 
 ## Stopp, begränsningar och handoff
 
-- KAN-112/113-releasen slutförd. KAN-117 är enbart lokal kandidat; inga nya fjärråtgärder godkända.
-- Approllback återställer inte DB/Edge/ledger. Ingen automatisk Production-restore/rollback/repair.
-  Vid incident: stoppa, verifiera faktiskt läge, begär nytt granskat åtgärdsbeslut och bevara nyare data.
-- Retention: avslutad release/ersatta readiness-stopp komprimerade i ARCHIVE; originalrapporter bevarade.
-- KAN-117 checkpointar lokal kod/migration/tester/docs efter verifiering. Ingen AGENTS-ändring.
-  Äldre handoff och nya kandidaten är **inte pushade**;
-  full HANDOFF READY enligt AGENTS kräver separat godkänd push/remoteverifiering. Ingen sådan push ingår.
-- Nästa session börjar läsande från aktuell STATE och KAN-117-CROSS-YEAR-FIX-rapporten;
-  nästa steg kräver separat ledarbeslut. Ingen automatisk publicering.
+- KAN-112/113-releasen slutförd. KAN-117 publicerad endast i Staging, ej accepterad.
+- Ingen Production-migration/deployment/main-push/Jira Done godkänd eller gjord här.
+  Production-alias och main verifierat oförändrade; ingen Production-DB-anslutning använd.
+- Ingen automatisk restore/rollback/repair. Bevara nyare data och blockeringsbevis.
+- Retention: äldre lokala KAN-117-prov komprimerade här; detaljrapporter bevarade.
+  KAN-117 är aktivt och ska inte arkiveras som slutfört.
+- Publicerad kandidat är eacdc5b. Senare rapport/STATE-checkpoint är lokal, inte pushad.
+  Ingen full HANDOFF READY deklareras. Nästa steg är ledarbeslut om blockeraren.
