@@ -4,6 +4,7 @@ type Mode = 'complete' | 'missing' | 'blocked' | 'cross_year_blocked' | 'not_app
 let mode: Mode = 'complete'
 let owner = 'synthetic-A'
 let basis = 'a'.repeat(32)
+let profileRevision = '1'
 let annualStart = '06-02'
 let writeMode = 'success'
 let pending: (() => void) | null = null
@@ -13,13 +14,14 @@ function plan(year: number): VatPeriodCreationPlan {
   const period = { start: `${year}-${annualStart}`, end: `${year}-12-31`, type: 'year' as const }
   return { version: 1, owner, year, today: '2026-10-26', state: mode === 'cross_year_blocked' ? 'blocked' : mode === 'read_error' || mode === 'malformed' ? 'missing' : mode,
     message: mode === 'cross_year_blocked' ? 'Momsprofilen motsäger en redan fastställd första delperiod, även om den ligger i ett annat år. Kontrollera Profil och registreringsunderlaget; inga perioder skapas.' : mode === 'blocked' ? 'Första delperioden behöver styrkas mot registreringsunderlaget. Kontrollera Profil.' : 'Företaget är inte momsregistrerat. Inga nya momsperioder skapas.',
-    expected: mode === 'cross_year_blocked' ? [] : [period], missing: mode === 'complete' || mode === 'not_applicable' || mode === 'cross_year_blocked' ? [] : [period], basis }
+    expected: mode === 'cross_year_blocked' ? [] : [period], missing: mode === 'complete' || mode === 'not_applicable' || mode === 'cross_year_blocked' ? [] : [period], basis, profile_revision: profileRevision }
 }
 
 export const transport = {
   calls,
-  setup(next: Mode, user = 'synthetic-A') { mode = next; owner = user; annualStart = next === 'complete' ? '06-02' : '01-01'; basis = 'a'.repeat(32); writeMode = 'success'; calls.splice(0) },
-  changeRemotely() { basis = 'b'.repeat(32) },
+  setup(next: Mode, user = 'synthetic-A') { mode = next; owner = user; annualStart = next === 'complete' ? '06-02' : '01-01'; basis = 'a'.repeat(32); profileRevision = '1'; writeMode = 'success'; calls.splice(0) },
+  changeRemotely() { basis = 'b'.repeat(32); profileRevision = '2' },
+  markCreated() { mode = 'complete'; basis = 'c'.repeat(32) },
   writeMode(value: string) { writeMode = value },
   finish() { pending?.(); pending = null },
 }
@@ -33,9 +35,9 @@ export async function verifiedProfileRpc() {
       return { data: mode === 'malformed' ? {} : plan(args.p_year as number), error: null }
     }
     if (writeMode === 'pending') await new Promise<void>(resolve => { pending = resolve })
-    if (args.p_expected_basis !== basis) return { data: null, error: { code: '40001', message: 'Uppgifterna har ändrats. Granska momsperioderna på nytt.' } }
-    mode = 'complete'
-    basis = 'c'.repeat(32)
+    if (args.p_expected_basis !== basis && owner === userId) return { data: null, error: { code: '23514', message: 'Uppgifterna har ändrats. Granska momsperioderna på nytt.' } }
+    if (writeMode === 'uncertain_missing') return { data: null, error: { code: 'network', message: 'Unknown result, no rows observed yet' } }
+    if (owner === userId) { mode = 'complete'; basis = 'c'.repeat(32) }
     if (writeMode === 'uncertain') return { data: null, error: { code: 'network', message: 'Unknown result' } }
     return { data: { success: true, created_count: 1, year: args.p_year }, error: null }
   } }

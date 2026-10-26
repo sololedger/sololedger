@@ -22,6 +22,7 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
   const request = useRef(0)
   const active = useRef(true)
   const inFlight = useRef(false)
+  const submission = useRef(0)
   const dialog = useRef<HTMLDialogElement>(null)
   const reviewButton = useRef<HTMLButtonElement>(null)
 
@@ -32,7 +33,15 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
     setPreview(null)
     try {
       const next = await getVatPeriodCreationPlan(year)
-      if (active.current && request.current === seq) setPlan(next)
+      if (active.current && request.current === seq) {
+        setPlan(next)
+        if (next.resolution) {
+          setNotice(next.resolution)
+          submission.current++
+          inFlight.current = false
+          setSaving(false)
+        }
+      }
     } catch (e) {
       if (active.current && request.current === seq) setError(e instanceof Error ? e.message : 'Periodstatus kunde inte kontrolleras.')
     } finally {
@@ -55,7 +64,6 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
   }, [preview])
 
   function cancel() {
-    if (inFlight.current) return
     setPreview(null)
     reviewButton.current?.focus()
   }
@@ -63,23 +71,24 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
   async function confirm() {
     if (!preview || busy || inFlight.current || !active.current) return
     inFlight.current = true
+    const seq = ++submission.current
     setSaving(true)
     setError(null)
     setNotice(null)
     try {
       const count = await createMissingVatPeriods(preview)
-      if (!active.current) return
+      if (!active.current || submission.current !== seq) return
       setNotice(`${count} momsperiod${count === 1 ? '' : 'er'} skapad${count === 1 ? '' : 'e'}. Ingen bokföring eller deklaration har skapats.`)
       await onCreated()
     } catch (e) {
-      if (active.current) setError(e instanceof Error ? e.message : 'Skapandet kunde inte bekräftas.')
+      if (active.current && submission.current === seq) setError(e instanceof Error ? e.message : 'Skapandet kunde inte bekräftas.')
     } finally {
       // Discard the preview even on an uncertain network result; re-read before another attempt.
-      if (active.current) {
+      if (active.current && submission.current === seq) {
         await load()
-        if (active.current) setSaving(false)
+        if (active.current && submission.current === seq) setSaving(false)
       }
-      inFlight.current = false
+      if (submission.current === seq) inFlight.current = false
     }
   }
 
@@ -91,6 +100,10 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
       <button type="button" disabled={checking || saving} onClick={() => { setError(null); void load() }} className="mt-2 font-bold underline">Kontrollera igen</button>
     </div>}
     {notice && <p role="status" className="mb-3 text-sm text-emerald-800">{notice}</p>}
+    {(saving || plan?.pending) && <div role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+      <p>Din bekräftelse behandlas eller har okänt resultat. Att stänga vyn avbryter inte ett accepterat serveranrop. Kontrollera periodstatus innan du försöker igen.</p>
+      <button type="button" disabled={checking} onClick={() => void load()} className="mt-2 min-h-11 font-bold underline">Kontrollera periodstatus</button>
+    </div>}
     {!checking && plan?.state === 'complete' && <div role="status" className="text-sm text-emerald-800">
       <p className="font-semibold">Alla {allYear ? '' : 'påbörjade '}momsperioder för {year} finns</p>
       <p className="mt-1 text-xs text-gray-500">Täcker {plan.expected[0].start} – {plan.expected.at(-1)!.end}.
@@ -125,8 +138,9 @@ export default function VatPeriodCreationPanel({ year, busy, onCreated }: {
       <p className="mt-2 text-sm text-gray-600">Endast de här datumen för {year} registreras som öppna perioder. Befintliga perioder och bokföringen ändras inte.</p>
       <Dates periods={preview?.missing ?? []} />
       <p className="mt-3 text-sm text-gray-600">Kontrollera att datumen stämmer med företagets uppgifter hos Skatteverket. Inget sparas förrän du bekräftar.</p>
+      {saving && <p role="status" className="mt-3 text-sm text-amber-950">Bekräftelsen behandlas. Stängning av visningen avbryter inte serveranropet; resultatet kontrolleras innan nytt försök.</p>}
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button type="button" disabled={saving} onClick={cancel} className="min-h-11 rounded-xl border border-gray-300 px-5 py-3 text-sm font-bold text-gray-700 disabled:opacity-50">Avbryt</button>
+        <button type="button" onClick={cancel} className="min-h-11 rounded-xl border border-gray-300 px-5 py-3 text-sm font-bold text-gray-700">{saving ? 'Stäng visning' : 'Avbryt'}</button>
         <button type="button" disabled={saving || busy || !preview} onClick={() => void confirm()} className="min-h-11 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{saving ? 'Skapar…' : 'Bekräfta och skapa'}</button>
       </div>
     </dialog>

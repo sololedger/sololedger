@@ -1,42 +1,48 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-117 publicerad i Staging, acceptans BLOCKED.**
-KAN-112/KAN-113 Production PASS och Done. Ingen Production-åtgärd godkänd för KAN-117.
+2026-10-26 – **KAN-117 P1 lokal rättning PASS för nytt Staging-test.**
+Publicerad Staging-version eacdc5b är fortsatt BLOCKED. Production inte godkänd.
+KAN-112/KAN-113 Production PASS och Done. KAN-117 separat aktivt uppdrag.
 
-## Aktuellt KAN-117 – Staging och blockerande fördröjd skrivning
+## Aktuellt KAN-117 P1 – lokal rättning av fördröjd bekräftelse
 
-- Pontus godkände exakt eacdc5b75bb082c5cbafc784ee7d1f63d6ec528d för Staging.
-  GitHub staging verifierad på denna SHA; main kvar e992e4f97e1d74c91b24947d61f1774596340bc1.
-  Arbetsgren codex/KAN-117-vat-period-preview. Senare lokal dokumentcheckpoint enligt git log.
-- Vercel dpl_FacRqpemttBpPsGtvmNkmkT8dJgy READY, staging/Preview, korrekt projekt/team.
-  Vanliga Staging-aliaset korrigerat till kandidaten. Övriga alias/envmetadata oförändrade.
-  Faktisk klient och observerade anrop använder enbart Supabase fzxqiqenqjzhlyxxpvhg.
-- Godkända migrationer20261026210000 →20261026220000 applicerade via officiell CLI
-  och verifierade före app-publicering. Exakta hashförbilder/källor/ACL PASS. Ledger66→68,
-  33 tabeller/109 funktioner. Tidigare schema/grants/ledger/data bevarade efter varje steg.
-- Vanlig hosted UI→RPC→DB på1440/390 PASS: komplett helårsdelperiod utan knapp;
-  exakta saknade datum, dialog, Avbryt/Escape0 skrivningar, separat bekräftelse,
-  dubbelklick1 RPC. Obligatorisk korsårskonflikt2025/2026 blockerad på båda bredderna
-  och vid direkt HTTPS-anrop. Korrekt återställd syntetisk helårsperiod/journal oförändrad.
-- Historiska år, första delperioder/följande år, månad/kvartal/helår, okänd/ej registrerad/
-  ofullständig profil och ägarisolering PASS. SQL-låsväntan/dubbelbekräftelse/profilrace PASS.
-- **BLOCKER:** gammal preview efter profiländring ger40001 snabbt i SQL men inget
-  HTTP-svar inom35s i verklig browser; dialog kvar på Skapar med Avbryt inaktiverad.
-  Vid35s oförändrat, men efter browserstängning och testprofilens återställning till
-  ursprunglig kvartalstyp tillkom4 perioder utan ny bekräftelse. Bevisade tidsstämplar.
-  Transportens exakta fortsättnings-/omkörningsorsak ej fastställd. Ingen rättning gjord.
-- Alla skrivande tester stoppades efter fyndet.8 nya syntetiska konton behålls:
-  35 periodrader (5 fixtures+26 avsiktliga+4 fördröjda),1 försäljning/3 journalrader,
-  8 kategorier och nödvändiga stödposter. Inga årslås/deklarationer/momsavslut.
-  Samtliga33 public-tabellers tidigare rader utanför kohorten bevarade. Ingen rensning.
-- Rapport docs/reviews/KAN-117-STAGING-20261026.md och sanerat kvitto
-  docs/testing/kan117-staging-20261026/verification.json. Råbevis i root/audit-packages/
-  KAN-117-staging-20261026/. Inga credentials eller riktiga kunduppgifter i rapporterna.
-- Lokal full regression/build från eacdc5b gäller; ingen produktkod ändrad vid publicering.
-  Fysisk mobil ej testad. Slutacceptans stoppad; ingen Jira-mutation/Done.
-- **Nästa steg:** Pontus beslutar om riktad lokal utredning/rättning av gamla HTTP-anrop.
-  Ingen ytterligare migration/deployment/push eller Production-åtgärd ingår.
-  Rootens orelaterade diff, alla worktrees/fixtures och auth/envfiler bevarade.
+- Pontus godkände lokal utredning/rättning/verifiering, inga nya fjärrskrivningar.
+  Gren codex/KAN-117-vat-period-preview; checkpoint enligt git log efter c3d84b1.
+- Rotorsak: eget40001-avslag utlöser dokumenterad omkörning i PostgREST14.18.
+  En browser-POST, ingen klientomsändning. Profilvärden som återställdes gav samma
+  gamla planavtryck och tillät fortsatt serveranrop att skapa4 perioder senare.
+  Originalets exakta antal interna omkörningar/PID är inte spårat.
+- Ny lokal migration20261026230000_kan117_final_rejection_and_plan_revision.sql
+  kräver exakta förbilder. Slutligt23514 för inaktuell plan/överlapp; profilvärden
+  och xmin läses ihop, profil-/periodrevision ingår i avtrycket. Signaturer, ägar-/
+  profillås, RLS/grants och dubblettskydd bevarade. Ingen tabell/kolumn/beräkningsändring.
+- UI/klient sparar ägarbunden lokal status före bekräftelse. Stäng visning avbryter
+  inte accepterat serverarbete. Osäkert resultat spärrar ny bekräftelse även vid
+  årbyte/återbesök tills faktiskt DB-utfall eller ny profilrevision är verifierat.
+  Ingen automatisk omsändning eller timeoutfrigivning. Osäkerhet kan kräva manuell hjälp.
+- Reproducerat rött5→9 med gammal kod, grönt5→5 efter rättning: riktiga lokala RPC:er,
+  begränsad HTTP-modell av dokumenterad PostgREST14-omkörning, frånkopplad klient,
+  återställd profil. Ingen lokal PostgREST-binär eller ny hosted-reproduktion påstås.
+- Lokal DB identitetsverifierad: sololedger_kan62_disposable_20261021,
+  127.0.0.1:5432/PG17/OID57199/unik syntheticOnly-markör.6 P1-kontroller,
+  28 befintliga DB-grupper och obligatorisk korsårsregression PASS; äldre dataavtryck lika.
+- Verifierat profil-/periodunderlag A→B→A, färsk uttrycklig bekräftelse, återförsök,
+  samtidighet och både väntande respektive redan giltigt accepterad skrivning.
+  Faktisk panel/klient med syntetisk transport1280/390 PASS: fördröjt svar, stängd vy,
+  årbyte, reload, ägarbyte, lagringsfel och okänt utfall. TypeScript/lint/invarianter,
+  build och full säker regression PASS, inklusive2 publika lokala smokeprov.
+- Färsk Staging READ ONLY:8 konton/35 periodrader (inkl4 oväntade) bevarade,
+  ledger68/schema/definitioner oförändrade. Inga nya testinloggningar eller skrivningar.
+  Eventuella kvarhängande gamla PostgREST-anrop behöver kontrolleras inför nästa
+  publicering; ingen backend terminerades. Stage-acceptans är ännu inte godkänd.
+- Rapport docs/reviews/KAN-117-DELAYED-CONFIRMATION-FIX-20261026.md och sanerat
+  kvitto docs/testing/kan117-delayed-fix-20261026.json. Tidigare Stage-fynd och
+  tidsstämplar i KAN-117-STAGING-20261026.md bevarade. Alla fixtures/auth/env bevarade.
+- Jira KAN-117 läst To Do/otilldelad, inga Jira-ändringar. Ingen fjärrmigration,
+  deployment eller push. Endast lokal kandidat/checkpoint; fysisk mobil återstår.
+- **Nästa steg:** Pontus beslutar separat om exakt kandidat för nytt Staging-test,
+  migration230000 och hantering av eventuella identifierade gamla omkörningar.
+  Ingen automatisk fortsättning eller Production-publicering.
 
 ## Läs detta först på nästa konto
 
@@ -75,7 +81,7 @@ KAN-112/KAN-113 Production PASS och Done. Ingen Production-åtgärd godkänd fö
 - Browser Production/Staging HTTP200,9 JS-resurser/rätt Supabase-ref/ingen korskoppling
   eller pageerror; skyddat deklarationsindex401. Inga inloggningar/sparningar i live.
 - Historisk KAN-113 Staging-acceptans på e992e4f/dpl_3eVEv5x5fxQnHJYztofWZbEePSfn/ledger66
-  bevarad. Aktuell KAN-117 Staging-kandidat/ledger68/acceptansstopp beskrivs överst.
+  bevarad. Publicerad KAN-117 eacdc5b/ledger68 är fortsatt blockerad; lokal P1-rättning överst.
 - Jira vid releasen båda To Do/otilldelade; färskt återlästa Done 2026-10-26 efter Pontus avslut.
   Ingen Jira-mutation gjord i denna läsande granskning.
 - Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-RELEASE-20261026.md; sanerat kvitto
@@ -116,5 +122,5 @@ KAN-112/KAN-113 Production PASS och Done. Ingen Production-åtgärd godkänd fö
 - Ingen automatisk restore/rollback/repair. Bevara nyare data och blockeringsbevis.
 - Retention: äldre lokala KAN-117-prov komprimerade här; detaljrapporter bevarade.
   KAN-117 är aktivt och ska inte arkiveras som slutfört.
-- Publicerad kandidat är eacdc5b. Senare rapport/STATE-checkpoint är lokal, inte pushad.
+- Publicerad kandidat är eacdc5b. Ny P1-kod/migration/tester/docs är lokala, inte pushade.
   Ingen full HANDOFF READY deklareras. Nästa steg är ledarbeslut om blockeraren.

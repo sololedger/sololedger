@@ -11,9 +11,21 @@ Privat planhjälpare, uttryckliga API-grants, ingen ny lagrad domän. `vatPeriod
 binder verifierad ägare/bearer; oförändrad `ensure_vat_periods` används inte i nya momsvyn.
 Första interna delperioders start/slut/typ kontrolleras mot profilen även utanför
 valt år och ingår i planavtrycket. Konflikter stoppar både preview och bekräftelse.
-Endast lokal kandidat: migrationerna `20261026210000_kan117_vat_period_preview.sql`
-och `20261026220000_kan117_cross_year_profile_guard.sql`, i denna ordning.
-Verifiering/kompatibilitet/Staging-gräns: `docs/reviews/KAN-117-CROSS-YEAR-FIX-20261026.md`.
+De två första migrationerna210000/220000 är installerade i Staging, vars acceptans
+är BLOCKED efter fördröjt skapande från40001-omkörning i PostgREST14.
+Lokal P1-rättning `20261026230000_kan117_final_rejection_and_plan_revision.sql`
+ger slutligt23514-avslag för inaktuell plan. Profilens xmin läses atomiskt med
+profilvärdena; även periodunderlagets xmin ingår i avtrycket. Återställda värden
+efter en committad ändring återupplivar inte den gamla planens avtryck.
+Ingen ny tabell/kolumn, bekräftelsekö eller beräknings-/raderingsdomän.
+Klienten lagrar en ägarbunden lokal statusmarkör före bekräftelseanropet. Vid
+osäkert svar, årbyte eller återbesök spärras nytt skapande tills faktisk läsning
+visar exakt täckning eller en profilrevision som gör gammalt anrop ogiltigt.
+Saknade rader bevisar inte avbrutet anrop: ingen automatisk omsändning/timeoutfrigivning.
+Stäng visning/Escape avbryter bara visningen. Ett redan giltigt accepterat anrop
+kan slutföras; det kommuniceras och resultatet återläses. Markören är UX-skydd,
+databasens ägarlås/omkontroll/grants/dubblettskydd är säkerhetsgränsen.
+Verifiering/begränsningar: `docs/reviews/KAN-117-DELAYED-CONFIRMATION-FIX-20261026.md`.
 
 ## KAN-110/111 – befintligt skydd för momsperioder
 

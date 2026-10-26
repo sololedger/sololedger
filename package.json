@@ -55,7 +55,7 @@
     "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs && node scripts/test-year-end-auth.mjs",
     "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs && node scripts/test-year-end-checklist-fixes-db.mjs",
     "test:vat-periods": "node scripts/test-vat-period-creation-browser.mjs",
-    "test:vat-periods:db": "node scripts/test-vat-period-creation-db.mjs && node scripts/test-vat-period-cross-year-db.mjs"
+    "test:vat-periods:db": "node scripts/test-vat-period-delayed-db.mjs && node scripts/test-vat-period-creation-db.mjs && node scripts/test-vat-period-cross-year-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

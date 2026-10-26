@@ -1,0 +1,193 @@
+{
+  "status": "LOCAL_PASS_FOR_NEW_STAGING_TEST",
+  "publishedStaging": "BLOCKED",
+  "issue": "KAN-117",
+  "migration": "20261026230000_kan117_final_rejection_and_plan_revision.sql",
+  "sha256": "5553bbd4117053c4f9a66e83815092a66b1fe94b6989b6889abfe7fbffd42c9f",
+  "dependencies": [
+    "20261026210000",
+    "20261026220000"
+  ],
+  "rootCause": {
+    "livePostgrest": "14.18",
+    "documented40001TransactionRetries": true,
+    "source": "https://supabase.com/kb/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions",
+    "clientPostRetries": false,
+    "browserRequestsInOriginal": 1,
+    "restoredProfileReusedOldBasis": true,
+    "historicalInternalRetryCountAndPidNotTraced": true
+  },
+  "red": {
+    "httpRequests": 1,
+    "retries": 1,
+    "first": {
+      "ok": false,
+      "code": "40001",
+      "message": "Uppgifterna har ändrats. Granska momsperioderna på nytt och bekräfta den nya förhandsgranskningen."
+    },
+    "outcome": {
+      "ok": true,
+      "value": {
+        "year": 2026,
+        "success": true,
+        "created_count": 4
+      }
+    },
+    "before": 5,
+    "after": 9,
+    "model": "bounded documented PostgREST14 retry; real local RPC and client disconnect",
+    "syntheticOnly": true
+  },
+  "green": {
+    "httpRequests": 1,
+    "retries": 0,
+    "first": {
+      "ok": false,
+      "code": "23514",
+      "message": "Uppgifterna har ändrats. Granska momsperioderna på nytt och bekräfta den nya förhandsgranskningen."
+    },
+    "outcome": {
+      "ok": false,
+      "code": "23514",
+      "message": "Uppgifterna har ändrats. Granska momsperioderna på nytt och bekräfta den nya förhandsgranskningen."
+    },
+    "before": 5,
+    "after": 5,
+    "model": "bounded documented PostgREST14 retry; real local RPC and client disconnect",
+    "syntheticOnly": true
+  },
+  "p1Checks": [
+    "one HTTP request, final business rejection, disconnect and restored profile cannot revive it",
+    "committed profile A->B->A invalidates original preview even when its values are restored",
+    "only fresh confirmed plan creates exact four dates; replay has no effect and old periods/journals unchanged",
+    "period evidence A->B->A also invalidates preview even with identical restored row values",
+    "accepted valid write holds profile lock; later profile change waits; exact committed result differs from a fresh unconfirmed call",
+    "all pre-existing public/Auth/Storage fixtures preserved"
+  ],
+  "dbChecks": [
+    "candidate installed only in identified local synthetic database",
+    "cross-year guard installed locally; public RPCs and helper ownership/grants/config unchanged",
+    "effective API grants: private helper, authenticated only, no anon or service-role API access",
+    "actual anon/service-role/private-helper calls denied; authenticated without identity cannot read a plan",
+    "synthetic first annual partial period matches supplied scenario; plan works READ ONLY without mutation",
+    "year: exact missing dates created once; replay rejected; no journals or transactions",
+    "quarter: exact missing dates created once; replay rejected; no journals or transactions",
+    "month: exact missing dates created once; replay rejected; no journals or transactions",
+    "selected historical year only; no hidden generation in earlier years",
+    "interior month gap only; all existing closed period rows remain byte-equivalent",
+    "existing first partial year retained while selected next calendar year can be created",
+    "known annual/quarterly/monthly first partial period blocks contradictory profile in every selected year",
+    "new consistent first-period evidence in another year invalidates old preview before explicit re-confirmation",
+    "new contradictory first-period evidence outside selected year blocks fresh plan and rejects stale confirmation",
+    "changed first-period boundary is reviewed; another owner cannot change plan fingerprint or block creation",
+    "unresolved first partial periods blocked for all frequencies",
+    "not registered/unknown cannot create; incomplete profile denied by existing DB constraint",
+    "profile changes, owner changes and changed year reject stale preview",
+    "overlap, incompatible interval and imported-history ambiguity cannot become complete or create",
+    "historical year lock changes invalidate preview; future years cannot create",
+    "unmatched/old token and non-fresh transaction snapshot fail closed",
+    "rollback-only Stockholm year boundary: old-day preview rejected; only started periods in new year",
+    "concurrent double confirmation serializes; only one exact period is inserted",
+    "confirmation waits for concurrent profile save then rechecks fresh state",
+    "new confirmation waits for legacy generator and rejects stale dates without duplicate",
+    "concurrent year-lock boundary waits then prevents insertion in newly locked year",
+    "concurrent existing first-period initializer serializes; old next-year preview rejected and fresh confirmation succeeds",
+    "all earlier public/Auth/Storage rows and existing function definitions/ACL unchanged"
+  ],
+  "browserChecks": [
+    "1280: delayed accepted response survives closed view/year switch; no second confirmation; actual read resolves result",
+    "1280: uncertain missing rows never enable retry; changed profile revision requires fresh review",
+    "1280: persistent uncertain outcome survives browser reload; only observed exact periods resolve it; no resend",
+    "1280: response after owner switch cannot update other owner's UI or marker",
+    "1280: unavailable storage sends no RPC; corrupt pending marker fails closed without retry",
+    "1280: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+    "1280: stale server state rejected; owner/profile remount discards preview",
+    "1280: invalid/cross-year conflict/unknown/not registered/read failure fail closed without preview; uncertain result re-read; help and no horizontal overflow",
+    "390: delayed accepted response survives closed view/year switch; no second confirmation; actual read resolves result",
+    "390: uncertain missing rows never enable retry; changed profile revision requires fresh review",
+    "390: persistent uncertain outcome survives browser reload; only observed exact periods resolve it; no resend",
+    "390: response after owner switch cannot update other owner's UI or marker",
+    "390: unavailable storage sends no RPC; corrupt pending marker fails closed without retry",
+    "390: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+    "390: stale server state rejected; owner/profile remount discards preview",
+    "390: invalid/cross-year conflict/unknown/not registered/read failure fail closed without preview; uncertain result re-read; help and no horizontal overflow"
+  ],
+  "tests": {
+    "typecheck": true,
+    "lint": true,
+    "invariants": true,
+    "build": true,
+    "safeRegression": true
+  },
+  "localDatabase": {
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "postgresMajor": 17,
+    "oid": "57199",
+    "syntheticOnly": true
+  },
+  "stagingPreserved": {
+    "status": "PASS",
+    "readOnly": true,
+    "actors": [
+      {
+        "label": "C",
+        "periods": 1
+      },
+      {
+        "label": "M",
+        "periods": 8
+      },
+      {
+        "label": "N",
+        "periods": 0
+      },
+      {
+        "label": "U",
+        "periods": 0
+      },
+      {
+        "label": "R",
+        "periods": 1
+      },
+      {
+        "label": "Q",
+        "periods": 9
+      },
+      {
+        "label": "P",
+        "periods": 13
+      },
+      {
+        "label": "E",
+        "periods": 3
+      }
+    ],
+    "periods": 35,
+    "ledger": 68,
+    "schemaAndDefinitionsUnchanged": true,
+    "activity": {
+      "matchingRpcActivity": [
+        {
+          "pid": 2211910,
+          "wait": null,
+          "state": "idle in transaction (aborted)",
+          "queryAgeSeconds": 0
+        }
+      ],
+      "clientTLS": true
+    }
+  },
+  "noHostedWrites": true,
+  "noProductionConnection": true,
+  "noPushOrDeploy": true,
+  "noJiraMutation": true,
+  "limitations": [
+    "Local HTTP model, not an installed PostgREST14 binary",
+    "Existing Stage workers were not terminated; separate verified handling may be required",
+    "Unknown absent result remains blocked, no automatic timeout release",
+    "Browser-local status is not a distributed server receipt",
+    "Physical mobile and new hosted acceptance await separate approval"
+  ]
+}
