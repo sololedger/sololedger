@@ -1,73 +1,69 @@
 # SoloLedger Project State
 
-2026-10-26 – KAN-112 Staging-rättning PASS för Pontus manuella acceptans.
-Alla pågående testmoment avslutade. Stoppa här: ingen ny test, release eller push.
+2026-10-26 – **KAN-112 UX-uppföljning PASS lokalt inför nytt Staging-test.**
+Ingen ny publicering, push, migration, Production-ändring eller Jira-mutation.
 
-## Arbetskopia och exakta versioner
+## Aktuell arbetskopia och kandidat
 
-- L = C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user/audit-packages/KAN-100-app-release-20261024.
+- L = audit-packages/KAN-100-app-release-20261024.
 - Gren codex/KAN-112-year-end-checklist. Origin är lokal KAN-62-kopia, inte GitHub.
-- Publicerad produkt: bf845c21955552a4bfb26e67cd45c189064663fa, GitHub staging.
-- Senare docs-checkpoints enligt git log är lokala; de får inte ersätta godkänd produkt.
-- Vercel dpl_ACc218U3uJ8U5Jp393GhfKY3UfYw, READY, Preview/staging, exakt bf845c2.
-- https://sololedger-git-staging-sololedger1.vercel.app
-- Deployment https://sololedger-7mtxmz31g-sololedger1.vercel.app
-- Projekt prj_chkSdedE06ppK2PlsqdtOhZfAKpT, team team_0Mrj7LMvSEfpbV8y5juQ5IiL.
-- Supabase Staging fzxqiqenqjzhlyxxpvhg; godkänd uppföljningsmigration installerad:
-  20261026110015_kan112_conflict_and_profile_scope.sql.
-- SHA256 4d65559fe06bca24ce57cdbb65c8c6c2380c857598f1672d6b6abbb3f0fcaef1.
-- Föregående 20261026092741_kan112_year_end_checklist.sql finns kvar.
-- Endast nya migrationen installerades via officiell CLI; TLS/session/ledger verifierade.
-- delete-user ACTIVE version 9, verify_jwt=true, oförändrad/inte deployad igen.
-- Edge bundle SHA256 da770355ccbbeb53f9454a8f277f98ee6974d39a6f2777a8fafbf2e5f611963f.
-- GitHub main fortfarande 6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e; Production orörd.
+- Produktcheckpoint 667303026ecf41b75e31c3f69e292a1c1aabbfd0.
+- Separat lokal docs-checkpoint efter produkten enligt git log; inte pushad.
+- Root hade redan orelaterade dirty docs/AGENTS/verktyg. Allt bevarat; root används
+  inte som produktpushkälla. Endast KAN-112-navigeringsnotisen uppdateras där.
 
-## Slutligt verifierat hosted
+## Vad ändrades
 
-- Två verkliga separata Auth-sessioner OCH två separat inloggade browserkontexter.
-- Samma punkt/revision samtidigt: en sparning/en HTTP409, exakt en ny revision.
-- Konflikt svarade 235 ms i API-test, 83 ms i browser; begriplig Läs om-text.
-- Ingen tyst överskrivning/falsk Sparat; Läs om återställer båda, fortsatt ändring fungerar.
-- Faktiskt namnbyte: bara documents påverkas, inga moms/resultat/skattevarningar.
-- Relevanta momsuppgifter, verklig bokning med moms och kundfaktura varnar rätt.
-- Kryss och fullständiga datum/tidsstämplar bevaras vid ändrat underlag.
-- Autospara, avmarkera, omladdning, ny inloggning, förlorat sparsvar/replay PASS.
-- Dator 1440/mobil 390, navigation/tillbaka, inget överflöde, inga pageerror.
-- Två ägare/år, RLS/anon/direct-write/private-helper/delete-RPC/service-RPC-denial PASS.
-- Historiskt låst års status bevarad; ingen ny årslåsoperation i omtestet.
-- Verklig app-server läser befintligt deklarationsindex med rätt Staging-ägare, HTTP200.
-- Schema/ACL/defaults/Auth/Storage och tidigare data utanför syntetisk kohort bevarade.
-- Migration bevarade kryss/datum/begäran-id; 0 aktuella gamla ekonomiska svar behövde
-  översättas i denna datamängd. Översättningsgrenen separat verifierad lokalt.
-- Efter publicering test:year-end-checklist och test:e2e:safety PASS.
-- Tidigare lokal säker regression och 19 rollback-DB-grupper PASS för exakt kandidaten.
-- Ny faktisk användarradering behövdes inte; tidigare v9-radering av syntetiskt D PASS.
+- Flikbytesfelet reproducerat 5/5 i publicerad Staging: Auth förnyade profilens
+  generation och checklistan försökte läsa före verifieringen, utan nytt RPC.
+- Guiden behåller samma ägares/års tillstånd och väntar på verifierad generation.
+  Separat fokusläsning borttagen. Verkliga läsfel syns fortfarande.
+- Pågående osäkra sparförsök bevaras med samma idempotenta begäran vid Auth-förnyelse.
+- Retur till guidens ursprungsår, öppna huvuddel/kontroll och rubrikens scroll/fokus.
+- Generell momstext utan leverantörs-/räkneexempel; bock och tydlig omkontrollvarning.
+- Stängd systemstatus har sammanfattning. Befintliga momsperioders datum/status visas;
+  inlämningsregistrering märks användarregistrerad, inte myndighetsverifierad.
+- Inga ekonomiska beräkningar, bokningsvägar, DB/RLS/RPC eller migrationsfiler ändrade.
 
-## Avvikelser och säkerhetsgränser
+## Verifierat
 
-- Inga nya produktavvikelser. Båda tidigare Staging-avvikelser tekniskt avhjälpta.
-- Ordinarie Staging-alias behövde korrigeras från dpl_B57GSjy4zNjp3xTfdu9rJ27AHo4P/
-  91233be till nya deploymenten/bf845c2. Andra alias och envmetadata oförändrade.
-- Äldre SQL-testfel Unexpected close-year delegate transformation ligger separat,
-  oförändrat. KAN-113/pågående/framtida årslås ej reproducerat/rättat.
-- Jira KAN-112 återläst Task/To Do/otilldelad; inga mutationer/Done.
-- Ingen Production-ändring, ny Edge-deploy, credential/envändring eller datareset.
-- Syntetiskt A/B/C bevaras, D tidigare raderat. Credentials endast ignorerade lokala filer.
-- Alla andra arbetskopior/grenar/fixtures och root-kopians tidigare dirty ändringar bevaras.
+- Ny permanent regression: verklig useAuth/profilskydd/klient/store/guide och
+  installerad Auth-SDK:s visibility recovery; nätverk syntetiskt. Före reproducerat,
+  efter PASS på 1440/390. StrictMode, fem återkomster, 35 min simulerad inaktivitet,
+  tokenförnyelse, osäker sparning/replay, nätverksfel, ägarbyte och misslyckad profil.
+- Home/Layout/guide: autospara, avmarkera, ändringsvarningar, två ägare/år,
+  sex destinationer och ändrat destinationsår, rätt returscroll/fokus PASS dator/mobil.
+- Lokal Next-app + verklig Staging Auth/RPC med verifierat syntetiskt A: PASS 1440/390.
+  Markera/avmarkera, fem återkomster, omladdning, returscroll, läsfel/återhämtning.
+- Staging B nekad läsning av A:s checklistrader. A:s ursprungliga flaggor återställda,
+  ekonomiska underlagsvärden oförändrade. Bara syntetiska checklistrader ändrade.
+- Alla säkra regressionsdelar PASS. Första helkommandot nådde smoke-serverns
+  starttidsgräns; ett avgränsat omtest gav publik smoke 2/2 PASS. Resterande
+  kategori-/standardbokningsbrowsersteg kördes separat och passerade.
+- Typecheck efter dev, riktad ESLint, guide-lint utan nya fel, E2E-säkerhet PASS.
+- Dator-/mobilbilder inspekterade. Inget horisontellt överflöde/pageerror i acceptansen.
+- Ingen ny DB-/raderings-/årslåsregression eller optimerad build: vägarna ändras inte.
+  Verklig manuell OS-flik-/fönsterväxling återstår; browserhändelser kördes automatiskt.
 
-## Rapport, lokal checkpoint och exakt nästa steg
+## Publicerat läge, återläst före ändring
 
-- Huvudrapport docs/reviews/KAN-112-STAGING-FIX-ACCEPTANCE-20261026.md.
-- Lokal rättning docs/reviews/KAN-112-LOCAL-FIXES-20261026.md.
-- Tidigare docs/reviews/KAN-112-STAGING-ACCEPTANCE-20261026.md är historik före rättning.
-- Bevis root/audit-packages/KAN-112-fix-staging-20261026/final-verification.json samt
-  övriga katalog-/CLI-/browser-/security-JSON och PNG i samma mapp.
-- API-resultat root/audit-packages/KAN-112-staging-20261026/fix-hosted-results.json.
-- Root-kopians gamla status beskriver andra arbeten; KAN-112-notisen pekar hit.
-- Lokal startfil root/audit-packages/KAN-112-staging-20261026/open-staging-review.ps1
-  öppnar syntetiskt A, Årsavslut 2025, utan att visa lösenord.
-- Dokumentation och denna STATE committas lokalt, ingen push godkänd.
-- Nästa steg: Pontus manuella acceptans och nytt uttryckligt releasebeslut.
-  Starta inga nya tester/arbetsmoment innan nästa uppdrag. Ingen Production är godkänd.
-- Lokal handoff levererad; formell publicerad handoff enligt AGENTS är inte klar utan
-  pushgodkännande. Root:s tidigare dirty docs/untracked-verktyg kvarstår avsiktligt.
+- Staging bf845c21955552a4bfb26e67cd45c189064663fa.
+- Vercel dpl_ACc218U3uJ8U5Jp393GhfKY3UfYw READY, Preview/staging, rätt projekt/team,
+  ordinarie alias sololedger-git-staging-sololedger1.vercel.app till rätt deployment.
+- Supabase Staging fzxqiqenqjzhlyxxpvhg. Ingen ny migration/config/Edge-publicering.
+- Tidigare installerat 20261026092741 + 20261026110015 och delete-user v9 enligt
+  föregående acceptansrapport; ingen ny Edge-versionkontroll behövdes för UX-arbetet.
+- Jira KAN-112 läst Task/To Do/otilldelad; ingen mutation eller Done.
+- KAN-113 och äldre SQL-testfelet fortsatt utanför uppdraget. Production orörd.
+
+## Rapport, bevis och nästa säkra steg
+
+- docs/reviews/KAN-112-UX-FOLLOWUP-20261026.md: grundorsak, exakt fillista och testgränser.
+- Tidigare docs/reviews/KAN-112-STAGING-FIX-ACCEPTANCE-20261026.md är historisk bas.
+- L/coverage/kan112-auth, kan112-browser, kan112-ux-regression.log,
+  kan112-ux-smoke-retry.log, kan99-evidence/lint-comparison.json.
+- Root/audit-packages/KAN-112-ux-20261026: reproduktion och verklig lokal Staging-acceptans.
+- Inga pågående testservrar. Syntetiska A/B/C och övriga fixtures bevaras.
+- Retention genomgången: aktiva KAN-112 behålls; tidigare rapporter räcker som historik.
+- Nästa steg: Pontus beslutar om exakt produktcommit 6673030 ska publiceras till
+  Staging för manuell acceptans. Ingen push/publicering eller Production är godkänd.
