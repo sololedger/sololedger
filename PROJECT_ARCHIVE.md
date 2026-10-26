@@ -1093,3 +1093,12 @@ Denna kopias ärvda PROJECT_STATE beskrev LOCAL PASS före publicering. Produktb
 codex/KAN-110-111-vat-year-safety är bevarad. KAN-112 fortsätter på separat gren
 från produktbasen och upprepar ingen release eller ändrar befintliga fixtures.
 Äldre lokala bevis finns i coverage/kan110111-local och respektive reviewrapport.
+
+## KAN-112 + KAN-113 – avslutad readiness-analys 2026-10-26
+
+- Lokal docs-checkpoint8de0944 dokumenterade gemensam Staging-accepterad kandidat e992e4f,
+  exakt tre migrationer och delete-user; inga externa skrivningar. Officiell read-only CLI-plan PASS.
+- Readiness-rapporten lämnade tillgänglig backup/återhämtningsväg till obligatorisk releasepreflight.
+  Historiskt READY är därför inget bevis på genomförd Production-release eller backupverifiering.
+- Aktiv release och senare preflightstopp kvarstår i PROJECT_STATE.md och
+  docs/reviews/KAN-112-KAN-113-PRODUCTION-PREFLIGHT-20261026.md; inte arkiverad som färdig.

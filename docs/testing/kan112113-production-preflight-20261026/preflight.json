@@ -1,0 +1,58 @@
+{
+  "status": "BLOCKED_BEFORE_FIRST_MIGRATION",
+  "at": "2026-10-26T18:23:18.614Z",
+  "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "localHead": "8de0944381684a705237629775961078c7ae1146",
+  "gitCleanBeforeReport": true,
+  "remote": {
+    "refs/heads/main": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "refs/heads/staging": "e992e4f97e1d74c91b24947d61f1774596340bc1"
+  },
+  "deployment": false,
+  "productionLedger": 61,
+  "productionSchemaUnchangedSinceReadiness": true,
+  "preconditionsAndGrantsMatch": true,
+  "locks": {
+    "ongoing": 0,
+    "future": 0,
+    "affectedUsers": 0
+  },
+  "externalWrites": false,
+  "migrationsApplied": [],
+  "reason": "Backup list empty, PITR disabled, no physical restore timestamps; database recovery availability cannot be verified.",
+  "backup": {
+    "checked_at": "2026-10-26",
+    "project_ref": "wbaxmuvudpnkvuliicuy",
+    "cli_version": "2.122.0",
+    "command": "supabase backups list --project-ref wbaxmuvudpnkvuliicuy --output-format json",
+    "result": {
+      "region": "eu-central-1",
+      "walg_enabled": true,
+      "pitr_enabled": false,
+      "backups": [],
+      "physical_backup_data": {},
+      "message": ""
+    },
+    "interpretation": "No available database backup or restore timestamp verified. No restore attempted."
+  },
+  "edge": {
+    "id": "d4126e3f-59ce-4cdb-8f0e-cc4e4c19864b",
+    "slug": "delete-user",
+    "status": "ACTIVE",
+    "version": 16,
+    "verify_jwt": true,
+    "ezbr_sha256": "66c4d1dfff12b682df0f9137b9c5dfcba5c9412656b66a62d596ea6308ba59dc"
+  },
+  "production": {
+    "id": "dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q",
+    "url": "sololedger-qz4ao79mg-sololedger1.vercel.app",
+    "sha": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "status": "READY",
+    "branch": "main",
+    "target": "production"
+  },
+  "newMigrations": [],
+  "productionWrites": false,
+  "mainPush": false,
+  "jiraMutation": false
+}

@@ -1,8 +1,8 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 + KAN-113 manuellt/tekniskt accepterade i Staging. Production readiness READY.**
+2026-10-26 – **KAN-112 + KAN-113 Production-release BLOCKED i obligatorisk backup-preflight.**
 Produktmål/prioriteringar enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas
-enskilda firma år efter år. Läsande releaseplan klar; invänta exakt Production-godkännande.
+enskilda firma år efter år. Exakt release godkänd, men stoppad före första migrationen.
 
 ## Läs detta först efter Codex-kontobyte
 
@@ -88,12 +88,13 @@ enskilda firma år efter år. Läsande releaseplan klar; invänta exakt Producti
 - KAN-113 godkänd Staging-migration/publicering klar; produktcommit e992e4f pushad
   endast till staging. Efterföljande rapportcheckpoint är lokal/opushad, inte full HANDOFF READY.
 - L ren efter rapportcheckpoint; root avsiktligt dirty av separat tidigare arbete.
-- Båda ärendena manuellt accepterade. Ingen Production-åtgärd eller Jira Done är godkänd.
-  Stanna efter readiness-analysen; gemensam release kräver separat exakt godkännande.
+- Båda ärendena accepterade; exakt Production-release nu godkänd, men BLOCKED enligt ny preflight nedan.
+  Ingen publicering påbörjad. Ingen Jira Done är godkänd.
 
 ## KAN-112 + KAN-113 – Production readiness 2026-10-26
 
-- READY för separat releasebeslut. Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-READINESS-20261026.md.
+- Readiness var READY före releasepreflight; aktuell BLOCKED-status enligt nedan.
+  Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-READINESS-20261026.md.
 - Exakt kandidat e992e4f97e1d74c91b24947d61f1774596340bc1; inte senare lokal docs-HEAD.
   GitHub staging=e992e4f, main=6ad27f1; main kan fast-forwardas. Aktuell L-HEAD före rapport4b2332a.
 - Färska Vercel-alias/READY/SHA och levererade klienter återverifierade: Staging dpl_3eVEv5x5fxQnHJYztofWZbEePSfn,
@@ -110,5 +111,23 @@ enskilda firma år efter år. Läsande releaseplan klar; invänta exakt Producti
 - Jira båda fortfarande To Do/otilldelade, återlästa utan mutation. Ledaracceptans är nyare än Jira-texten.
 - Endast lokal rapport/STATE/sanerat kvitto ändras. Inga externa skrivningar, migrationsapply, pushar,
   deployments, aliasändringar eller testdata. Rootens orelaterade dirty ändringar helt orörda.
-- Nästa steg: Pontus uttryckliga godkännande av exakt3 migrationer, delete-user, main/e992e4f och
-  Production-deployment. Jira-avslut kräver eget godkännande. Rapportcheckpoint lokal/opushad.
+- Godkännande av exakt3 migrationer, delete-user och main/e992e4f/Production har därefter givits.
+  Ingen åtgärd får fortsätta förbi backupblockeringen nedan. Jira-avslut kräver eget godkännande.
+
+## KAN-112 + KAN-113 – godkänd release, BLOCKED före ändring
+
+- Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-PREFLIGHT-20261026.md; sanerat kvitto
+  docs/testing/kan112113-production-preflight-20261026/preflight.json. Lokal L-HEAD före rapport8de0944, ren.
+- Obligatorisk backupkontroll via officiell CLI2.122.0 lyckades men gav backups=[],
+  physical_backup_data={} och pitr_enabled=false (walg_enabled=true). Ingen användbar
+  DB-backup/återställningstidpunkt kunde verifieras. Approllback ensam återställer inte DB.
+- Stopp före SQL1. Ingen av3 migrationer applicerad; Production-ledger fortsatt61,
+  katalog32 tabeller/103 funktioner exakt lika readiness. RPC-preimages/ACL matchar.
+- GitHub main fortsatt6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e; staging=e992e4f.
+  Vercel Production dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q READY på gamla main; alias/env oförändrade.
+- Supabase Production ACTIVE_HEALTHY;0 pågående2026-/0 framtida lås/0 berörda användare.
+  delete-user fortfarande ACTIVE v16/verify_jwt=true. Ingen publicering eller användardataskrivning utförd.
+- Nästa steg: verifiera tillgänglig aktuell backup/återhämtningsväg eller separat granskat
+  ledarbeslut om alternativ återhämtningsplan; därefter ny preflight före någon migration.
+- Ingen automatisk retry, backup/PITR-konfigurationsändring, rollback, Edge/main/deploy eller Jira-ändring.
+  Endast lokal docs-checkpoint; rootens orelaterade diff bevarad. Aktiv release arkiveras inte som klar.
