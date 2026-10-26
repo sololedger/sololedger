@@ -1,0 +1,167 @@
+{
+  "at": "2026-10-26T17:24:11.755Z",
+  "status": "READY_FOR_EXPLICIT_PRODUCTION_RELEASE_DECISION",
+  "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+  "localHeadBeforeReport": "4b2332a13c036c0a17b46edfaafa29d125ce733d",
+  "branch": "codex/KAN-113-year-lock-analysis",
+  "remote": {
+    "refs/heads/main": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "refs/heads/staging": "e992e4f97e1d74c91b24947d61f1774596340bc1"
+  },
+  "productionDeployment": {
+    "id": "dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q",
+    "url": "sololedger-qz4ao79mg-sololedger1.vercel.app",
+    "state": "READY",
+    "target": "production",
+    "sha": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "branch": "main",
+    "project": "prj_chkSdedE06ppK2PlsqdtOhZfAKpT",
+    "team": "team_0Mrj7LMvSEfpbV8y5juQ5IiL"
+  },
+  "stagingDeployment": {
+    "id": "dpl_3eVEv5x5fxQnHJYztofWZbEePSfn",
+    "url": "sololedger-kx1gp3kxz-sololedger1.vercel.app",
+    "state": "READY",
+    "target": null,
+    "sha": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "branch": "staging",
+    "project": "prj_chkSdedE06ppK2PlsqdtOhZfAKpT",
+    "team": "team_0Mrj7LMvSEfpbV8y5juQ5IiL"
+  },
+  "plan": {
+    "candidate": "e992e4f97e1d74c91b24947d61f1774596340bc1",
+    "base": "6ad27f1e687056a0d7c7b4c07fe2aa58c871ef1e",
+    "files": [
+      {
+        "file": "20261026092741_kan112_year_end_checklist.sql",
+        "sha256": "4ee37317959b7b68758f98776c347a646c62ca43e7ce5ac84c18c7e3fa4c64a5"
+      },
+      {
+        "file": "20261026110015_kan112_conflict_and_profile_scope.sql",
+        "sha256": "4d65559fe06bca24ce57cdbb65c8c6c2380c857598f1672d6b6abbb3f0fcaef1"
+      },
+      {
+        "file": "20261026162305_kan113_calendar_year_close_guard.sql",
+        "sha256": "1b5214198bb86142b6fe3847d967d76f9e4d90ba45020054b0eac6b7e70bcda6"
+      }
+    ],
+    "excluded": [
+      "supabase/migrations/20261012123000_kan62_fixed_asset_gross_vat_rate.sql",
+      "supabase/migrations/20261012153000_kan62_fixed_asset_group_locking.sql"
+    ],
+    "oldLedger": 61,
+    "expectedLedger": 64
+  },
+  "cliReadOnlyDryRun": {
+    "upToDate": false,
+    "dryRun": true,
+    "migrations": [
+      "20261026092741_kan112_year_end_checklist.sql",
+      "20261026110015_kan112_conflict_and_profile_scope.sql",
+      "20261026162305_kan113_calendar_year_close_guard.sql"
+    ],
+    "seeds": [],
+    "roles": [],
+    "message": "Finished supabase db push."
+  },
+  "productionLedger": 61,
+  "stagingLedger": 66,
+  "productionCatalogueUnchanged": {
+    "at": "2026-10-26T17:21:44.495Z",
+    "productionCatalogueUnchanged": true,
+    "identity": {
+      "pid": 285180,
+      "tls": true,
+      "endPid": 285180,
+      "session": "postgres",
+      "database": "postgres",
+      "readonly": "on"
+    }
+  },
+  "publicClientChecks": [
+    {
+      "name": "production",
+      "host": "sololedger.vercel.app",
+      "status": 200,
+      "assets": 9,
+      "correctRef": "wbaxmuvudpnkvuliicuy",
+      "wrongRefAbsent": true,
+      "anonymousApi": 401,
+      "noLoginOrWrites": true,
+      "errors": []
+    },
+    {
+      "name": "staging",
+      "host": "sololedger-git-staging-sololedger1.vercel.app",
+      "status": 200,
+      "assets": 9,
+      "correctRef": "fzxqiqenqjzhlyxxpvhg",
+      "wrongRefAbsent": true,
+      "anonymousApi": 401,
+      "noLoginOrWrites": true,
+      "errors": []
+    }
+  ],
+  "productionYearLocks": {
+    "future": 0,
+    "ongoing": 0,
+    "stockholm": "2026-10-26T18:18:34.027437",
+    "current_year": 2026,
+    "affected_users": 0,
+    "checklist_absent": true
+  },
+  "edges": {
+    "production": {
+      "id": "d4126e3f-59ce-4cdb-8f0e-cc4e4c19864b",
+      "version": 16,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "bundleSha256": "66c4d1dfff12b682df0f9137b9c5dfcba5c9412656b66a62d596ea6308ba59dc",
+      "sourceMatchesGit": true
+    },
+    "staging": {
+      "id": "d95e3f13-e71a-4724-9a3f-9fe9fff91890",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "bundleSha256": "da770355ccbbeb53f9454a8f277f98ee6974d39a6f2777a8fafbf2e5f611963f",
+      "sourceMatchesGit": true
+    }
+  },
+  "jira": {
+    "KAN-112": {
+      "type": "Task",
+      "status": "To Do",
+      "assignee": null,
+      "acceptanceComment": "11687"
+    },
+    "KAN-113": {
+      "type": "Bug",
+      "status": "To Do",
+      "assignee": null
+    },
+    "mutation": false
+  },
+  "historicalDifferences": {
+    "stagingOnlyVersions": [
+      "20261012123000",
+      "20261012153000"
+    ],
+    "sharedLedgerDifferentStatements": [
+      "20260925050113",
+      "20260925070346",
+      "20261008170000",
+      "20261020130000"
+    ],
+    "functionLineEndingsOnly": [
+      "get_withdrawal_context(date)",
+      "rls_auto_enable()"
+    ],
+    "stagingOnlyAnonExecute": [
+      "get_next_ver_nr(uuid)"
+    ],
+    "preserveProductionContracts": true
+  },
+  "externalWrites": false,
+  "newFixtures": 0
+}

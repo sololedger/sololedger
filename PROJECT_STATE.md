@@ -1,8 +1,8 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-112 tekniskt och manuellt accepterad i Staging, inkl fysisk mobil. Production återstår.**
+2026-10-26 – **KAN-112 + KAN-113 manuellt/tekniskt accepterade i Staging. Production readiness READY.**
 Produktmål/prioriteringar enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas
-enskilda firma år efter år. KAN-113 publicerad/verifierad i Staging; invänta manuell acceptans.
+enskilda firma år efter år. Läsande releaseplan klar; invänta exakt Production-godkännande.
 
 ## Läs detta först efter Codex-kontobyte
 
@@ -37,7 +37,7 @@ enskilda firma år efter år. KAN-113 publicerad/verifierad i Staging; invänta 
 - Jira KAN-112 Task/Medium/To Do/otilldelad, acceptanskommentar 11687 tillagd och återläst.
   Status/assignee oförändrade, inte Done. KAN-113 Bug/Medium/To Do/otilldelad, oförändrad.
 
-## KAN-113 – Staging PASS inför manuell acceptans 2026-10-26
+## KAN-113 – Staging PASS, manuellt accepterad enligt Pontus 2026-10-26
 
 - Exakt godkänd/publicerad produkt: e992e4f97e1d74c91b24947d61f1774596340bc1,
   med accepterad KAN-112-bas 1e4a32a. GitHub staging=e992e4f; main kvar6ad27f1.
@@ -67,7 +67,7 @@ enskilda firma år efter år. KAN-113 publicerad/verifierad i Staging; invänta 
   Ingen Production-migration/-deployment/main-push eller Edge-ändring i detta uppdrag.
 - Inga Jira-mutationer. Rootens samtliga orelaterade dirty ändringar bevarade.
   Nuvarande rapport/STATE/Architecture-checkpoint är lokal efter produkten, inte pushad.
-- Nästa steg: Pontus manuell Staging-acceptans. Ingen ytterligare publicering nu.
+- Pontus har nu accepterat även KAN-113 manuellt; nästa steg är gemensamt releasebeslut enligt nedan.
 
 ## Sparade bevis och bevarande
 
@@ -88,5 +88,27 @@ enskilda firma år efter år. KAN-113 publicerad/verifierad i Staging; invänta 
 - KAN-113 godkänd Staging-migration/publicering klar; produktcommit e992e4f pushad
   endast till staging. Efterföljande rapportcheckpoint är lokal/opushad, inte full HANDOFF READY.
 - L ren efter rapportcheckpoint; root avsiktligt dirty av separat tidigare arbete.
-- Pontus manuell acceptans återstår. Ingen Production-åtgärd eller Jira Done är godkänd.
-  KAN-112:s separata Production-releasebehov kvarstår. Stanna efter Staging-verifieringen.
+- Båda ärendena manuellt accepterade. Ingen Production-åtgärd eller Jira Done är godkänd.
+  Stanna efter readiness-analysen; gemensam release kräver separat exakt godkännande.
+
+## KAN-112 + KAN-113 – Production readiness 2026-10-26
+
+- READY för separat releasebeslut. Rapport docs/reviews/KAN-112-KAN-113-PRODUCTION-READINESS-20261026.md.
+- Exakt kandidat e992e4f97e1d74c91b24947d61f1774596340bc1; inte senare lokal docs-HEAD.
+  GitHub staging=e992e4f, main=6ad27f1; main kan fast-forwardas. Aktuell L-HEAD före rapport4b2332a.
+- Färska Vercel-alias/READY/SHA och levererade klienter återverifierade: Staging dpl_3eVEv5x5fxQnHJYztofWZbEePSfn,
+  Production dpl_HtjAS5DwW3BK1xetQr4gJEJ7gU6Q. Rätt projekt/team och respektive Supabase-ref.
+- Production-katalog exakt som senaste release:61 ledger/32 tabeller/103 funktioner; Staging66/33/106.
+  Läsande Production0 pågående2026-lås/0 framtida/0 berörda användare. Ingen datarättning planeras.
+- Plan: SQL20261026092741 →20261026110015 →20261026162305, sedan kandidatens delete-user
+  verify_jwt=true, sedan exakt kandidat till main/Vercel Production och läsande smoke/integritet.
+- Officiell CLI dry-run under tvingad READ ONLY planerade exakt dessa3, inga seeds/roller.
+  Production-ledger efter framtida release ska vara64; två äldre Staging-only KAN62-versioner exkluderas.
+  Äldre ledger/formatering/anon-grantskillnader utredda; ingen replay/repair eller rättighetskopiering.
+- Båda befintliga RPC-preimages matchar; övriga tabell-/moms-/inventarie-/låskontrakt bevaras.
+  DB-migrationer saknar automatisk rollback; behåll additiv DB/Edge vid approllback. Se rapportens stoppvillkor.
+- Jira båda fortfarande To Do/otilldelade, återlästa utan mutation. Ledaracceptans är nyare än Jira-texten.
+- Endast lokal rapport/STATE/sanerat kvitto ändras. Inga externa skrivningar, migrationsapply, pushar,
+  deployments, aliasändringar eller testdata. Rootens orelaterade dirty ändringar helt orörda.
+- Nästa steg: Pontus uttryckliga godkännande av exakt3 migrationer, delete-user, main/e992e4f och
+  Production-deployment. Jira-avslut kräver eget godkännande. Rapportcheckpoint lokal/opushad.
