@@ -9,8 +9,11 @@ låser profilen och jämför aktuell plan före atomisk infogning av nya öppna 
 Ingen gissad första delperiod, journal eller ändring av befintliga periodrader.
 Privat planhjälpare, uttryckliga API-grants, ingen ny lagrad domän. `vatPeriodCreation.ts`
 binder verifierad ägare/bearer; oförändrad `ensure_vat_periods` används inte i nya momsvyn.
-Endast lokal kandidat: migration `20261026210000_kan117_vat_period_preview.sql`.
-Verifiering/kompatibilitet/Staging-gräns: `docs/reviews/KAN-117-LOCAL-IMPLEMENTATION-20261026.md`.
+Första interna delperioders start/slut/typ kontrolleras mot profilen även utanför
+valt år och ingår i planavtrycket. Konflikter stoppar både preview och bekräftelse.
+Endast lokal kandidat: migrationerna `20261026210000_kan117_vat_period_preview.sql`
+och `20261026220000_kan117_cross_year_profile_guard.sql`, i denna ordning.
+Verifiering/kompatibilitet/Staging-gräns: `docs/reviews/KAN-117-CROSS-YEAR-FIX-20261026.md`.
 
 ## KAN-110/111 – befintligt skydd för momsperioder
 

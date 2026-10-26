@@ -1,0 +1,108 @@
+-- KAN-117: reject known first-partial-period/profile contradictions across years.
+-- Follow-up to the unpublished base migration; no data, API, lock or grant changes.
+DO $preimage$
+BEGIN
+  IF md5(replace((SELECT prosrc FROM pg_proc
+      WHERE oid='public.kan117_vat_period_plan(integer)'::regprocedure),chr(13),''))
+      IS DISTINCT FROM '2e09b0ac0eebf78e473b754db004bcef' THEN
+    RAISE EXCEPTION 'KAN-117: unexpected period planner definition; inspect before applying.';
+  END IF;
+END;
+$preimage$;
+
+CREATE OR REPLACE FUNCTION public.kan117_vat_period_plan(p_year integer)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO public, pg_temp
+AS $plan$
+DECLARE
+  v_user uuid := auth.uid();
+  p public.profiles%ROWTYPE;
+  v_today date := (clock_timestamp() AT TIME ZONE 'Europe/Stockholm')::date;
+  v_start date;
+  v_end date;
+  v_step interval;
+  v_period public.vat_periods%ROWTYPE;
+  v_expected jsonb := '[]';
+  v_missing jsonb := '[]';
+  v_rows jsonb;
+  v_first_periods jsonb;
+  v_locked boolean;
+  v_state text := 'complete';
+  v_message text := '';
+  v_basis text;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'Du måste vara inloggad.' USING ERRCODE='28000'; END IF;
+  IF p_year IS NULL OR p_year < 1900 OR p_year > 9998 THEN
+    RAISE EXCEPTION 'Ogiltigt år för momsperioder.' USING ERRCODE='22023';
+  END IF;
+  SELECT * INTO p FROM public.profiles WHERE id=v_user;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Företagsprofilen saknas.' USING ERRCODE='23514'; END IF;
+  SELECT coalesce(jsonb_agg(to_jsonb(vp) ORDER BY vp.period_start,vp.id),'[]') INTO v_rows
+    FROM public.vat_periods vp WHERE vp.user_id=v_user
+      AND vp.period_start<=make_date(p_year,12,31) AND vp.period_end>=make_date(p_year,1,1);
+  -- Internal partial periods are previously fixed first-period evidence, regardless of selected year.
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',vp.id,'start',vp.period_start,
+    'end',vp.period_end,'type',vp.period_type,'source',vp.source) ORDER BY vp.period_start,vp.id),'[]')
+    INTO v_first_periods FROM public.vat_periods vp
+    WHERE vp.user_id=v_user AND vp.source='sololedger'
+      AND vp.period_start<>date_trunc(vp.period_type,vp.period_start)::date;
+  SELECT EXISTS(SELECT 1 FROM public.closed_years WHERE user_id=v_user AND year=p_year) INTO v_locked;
+  v_basis := md5(jsonb_build_object('version',1,'owner',v_user,'year',p_year,'today',v_today,
+    'status',p.vat_status,'type',p.vat_period_type,'from',p.vat_management_from,
+    'periods',v_rows,'first_periods',v_first_periods,'locked',v_locked)::text);
+  IF p.vat_status='not_registered' AND p.vat_period_type IS NULL AND p.vat_management_from IS NULL THEN
+    v_state:='not_applicable'; v_message:='Företaget är inte momsregistrerat. Inga nya momsperioder skapas.';
+  ELSIF p.vat_status IS DISTINCT FROM 'registered' OR p.vat_period_type IS NULL
+    OR p.vat_period_type NOT IN ('month','quarter','year') OR p.vat_management_from IS NULL THEN
+    v_state:='blocked'; v_message:='Kontrollera momsregistrering, redovisningsperiod och startdatum i Profil. SoloLedger gissar inte.';
+  ELSIF EXISTS(SELECT 1 FROM jsonb_array_elements(v_first_periods) e
+    WHERE (e->>'start')::date IS DISTINCT FROM p.vat_management_from
+      OR e->>'type' IS DISTINCT FROM p.vat_period_type
+      OR (e->>'end')::date IS DISTINCT FROM
+        (date_trunc(e->>'type',(e->>'start')::date)
+          + CASE e->>'type' WHEN 'month' THEN interval '1 month'
+            WHEN 'quarter' THEN interval '3 months' ELSE interval '1 year' END
+          - interval '1 day')::date) THEN
+    v_state:='blocked'; v_message:='Momsprofilen motsäger en redan fastställd första delperiod, även om den ligger i ett annat år. Kontrollera Profil och registreringsunderlaget; inga perioder skapas.';
+  ELSIF p_year>extract(year FROM v_today)::integer THEN
+    v_state:='not_applicable'; v_message:='Momsperioder för framtida år skapas inte ännu.';
+  ELSIF p.vat_management_from>least(make_date(p_year,12,31),v_today) THEN
+    v_state:='not_applicable'; v_message:='Momshanteringen har inte börjat för det valda året. Kontrollera startdatum i Profil om det inte stämmer.';
+  ELSE
+    v_start:=greatest(make_date(p_year,1,1),p.vat_management_from);
+    v_step:=CASE p.vat_period_type WHEN 'month' THEN interval '1 month' WHEN 'quarter' THEN interval '3 months' ELSE interval '1 year' END;
+    WHILE v_start<=least(make_date(p_year,12,31),v_today) LOOP
+      v_end:=(date_trunc(p.vat_period_type,v_start)+v_step-interval '1 day')::date;
+      v_expected:=v_expected||jsonb_build_array(jsonb_build_object('start',v_start,'end',v_end,'type',p.vat_period_type));
+      SELECT * INTO v_period FROM public.vat_periods
+        WHERE user_id=v_user AND period_start=v_start AND period_end=v_end;
+      IF FOUND THEN
+        IF v_period.period_type<>p.vat_period_type OR v_period.source<>'sololedger' THEN
+          v_state:='blocked'; v_message:='Befintlig periodtyp eller importerad historik behöver granskas mot Profil. Inga perioder ändras.';
+        END IF;
+      ELSE
+        v_missing:=v_missing||jsonb_build_array(jsonb_build_object('start',v_start,'end',v_end,'type',p.vat_period_type));
+        IF v_start<>date_trunc(p.vat_period_type,v_start)::date THEN
+          v_state:='blocked'; v_message:='Första delperioden behöver styrkas mot registreringsunderlaget. Kontrollera Profil; SoloLedger skapar ingen gissad delperiod.';
+        ELSIF v_locked THEN
+          v_state:='blocked'; v_message:='En momsperiod saknas i ett låst år. Historiken behöver utredas; inga nya perioder kan skapas här.';
+        END IF;
+      END IF;
+      IF (SELECT count(*) FROM public.vat_periods WHERE user_id=v_user AND period_start<=v_end AND period_end>=v_start)
+        > (CASE WHEN v_period.id IS NULL THEN 0 ELSE 1 END) THEN
+        v_state:='blocked'; v_message:='Befintliga momsperioder överlappar eller motsäger Profil. Utred datumen innan något skapas.';
+      END IF;
+      v_start:=v_end+1;
+    END LOOP;
+    -- Also detect profile changes which place earlier managed periods outside the plan.
+    IF EXISTS(SELECT 1 FROM public.vat_periods vp WHERE vp.user_id=v_user AND vp.source='sololedger'
+      AND vp.period_start<=make_date(p_year,12,31) AND vp.period_end>=make_date(p_year,1,1)
+      AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_expected) e
+        WHERE (e->>'start')::date=vp.period_start AND (e->>'end')::date=vp.period_end AND e->>'type'=vp.period_type)) THEN
+      v_state:='blocked'; v_message:='Befintliga momsperioder stämmer inte med årets profilinställningar. Kontrollera Profil och historiken.';
+    END IF;
+    IF v_state='complete' AND jsonb_array_length(v_missing)>0 THEN v_state:='missing'; END IF;
+  END IF;
+  RETURN jsonb_build_object('version',1,'owner',v_user,'year',p_year,'today',v_today,
+    'state',v_state,'message',v_message,'expected',v_expected,'missing',v_missing,'basis',v_basis);
+END;
+$plan$;

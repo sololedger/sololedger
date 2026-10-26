@@ -1,6 +1,6 @@
 import type { VatPeriodCreationPlan } from '../../src/lib/vatPeriodCreation'
 
-type Mode = 'complete' | 'missing' | 'blocked' | 'not_applicable' | 'read_error' | 'malformed'
+type Mode = 'complete' | 'missing' | 'blocked' | 'cross_year_blocked' | 'not_applicable' | 'read_error' | 'malformed'
 let mode: Mode = 'complete'
 let owner = 'synthetic-A'
 let basis = 'a'.repeat(32)
@@ -11,9 +11,9 @@ const calls: { name: string; args: Record<string, unknown> }[] = []
 
 function plan(year: number): VatPeriodCreationPlan {
   const period = { start: `${year}-${annualStart}`, end: `${year}-12-31`, type: 'year' as const }
-  return { version: 1, owner, year, today: '2026-10-26', state: mode === 'read_error' || mode === 'malformed' ? 'missing' : mode,
-    message: mode === 'blocked' ? 'Första delperioden behöver styrkas mot registreringsunderlaget. Kontrollera Profil.' : 'Företaget är inte momsregistrerat. Inga nya momsperioder skapas.',
-    expected: [period], missing: mode === 'complete' || mode === 'not_applicable' ? [] : [period], basis }
+  return { version: 1, owner, year, today: '2026-10-26', state: mode === 'cross_year_blocked' ? 'blocked' : mode === 'read_error' || mode === 'malformed' ? 'missing' : mode,
+    message: mode === 'cross_year_blocked' ? 'Momsprofilen motsäger en redan fastställd första delperiod, även om den ligger i ett annat år. Kontrollera Profil och registreringsunderlaget; inga perioder skapas.' : mode === 'blocked' ? 'Första delperioden behöver styrkas mot registreringsunderlaget. Kontrollera Profil.' : 'Företaget är inte momsregistrerat. Inga nya momsperioder skapas.',
+    expected: mode === 'cross_year_blocked' ? [] : [period], missing: mode === 'complete' || mode === 'not_applicable' || mode === 'cross_year_blocked' ? [] : [period], basis }
 }
 
 export const transport = {

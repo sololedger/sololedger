@@ -1,44 +1,37 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-117 BLOCKED för Staging efter riktad säkerhetsgranskning.**
+2026-10-26 – **KAN-117 säkerhetsrättning LOCAL PASS. Publicering fortsatt blockerad.**
 Produktmål enligt AGENTS: begriplig/tillförlitlig bokföring för Jessikas enskilda firma år efter år.
 KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdrag.
 
-## Aktuellt KAN-117 – lokal implementation/verifiering
+## Aktuellt KAN-117 – minimal säkerhetsrättning
 
-- Granskad produktkandidat ac96638 är oförändrad. Endast granskningsdocs ändras nu.
-  Reproducerat: befintlig intern delperiod2026 + profilstart ändrad till2025-01-01
-  ger blocked för2026 men tillåter ny helårsperiod2025. Konflikt i annat år förbises.
-- Rollback-isolerat syntetiskt prov verifierade fyndet och10 datum-/frekvensfall;
-  alla tidigare public/Auth/Storage-avtryck lika efter rollback. Inga hosted-anrop.
-- Rapport docs/reviews/KAN-117-SECURITY-REVIEW-20261026.md; tidigare LOCAL PASS
-  avsåg testmatrisen och är inte Staging-godkännande. Ingen produkt-/SQL-rättning gjord.
-- Minsta föreslagna rättning: serverkontroll av känd första delperiod mot aktuell
-  profil även utanför valt år, relevant underlag i planavtrycket och riktad regression.
-  Nästa steg: Pontus godkänner/avgränsar lokal rättning; därefter ny kandidat och bedömning.
-- Gren codex/KAN-117-vat-period-preview, parent 02af89d, produktbas e992e4f.
-  Lokal checkpoint enligt git log. L-origin är lokal kopia; ingen push gjord.
-- Jira KAN-117 läst To Do/otilldelad, inga mutationer. KAN-112/113 lämnas Done.
-- Ny periodplan för valt år, komplett status utan skapandeknapp, exakta luckdatum,
-  native förhandsgranskning/Avbryt och separat bekräftelse. Ingen gissad delperiod.
-- Ny migration 20261026210000_kan117_vat_period_preview.sql: tre funktioner,
-  uttryckliga API-grants; inga tabeller eller befintliga RPC-definitioner ändras.
-  Bekräftelse omkontrollerar ägare/år/Stockholmsdag/profil/perioder/lås under ägarlås.
-- Endast lokal DB-kandidat på verifierad sololedger_kan62_disposable_20261021,
-  127.0.0.1:5432/PG17/OID57199/unique syntheticOnly-markör. Nya syntetiska
-  testkohorter bevarade. Alla tidigare public/Auth/Storage-dataavtryck oförändrade.
-- Databas22 kontrollgrupper, faktisk panel/klient på dator1280/mobil390,
-  TypeScript/riktad ESLint/laddningsregression/DB-invarianter och lokal build PASS.
-  Slutlig säker regression PASS med syntetisk lokal processkonfiguration, inklusive
-  nya browserprovet och båda publika smokeproven. Historiska år utan rader kan väljas.
-- Rapport docs/reviews/KAN-117-LOCAL-IMPLEMENTATION-20261026.md.
-  Tidigare läsande analys VAT-PERIOD-BUTTON-READONLY-20261026.md bevaras och
-  checkpointas som underlag. Ingen period saknades i det då granskade scenariot.
-- Kod/SQL/tester/docs för detta uppdrag omfattas av lokal checkpoint. Rootens
-  orelaterade diff, övriga worktrees, fixtures samt auth/envfiler bevarade.
-- ac96638 ska inte publiceras till Staging enligt denna granskningsbedömning.
-  Nytt lokalt PASS samt separat Staging-/migrationsbeslut krävs efter eventuell rättning.
-  Ingen Staging-/Production-skrivning, fjärrmigration, push, deploy eller Jira-mutation.
+- Pontus godkände lokal rättning efter granskningen4bf1acd. Äldre ac96638 ska inte
+  publiceras ensam. Ny checkpoint enligt git log på codex/KAN-117-vat-period-preview.
+- Ny följdmigration20261026220000_kan117_cross_year_profile_guard.sql ändrar bara
+  privata planhjälparen. Kända interna första delperioder granskas även i andra år
+  och deras relevanta uppgifter ingår i planavtrycket. Publika API:er/lås/grants bevarade.
+- Obligatorisk regression var röd mot gammal kod, grön efter rättning: felaktig
+  profilstart2025 med känd delperiod2026 blockerar båda åren och direkt bekräftelse.
+  Återställd profil ger korrekt/oförändrad befintlig period. Rollback gav0 restrader.
+- Lokal DB identitetsverifierad: sololedger_kan62_disposable_20261021,
+  127.0.0.1:5432/PG17/OID57199/unique syntheticOnly-markör.28 DB-kontrollgrupper
+  plus obligatorisk regression PASS; tidigare public/Auth/Storage-dataavtryck lika.
+- Samtidighet med profil, årslås, generator, dubbelbekräftelse och fastställande av
+  första delperiod PASS; nya/ändrade underlag i annat år gör gammal preview ogiltig.
+- TypeScript, ändrade testfilers lint utan varningar, DB-invarianter, build,
+  full säker regression och riktad browser på dator1280/mobil390 PASS.
+- Teknisk bedömning PASS för Staging för rättad kandidat. **Inget tillstånd att
+  publicera**: Staging/Production förblir spärrade tills separat exakt ledarbeslut.
+- Efter sådant beslut krävs båda KAN-117-migrationerna210000→220000 samt syntetisk
+  hosted UI→RPC→DB-acceptans på dator/fysisk mobil. Inga riktiga kundfixtures.
+- Rapport docs/reviews/KAN-117-CROSS-YEAR-FIX-20261026.md; sanerat kvitto
+  docs/testing/kan117-cross-year-fix-20261026.json. Äldre blockerare/evidens bevarade
+  i säkerhetsrapporten och komprimerad historik i ARCHIVE; KAN-117 är fortsatt aktivt.
+- Jira återläst To Do; ingen Jira-mutation/Done. KAN-112/113 förblir avslutade.
+  Rootens orelaterade diff, worktrees, tidigare fixtures och auth/envfiler bevarade.
+- Endast lokal checkpoint; ingen fjärrmigration, Staging-/Production-skrivning,
+  deployment eller push. Nästa steg: Pontus granskar rättningen och beslutar separat.
 
 ## Läs detta först på nästa konto
 
@@ -119,5 +112,5 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
 - KAN-117 checkpointar lokal kod/migration/tester/docs efter verifiering. Ingen AGENTS-ändring.
   Äldre handoff och nya kandidaten är **inte pushade**;
   full HANDOFF READY enligt AGENTS kräver separat godkänd push/remoteverifiering. Ingen sådan push ingår.
-- Nästa session börjar läsande från aktuell STATE och KAN-117-säkerhetsrapporten;
-  nästa beslut gäller minsta lokala rättning, inte publicering.
+- Nästa session börjar läsande från aktuell STATE och KAN-117-CROSS-YEAR-FIX-rapporten;
+  nästa steg kräver separat ledarbeslut. Ingen automatisk publicering.

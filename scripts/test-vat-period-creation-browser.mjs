@@ -51,10 +51,14 @@ try {
     await review.click(); await call('reset', 'blocked', 'synthetic-B'); await expect(modal).not.toBeVisible()
     await expect(review).toHaveCount(0); assert.equal(await writes(), 0)
     checks.push(`${viewport.width}: stale server state rejected; owner/profile remount discards preview`)
-    for (const mode of ['blocked', 'not_applicable', 'read_error', 'malformed']) {
+    for (const mode of ['blocked', 'cross_year_blocked', 'not_applicable', 'read_error', 'malformed']) {
       await call('reset', mode); await expect(page.getByText('Kontrollerar momsperioderna…')).toHaveCount(0)
       await expect(review).toHaveCount(0)
       await expect(page.getByText('Alla momsperioder för 2026 finns', { exact: true })).toHaveCount(0)
+      if (mode === 'cross_year_blocked') {
+        await expect(page.getByRole('alert')).toContainText('annat år')
+        await expect(modal).not.toBeVisible()
+      }
       assert.equal(await writes(), 0)
     }
     await call('reset', 'missing'); await review.click(); await call('writeMode', 'uncertain'); await confirm.click()
@@ -65,7 +69,7 @@ try {
     await expect(page.getByText(/Du lämnar själv deklarationen/)).toBeVisible()
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     assert.deepEqual(errors, [])
-    checks.push(`${viewport.width}: invalid/unknown/not registered/read failure fail closed; uncertain result re-read; help and no horizontal overflow`)
+    checks.push(`${viewport.width}: invalid/cross-year conflict/unknown/not registered/read failure fail closed without preview; uncertain result re-read; help and no horizontal overflow`)
     await page.close()
   }
   fs.writeFileSync(out + '/result.json', JSON.stringify({ status: 'PASS', checks, transport: 'synthetic only', noHostedWrites: true }, null, 2))

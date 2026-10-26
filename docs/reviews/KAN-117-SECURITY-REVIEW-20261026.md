@@ -1,5 +1,9 @@
 # KAN-117 – ledargranskning av migration och första delperioder
 
+Uppföljning efter separat ledarbeslut: bristen är rättad lokalt. Se
+`KAN-117-CROSS-YEAR-FIX-20261026.md` och aktuell PROJECT_STATE för ny kandidat
+och verifiering. Nedanstående BLOCKED-beslut/reproduktion gäller ac96638.
+
 2026-10-26. **BLOCKED för Staging för produktkandidaten ac96638.**
 En konkret profilkonflikt över årsgränsen kan kringgå den nya periodkontrollen.
 Ingen lokal rättning eller publicering har gjorts. Föreslagen minsta rättning

@@ -1,0 +1,95 @@
+{
+  "issue": "KAN-117",
+  "assessment": "PASS for Staging, technical readiness only",
+  "publicationAuthorized": false,
+  "previousProduct": "ac96638ad492a0bbee5fa5feeebbe07a30b71366",
+  "parent": "4bf1acde4ee3740c68a4c7591abd143cfba57134",
+  "branch": "codex/KAN-117-vat-period-preview",
+  "migrations": [
+    {
+      "file": "20261026210000_kan117_vat_period_preview.sql",
+      "sha256": "157469939451edc5ceed54d2cfadd843d94e4726cc12e90ca452a97c3002f93e"
+    },
+    {
+      "file": "20261026220000_kan117_cross_year_profile_guard.sql",
+      "sha256": "4b3a1d3c04d4c0913398feafb409d7ac9efbee15de01c6bef10bf43a20870d6d"
+    }
+  ],
+  "database": {
+    "status": "PASS",
+    "controlGroups": 28,
+    "checks": [
+      "candidate installed only in identified local synthetic database",
+      "cross-year guard installed locally; public RPCs and helper ownership/grants/config unchanged",
+      "effective API grants: private helper, authenticated only, no anon or service-role API access",
+      "actual anon/service-role/private-helper calls denied; authenticated without identity cannot read a plan",
+      "synthetic first annual partial period matches supplied scenario; plan works READ ONLY without mutation",
+      "year: exact missing dates created once; replay rejected; no journals or transactions",
+      "quarter: exact missing dates created once; replay rejected; no journals or transactions",
+      "month: exact missing dates created once; replay rejected; no journals or transactions",
+      "selected historical year only; no hidden generation in earlier years",
+      "interior month gap only; all existing closed period rows remain byte-equivalent",
+      "existing first partial year retained while selected next calendar year can be created",
+      "known annual/quarterly/monthly first partial period blocks contradictory profile in every selected year",
+      "new consistent first-period evidence in another year invalidates old preview before explicit re-confirmation",
+      "new contradictory first-period evidence outside selected year blocks fresh plan and rejects stale confirmation",
+      "changed first-period boundary is reviewed; another owner cannot change plan fingerprint or block creation",
+      "unresolved first partial periods blocked for all frequencies",
+      "not registered/unknown cannot create; incomplete profile denied by existing DB constraint",
+      "profile changes, owner changes and changed year reject stale preview",
+      "overlap, incompatible interval and imported-history ambiguity cannot become complete or create",
+      "historical year lock changes invalidate preview; future years cannot create",
+      "unmatched/old token and non-fresh transaction snapshot fail closed",
+      "rollback-only Stockholm year boundary: old-day preview rejected; only started periods in new year",
+      "concurrent double confirmation serializes; only one exact period is inserted",
+      "confirmation waits for concurrent profile save then rechecks fresh state",
+      "new confirmation waits for legacy generator and rejects stale dates without duplicate",
+      "concurrent year-lock boundary waits then prevents insertion in newly locked year",
+      "concurrent existing first-period initializer serializes; old next-year preview rejected and fresh confirmation succeeds",
+      "all earlier public/Auth/Storage rows and existing function definitions/ACL unchanged"
+    ],
+    "name": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "oid": "57199",
+    "syntheticOnly": true,
+    "priorDataUnchanged": true,
+    "publicApiAndHelperPrivilegesPreserved": true
+  },
+  "mandatoryRegression": {
+    "before": "expected FAIL: selected 2025 was missing instead of blocked",
+    "after": {
+      "status": "PASS",
+      "allFixtureWritesRolledBack": true,
+      "database": "sololedger_kan62_disposable_20261021"
+    }
+  },
+  "browser": {
+    "status": "PASS",
+    "checks": [
+      "1280: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+      "1280: stale server state rejected; owner/profile remount discards preview",
+      "1280: invalid/cross-year conflict/unknown/not registered/read failure fail closed without preview; uncertain result re-read; help and no horizontal overflow",
+      "390: complete hidden; preview/cancel/Escape without writes; double click writes once; success refreshed",
+      "390: stale server state rejected; owner/profile remount discards preview",
+      "390: invalid/cross-year conflict/unknown/not registered/read failure fail closed without preview; uncertain result re-read; help and no horizontal overflow"
+    ],
+    "transport": "synthetic only",
+    "noHostedWrites": true
+  },
+  "checks": {
+    "typecheck": "PASS",
+    "changedTestFileLint": "PASS, zero warnings",
+    "dbInvariants": "PASS",
+    "productionBuild": "PASS, synthetic loopback config",
+    "safeRegression": "PASS, includes two public smoke tests"
+  },
+  "limits": [
+    "No taxpayer-register integration; factually false profile without contrary fixed evidence can still yield a calendar period.",
+    "Hosted UI-RPC-DB acceptance and physical mobile review await approval."
+  ],
+  "remoteMigration": false,
+  "deploy": false,
+  "push": false,
+  "jiraMutation": false
+}

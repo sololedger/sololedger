@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { randomUUID, createHash } from 'node:crypto'
-import { LocalSession, validateManifest, literal, json } from './kan62-local-db-guard.mjs'
+import { LocalSession, validateManifest, literal } from './kan62-local-db-guard.mjs'
 
 assert.equal(process.env.SOLOLEDGER_KAN117_LOCAL, 'implementation-and-tests')
 const manifest = validateManifest(JSON.parse(fs.readFileSync('coverage/kan110111-local/result.json')).manifest)
@@ -12,6 +12,9 @@ fs.mkdirSync(out, { recursive: true })
 const file = '20261026210000_kan117_vat_period_preview.sql'
 const sql = fs.readFileSync('supabase/migrations/' + file, 'utf8')
 const hash = createHash('sha256').update(sql).digest('hex')
+const fixFile = '20261026220000_kan117_cross_year_profile_guard.sql'
+const fixSql = fs.readFileSync('supabase/migrations/' + fixFile, 'utf8')
+const fixHash = createHash('sha256').update(fixSql).digest('hex')
 const sessions = [], owners = [], checks = []
 const open = async label => {
   const s = await new LocalSession(manifest, env, 'kan117-' + label).open(); sessions.push(s)
@@ -58,6 +61,21 @@ try {
     fs.writeFileSync(out + '/installed.json', JSON.stringify({ file, hash, manifest }, null, 2))
   } else assert.equal(JSON.parse(fs.readFileSync(out + '/installed.json')).hash, hash, 'Changed migration must not be replayed')
   pass('candidate installed only in identified local synthetic database')
+  const plannerSource = async () => (await one(observer, `SELECT jsonb_build_object('source',prosrc) FROM pg_proc WHERE oid='public.kan117_vat_period_plan(integer)'::regprocedure;`)).source.replaceAll('\r\n', '\n').trim()
+  const sourceOf = text => text.replaceAll('\r\n', '\n').split('AS $plan$')[1].split('$plan$')[0].trim()
+  const apiContracts = () => one(observer, `SELECT jsonb_object_agg(proname,jsonb_build_object('definition',pg_get_functiondef(oid),'owner',pg_get_userbyid(proowner),'acl',proacl::text)) FROM pg_proc WHERE oid IN ('public.get_vat_period_creation_plan(integer)'::regprocedure,'public.create_missing_vat_periods(integer,text)'::regprocedure);`)
+  const priorApis = await apiContracts()
+  const helperContract = () => one(observer, `SELECT jsonb_build_object('owner',pg_get_userbyid(proowner),'acl',proacl::text,'definer',prosecdef,'config',proconfig) FROM pg_proc WHERE oid='public.kan117_vat_period_plan(integer)'::regprocedure;`)
+  const priorHelperContract = await helperContract()
+  if (await plannerSource() !== sourceOf(fixSql)) {
+    assert.equal(await plannerSource(), sourceOf(sql), 'Unexpected local planner; do not overwrite')
+    await observer.run('BEGIN;' + fixSql + 'COMMIT;')
+  }
+  assert.equal(await plannerSource(), sourceOf(fixSql))
+  assert.deepEqual(await apiContracts(), priorApis)
+  assert.deepEqual(await helperContract(), priorHelperContract)
+  fs.writeFileSync(out + '/cross-year-installed.json', JSON.stringify({ fixFile, fixHash, manifest }, null, 2))
+  pass('cross-year guard installed locally; public RPCs and helper ownership/grants/config unchanged')
   for (const role of ['anon', 'authenticated', 'service_role']) {
     const r = await one(observer, `SELECT jsonb_build_object('helper',has_function_privilege(${literal(role)},'public.kan117_vat_period_plan(integer)','EXECUTE'),'read',has_function_privilege(${literal(role)},'public.get_vat_period_creation_plan(integer)','EXECUTE'),'write',has_function_privilege(${literal(role)},'public.create_missing_vat_periods(integer,text)','EXECUTE'));`)
     assert.equal(r.helper, false); assert.equal(r.read, role === 'authenticated'); assert.equal(r.write, role === 'authenticated')
@@ -109,6 +127,48 @@ try {
   await create(priorPartial, laterPlan)
   assert.deepEqual((await periodState(priorPartial)).periods.filter(p => p.period_start.startsWith('2025')), priorBefore.periods)
   pass('existing first partial year retained while selected next calendar year can be created')
+  for (const type of ['year', 'quarter', 'month']) {
+    const f = await fixture({ type, start: '2024-06-02' })
+    const end = type === 'year' ? '2024-12-31' : '2024-06-30'
+    await insert(f, '2024-06-02', end, type)
+    const firstPeriod = (await periodState(f)).periods[0]
+    const correct = await plan(f)
+    assert.equal(correct.state, 'missing')
+    await observer.run(`UPDATE profiles SET vat_management_from='2023-01-01' WHERE id=${literal(f.uid)};`)
+    for (const year of [2023, 2024, 2025]) {
+      const conflict = await plan(f, year)
+      assert.equal(conflict.state, 'blocked')
+      await reject(f.s, `public.create_missing_vat_periods(${year},${literal(conflict.basis)})`, /Inga perioder/)
+    }
+    await observer.run(`UPDATE profiles SET vat_management_from='2024-06-02' WHERE id=${literal(f.uid)};`)
+    assert.equal((await plan(f)).state, 'missing')
+    await create(f, await plan(f))
+    assert.deepEqual((await periodState(f)).periods.find(p => p.period_start === '2024-06-02'), firstPeriod)
+  }
+  pass('known annual/quarterly/monthly first partial period blocks contradictory profile in every selected year')
+  const newEvidence = await fixture({ start: '2024-06-02' }), beforeEvidence = await plan(newEvidence)
+  await insert(newEvidence, '2024-06-02', '2024-12-31')
+  const afterEvidence = await plan(newEvidence)
+  assert.equal(afterEvidence.state, 'missing'); assert.notEqual(afterEvidence.basis, beforeEvidence.basis)
+  await reject(newEvidence.s, `public.create_missing_vat_periods(2025,${literal(beforeEvidence.basis)})`, /ändrats/)
+  await create(newEvidence, afterEvidence)
+  pass('new consistent first-period evidence in another year invalidates old preview before explicit re-confirmation')
+  const changedEvidence = await fixture(), beforeChangedEvidence = await plan(changedEvidence)
+  await insert(changedEvidence, '2026-06-02', '2026-12-31')
+  assert.equal((await plan(changedEvidence)).state, 'blocked')
+  await reject(changedEvidence.s, `public.create_missing_vat_periods(2025,${literal(beforeChangedEvidence.basis)})`, /ändrats/)
+  assert.equal((await periodState(changedEvidence)).periods.length, 1)
+  pass('new contradictory first-period evidence outside selected year blocks fresh plan and rejects stale confirmation')
+  const isolated = await fixture(), isolationPlan = await plan(isolated)
+  const boundaryBefore = await plan(newEvidence, 2026)
+  assert.equal(boundaryBefore.state, 'missing')
+  await observer.run(`UPDATE vat_periods SET period_end='2024-12-30' WHERE user_id=${literal(newEvidence.uid)} AND period_start='2024-06-02';`)
+  const boundaryAfter = await plan(newEvidence, 2026)
+  assert.equal(boundaryAfter.state, 'blocked'); assert.notEqual(boundaryAfter.basis, boundaryBefore.basis)
+  await reject(newEvidence.s, `public.create_missing_vat_periods(2026,${literal(boundaryBefore.basis)})`, /ändrats/)
+  assert.equal((await plan(isolated)).basis, isolationPlan.basis)
+  await create(isolated, isolationPlan)
+  pass('changed first-period boundary is reviewed; another owner cannot change plan fingerprint or block creation')
   for (const type of ['year', 'quarter', 'month']) {
     const f = await fixture({ type, start: '2025-06-02' }), p = await plan(f)
     assert.equal(p.state, 'blocked'); assert.match(p.message, /delperiod/)
@@ -207,8 +267,18 @@ try {
   assert.equal((await lockWait).code, '40001')
   assert.equal((await periodState(lockRace)).periods.length, 0)
   pass('concurrent year-lock boundary waits then prevents insertion in newly locked year')
+  const firstPeriodRace = await fixture({ start: '2024-06-02' }), firstPeriodPlan = await plan(firstPeriodRace)
+  const initializer = await open('first-period-initializer'); await initializer.asUser(firstPeriodRace.uid)
+  await initializer.run('RESET ROLE; SET ROLE service_role; BEGIN;')
+  await good(initializer, `public.initialize_first_vat_year_period(${literal(firstPeriodRace.uid)},'2024-06-02','2024-12-31',true)`)
+  const firstPeriodWait = attempt(firstPeriodRace.s, `public.create_missing_vat_periods(2025,${literal(firstPeriodPlan.basis)})`)
+  await blockedBy(firstPeriodRace.s, initializer); await initializer.run('COMMIT;')
+  assert.equal((await firstPeriodWait).code, '40001')
+  assert.equal((await periodState(firstPeriodRace)).periods.length, 1)
+  await create(firstPeriodRace, await plan(firstPeriodRace))
+  pass('concurrent existing first-period initializer serializes; old next-year preview rejected and fresh confirmation succeeds')
   assert.deepEqual(await snapshot(), before)
   assert.deepEqual(await originals(), beforeFunctions)
   pass('all earlier public/Auth/Storage rows and existing function definitions/ACL unchanged')
-  fs.writeFileSync(out + '/result.json', JSON.stringify({ status: 'PASS', file, hash, manifest, checks, syntheticOwners: owners, noHostedWrites: true }, null, 2))
+  fs.writeFileSync(out + '/result.json', JSON.stringify({ status: 'PASS', file, hash, fixFile, fixHash, manifest, checks, syntheticOwners: owners, noHostedWrites: true }, null, 2))
 } finally { for (const s of sessions) await s.close() }

@@ -6,6 +6,17 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+### KAN-117 – ersatt lokal kandidat och identifierad korsårslucka (2026-10-26)
+
+- ac96638 hade gröna22 lokala kontrollgrupper men missade profilkonflikt mellan
+  en fastställd delperiod2026 och skapande av helår2025. Riktad granskning4bf1acd
+  blockerade Staging; alla reproduktionsdata var syntetiska och rullades tillbaka.
+- Pontus godkände därefter minsta lokala rättning. Ursprunglig migration bevarad;
+  följdmigration20261026220000 utökar helperns kontroll/avtryck över år och regressionen
+  visar rött före/grönt efter. Det äldre kandidatbeslutet är historik, inte releasebevis.
+- KAN-117 är fortsatt aktivt och opublicerat. Aktuell kandidat, kontroller och
+  publiceringsgränser finns i STATE och KAN-117-CROSS-YEAR-FIX-20261026.md.
+
 ### KAN-75 – superseded readiness checkpoint (2026-10-19)
 
 - The KAN-75 readiness-era PROJECT_STATE.md inherited by the KAN-78 worktree is superseded. A fresh GitHub main read for KAN-78 confirms released commit e7f1442921338bc3983a96ae75a4aaeca4bc8bcd.
