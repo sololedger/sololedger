@@ -1,11 +1,21 @@
 # SoloLedger Project State
 
-2026-10-26 – **KAN-117 LOCAL PASS. Ingen fjärrpublicering beställd.**
+2026-10-26 – **KAN-117 BLOCKED för Staging efter riktad säkerhetsgranskning.**
 Produktmål enligt AGENTS: begriplig/tillförlitlig bokföring för Jessikas enskilda firma år efter år.
 KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdrag.
 
 ## Aktuellt KAN-117 – lokal implementation/verifiering
 
+- Granskad produktkandidat ac96638 är oförändrad. Endast granskningsdocs ändras nu.
+  Reproducerat: befintlig intern delperiod2026 + profilstart ändrad till2025-01-01
+  ger blocked för2026 men tillåter ny helårsperiod2025. Konflikt i annat år förbises.
+- Rollback-isolerat syntetiskt prov verifierade fyndet och10 datum-/frekvensfall;
+  alla tidigare public/Auth/Storage-avtryck lika efter rollback. Inga hosted-anrop.
+- Rapport docs/reviews/KAN-117-SECURITY-REVIEW-20261026.md; tidigare LOCAL PASS
+  avsåg testmatrisen och är inte Staging-godkännande. Ingen produkt-/SQL-rättning gjord.
+- Minsta föreslagna rättning: serverkontroll av känd första delperiod mot aktuell
+  profil även utanför valt år, relevant underlag i planavtrycket och riktad regression.
+  Nästa steg: Pontus godkänner/avgränsar lokal rättning; därefter ny kandidat och bedömning.
 - Gren codex/KAN-117-vat-period-preview, parent 02af89d, produktbas e992e4f.
   Lokal checkpoint enligt git log. L-origin är lokal kopia; ingen push gjord.
 - Jira KAN-117 läst To Do/otilldelad, inga mutationer. KAN-112/113 lämnas Done.
@@ -26,8 +36,8 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
   checkpointas som underlag. Ingen period saknades i det då granskade scenariot.
 - Kod/SQL/tester/docs för detta uppdrag omfattas av lokal checkpoint. Rootens
   orelaterade diff, övriga worktrees, fixtures samt auth/envfiler bevarade.
-- Nästa steg efter lokal PASS: Pontus beslutar separat om exakt Staging-kandidat,
-  denna migration via officiell CLI och syntetisk hosted UI→RPC→DB-acceptans.
+- ac96638 ska inte publiceras till Staging enligt denna granskningsbedömning.
+  Nytt lokalt PASS samt separat Staging-/migrationsbeslut krävs efter eventuell rättning.
   Ingen Staging-/Production-skrivning, fjärrmigration, push, deploy eller Jira-mutation.
 
 ## Läs detta först på nästa konto
@@ -109,4 +119,5 @@ KAN-112/KAN-113 Production PASS och Done. KAN-117 separat lokalt godkänt uppdra
 - KAN-117 checkpointar lokal kod/migration/tester/docs efter verifiering. Ingen AGENTS-ändring.
   Äldre handoff och nya kandidaten är **inte pushade**;
   full HANDOFF READY enligt AGENTS kräver separat godkänd push/remoteverifiering. Ingen sådan push ingår.
-- Nästa session börjar läsande från aktuell STATE och KAN-117-rapporten; nästa beslut gäller Staging.
+- Nästa session börjar läsande från aktuell STATE och KAN-117-säkerhetsrapporten;
+  nästa beslut gäller minsta lokala rättning, inte publicering.

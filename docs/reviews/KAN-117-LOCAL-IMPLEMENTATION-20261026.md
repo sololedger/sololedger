@@ -1,5 +1,11 @@
 # KAN-117 – säker förhandsgranskning av saknade momsperioder
 
+**Senare ledargranskning: BLOCKED för Staging för ac96638.**
+En känd profilkonflikt i ett annat år kan missas vid nytt skapande. Se
+`KAN-117-SECURITY-REVIEW-20261026.md` och aktuell PROJECT_STATE.
+Nedan LOCAL PASS redovisar tidigare utförda tester, inte godkännande för Staging.
+Ingen rättning eller publicering har gjorts efter fyndet.
+
 2026-10-26. **LOCAL PASS.** Lokal implementation enligt Pontus beslut. Ingen fjärrmigration,
 Staging-/Production-publicering, push eller Jira-mutation ingår.
 

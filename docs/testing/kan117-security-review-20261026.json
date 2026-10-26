@@ -1,0 +1,261 @@
+{
+  "candidate": "ac96638ad492a0bbee5fa5feeebbe07a30b71366",
+  "migrationSha256": "157469939451edc5ceed54d2cfadd843d94e4726cc12e90ca452a97c3002f93e",
+  "functionDefinitionsMatchMigration": true,
+  "grantsAndOwnerVerified": true,
+  "hashes": {
+    "kan117_vat_period_plan": "328397a384d96c804dafa6e0426608ff2dd8f86031224a6197dde6d25eb930dd",
+    "get_vat_period_creation_plan": "930f803160fbb43e0b6ae5b289d4277ff9f9a7f76476835871920a06d433749a",
+    "create_missing_vat_periods": "75ae4b43100113a8d7d541e98831ddc74047ac8f36df6fbb2aa51505c3c8efed"
+  },
+  "identity": {
+    "database": "sololedger_kan62_disposable_20261021",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "oid": "57199"
+  },
+  "results": [
+    {
+      "type": "year",
+      "start": "2025-06-02",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-12-31",
+          "type": "year",
+          "start": "2025-06-02"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "quarter",
+      "start": "2025-06-02",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-06-30",
+          "type": "quarter",
+          "start": "2025-06-02"
+        },
+        {
+          "end": "2025-09-30",
+          "type": "quarter",
+          "start": "2025-07-01"
+        },
+        {
+          "end": "2025-12-31",
+          "type": "quarter",
+          "start": "2025-10-01"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "month",
+      "start": "2025-06-02",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-06-30",
+          "type": "month",
+          "start": "2025-06-02"
+        },
+        {
+          "end": "2025-07-31",
+          "type": "month",
+          "start": "2025-07-01"
+        },
+        {
+          "end": "2025-08-31",
+          "type": "month",
+          "start": "2025-08-01"
+        },
+        {
+          "end": "2025-09-30",
+          "type": "month",
+          "start": "2025-09-01"
+        },
+        {
+          "end": "2025-10-31",
+          "type": "month",
+          "start": "2025-10-01"
+        },
+        {
+          "end": "2025-11-30",
+          "type": "month",
+          "start": "2025-11-01"
+        },
+        {
+          "end": "2025-12-31",
+          "type": "month",
+          "start": "2025-12-01"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "year",
+      "start": "2025-01-01",
+      "year": 2025,
+      "state": "missing",
+      "missing": [
+        {
+          "end": "2025-12-31",
+          "type": "year",
+          "start": "2025-01-01"
+        }
+      ],
+      "createAccepted": true
+    },
+    {
+      "type": "quarter",
+      "start": "2025-04-01",
+      "year": 2025,
+      "state": "missing",
+      "missing": [
+        {
+          "end": "2025-06-30",
+          "type": "quarter",
+          "start": "2025-04-01"
+        },
+        {
+          "end": "2025-09-30",
+          "type": "quarter",
+          "start": "2025-07-01"
+        },
+        {
+          "end": "2025-12-31",
+          "type": "quarter",
+          "start": "2025-10-01"
+        }
+      ],
+      "createAccepted": true
+    },
+    {
+      "type": "month",
+      "start": "2025-06-01",
+      "year": 2025,
+      "state": "missing",
+      "missing": [
+        {
+          "end": "2025-06-30",
+          "type": "month",
+          "start": "2025-06-01"
+        },
+        {
+          "end": "2025-07-31",
+          "type": "month",
+          "start": "2025-07-01"
+        },
+        {
+          "end": "2025-08-31",
+          "type": "month",
+          "start": "2025-08-01"
+        },
+        {
+          "end": "2025-09-30",
+          "type": "month",
+          "start": "2025-09-01"
+        },
+        {
+          "end": "2025-10-31",
+          "type": "month",
+          "start": "2025-10-01"
+        },
+        {
+          "end": "2025-11-30",
+          "type": "month",
+          "start": "2025-11-01"
+        },
+        {
+          "end": "2025-12-31",
+          "type": "month",
+          "start": "2025-12-01"
+        }
+      ],
+      "createAccepted": true
+    },
+    {
+      "type": "year",
+      "start": "2025-10-05",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-12-31",
+          "type": "year",
+          "start": "2025-10-05"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "quarter",
+      "start": "2025-10-05",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-12-31",
+          "type": "quarter",
+          "start": "2025-10-05"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "month",
+      "start": "2025-10-05",
+      "year": 2025,
+      "state": "blocked",
+      "missing": [
+        {
+          "end": "2025-10-31",
+          "type": "month",
+          "start": "2025-10-05"
+        },
+        {
+          "end": "2025-11-30",
+          "type": "month",
+          "start": "2025-11-01"
+        },
+        {
+          "end": "2025-12-31",
+          "type": "month",
+          "start": "2025-12-01"
+        }
+      ],
+      "createAccepted": false
+    },
+    {
+      "type": "year",
+      "start": "2024-06-02",
+      "year": 2025,
+      "state": "missing",
+      "missing": [
+        {
+          "end": "2025-12-31",
+          "type": "year",
+          "start": "2025-01-01"
+        }
+      ],
+      "createAccepted": true
+    },
+    {
+      "name": "known_cross_year_profile_contradiction_not_checked_for_selected_year",
+      "knownPartialYear": 2026,
+      "changedProfileFrom": "2025-01-01",
+      "sameYearState": "blocked",
+      "selectedEarlierYearState": "missing",
+      "creationAccepted": true,
+      "existingPartialRowUnchanged": true
+    }
+  ],
+  "allTemporaryDataRolledBack": true,
+  "allEarlierPublicAuthStorageDigestsUnchanged": true,
+  "noHostedConnections": true
+}
