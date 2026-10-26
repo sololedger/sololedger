@@ -16,7 +16,7 @@ const mock = {
  yearEndChecklistClient: `const keys=['documents','bank','customers','suppliers','inventory','vat','statements','tax','submission','payments','next_year'];
  export const checklistPort=(owner,year)=>{
  const identity=owner+':'+year;window.checklistDB??={};const get=()=>window.checklistDB[identity]??={owner,year,basis_version:1,basis:Object.fromEntries(keys.map(k=>[k,'a'.repeat(32)])),checks:[],system:{locked:false,periods:[],declaration_versions:0}};
- return {load:async()=>{window.checklistLoads=(window.checklistLoads??0)+1;if(window.fixture.contextReady===false)throw Error('Premature profile read');if(window.failLoad)throw Error('load failure');return structuredClone(get())},save:async c=>{window.checklistWrites??=[];window.checklistWrites.push(c);if(window.failSave)throw Error('Sparandet kunde inte bekräftas.');const d=get(),r=d.checks.find(r=>r.check_key===c.key);if((r?.revision??0)!==c.revision)throw Error('Checklistan har ändrats. Läs om.');d.checks=d.checks.filter(r=>r.check_key!==c.key).concat({check_key:c.key,confirmed:c.confirmed,confirmed_at:c.confirmed?'2026-10-26T09:00:00Z':null,revision:c.revision+1,basis_fingerprint:c.confirmed?d.basis[c.key]:null,confirmation_version:1,basis_version:1});return structuredClone(d)}}}`,
+ return {load:async()=>{window.checklistLoads=(window.checklistLoads??0)+1;if(window.fixture.contextReady===false)throw Error('Premature profile read');if(window.failLoad)throw Error('load failure');return structuredClone(get())},save:async c=>{window.checklistWrites??=[];window.checklistWrites.push(c);if(window.failSave)throw Error('Sparandet kunde inte bekräftas.');if(window.pauseSave)await new Promise(r=>window.releaseSave=r);const d=get(),r=d.checks.find(r=>r.check_key===c.key);if((r?.revision??0)!==c.revision)throw Error('Checklistan har ändrats. Läs om.');d.checks=d.checks.filter(r=>r.check_key!==c.key).concat({check_key:c.key,confirmed:c.confirmed,confirmed_at:c.confirmed?'2026-10-26T09:00:00Z':null,revision:c.revision+1,basis_fingerprint:c.confirmed?d.basis[c.key]:null,confirmation_version:1,basis_version:1});return structuredClone(d)}}}`,
 
   useAuth: authMock,
   useAccountingData: `export const useAccountingData=(u,year)=>({accountingDataReady:window.fixture.ready,accountingDataError:window.fixture.error,isYearLocked:window.fixture.locked,transactions:[],balances:{},balanceSheetBalances:{},journalMap:{},neData:{},momsBreakdown:{},transactionHistoryComplete:true,kontoplan:[],kontoplanLoaded:true,kontoplanLoading:false,retryAccountingData:()=>{},refreshData:()=>{throw Error('Guide must not refresh')},refreshDataWithStatus:()=>{throw Error('Guide must not refresh')}});`,
@@ -41,10 +41,10 @@ const bundle = await build({ stdin: { contents: entry, loader: 'tsx', resolveDir
 } }] })
 const css = (await postcss([tailwind({ base: process.cwd() })]).process(await readFile('src/app/globals.css', 'utf8'), { from: 'src/app/globals.css' })).css
 
-const out='coverage/kan112-browser';await mkdir(out,{recursive:true})
+const out='coverage/kan112-modern';await mkdir(out,{recursive:true});await mkdir('docs/testing/kan112-modern-layout',{recursive:true})
 const browser=await chromium.launch({headless:true});const results=[]
 try {
- for(const width of [1440,390]){
+ for(const width of [1440,1024,768,390,320]){
   const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage(),errors=[],external=[]
   page.on('pageerror',e=>errors.push(e.message))
   await context.route('**/*',route=>{
@@ -57,70 +57,71 @@ try {
    if(!await b.count()){const mobile=page.getByRole('button',{name:'Öppna meny',exact:true});if(await mobile.isVisible())await mobile.click();else await page.getByRole('button',{name:/^Mer/}).click();b=page.getByRole('button',{name:label,exact:true}).filter({visible:true});if(!await b.count())b=page.getByRole('menuitem',{name:label,exact:true})}
    await b.click()
   }
-  await navigate('Årsavslut');const guide=page.getByRole('region',{name:'Årsavslut för 2026',exact:true})
-  await expect(guide).toContainText('0 av 11 bekräftade av dig')
-  await expect(guide.locator('details[data-control-index="100"],details[data-control-index="101"],details[data-control-index="102"],details[data-control-index="103"]')).toHaveCount(4)
-  await expect(guide.locator('details[data-check-key]')).toHaveCount(11)
-  await expect(guide).toContainText('Moms har egna tidsfrister')
-  await page.screenshot({path:out+'/overview-'+width+'.png',fullPage:true})
-  const bank=guide.locator('[data-check-key="bank"]');await bank.locator('summary').click()
-  const checkbox=bank.getByRole('checkbox');await checkbox.click();await expect(checkbox).toBeChecked();await expect(guide).toContainText('1 av 11 bekräftade av dig')
-  await expect(bank.locator('summary')).toContainText('✓ Bekräftat av dig')
-  await bank.screenshot({path:out+'/confirmed-'+width+'.png'})
+  await navigate('Årsavslut');const guide=page.getByRole('region',{name:'Årsavslut för 2026',exact:true}),cards=guide.locator('[data-group-index]'),notice=guide.getByTestId('checklist-save-status')
+  const year=page.getByRole('group',{name:'Ekonomikontroller'}).getByRole('combobox')
+  async function group(index){await cards.nth(index).click()}
+  async function open(key,index=0){await group(index);await guide.locator('[data-check-nav="'+key+'"]').click();return guide.locator('article[data-check-key="'+key+'"]')}
+  const bank=guide.locator('article[data-check-key="bank"]'),checkbox=bank.getByRole('checkbox')
+  async function noOverflow(){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'horizontal overflow at '+width)}
+  await expect(guide).toContainText('0 av 11 bekräftade av dig');await expect(cards).toHaveCount(4);await expect(guide.locator('article')).toHaveCount(0)
+  for(const card of await cards.all())await expect(card).not.toContainText('✓')
+  const dimensions=await guide.evaluate(el=>{const main=el.closest('main'),r=main.getBoundingClientRect(),s=getComputedStyle(main),own=el.getBoundingClientRect();return{actual:own.width,expected:r.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)}})
+  assert(Math.abs(dimensions.actual-dimensions.expected)<2,'guide fills invoice/layout content width')
+  await noOverflow();await page.screenshot({path:out+'/overview-'+width+'.png',fullPage:true})
+  await open('documents');await open('bank');assert.equal(await page.evaluate(()=>window.checklistWrites?.length??0),0,'navigation does not write confirmations');await expect(guide.locator('article')).toHaveCount(1)
+  for(const [index,keys]of [['documents','bank','customers','suppliers','inventory'],['vat','statements'],['tax','submission'],['payments','next_year']].entries())for(const key of keys){
+   const item=await open(key,index);await expect(item.getByText('Varför behövs kontrollen?',{exact:true})).toBeVisible();await expect(item.getByText('Om något inte stämmer',{exact:true})).toBeVisible();assert(await item.getByRole('button',{name:/^Öppna /}).count()>0);await expect(guide.locator('article')).toHaveCount(1)
+  }
+  assert.equal(await page.evaluate(()=>window.checklistWrites?.length??0),0);await open('bank')
+  await checkbox.click();await expect(checkbox).toBeChecked();await expect(guide).toContainText('1 av 11 bekräftade av dig')
+  await expect(guide.locator('[data-check-nav="bank"]')).toContainText('✓ Bekräftat av dig');await expect(cards.nth(0)).not.toContainText('✓')
   for(let i=0;i<5;i++){
    const reads=await page.evaluate(()=>window.checklistLoads)
    await page.evaluate(i=>window.harness.set({revision:10+i,contextReady:false}),i)
    await expect(checkbox).toBeChecked();await expect(checkbox).toBeDisabled()
-   await page.evaluate(()=>{window.dispatchEvent(new Event('focus'));window.dispatchEvent(new Event('visibilitychange'))})
-   assert.equal(await page.evaluate(()=>window.checklistLoads),reads)
-   await expect(guide.getByRole('alert')).toHaveCount(0)
-   await page.evaluate(()=>window.harness.set({contextReady:true}))
-   await expect(checkbox).toBeEnabled();await expect(checkbox).toBeChecked()
-   assert.equal(await page.evaluate(()=>window.checklistLoads),reads+1)
+   await page.evaluate(()=>{window.dispatchEvent(new Event('focus'));window.dispatchEvent(new Event('visibilitychange'))});assert.equal(await page.evaluate(()=>window.checklistLoads),reads)
+   await page.evaluate(()=>window.harness.set({contextReady:true}));await expect(checkbox).toBeEnabled();await expect(checkbox).toBeChecked();assert.equal(await page.evaluate(()=>window.checklistLoads),reads+1)
   }
-  await bank.getByRole('button',{name:'Öppna Bokföring',exact:true}).click()
-  await page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true}).click()
-  await expect(checkbox).toBeVisible();await expect(checkbox).toBeChecked()
-  await expect(bank.locator('summary')).toBeFocused()
   await page.evaluate(()=>{window.checklistDB['owner-a:2026'].basis.bank='b'.repeat(32)})
-  await guide.getByRole('button',{name:'Läs om checklistan'}).click();await expect(bank).toContainText('Kontrollera igen');await expect(checkbox).toBeChecked()
-  await expect(bank.locator('summary')).toContainText('⚠ Kontrollera igen – underlaget har ändrats')
-  await bank.screenshot({path:out+'/review-'+width+'.png'})
+  await notice.getByRole('button',{name:'Läs om checklistan'}).click();await expect(bank).toContainText('Kontrollera igen');await expect(checkbox).toBeChecked();await expect(cards.nth(0)).toContainText('1 behöver ses över')
+  await page.screenshot({path:out+'/selected-'+width+'.png',fullPage:true})
+  if([1440,390].includes(width)){await page.screenshot({path:'docs/testing/kan112-modern-layout/after-'+width+'.png',fullPage:true});await bank.screenshot({path:'docs/testing/kan112-modern-layout/instruction-'+width+'.png'})}
   await bank.getByRole('button',{name:'Jag har kontrollerat igen'}).click();await expect(bank.getByRole('button',{name:'Jag har kontrollerat igen'})).toHaveCount(0)
-  await page.evaluate(()=>window.failSave=true);await checkbox.click();await expect(guide.getByRole('alert')).toContainText('Sparandet kunde inte bekräftas');await expect(checkbox).toBeChecked();await expect(checkbox).toBeDisabled()
-  await page.evaluate(()=>window.failSave=false);await guide.getByRole('button',{name:'Försök spara igen'}).click();await expect(checkbox).not.toBeChecked();await expect(checkbox).toBeEnabled()
-  await checkbox.click();await expect(checkbox).toBeChecked()
-  await page.evaluate(()=>window.harness.set({owner:'owner-b',name:'Syntetiska B',revision:2}));await navigate('Årsavslut')
-  await expect(guide).toContainText('0 av 11 bekräftade av dig');await expect(guide).not.toContainText('Syntetiska A')
-  await page.evaluate(()=>window.harness.set({owner:'owner-a',name:'Syntetiska A',revision:3}));await navigate('Årsavslut');await expect(guide).toContainText('1 av 11 bekräftade av dig')
-  await bank.locator('summary').click();await expect(checkbox).toBeChecked()
-  const year=page.getByRole('group',{name:'Ekonomikontroller'}).getByRole('combobox')
-  await year.selectOption('2025');const prior=page.getByRole('region',{name:'Årsavslut för 2025',exact:true});await expect(prior).toContainText('0 av 11 bekräftade av dig')
-  await year.selectOption('2026');await expect(guide).toContainText('1 av 11 bekräftade av dig')
-  await page.evaluate(()=>window.harness.set({locked:true}));await expect(guide).toContainText('låst enligt SoloLedger');await bank.locator('summary').click();await checkbox.click();await expect(checkbox).not.toBeChecked()
-  await page.evaluate(()=>window.failLoad=true);await guide.getByRole('button',{name:'Läs om checklistan'}).click();await expect(guide.getByRole('alert')).toContainText('Dina sparade svar har inte raderats');await expect(checkbox).toHaveCount(0);await expect(guide).not.toContainText('0 av 11 bekräftade av dig')
-  await page.evaluate(()=>window.failLoad=false);await guide.getByRole('button',{name:'Läs om checklistan'}).click();await expect(checkbox).toBeEnabled()
-  // All eleven controls must have an explanation and a real navigation action.
-  for(const group of await guide.locator('details[data-control-index="100"],details[data-control-index="101"],details[data-control-index="102"],details[data-control-index="103"]').all())if(await group.getAttribute('open')===null)await group.locator(':scope > summary').click()
-  for(const detail of await guide.locator('[data-check-key]').all()){
-   if(await detail.getAttribute('open')===null)await detail.locator(':scope > summary').click()
-   await expect(detail.getByText('Varför behövs kontrollen?',{exact:true})).toBeVisible();await expect(detail.getByText('Om något inte stämmer',{exact:true})).toBeVisible();assert(await detail.getByRole('button',{name:/^Öppna /}).count()>0)
+  // A failed bank save remains visible when navigating elsewhere. Retry still targets bank.
+  await page.evaluate(()=>window.failSave=true);await checkbox.click();await expect(notice.getByRole('alert')).toContainText('Sparandet kunde inte bekräftas');await expect(checkbox).toBeChecked()
+  const failedCount=await page.evaluate(()=>window.checklistWrites.length);await open('tax',2);await expect(notice.getByRole('alert')).toBeInViewport();assert.equal(await page.evaluate(()=>window.checklistWrites.length),failedCount)
+  await page.evaluate(()=>window.failSave=false);await notice.getByRole('button',{name:'Försök spara igen'}).click();await expect(notice.getByRole('alert')).toHaveCount(0)
+  await open('bank');await expect(checkbox).not.toBeChecked();await checkbox.click();await expect(checkbox).toBeChecked()
+  // Pending saves also survive local group/point changes without a second write.
+  await page.evaluate(()=>window.pauseSave=true);await checkbox.click();await expect(notice).toContainText('Sparar…');const pendingCount=await page.evaluate(()=>window.checklistWrites.length)
+  await open('payments',3);await expect(notice).toBeInViewport();assert.equal(await page.evaluate(()=>window.checklistWrites.length),pendingCount)
+  await page.evaluate(()=>{window.pauseSave=false;window.releaseSave()});await expect(notice).toContainText('Sparat');await expect(guide.locator('article').getByRole('checkbox')).not.toBeChecked()
+  await open('bank');await expect(checkbox).not.toBeChecked();await checkbox.click();await expect(checkbox).toBeChecked()
+  // Keyboard operation uses native buttons, visible selection and explicit checkbox action.
+  await cards.nth(0).focus();await page.keyboard.press('Tab');await expect(cards.nth(1)).toBeFocused();await page.keyboard.press('Enter');await expect(cards.nth(1)).toHaveAttribute('aria-pressed','true')
+  await expect(guide.getByRole('heading',{name:'2. Färdigställ bokslutet',exact:true})).toBeFocused()
+  await guide.locator('[data-check-nav="vat"]').focus();await page.keyboard.press('Enter');await expect(guide.getByRole('heading',{name:'Granska årets momsunderlag',exact:true})).toBeFocused()
+  const countBeforeNavigation=await page.evaluate(()=>window.checklistWrites.length)
+  for(const [key,label,index] of [['documents','Profil',0],['customers','Fakturor',0],['suppliers','Bokslutsskulder',0],['inventory','Inventarier',0],['vat','Moms',1],['statements','NE-Bilaga',1]]){
+   const item=await open(key,index);await item.getByRole('button',{name:'Öppna '+label,exact:true}).click();if(await year.isVisible())await year.selectOption('2025');await page.evaluate(()=>window.harness.set({revision:50}))
+   await page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true}).click();await expect(year).toHaveValue('2026');await expect(item.getByRole('heading',{level:3})).toBeFocused();await expect(guide.locator('article')).toHaveCount(1)
+   const box=await item.getByRole('heading',{level:3}).boundingBox();assert(box.y>=0&&box.y<150,'return scrolls to instruction heading '+JSON.stringify({width,key,box}))
   }
-  for(const [key,label] of [['documents','Profil'],['customers','Fakturor'],['suppliers','Bokslutsskulder'],['inventory','Inventarier'],['vat','Moms'],['statements','NE-Bilaga']]){
-   const detail=guide.locator('[data-check-key="'+key+'"]');await detail.getByRole('button',{name:'Öppna '+label,exact:true}).click()
-   // Destination may change the year and renew the same-owner profile.
-   if(await year.isVisible())await year.selectOption('2025');await page.evaluate(()=>window.harness.set({revision:50}))
-   await page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true}).click();await expect(detail).toBeVisible();await expect(year).toHaveValue('2026');await expect(detail.locator('summary')).toBeFocused()
-   const box=await detail.locator('summary').boundingBox();assert(box.y>=0&&box.y<150,'return scrolls to the originating control')
-  }
-  const vat=guide.locator('[data-check-key="vat"]');await expect(vat).not.toContainText('Adobe');await expect(vat).not.toContainText('Fiktivt exempel')
-  await expect(guide.getByLabel('Systemstatus').locator('summary')).toContainText('Bokföringsår 2026: låst')
-  assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage)),[])
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
-  await page.screenshot({path:out+'/expanded-'+width+'.png',fullPage:true})
-  assert.deepEqual(await page.evaluate(()=>window.writes),[]);assert.deepEqual(external,[]);assert.deepEqual(errors,[])
-  results.push({width,status:'PASS',scope:'actual Home/Layout/guide/store, synthetic checklist RPC, all external requests denied; mark/unmark/revisit, owner/year, changed basis, retry, locked year, load failure, responsive layout and navigation'})
-  await context.close()
+  assert.equal(await page.evaluate(()=>window.checklistWrites.length),countBeforeNavigation)
+  await group(1);await guide.getByRole('button',{name:'Förbered årslåset – separat systemåtgärd'}).click();await expect(guide.locator('article').getByRole('checkbox')).toHaveCount(0)
+  await open('bank');await expect(checkbox).toBeChecked();await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).not.toBeChecked();await page.keyboard.press('Space');await expect(checkbox).toBeChecked()
+  await year.selectOption('2025');await expect(page.getByRole('region',{name:'Årsavslut för 2025'})).toContainText('0 av 11 bekräftade av dig');await year.selectOption('2026');await open('bank');await expect(checkbox).toBeChecked()
+  await page.evaluate(()=>window.harness.set({owner:'owner-b',name:'Syntetiska B',revision:60}));await navigate('Årsavslut');await expect(guide).toContainText('0 av 11 bekräftade av dig');await expect(guide).not.toContainText('Syntetiska A')
+  await page.evaluate(()=>window.harness.set({owner:'owner-a',name:'Syntetiska A',revision:61}));await navigate('Årsavslut');await open('bank');await expect(checkbox).toBeChecked()
+  await page.evaluate(()=>window.harness.set({locked:true}));await expect(guide.getByLabel('Systemstatus').locator('summary')).toContainText('Bokföringsår 2026: låst')
+  await page.evaluate(()=>window.failLoad=true);await notice.getByRole('button',{name:'Läs om checklistan'}).click();await expect(notice.getByRole('alert')).toContainText('Dina sparade svar har inte raderats');await expect(checkbox).toHaveCount(0)
+  await page.evaluate(()=>window.failLoad=false);await notice.getByRole('button',{name:'Läs om checklistan'}).click();await expect(checkbox).toBeChecked()
+  await page.evaluate(()=>window.harness.set({name:'LångtFöretagsnamnUtanMellanslag'.repeat(8)}));await noOverflow()
+  await page.evaluate(()=>document.documentElement.style.fontSize='200%');await noOverflow();await expect(checkbox).toBeVisible();await expect(guide.locator('[data-check-nav="bank"]')).toBeVisible()
+  await page.screenshot({path:out+'/text-200-'+width+'.png',fullPage:true});await page.evaluate(()=>document.documentElement.style.fontSize='');await noOverflow()
+  assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage)),[]);assert.deepEqual(await page.evaluate(()=>window.writes),[]);assert.deepEqual(external,[]);assert.deepEqual(errors,[])
+  results.push({width,status:'PASS',singleInstruction:true,invoiceWidth:true,navigationNeverWrites:true,saveErrorAndPendingVisibleAcrossNavigation:true,keyboard:true,text200Percent:true,longCompanyName:true,ownerYearIsolation:true,restoredYearAndFocus:true,profileFocusCycles:5,noOverflow:true})
+  await context.close();console.log('PASS modern guide '+width)
  }
- await writeFile(out+'/result.json',JSON.stringify({status:'PASS',results},null,2));console.log('PASS KAN112 desktop/mobile browser; screenshots '+out)
+ await writeFile(out+'/result.json',JSON.stringify({status:'PASS',results},null,2));console.log('PASS KAN112 modern desktop/mobile browser; screenshots '+out)
 } finally{await browser.close()}

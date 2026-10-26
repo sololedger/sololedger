@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "width": 1440,
+      "status": "PASS",
+      "singleInstruction": true,
+      "invoiceWidth": true,
+      "navigationNeverWrites": true,
+      "saveErrorAndPendingVisibleAcrossNavigation": true,
+      "keyboard": true,
+      "text200Percent": true,
+      "longCompanyName": true,
+      "ownerYearIsolation": true,
+      "restoredYearAndFocus": true,
+      "profileFocusCycles": 5,
+      "noOverflow": true
+    },
+    {
+      "width": 1024,
+      "status": "PASS",
+      "singleInstruction": true,
+      "invoiceWidth": true,
+      "navigationNeverWrites": true,
+      "saveErrorAndPendingVisibleAcrossNavigation": true,
+      "keyboard": true,
+      "text200Percent": true,
+      "longCompanyName": true,
+      "ownerYearIsolation": true,
+      "restoredYearAndFocus": true,
+      "profileFocusCycles": 5,
+      "noOverflow": true
+    },
+    {
+      "width": 768,
+      "status": "PASS",
+      "singleInstruction": true,
+      "invoiceWidth": true,
+      "navigationNeverWrites": true,
+      "saveErrorAndPendingVisibleAcrossNavigation": true,
+      "keyboard": true,
+      "text200Percent": true,
+      "longCompanyName": true,
+      "ownerYearIsolation": true,
+      "restoredYearAndFocus": true,
+      "profileFocusCycles": 5,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "status": "PASS",
+      "singleInstruction": true,
+      "invoiceWidth": true,
+      "navigationNeverWrites": true,
+      "saveErrorAndPendingVisibleAcrossNavigation": true,
+      "keyboard": true,
+      "text200Percent": true,
+      "longCompanyName": true,
+      "ownerYearIsolation": true,
+      "restoredYearAndFocus": true,
+      "profileFocusCycles": 5,
+      "noOverflow": true
+    },
+    {
+      "width": 320,
+      "status": "PASS",
+      "singleInstruction": true,
+      "invoiceWidth": true,
+      "navigationNeverWrites": true,
+      "saveErrorAndPendingVisibleAcrossNavigation": true,
+      "keyboard": true,
+      "text200Percent": true,
+      "longCompanyName": true,
+      "ownerYearIsolation": true,
+      "restoredYearAndFocus": true,
+      "profileFocusCycles": 5,
+      "noOverflow": true
+    }
+  ]
+}
