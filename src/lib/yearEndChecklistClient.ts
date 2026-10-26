@@ -14,7 +14,7 @@ async function request(owner:string,year:number,command?:ChecklistCommand){
  requireProfileContext(ticket)
  const current=await supabase.auth.getSession()
  if(current.error||current.data.session?.user.id!==owner||!isCurrentProfileContext(ticket))throw Error('Inloggningen har ändrats. Läs om sidan.')
- if(result.error)throw Error(result.error.code==='40001'?'Checklistan eller underlaget har ändrats. Läs om och kontrollera innan du bekräftar.':command?'Sparandet kunde inte bekräftas. Försök igen eller läs om.':'Checklistan kunde inte hämtas.')
+ if(result.error)throw Error(['PT409','40001'].includes(result.error.code)?'Checklistan eller underlaget har ändrats. Läs om checklistan och kontrollera innan du bekräftar.':command?'Sparandet kunde inte bekräftas. Försök igen eller läs om.':'Checklistan kunde inte hämtas.')
  return parseChecklist(result.data,owner,year)
 }
 export const checklistPort=(owner:string,year:number)=>({load:()=>request(owner,year),save:(c:ChecklistCommand)=>request(owner,year,c)})

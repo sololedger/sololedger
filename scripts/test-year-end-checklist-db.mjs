@@ -25,6 +25,7 @@ try{
  const dependency=await one("SELECT jsonb_build_object('present',to_regclass('public.declaration_revisions') IS NOT NULL);")
  if(!dependency.present)for(const file of ['20261023205734_kan100_declaration_archive.sql','20261025093000_kan100_archive_conflict_sqlstate.sql'])await s.run(fs.readFileSync('supabase/migrations/'+file,'utf8'))
  await s.run(sql)
+ await s.run(fs.readFileSync('supabase/migrations/20261026110015_kan112_conflict_and_profile_scope.sql','utf8'))
  pass('migration compiles on exact guarded LOCAL identity; transaction not committed')
  await s.run(`CREATE FUNCTION pg_temp.attempt(q text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN EXECUTE q; RETURN jsonb_build_object('code','success'); EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('code',SQLSTATE,'message',SQLERRM); END $$;`)
  await s.run(`INSERT INTO auth.users(id) VALUES(${literal(owner)}),(${literal(other)}); INSERT INTO profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement) VALUES(${literal(owner)},'kan112-a@example.invalid','KAN112 synthetic A','registered','year','2025-01-01','taxable','full'),(${literal(other)},'kan112-b@example.invalid','KAN112 synthetic B','registered','year','2025-01-01','taxable','full');`)
@@ -37,7 +38,7 @@ try{
  const contention=(await competing.run(`SELECT jsonb_build_object('same_owner_available',pg_try_advisory_xact_lock(hashtextextended('sololedger:accounting_year_boundary:'||${literal(owner)},0)),'other_owner_available',pg_try_advisory_xact_lock(hashtextextended('sololedger:accounting_year_boundary:'||${literal(other)},0)));`))[0]
  assert.equal(contention.same_owner_available,false);assert.equal(contention.other_owner_available,true)
  pass('real second session confirms save holds owner-exclusive gate without blocking other owner')
- await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',false,0,${literal(basis)},${literal(randomUUID())})`,'40001')
+ await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',false,0,${literal(basis)},${literal(randomUUID())})`,'PT409')
  await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',false,1,${literal(basis)},${literal(id)})`,'22023')
  pass('stale tab rejected and request-id reuse with changed intent rejected')
  d=await save(2025,'bank',false,1,basis);assert.equal(d.checks[0].confirmed,false)
@@ -63,7 +64,7 @@ try{
  assert.equal(booking.success,true,JSON.stringify(booking))
  d=await load(2025);assert.notEqual(d.basis.bank,oldBasis);assert(d.checks[0].confirmed)
  await s.run('ROLLBACK TO SAVEPOINT native;')
- await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',true,3,${literal(d.basis.bank)},${literal(randomUUID())})`,'40001')
+ await expectedReject(`SELECT public.save_year_end_checklist(2025,'bank',true,3,${literal(d.basis.bank)},${literal(randomUUID())})`,'PT409')
  d=await load(2025);d=await save(2025,'bank',true,3,d.basis.bank);assert.equal(d.checks[0].basis_fingerprint,d.basis.bank)
  pass('actual native booking changes bank basis; stale confirmation rejected; recheck accepted')
  const before=structuredClone(d)
@@ -96,5 +97,5 @@ try{
  await s.run('ROLLBACK;')
  assert.deepEqual(await protectedState(),initialProtected)
  pass('exact protected-table digests unchanged after rollback: journal, VAT, NE sources and year locks')
- fs.mkdirSync('coverage/kan112-local',{recursive:true});fs.writeFileSync('coverage/kan112-local/db-result.json',JSON.stringify({status:'PASS',manifest,migration,sha256:createHash('sha256').update(sql).digest('hex'),checks,rollback:true},null,2))
+ fs.mkdirSync('coverage/kan112-local',{recursive:true});fs.writeFileSync('coverage/kan112-local/db-result.json',JSON.stringify({status:'PASS',manifest,migration,sha256:createHash('sha256').update(sql).digest('hex'),fixMigration:'20261026110015_kan112_conflict_and_profile_scope.sql',checks,rollback:true},null,2))
 }finally{await s.close();await competing.close()}

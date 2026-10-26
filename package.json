@@ -52,7 +52,7 @@
     "test:year-end-guide": "npm run test:year-end-checklist && node scripts/test-year-end-guide.mjs",
     "lint:year-end-guide": "node scripts/check-year-end-guide-lint.mjs",
     "test:year-end-checklist": "node scripts/test-year-end-checklist.mjs && node scripts/test-year-end-checklist-client.mjs",
-    "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs"
+    "test:year-end-checklist:db": "node scripts/test-year-end-checklist-db.mjs && node scripts/test-year-end-checklist-fixes-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
