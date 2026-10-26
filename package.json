@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:vat-year:db": "node scripts/test-vat-year-safety-db.mjs",
     "dev": "node scripts/dev-env-preflight.mjs && next dev",
     "build": "next build",
     "start": "next start",

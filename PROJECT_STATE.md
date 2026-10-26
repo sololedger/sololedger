@@ -1,37 +1,53 @@
 # SoloLedger Project State
 
-2026-10-23. **KAN-101 Etapp2A LOCAL PASS med befintlig lintskuld – inväntar Staging-beslut.**
+2026-10-26 – KAN-110/KAN-111 LOCAL PASS. Inväntar exakt Staging-migrationsbeslut.
 
-## Produktmål och aktuell kandidat
+## Arbetskopia och uppdrag
 
-- Vanlig enskild näringsidkare utan anställda ska förstå vad, varför och hur från NE-underlag till deklaration.
-- Pontus godkände lokal implementation enligt root docs/reviews/KAN-101-ETAPP-2-PLAN-20261022.md.
-- Arbetskopia audit-packages/KAN-99-local, gren codex/KAN-101-declaration-guide. Exakt slutcheckpoint: git log.
-- Produktbas f7469a0cc4fbcaffc1b77bddf01a8947cbc5ec68 är accepterad/publicerad Etapp1. Main/Staging enligt föregående releasebevis fortsatt f7469a0; ingen ny remote-/Vercelkontroll eller publicering här.
-- Origin är lokal äldre arbetskopia, inte GitHub. Root staging är docs-/verktygshistorik, aldrig produktreleasebas.
+- Denna kopia: audit-packages/KAN-100-app-release-20261024.
+- Gren codex/KAN-110-111-vat-year-safety, bas c3a431ef1b392d61b5f3a18c42b7109cd517ba38.
+- Origin är lokal KAN-62-kopia, inte GitHub. Ingen push/deploy utförd.
+- Root PROJECT_STATE är nav för tidigare arbetskopior/KAN-96 och bevarade fixtures.
+- Pontus har godkänt avgränsad lokal rättning och syntetisk verifiering.
+- AGENTS kräver separat beslut för exakt Staging-migration/publicering.
+  Production är inte godkänd.
 
-## Leverans och verifiering
+## Kandidat
 
-- Ny läsande NEDeclarationGuide: fem öppningsbara steg, fem skattefördjupningar, dokumentvägar och officiella länkar.
-- Ingång från Årsavslut; kontextsäker retur bevarar öppna bokslutskontroller för samma besök. Vanlig menyväg återupplivar inte gammal retur.
-- Företag/inkomstår och externa deklarationsåret tydliga. Ingen progress, användarinmatning, lagring eller ny ekonomisk beräkning.
-- KAN-96-importinstruktion även utan varning; R11 mot extern resultatrapport, följ R17:s anpassningar. Ingen ny detektion/fix.
-- R15/R16 Inte bedömt, R17 inte slutresultat; tidigare bokföringsförlust/F-skattebetalning ersätter inte skatteunderlagen.
-- Oförändrade lib/hooks/Supabase/RPC/migrationer/lockfil och NE-beräknings-/varnings-/låsvillkor. package.json ändras bara för nytt regressionstest.
-- Nytt guidetest18 fall PASS: normal/avvikelse/import-zero ×låst/öppet ×1440/390/320, identiska R/B och lås, kontext/fel/tangentbord, inga nätanrop/skrivningar/fel.
-- Årsavslut/Home-navigation14 grupper1440/390 PASS, inklusive guidens retur och vanlig NE-retur, år/ägare/profil/laddning/fel.
-- Hela npm run test:regression PASS med syntetisk localhost-konfiguration; publik lokal Playwright2/2 PASS.
-- Typkontroll och fokuserad lint på tre guidekomponenter/två testskript PASS. page.tsx10 fel/1 varning exakt lika med Production-bas, före/efter verifierat; inga nya lintfel. Ingen full repo-lint-PASS.
-- Slutligt optimerat bygge PASS med syntetisk localhost-konfiguration. Första försöket saknade syntetisk servernyckel, kompletterad utan produktändring. Befintlig flerlockfilsvarning kvar.
-- Bilder visuellt granskade. Språkgranskning gjord; ingen verklig ovan användares acceptans har genomförts lokalt.
-- Rapport docs/reviews/KAN-101-ETAPP-2A-LOCAL-20261023.md; utvalda syntetiska bevis docs/testing/kan101-guide-local-20261023/.
-- Råloggar coverage/kan101-guide/, navigationsbevis coverage/kan99-evidence/browser/, ignorerade. Befintlig browsercache återanvänd.
+- KAN-110: privat serverkontroll av sammanhängande relevant momsperiodtäckning.
+  Saknad/oklar första period, överlapp och tidigare moms stoppar nya årslås.
+  Befintlig explicit första delperiod och icke momsregistrerad firma bevaras.
+- KAN-111: läsning utan generering; separat Skapa saknade momsperioder.
+  Befintlig period återanvänds i låst år. Skapandefel döljer inte läsbar historik.
+- Nya migrationer 20261026090000_kan110_vat_year_coverage.sql och
+  20261026091000_kan111_explicit_vat_period_generation.sql.
+- Inga nya journalplaner, transaktionskällor, rapportberäkningar eller datatabeller.
+  Ingen historisk reparation, upplåsning eller automatisk delperiodsbokning.
 
-## Källor och stoppunkt
+## Verifiering och gränser
 
-- Officiella NE-/e-tjänst-/egenavgifts-/underskottssidor återlästa2026-10-23. Inga skattesatser eller deadlines hårdkodas; rätt års hjälp krävs för rutor/avrundning.
-- Inloggad2027-tjänst och alla individuella årsregler inte verifierade. Käll- och årsgränser i rapporten; ingen personlig skattebedömning/full deklarationsacceptans.
-- Jira KAN-101 återläst In Review/Pontus; ingen mutation, inte Done. KAN-100 sparad historik och KAN-96 importfel fortfarande separata. KAN-108/83/34 kvar öppna enligt durable docs.
-- Ingen hosted inloggning, DB-anslutning/-skrivning, migration, push eller deployment. Testgränserna är syntetiska; inga riktiga data/credentials behövdes.
-- Nästa säkra steg: Pontus granskar lokal kandidat och godkänner separat exakt Staging-publicering. Manuella steg i rapporten: femstegsflöde/retur, normala och avvikande underlag, saknade dokument/importundantag, dator/mobil och år/företag.
-- Ingen ny produktändring, Staging-/Production-release eller Jira-mutation godkänd efter detta lokala uppdrag. Root STATE/ARCHIVE har aktuellt miljö-/testresursnav; bevara andra kopior och fixtures.
+- Lokal DB/RPC PASS i återanvänd syntetisk PostgreSQL17:
+  sololedger_kan62_disposable_20261021, 127.0.0.1:5432, OID57199, rätt unik markör.
+- Kandidatfunktionerna installerade endast i denna lokala databas. Befintliga
+  fixtures bevarade. Ingen ny DB/reset/roll-/lösenords-/serverändring.
+- Saknad/delvis/full täckning för år/kvartal/månad, första explicit fastställda
+  årsperioden, icke registrerad firma, deklaration/skattekonto/replay/isolation PASS.
+- Riktad samtidighet PASS: generering före lås, bokning efter väntat lås,
+  parallell generering utan dubblett. API-roller kan inte anropa nya hjälparen.
+- Typkontroll, fokuserad lint och hela säkra test:regression PASS inklusive
+  publik lokal Playwright-smoke 2/2. Befintliga modul-/flerlockfilsvarningar kvar.
+- Ändrad lokal Momsrapport mot bevarade Staging C/G endast läsande PASS:
+  låst års stängda/deklarerade rapport syns; 0 genereringsanrop; data oförändrade.
+- Officiell Staging CLI dry-run PASS: endast de två nya migrationerna planeras.
+  Ingen Staging-migration/publicering eller komplett korrigerad Staging-livscykel ännu.
+- Rapport: docs/reviews/KAN-110-KAN-111-LOCAL-IMPLEMENTATION-20261026.md.
+  Råbevis coverage/kan110111-local/ och root:s KAN110111-reproduktionskatalog.
+- Jira KAN-110/KAN-111 lästa To Do/otilldelade; inga mutationer.
+- Scoped lokal checkpoint enligt git log. Ingen push eller deployment.
+
+## Nästa säkra steg
+
+Pontus godkänner exakt de två färdiga migrationerna till Staging
+fzxqiqenqjzhlyxxpvhg. Därefter official CLI apply och syntetisk Staging-acceptans
+med nya konton. Gamla reproduktionskonton och historik bevaras. Ingen app-
+publicering ingår i migrationssteget. Stanna före Production.

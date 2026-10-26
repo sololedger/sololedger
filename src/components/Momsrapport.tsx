@@ -223,7 +223,7 @@ export default function Momsrapport({
 }: MomsrapportProps) {
   const currentYear = new Date().getFullYear()
   const todayIso = formatLocalDateOnly(new Date())
-  const ensuredKeysRef = useRef<Set<string>>(new Set())
+  const periodCreationInFlightRef = useRef(false)
   const closeInFlightRef = useRef(false)
   const declareInFlightRef = useRef(false)
   const settlementInFlightRef = useRef(false)
@@ -249,6 +249,7 @@ export default function Momsrapport({
   const [selectedPeriodId, setSelectedPeriodId] = useState('')
   const [periodsLoading, setPeriodsLoading] = useState(false)
   const [periodError, setPeriodError]       = useState<string | null>(null)
+  const [periodGenerationError, setPeriodGenerationError] = useState<string | null>(null)
   const [loading, setLoading]               = useState(false)
   const [closing, setClosing]               = useState(false)
   const [declaring, setDeclaring]           = useState(false)
@@ -429,18 +430,21 @@ export default function Momsrapport({
     }
   }, [currentYear])
 
+  // React Compiler currently infers stable state setters as changing dependencies here.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const loadVatPeriods = useCallback(async (
     preferredPeriodId?: string,
     options: { ensure?: boolean; preserveReport?: boolean; preservePeriodsOnError?: boolean } = {}
   ): Promise<VatPeriod[] | null> => {
-    const shouldEnsure = options.ensure ?? true
+    // Reading an existing period must never depend on creating new periods.
+    const shouldEnsure = options.ensure ?? false
     const preserveReport = options.preserveReport ?? false
     const preservePeriodsOnError = options.preservePeriodsOnError ?? false
     const sequence = ++periodLoadSequence.current
     const isCurrent = () => sequence === periodLoadSequence.current
     setPeriodsLoading(true)
     setPeriodError(null)
+    setPeriodGenerationError(null)
     if (!preserveReport) {
       setFetched(false)
       setVatReport(null)
@@ -469,17 +473,13 @@ export default function Momsrapport({
       let ensuredThisRun = false
 
       if (shouldEnsure && canEnsurePeriods && !selectedYearStartsInFuture) {
-        const ensureKey = [
-          year,
-          vatStatus,
-          vatPeriodType,
-          vatManagementFrom,
-        ].join('|')
-
-        if (!ensuredKeysRef.current.has(ensureKey)) {
+        try {
           await ensureVatPeriods(yearEnd)
-          ensuredKeysRef.current.add(ensureKey)
           ensuredThisRun = true
+        } catch (err) {
+          if (!isCurrent()) return null
+          // A creation error does not hide readable historical periods/reports.
+          setPeriodGenerationError(err instanceof Error ? err.message : String(err))
         }
       }
 
@@ -524,11 +524,18 @@ export default function Momsrapport({
     canEnsurePeriods,
     currentYear,
     loadAvailableYears,
-    vatManagementFrom,
-    vatPeriodType,
-    vatStatus,
     year,
   ])
+
+  async function handleCreatePeriods() {
+    if (!canEnsurePeriods || year > currentYear || periodCreationInFlightRef.current || closing || declaring || periodsLoading) return
+    periodCreationInFlightRef.current = true
+    try {
+      await loadVatPeriods(undefined, { ensure: true, preserveReport: true, preservePeriodsOnError: true })
+    } finally {
+      periodCreationInFlightRef.current = false
+    }
+  }
 
   const reloadDeclaredPeriodMetadata = useCallback(async (
     periodId: string,
@@ -595,7 +602,7 @@ export default function Momsrapport({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadVatPeriods()
-  }, [loadVatPeriods])
+  }, [loadVatPeriods, profileKey])
 
   const currentVatReport = hasCurrentReport ? vatReport : null
   const skaBetalas = (currentVatReport?.netVat ?? 0) > 0
@@ -1393,7 +1400,7 @@ export default function Momsrapport({
             <select
               value={year}
               onChange={e => handleYearChange(Number(e.target.value))}
-              disabled={closing || declaring}
+              disabled={closing || declaring || periodsLoading}
               className="bg-gray-50 rounded-xl px-4 py-2.5 font-black text-sm text-gray-700 outline-none cursor-pointer hover:bg-gray-100 transition-colors border border-transparent focus:border-emerald-300"
             >
               {availableYears.map(y => (
@@ -1429,6 +1436,14 @@ export default function Momsrapport({
           >
             {loading ? '...' : 'Beräkna'}
           </button>
+
+          {canEnsurePeriods && year <= currentYear && (
+            <button type="button" onClick={() => void handleCreatePeriods()}
+              disabled={periodsLoading || closing || declaring || loading}
+              className="h-[42px] px-4 rounded-xl border border-gray-300 font-bold text-xs text-gray-700 disabled:opacity-50">
+              Skapa saknade momsperioder
+            </button>
+          )}
 
           {lifecycleCanCloseSelectedPeriod && (
             <button
@@ -2042,6 +2057,16 @@ export default function Momsrapport({
             Kunde inte hämta momsperioderna för {year}. {periodError}
             <button type="button" onClick={() => void loadVatPeriods()} className="ml-3 underline">Försök igen</button>
           </p>
+        )}
+
+        {periodGenerationError && (
+          <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            Momsperioder kunde inte skapas. {periodGenerationError} Befintliga perioder kan fortfarande läsas.
+          </p>
+        )}
+
+        {canEnsurePeriods && (
+          <p className="mt-3 text-xs text-gray-500">Befintliga perioder visas utan att nya skapas. Kontrollera startdatum och momsperiod i Profil innan du skapar saknade perioder.</p>
         )}
 
         {!periodError && (lifecycleCanCloseSelectedPeriod || lifecycleCanDeclareSelectedPeriod) && !hasCurrentReport && !loading && (

@@ -1,5 +1,15 @@
 # SoloLedger - Arkitektur
 
+## KAN-110/111 – lokal säkerhetskandidat
+
+`assert_vat_year_coverage` kontrollerar hanterade momsperioder under den exklusiva
+årslåsgränsen före befintliga inventarie-/kundfaktura-/balanskontroller. Saknad
+eller osäker täckning stoppar nya lås; befintliga explicit fastställda första
+delperioder bevaras. Hjälparen är privat och lagrar inga data. `Momsrapport`
+läser utan periodgenerering; `Skapa saknade momsperioder` är en separat åtgärd.
+Skapandefel döljer inte läsbar historik. Kandidat, migrationsbeslut och testgränser:
+`docs/reviews/KAN-110-KAN-111-LOCAL-IMPLEMENTATION-20261026.md` och `PROJECT_STATE.md`.
+
 ## KAN-104: ägarbunden profil och skrivkontext (lokal kandidat)
 
 `useAuth` förnyar verifieringsgenerationen vid varje relevant auth-event/laddning och accepterar bara svar för aktuell ägare/generation. KAN-105 behåller samma ägares tidigare verifierade profil under en ny kontroll efter `SIGNED_IN`/`TOKEN_REFRESHED`, så att vanligt flikbyte inte monterar ned ekonomivyn eller öppen modal. Skrivningar är spärrade tills den nya kontrollen lyckas. Kontobyte, utloggning, andra auth-händelser och saknad/felaktig profilläsning döljer fortfarande tidigare profil/vy. `profileContext.ts` håller klientens aktuella generation; detta är ett klientskydd, inte en ersättning för RLS/RPC-validering.
