@@ -2,14 +2,15 @@
 
 2026-10-26 – **KAN-112 tekniskt och manuellt accepterad i Staging, inkl fysisk mobil. Production återstår.**
 Produktmål/prioriteringar enligt AGENTS: begriplig, tillförlitlig bokföring för Jessikas
-enskilda firma år efter år. Nästa arbetsområde är KAN-113, börja läsande; ingen implementation nu.
+enskilda firma år efter år. KAN-113 analyserad/reproducerad; invänta beslut före rättning.
 
 ## Läs detta först efter Codex-kontobyte
 
 - Aktuell produktkopia L = audit-packages/KAN-100-app-release-20261024 under root
   C:/Users/Familjedator/Desktop/Sololedger Multi User App/sololedger_multi_user.
 - Läs rootens och L:s AGENTS.md, detta STATE och docs/reviews/KAN-112-HANDOFF-20261026.md.
-- L-gren codex/KAN-112-year-end-checklist; origin är lokal KAN-62-kopia, inte GitHub.
+- L-gren nu codex/KAN-113-year-lock-analysis, från KAN-112-handoff f352355;
+  origin är lokal KAN-62-kopia, inte GitHub. KAN-112-grenen bevarad.
 - Root staging är äldre docs/verktygskopia med orelaterad dirty diff, aldrig produktpushkälla.
 - Inga worktrees/fixtures/ignorerade miljöer får tas bort; se worktree-regler i L/AGENTS.
 
@@ -34,18 +35,29 @@ enskilda firma år efter år. Nästa arbetsområde är KAN-113, börja läsande;
 - Jira KAN-112 Task/Medium/To Do/otilldelad, acceptanskommentar 11687 tillagd och återläst.
   Status/assignee oförändrade, inte Done. KAN-113 Bug/Medium/To Do/otilldelad, oförändrad.
 
-## KAN-113 – nästa säkra steg, ännu ingen reproducerad defekt
+## KAN-113 – REPRODUCERAT 2026-10-26, invänta ledarbeslut
 
-- Misstänkt saknat generellt kalenderstopp mot låsning av pågående/framtida bokföringsår.
-- Läs Jira KAN-113, handoffrapporten och relevant tidigare KAN-112-/KAN-110/111-underlag.
-- Orientera läsande i page.tsx handleLockYear → accountingService.closeYear → live close_year_atomic/kedjan.
-  Läs aktuell pg_get_functiondef och relevanta constraints/grants/RLS före slutsatser. Gissa inte utifrån migrationer.
-- Börja med riktad reproduktion i verifierad säker testmiljö, inte implementation. Gamla tester för 2026/2027 är inte aktuell KAN-113-reproduktion.
-- Tidigare lokal miljö: sololedger_kan62_disposable_20261021, 127.0.0.1:5432, PG17/OID57199.
-  Verifiera faktiskt mål, manifest/markör och aktuellt schema först; detta är historisk identifiering, inte dagens DB-verifiering.
-- Inga nya DB:er, migrationsinstallationer, reset, rensning eller Production-fallback ingår. Bevara tidigare fixtures.
-- Skilj avslutat/pågående/framtida år och Europe/Stockholm-gräns med övriga årslåsvillkor uppfyllda.
-  Dokumentera evidens, bevarande och minsta eventuella rättningsplan innan implementation.
+- Rapport: docs/reviews/KAN-113-ANALYSIS-REPRODUCTION-20261026.md. Produkt oförändrad 1e4a32a.
+- Jira återläst Bug/Medium/To Do/otilldelad, inga kommentarer/mutationer.
+- L var ren på f352355; separat analysgren codex/KAN-113-year-lock-analysis.
+  Rootens samtliga orelaterade ändringar bevarade; inga KAN-112-produktändringar.
+- Klient/tjänst/RPC saknar datumstopp. Live Staging-schema/ACL/RLS lästa.
+  Tre centrala Production-definitioner/ACL matchar Staging; bara katalog läst där.
+- Nya syntetiska ej momsregistrerade företag kunde låsa tomma 2025, 2026, 2027.
+  Efterbokning nekades. 2026 pågående/2027 framtida = reproducerad defekt.
+- Normal momsperiodstängning nekar 2026/2027; öppen/saknad moms stoppar årslås.
+  Med konstgjort färdig momsstatus tillåter RPC ändå lås; separat fixturebevis.
+- Sluttest 42 assertions PASS, samma session, full rollback, 33 publika tabelldigester
+  och auth-antal oförändrade; 0 auth/profiles-residual. Inga bestående sluttestdata.
+- Första testverktygsförsöket sparade sex syntetiska konton genom escapingfel.
+  Exakt cohort avstämd utan bokföring, raderad under stående synthetic-behörighet;
+  residual=0. Andra försöket återställt, befintlig låsuppgraderingsspärr fungerade.
+- SIE route/parser/client-test PASS; fem periodprov dokumenterar brutet/förlängt
+  nekas över årsskifte, vissa förkortade accepteras men styr inte årslåsets slutdatum.
+- Rekommendation: separat liten servermigration + klientbesked, Stockholm-gräns,
+  före KAN-112 Production. Ingen automatisk upplåsning eller generell periodmodell.
+- Inget produktfix, migration, push/deploy/Edge/Jira. Bred regression/UI-E2E ej körd;
+  ingen implementation. Nästa steg: Pontus beslutar exakt rättningsscope, sedan riktade tester.
 
 ## Sparade bevis och bevarande
 
@@ -66,4 +78,5 @@ enskilda firma år efter år. Nästa arbetsområde är KAN-113, börja läsande;
 - Lokal handoff sparas i docs-commits, ingen push/deploy/migration/Edge/DB-skrivning eller ny implementation.
 - AGENTS fulla publicerade handoff kräver push och ren verifiering. Push förbjuden enligt aktuellt beslut:
   lokal checkpoint, ej pushad, inte HANDOFF READY. L ren efter checkpoint; root avsiktligt dirty av separat arbete.
-- Nästa chatt börjar med KAN-113 läsande orientering och säker reproduktion. KAN-112 ska inte Done-sättas före Production-beslut.
+- Nästa steg är ledarbeslut om KAN-113-rättning enligt rapporten ovan.
+  KAN-112 ska inte Done-sättas före Production-beslut; ingen implementation ingår ännu.

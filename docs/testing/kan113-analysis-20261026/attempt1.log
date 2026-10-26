@@ -1,0 +1,44 @@
+SET
+SET
+DO
+{"identity": {"pid": 2190271, "utc": "2026-10-26T16:03:06.303827+00:00", "user": "postgres", "database": "postgres", "stockholm": "2026-10-26T17:03:06.303827"}}
+CREATE FUNCTION
+DO
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+fb814dde-73df-4483-979b-157f457b9591|{"sub": "fb814dde-73df-4483-979b-157f457b9591", "role": "authenticated"}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+3e775ca1-0e1c-4e91-ab24-66a32e78becb|{"sub": "3e775ca1-0e1c-4e91-ab24-66a32e78becb", "role": "authenticated"}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+ba8a30a3-9b9c-496f-81d7-282f3098e818|{"sub": "ba8a30a3-9b9c-496f-81d7-282f3098e818", "role": "authenticated"}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+d285fdee-e3e3-451c-9bd4-33d0c5f032f2|{"sub": "d285fdee-e3e3-451c-9bd4-33d0c5f032f2", "role": "authenticated"}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+ab430705-55b8-41dd-bb9d-2227d5561eab|{"sub": "ab430705-55b8-41dd-bb9d-2227d5561eab", "role": "authenticated"}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+f01a1f5e-7374-4904-a930-02166f035d50|{"sub": "f01a1f5e-7374-4904-a930-02166f035d50", "role": "authenticated"}
+RESET
+ROLLBACK

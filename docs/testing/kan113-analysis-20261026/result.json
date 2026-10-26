@@ -1,0 +1,496 @@
+{
+  "target": "fzxqiqenqjzhlyxxpvhg",
+  "currentYear": 2026,
+  "identity": {
+    "identity": {
+      "pid": 2190341,
+      "utc": "2026-10-26T16:05:54.461008+00:00",
+      "user": "postgres",
+      "database": "postgres",
+      "stockholm": "2026-10-26T17:05:54.461008"
+    }
+  },
+  "hashes": [
+    [
+      "assert_vat_year_coverage",
+      "4e4cd485f4b36e7ae0eebc4d86d6c9a9"
+    ],
+    [
+      "close_year_atomic",
+      "9a93f74704913fc47ed5fff93223e236"
+    ],
+    [
+      "close_year_unchecked_inventory",
+      "b9416dc08d6dabfe1a12446260524c6d"
+    ]
+  ],
+  "checks": 42,
+  "publicTablesUnchanged": 33,
+  "authCountUnchanged": true,
+  "rollbackVerified": true,
+  "results": [
+    {
+      "case": "no-vat-2025-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "2e414a51-326a-455c-9ab2-c62984290804",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "no-vat-2025-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2025,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "no-vat-2025-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2025 är redan låst."
+      }
+    },
+    {
+      "case": "no-vat-2025-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2025 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "no-vat-2025-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2025
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    },
+    {
+      "case": "no-vat-2026-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "c2304da6-bf35-422a-901b-8938589dd905",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "no-vat-2026-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2026,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "no-vat-2026-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2026 är redan låst."
+      }
+    },
+    {
+      "case": "no-vat-2026-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2026 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "no-vat-2026-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2026
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    },
+    {
+      "case": "no-vat-2027-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "0e9b439e-17b7-48a9-a612-8ea414b53280",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "no-vat-2027-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2027,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "no-vat-2027-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2027 är redan låst."
+      }
+    },
+    {
+      "case": "no-vat-2027-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2027 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "no-vat-2027-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2027
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    },
+    {
+      "case": "vat-2025-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "2ea76651-a954-4499-bad3-b84f04bd91da",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "vat-2025-missing-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2025-01-01 – 2025-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."
+      }
+    },
+    {
+      "case": "vat-2025-ensure",
+      "result": {
+        "ok": true,
+        "value": {
+          "success": true,
+          "period_type": "year",
+          "through_date": "2025-12-31",
+          "created_count": 1,
+          "existing_count": 0,
+          "management_from": "2025-01-01"
+        }
+      }
+    },
+    {
+      "case": "vat-2025-open-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2025-01-01 – 2025-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."
+      }
+    },
+    {
+      "case": "vat-2025-close-period",
+      "result": {
+        "ok": true,
+        "value": {
+          "status": "closed",
+          "success": true,
+          "vat_period_id": "bbd6d4da-3900-4015-aa9e-faa4be21e072",
+          "already_closed": false,
+          "closing_amount": 0,
+          "transaction_created": false,
+          "closing_transaction_id": null
+        }
+      }
+    },
+    {
+      "case": "vat-2025-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2025,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "vat-2025-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2025 är redan låst."
+      }
+    },
+    {
+      "case": "vat-2025-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2025 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "vat-2025-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2025
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    },
+    {
+      "case": "vat-2026-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "1597ac79-ee64-4b0b-b863-018ebfc23735",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "vat-2026-missing-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2026-01-01 – 2026-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."
+      }
+    },
+    {
+      "case": "vat-2026-ensure",
+      "result": {
+        "ok": true,
+        "value": {
+          "success": true,
+          "period_type": "year",
+          "through_date": "2026-10-26",
+          "created_count": 1,
+          "existing_count": 0,
+          "management_from": "2026-01-01"
+        }
+      }
+    },
+    {
+      "case": "vat-2026-open-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2026-01-01 – 2026-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."
+      }
+    },
+    {
+      "case": "vat-2026-close-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Framtida momsperioder kan inte stängas."
+      }
+    },
+    {
+      "case": "vat-2026-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2026,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "vat-2026-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2026 är redan låst."
+      }
+    },
+    {
+      "case": "vat-2026-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2026 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "vat-2026-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2026
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    },
+    {
+      "case": "vat-2027-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "ver_nr": 1,
+          "success": true,
+          "transaction_id": "2cc72633-e600-4dbb-ad58-46e3142c46f1",
+          "idempotent_replay": false
+        }
+      }
+    },
+    {
+      "case": "vat-2027-missing-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2027-01-01 – 2027-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."
+      }
+    },
+    {
+      "case": "vat-2027-ensure",
+      "result": {
+        "ok": true,
+        "value": {
+          "success": true,
+          "period_type": "year",
+          "through_date": "2026-10-26",
+          "created_count": 0,
+          "existing_count": 0,
+          "management_from": "2027-01-01"
+        }
+      }
+    },
+    {
+      "case": "vat-2027-open-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Året kan inte låsas. Momsperioden 2027-01-01 – 2027-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."
+      }
+    },
+    {
+      "case": "vat-2027-close-period",
+      "result": {
+        "ok": false,
+        "code": "23514",
+        "message": "Framtida momsperioder kan inte stängas."
+      }
+    },
+    {
+      "case": "vat-2027-lock",
+      "result": {
+        "ok": true,
+        "value": {
+          "year": 2027,
+          "success": true,
+          "closed_at": "2026-10-26T16:05:54.341562+00:00"
+        }
+      }
+    },
+    {
+      "case": "vat-2027-relock",
+      "result": {
+        "ok": false,
+        "code": "P0001",
+        "message": "År 2027 är redan låst."
+      }
+    },
+    {
+      "case": "vat-2027-post-lock-book",
+      "result": {
+        "ok": true,
+        "value": {
+          "message": "Räkenskapsår 2027 är låst för ändringar.",
+          "success": false,
+          "error_code": "23514",
+          "confirmed_rejection": true
+        }
+      }
+    },
+    {
+      "case": "vat-2027-state",
+      "result": {
+        "ok": true,
+        "value": {
+          "debit": null,
+          "locks": [
+            2027
+          ],
+          "credit": null,
+          "transactions": 0
+        }
+      }
+    }
+  ]
+}

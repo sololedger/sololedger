@@ -1,0 +1,5 @@
+BEGIN
+DO
+DELETE 6
+{"synthetic_auth_residual" : 0, "profiles_residual" : 0, "accounts_residual" : 0}
+COMMIT

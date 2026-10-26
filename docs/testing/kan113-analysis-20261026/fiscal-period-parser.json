@@ -1,0 +1,61 @@
+[
+  {
+    "name": "calendar",
+    "errors": [],
+    "periods": [
+      {
+        "index": 0,
+        "start": "2025-01-01",
+        "end": "2025-12-31"
+      }
+    ]
+  },
+  {
+    "name": "broken",
+    "errors": [
+      "Flerårig SIE-import stöds ännu inte."
+    ],
+    "periods": [
+      {
+        "index": 0,
+        "start": "2025-07-01",
+        "end": "2026-06-30"
+      }
+    ]
+  },
+  {
+    "name": "extended-first",
+    "errors": [
+      "Flerårig SIE-import stöds ännu inte."
+    ],
+    "periods": [
+      {
+        "index": 0,
+        "start": "2025-07-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  {
+    "name": "short-first",
+    "errors": [],
+    "periods": [
+      {
+        "index": 0,
+        "start": "2025-07-01",
+        "end": "2025-12-31"
+      }
+    ]
+  },
+  {
+    "name": "short-ending-midyear",
+    "errors": [],
+    "periods": [
+      {
+        "index": 0,
+        "start": "2025-01-01",
+        "end": "2025-06-30"
+      }
+    ]
+  }
+]

@@ -1,0 +1,142 @@
+BEGIN
+SET
+SET
+DO
+{"identity": {"pid": 2190341, "utc": "2026-10-26T16:05:54.461008+00:00", "user": "postgres", "database": "postgres", "stockholm": "2026-10-26T17:05:54.461008"}}
+CREATE FUNCTION
+CREATE FUNCTION
+{"before": {"accounts": "642a97f6e9f0960a70f304de2e15966a", "profiles": "11349f1e2d5ab8d4f4b3df83d986d270", "favorites": "d41d8cd98f00b204e9800998ecf8427e", "vat_periods": "16092cd0b0e23d80a880776881c82b9e", "closed_years": "5839169b96199bdaddad412d67902ef1", "fixed_assets": "ed3e1f235764cc9c6654e0be78a6b681", "transactions": "7bf9b9699a7656cdbee5c43a2610e85b", "import_batches": "232c2c36e81136d152dc81ff1ad260df", "journal_entries": "04daefee511594217c3f2133fe690edc", "ver_nr_sequences": "1ff6858a22931a51cd4af2a61fe708f6", "customer_invoices": "8f1b0129152de621d174fa7acb1509c5", "sie_import_inputs": "d41d8cd98f00b204e9800998ecf8427e", "fixed_asset_events": "ebc18a27b3a254c6e4e3367529784262", "tax_account_events": "3305f488276848052685ddb2950875fe", "year_end_checklist": "1e2c4199615f96d0477f344988c31baf", "tax_rule_parameters": "2c9449c5afa1a9db7f7509b146ece7c4", "vat_audit_snapshots": "ecf4f5dc6929a0eae8fc1c3dee78031a", "declaration_revisions": "6de5d6df5716d3bc97ae88965005d0bb", "tax_account_movements": "1d4dd6f32c1cea4ff88d13dbb406c217", "ne_sales_classifications": "b0b543c14db7411210c5cf2defa7befd", "supplier_year_end_events": "b74a63ee71f5fd1bd0b6879a93c7052e", "customer_invoice_bookings": "77186d05df8ab1fa4b6cd18a4bf907f8", "supplier_year_end_invoices": "b8ec98ec80bbda3b99181242012784d5", "vat_v2_booking_idempotency": "2d9bee17580c60b9454a13ff7f66555f", "withdrawal_assessment_facts": "b4989678f16347bb54e097dd2ea73392", "declaration_source_snapshots": "cb2b24233ced6398c21a4d2f25ee3127", "standard_booking_idempotency": "24d829e49e362234db57630afc4889fc", "company_payment_account_roles": "abcce793babf8721c3f8d3e4b2421611", "fixed_asset_depreciation_runs": "96f39c51be1471baa33fe51b5d5f350a", "fixed_asset_acquisition_groups": "25305e2a9838c80a8fb167f0fe76f109", "withdrawal_assessment_revisions": "af8dc8d8f02b35602eecc1c021e52519", "fixed_asset_acquisition_idempotency": "bad9f7e49f334180152c2ceb34d1f9e3", "delete_user_data_atomic_lifecycle_context": "d41d8cd98f00b204e9800998ecf8427e"}, "auth_count": 43}
+DO
+SAVEPOINT
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4|{"sub": "a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4", "role": "authenticated"}
+SAVEPOINT
+{"case": "no-vat-2025-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "2e414a51-326a-455c-9ab2-c62984290804", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "no-vat-2025-lock", "result": {"ok": true, "value": {"year": 2025, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "no-vat-2025-relock", "result": {"ok": false, "code": "P0001", "message": "År 2025 är redan låst."}}
+{"case": "no-vat-2025-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2025 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "no-vat-2025-state", "result": {"ok": true, "value": {"debit": null, "locks": [2025], "credit": null, "transactions": 0}}}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+e7ff19a0-e45f-47c2-9067-fe43b438f7ff|{"sub": "e7ff19a0-e45f-47c2-9067-fe43b438f7ff", "role": "authenticated"}
+SAVEPOINT
+{"case": "no-vat-2026-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "c2304da6-bf35-422a-901b-8938589dd905", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "no-vat-2026-lock", "result": {"ok": true, "value": {"year": 2026, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "no-vat-2026-relock", "result": {"ok": false, "code": "P0001", "message": "År 2026 är redan låst."}}
+{"case": "no-vat-2026-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2026 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "no-vat-2026-state", "result": {"ok": true, "value": {"debit": null, "locks": [2026], "credit": null, "transactions": 0}}}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+6c59ddc7-7334-4e93-93b1-43bf2232411d|{"sub": "6c59ddc7-7334-4e93-93b1-43bf2232411d", "role": "authenticated"}
+SAVEPOINT
+{"case": "no-vat-2027-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "0e9b439e-17b7-48a9-a612-8ea414b53280", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "no-vat-2027-lock", "result": {"ok": true, "value": {"year": 2027, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "no-vat-2027-relock", "result": {"ok": false, "code": "P0001", "message": "År 2027 är redan låst."}}
+{"case": "no-vat-2027-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2027 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "no-vat-2027-state", "result": {"ok": true, "value": {"debit": null, "locks": [2027], "credit": null, "transactions": 0}}}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+333e4de0-36dc-4980-9ad0-0e8690811744|{"sub": "333e4de0-36dc-4980-9ad0-0e8690811744", "role": "authenticated"}
+SAVEPOINT
+{"case": "vat-2025-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "2ea76651-a954-4499-bad3-b84f04bd91da", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "vat-2025-missing-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2025-01-01 – 2025-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."}}
+SAVEPOINT
+{"case": "vat-2025-ensure", "result": {"ok": true, "value": {"success": true, "period_type": "year", "through_date": "2025-12-31", "created_count": 1, "existing_count": 0, "management_from": "2025-01-01"}}}
+ROLLBACK
+RESET
+INSERT 0 1
+SET
+{"case": "vat-2025-open-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2025-01-01 – 2025-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."}}
+SAVEPOINT
+{"case": "vat-2025-close-period", "result": {"ok": true, "value": {"status": "closed", "success": true, "vat_period_id": "bbd6d4da-3900-4015-aa9e-faa4be21e072", "already_closed": false, "closing_amount": 0, "transaction_created": false, "closing_transaction_id": null}}}
+ROLLBACK
+RESET
+UPDATE 1
+SET
+{"case": "vat-2025-lock", "result": {"ok": true, "value": {"year": 2025, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "vat-2025-relock", "result": {"ok": false, "code": "P0001", "message": "År 2025 är redan låst."}}
+{"case": "vat-2025-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2025 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "vat-2025-state", "result": {"ok": true, "value": {"debit": null, "locks": [2025], "credit": null, "transactions": 0}}}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+a8b4120f-1e7e-4c6e-bc41-bca985aac393|{"sub": "a8b4120f-1e7e-4c6e-bc41-bca985aac393", "role": "authenticated"}
+SAVEPOINT
+{"case": "vat-2026-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "1597ac79-ee64-4b0b-b863-018ebfc23735", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "vat-2026-missing-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2026-01-01 – 2026-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."}}
+SAVEPOINT
+{"case": "vat-2026-ensure", "result": {"ok": true, "value": {"success": true, "period_type": "year", "through_date": "2026-10-26", "created_count": 1, "existing_count": 0, "management_from": "2026-01-01"}}}
+ROLLBACK
+RESET
+INSERT 0 1
+SET
+{"case": "vat-2026-open-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2026-01-01 – 2026-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."}}
+SAVEPOINT
+{"case": "vat-2026-close-period", "result": {"ok": false, "code": "23514", "message": "Framtida momsperioder kan inte stängas."}}
+ROLLBACK
+RESET
+UPDATE 1
+SET
+{"case": "vat-2026-lock", "result": {"ok": true, "value": {"year": 2026, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "vat-2026-relock", "result": {"ok": false, "code": "P0001", "message": "År 2026 är redan låst."}}
+{"case": "vat-2026-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2026 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "vat-2026-state", "result": {"ok": true, "value": {"debit": null, "locks": [2026], "credit": null, "transactions": 0}}}
+RESET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+ad94b48e-4ba4-4e5e-a260-5c388612c5d2|{"sub": "ad94b48e-4ba4-4e5e-a260-5c388612c5d2", "role": "authenticated"}
+SAVEPOINT
+{"case": "vat-2027-book", "result": {"ok": true, "value": {"ver_nr": 1, "success": true, "transaction_id": "2cc72633-e600-4dbb-ad58-46e3142c46f1", "idempotent_replay": false}}}
+ROLLBACK
+{"case": "vat-2027-missing-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2027-01-01 – 2027-12-31 saknas. Öppna Moms, kontrollera perioderna och avsluta dem före årslås."}}
+SAVEPOINT
+{"case": "vat-2027-ensure", "result": {"ok": true, "value": {"success": true, "period_type": "year", "through_date": "2026-10-26", "created_count": 0, "existing_count": 0, "management_from": "2027-01-01"}}}
+ROLLBACK
+RESET
+INSERT 0 1
+SET
+{"case": "vat-2027-open-period", "result": {"ok": false, "code": "23514", "message": "Året kan inte låsas. Momsperioden 2027-01-01 – 2027-12-31 är fortfarande öppen. Kontrollera och stäng den i Moms."}}
+SAVEPOINT
+{"case": "vat-2027-close-period", "result": {"ok": false, "code": "23514", "message": "Framtida momsperioder kan inte stängas."}}
+ROLLBACK
+RESET
+UPDATE 1
+SET
+{"case": "vat-2027-lock", "result": {"ok": true, "value": {"year": 2027, "success": true, "closed_at": "2026-10-26T16:05:54.341562+00:00"}}}
+{"case": "vat-2027-relock", "result": {"ok": false, "code": "P0001", "message": "År 2027 är redan låst."}}
+{"case": "vat-2027-post-lock-book", "result": {"ok": true, "value": {"message": "Räkenskapsår 2027 är låst för ändringar.", "success": false, "error_code": "23514", "confirmed_rejection": true}}}
+{"case": "vat-2027-state", "result": {"ok": true, "value": {"debit": null, "locks": [2027], "credit": null, "transactions": 0}}}
+RESET
+{"same_session": true}
+ROLLBACK
+{"after": {"accounts": "642a97f6e9f0960a70f304de2e15966a", "profiles": "11349f1e2d5ab8d4f4b3df83d986d270", "favorites": "d41d8cd98f00b204e9800998ecf8427e", "vat_periods": "16092cd0b0e23d80a880776881c82b9e", "closed_years": "5839169b96199bdaddad412d67902ef1", "fixed_assets": "ed3e1f235764cc9c6654e0be78a6b681", "transactions": "7bf9b9699a7656cdbee5c43a2610e85b", "import_batches": "232c2c36e81136d152dc81ff1ad260df", "journal_entries": "04daefee511594217c3f2133fe690edc", "ver_nr_sequences": "1ff6858a22931a51cd4af2a61fe708f6", "customer_invoices": "8f1b0129152de621d174fa7acb1509c5", "sie_import_inputs": "d41d8cd98f00b204e9800998ecf8427e", "fixed_asset_events": "ebc18a27b3a254c6e4e3367529784262", "tax_account_events": "3305f488276848052685ddb2950875fe", "year_end_checklist": "1e2c4199615f96d0477f344988c31baf", "tax_rule_parameters": "2c9449c5afa1a9db7f7509b146ece7c4", "vat_audit_snapshots": "ecf4f5dc6929a0eae8fc1c3dee78031a", "declaration_revisions": "6de5d6df5716d3bc97ae88965005d0bb", "tax_account_movements": "1d4dd6f32c1cea4ff88d13dbb406c217", "ne_sales_classifications": "b0b543c14db7411210c5cf2defa7befd", "supplier_year_end_events": "b74a63ee71f5fd1bd0b6879a93c7052e", "customer_invoice_bookings": "77186d05df8ab1fa4b6cd18a4bf907f8", "supplier_year_end_invoices": "b8ec98ec80bbda3b99181242012784d5", "vat_v2_booking_idempotency": "2d9bee17580c60b9454a13ff7f66555f", "withdrawal_assessment_facts": "b4989678f16347bb54e097dd2ea73392", "declaration_source_snapshots": "cb2b24233ced6398c21a4d2f25ee3127", "standard_booking_idempotency": "24d829e49e362234db57630afc4889fc", "company_payment_account_roles": "abcce793babf8721c3f8d3e4b2421611", "fixed_asset_depreciation_runs": "96f39c51be1471baa33fe51b5d5f350a", "fixed_asset_acquisition_groups": "25305e2a9838c80a8fb167f0fe76f109", "withdrawal_assessment_revisions": "af8dc8d8f02b35602eecc1c021e52519", "fixed_asset_acquisition_idempotency": "bad9f7e49f334180152c2ceb34d1f9e3", "delete_user_data_atomic_lifecycle_context": "d41d8cd98f00b204e9800998ecf8427e"}, "auth_count": 43}
+{"residual_auth": 0, "residual_profiles": 0, "same_session_after": true}
+ROLLBACK

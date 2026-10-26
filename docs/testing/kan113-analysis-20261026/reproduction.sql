@@ -1,0 +1,141 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL statement_timeout='25s'; SET LOCAL lock_timeout='5s';
+DO $guard$ BEGIN
+ IF current_database()<>'postgres' OR session_user<>'postgres' OR current_setting('session_authorization')<>'postgres' THEN RAISE EXCEPTION 'Wrong identity'; END IF;
+END $guard$;
+SELECT jsonb_build_object('identity',jsonb_build_object('database',current_database(),'user',session_user,'pid',pg_backend_pid(),'utc',clock_timestamp(),'stockholm',clock_timestamp() AT TIME ZONE 'Europe/Stockholm'));
+SELECT pg_backend_pid() AS verified_pid \gset
+CREATE FUNCTION pg_temp.attempt(q text) RETURNS jsonb LANGUAGE plpgsql AS $fn$
+DECLARE r jsonb; BEGIN EXECUTE q INTO r; RETURN jsonb_build_object('ok',true,'value',r); EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('ok',false,'code',SQLSTATE,'message',SQLERRM); END $fn$;
+CREATE FUNCTION pg_temp.digest_public() RETURNS jsonb LANGUAGE plpgsql AS $fn$
+DECLARE r record; d text; v jsonb:='{}'; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename LOOP
+ EXECUTE format('SELECT md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text)::text,%L)) FROM public.%I t','',r.tablename) INTO d;
+ v:=v||jsonb_build_object(r.tablename,d); END LOOP; RETURN v; END $fn$;
+SELECT jsonb_build_object('before',pg_temp.digest_public(),'auth_count',(SELECT count(*) FROM auth.users));
+DO $hash$ BEGIN
+ IF (SELECT md5(replace(pg_get_functiondef(oid),E'\r','')) FROM pg_proc WHERE oid='public.assert_vat_year_coverage(integer)'::regprocedure)<>'4e4cd485f4b36e7ae0eebc4d86d6c9a9' THEN RAISE EXCEPTION 'Definition changed'; END IF;
+IF (SELECT md5(replace(pg_get_functiondef(oid),E'\r','')) FROM pg_proc WHERE oid='public.close_year_atomic(integer)'::regprocedure)<>'9a93f74704913fc47ed5fff93223e236' THEN RAISE EXCEPTION 'Definition changed'; END IF;
+IF (SELECT md5(replace(pg_get_functiondef(oid),E'\r','')) FROM pg_proc WHERE oid='public.close_year_unchecked_inventory(integer)'::regprocedure)<>'b9416dc08d6dabfe1a12446260524c6d' THEN RAISE EXCEPTION 'Definition changed'; END IF;
+END $hash$;
+SAVEPOINT synthetic;
+RESET ROLE; INSERT INTO auth.users(id) VALUES('a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4','kan113-a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4@example.invalid','KAN113 rollback synthetic','not_registered',NULL,NULL,'taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4',true),set_config('request.jwt.claims','{"sub":"a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2025-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"f96ac719-1106-46f2-960b-a966aa26e783","date":"2025-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2025-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SELECT jsonb_build_object('case','no-vat-2025-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SELECT jsonb_build_object('case','no-vat-2025-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"52d38e5d-bef3-4e33-8959-b96c6979cc29","date":"2025-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','no-vat-2025-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4''))'));
+RESET ROLE; INSERT INTO auth.users(id) VALUES('e7ff19a0-e45f-47c2-9067-fe43b438f7ff');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('e7ff19a0-e45f-47c2-9067-fe43b438f7ff','kan113-e7ff19a0-e45f-47c2-9067-fe43b438f7ff@example.invalid','KAN113 rollback synthetic','not_registered',NULL,NULL,'taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','e7ff19a0-e45f-47c2-9067-fe43b438f7ff','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('e7ff19a0-e45f-47c2-9067-fe43b438f7ff','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','e7ff19a0-e45f-47c2-9067-fe43b438f7ff',true),set_config('request.jwt.claims','{"sub":"e7ff19a0-e45f-47c2-9067-fe43b438f7ff","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2026-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"a46ebac9-708a-4bcb-b604-c4529c448cfe","date":"2026-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2026-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SELECT jsonb_build_object('case','no-vat-2026-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SELECT jsonb_build_object('case','no-vat-2026-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"177a147e-8df9-4249-b8f6-c9862904adf1","date":"2026-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','no-vat-2026-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''e7ff19a0-e45f-47c2-9067-fe43b438f7ff''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''e7ff19a0-e45f-47c2-9067-fe43b438f7ff''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''e7ff19a0-e45f-47c2-9067-fe43b438f7ff''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''e7ff19a0-e45f-47c2-9067-fe43b438f7ff''))'));
+RESET ROLE; INSERT INTO auth.users(id) VALUES('6c59ddc7-7334-4e93-93b1-43bf2232411d');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('6c59ddc7-7334-4e93-93b1-43bf2232411d','kan113-6c59ddc7-7334-4e93-93b1-43bf2232411d@example.invalid','KAN113 rollback synthetic','not_registered',NULL,NULL,'taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','6c59ddc7-7334-4e93-93b1-43bf2232411d','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('6c59ddc7-7334-4e93-93b1-43bf2232411d','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','6c59ddc7-7334-4e93-93b1-43bf2232411d',true),set_config('request.jwt.claims','{"sub":"6c59ddc7-7334-4e93-93b1-43bf2232411d","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2027-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"fa719e10-9a09-4dbf-bedf-c291f5b6c479","date":"2027-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','no-vat-2027-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SELECT jsonb_build_object('case','no-vat-2027-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SELECT jsonb_build_object('case','no-vat-2027-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"705b913c-0bdc-456a-9f6e-57d2212636d4","date":"2027-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','no-vat-2027-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''6c59ddc7-7334-4e93-93b1-43bf2232411d''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''6c59ddc7-7334-4e93-93b1-43bf2232411d''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''6c59ddc7-7334-4e93-93b1-43bf2232411d''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''6c59ddc7-7334-4e93-93b1-43bf2232411d''))'));
+RESET ROLE; INSERT INTO auth.users(id) VALUES('333e4de0-36dc-4980-9ad0-0e8690811744');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('333e4de0-36dc-4980-9ad0-0e8690811744','kan113-333e4de0-36dc-4980-9ad0-0e8690811744@example.invalid','KAN113 rollback synthetic','registered','year','2025-01-01','taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','333e4de0-36dc-4980-9ad0-0e8690811744','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('333e4de0-36dc-4980-9ad0-0e8690811744','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','333e4de0-36dc-4980-9ad0-0e8690811744',true),set_config('request.jwt.claims','{"sub":"333e4de0-36dc-4980-9ad0-0e8690811744","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2025-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"4958164a-11e3-49e4-a61e-88d5a035ee25","date":"2025-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2025-missing-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SAVEPOINT ensure_probe;
+SELECT jsonb_build_object('case','vat-2025-ensure','result',pg_temp.attempt('SELECT public.ensure_vat_periods(''2025-12-31'')'));
+ROLLBACK TO SAVEPOINT ensure_probe; RESET ROLE;
+   INSERT INTO public.vat_periods(user_id,period_start,period_end,period_type,status,source) VALUES('333e4de0-36dc-4980-9ad0-0e8690811744','2025-01-01','2025-12-31','year','open','sololedger'); SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2025-open-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SAVEPOINT close_period_probe;
+SELECT jsonb_build_object('case','vat-2025-close-period','result',pg_temp.attempt('SELECT public.close_vat_period_atomic((SELECT id FROM public.vat_periods WHERE user_id=''333e4de0-36dc-4980-9ad0-0e8690811744'' AND period_start=''2025-01-01''))'));
+ROLLBACK TO SAVEPOINT close_period_probe; RESET ROLE;
+   UPDATE public.vat_periods SET status='closed',closing_amount=0 WHERE user_id='333e4de0-36dc-4980-9ad0-0e8690811744'; SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2025-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SELECT jsonb_build_object('case','vat-2025-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2025)'));
+SELECT jsonb_build_object('case','vat-2025-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"df201dc4-a417-45f7-bf9f-bcee5ea02f43","date":"2025-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','vat-2025-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''333e4de0-36dc-4980-9ad0-0e8690811744''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''333e4de0-36dc-4980-9ad0-0e8690811744''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''333e4de0-36dc-4980-9ad0-0e8690811744''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''333e4de0-36dc-4980-9ad0-0e8690811744''))'));
+RESET ROLE; INSERT INTO auth.users(id) VALUES('a8b4120f-1e7e-4c6e-bc41-bca985aac393');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('a8b4120f-1e7e-4c6e-bc41-bca985aac393','kan113-a8b4120f-1e7e-4c6e-bc41-bca985aac393@example.invalid','KAN113 rollback synthetic','registered','year','2026-01-01','taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','a8b4120f-1e7e-4c6e-bc41-bca985aac393','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('a8b4120f-1e7e-4c6e-bc41-bca985aac393','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','a8b4120f-1e7e-4c6e-bc41-bca985aac393',true),set_config('request.jwt.claims','{"sub":"a8b4120f-1e7e-4c6e-bc41-bca985aac393","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2026-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"9dc7239a-f9ba-4f8d-b2ea-b55691cf8e61","date":"2026-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2026-missing-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SAVEPOINT ensure_probe;
+SELECT jsonb_build_object('case','vat-2026-ensure','result',pg_temp.attempt('SELECT public.ensure_vat_periods(''2026-12-31'')'));
+ROLLBACK TO SAVEPOINT ensure_probe; RESET ROLE;
+   INSERT INTO public.vat_periods(user_id,period_start,period_end,period_type,status,source) VALUES('a8b4120f-1e7e-4c6e-bc41-bca985aac393','2026-01-01','2026-12-31','year','open','sololedger'); SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2026-open-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SAVEPOINT close_period_probe;
+SELECT jsonb_build_object('case','vat-2026-close-period','result',pg_temp.attempt('SELECT public.close_vat_period_atomic((SELECT id FROM public.vat_periods WHERE user_id=''a8b4120f-1e7e-4c6e-bc41-bca985aac393'' AND period_start=''2026-01-01''))'));
+ROLLBACK TO SAVEPOINT close_period_probe; RESET ROLE;
+   UPDATE public.vat_periods SET status='closed',closing_amount=0 WHERE user_id='a8b4120f-1e7e-4c6e-bc41-bca985aac393'; SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2026-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SELECT jsonb_build_object('case','vat-2026-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2026)'));
+SELECT jsonb_build_object('case','vat-2026-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"752ddd40-8372-4ba3-8f2c-2400df123b73","date":"2026-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','vat-2026-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''a8b4120f-1e7e-4c6e-bc41-bca985aac393''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''a8b4120f-1e7e-4c6e-bc41-bca985aac393''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''a8b4120f-1e7e-4c6e-bc41-bca985aac393''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''a8b4120f-1e7e-4c6e-bc41-bca985aac393''))'));
+RESET ROLE; INSERT INTO auth.users(id) VALUES('ad94b48e-4ba4-4e5e-a260-5c388612c5d2');
+ INSERT INTO public.profiles(id,email,company_name,vat_status,vat_period_type,vat_management_from,domestic_sales_vat_treatment,default_deduction_entitlement)
+ VALUES('ad94b48e-4ba4-4e5e-a260-5c388612c5d2','kan113-ad94b48e-4ba4-4e5e-a260-5c388612c5d2@example.invalid','KAN113 rollback synthetic','registered','year','2027-01-01','taxable','full') ON CONFLICT(id) DO UPDATE SET email=EXCLUDED.email,company_name=EXCLUDED.company_name,vat_status=EXCLUDED.vat_status,vat_period_type=EXCLUDED.vat_period_type,vat_management_from=EXCLUDED.vat_management_from,domestic_sales_vat_treatment=EXCLUDED.domestic_sales_vat_treatment,default_deduction_entitlement=EXCLUDED.default_deduction_entitlement;
+ INSERT INTO public.accounts(id,user_id,name,debit_account,credit_account,default_vat_rate) VALUES('kan113-sale','ad94b48e-4ba4-4e5e-a260-5c388612c5d2','KAN113 synthetic','1930','3010',0);
+ INSERT INTO public.company_payment_account_roles(user_id,role,account_number) VALUES('ad94b48e-4ba4-4e5e-a260-5c388612c5d2','business_payment_account','1930');
+ SET LOCAL ROLE authenticated;
+ SELECT set_config('request.jwt.claim.sub','ad94b48e-4ba4-4e5e-a260-5c388612c5d2',true),set_config('request.jwt.claims','{"sub":"ad94b48e-4ba4-4e5e-a260-5c388612c5d2","role":"authenticated"}'::jsonb::text,true);
+SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2027-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"c48dd1b0-503b-4478-ba07-45bfec2fa2a1","date":"2027-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+ROLLBACK TO SAVEPOINT booking_probe;
+SELECT jsonb_build_object('case','vat-2027-missing-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SAVEPOINT ensure_probe;
+SELECT jsonb_build_object('case','vat-2027-ensure','result',pg_temp.attempt('SELECT public.ensure_vat_periods(''2027-12-31'')'));
+ROLLBACK TO SAVEPOINT ensure_probe; RESET ROLE;
+   INSERT INTO public.vat_periods(user_id,period_start,period_end,period_type,status,source) VALUES('ad94b48e-4ba4-4e5e-a260-5c388612c5d2','2027-01-01','2027-12-31','year','open','sololedger'); SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2027-open-period','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SAVEPOINT close_period_probe;
+SELECT jsonb_build_object('case','vat-2027-close-period','result',pg_temp.attempt('SELECT public.close_vat_period_atomic((SELECT id FROM public.vat_periods WHERE user_id=''ad94b48e-4ba4-4e5e-a260-5c388612c5d2'' AND period_start=''2027-01-01''))'));
+ROLLBACK TO SAVEPOINT close_period_probe; RESET ROLE;
+   UPDATE public.vat_periods SET status='closed',closing_amount=0 WHERE user_id='ad94b48e-4ba4-4e5e-a260-5c388612c5d2'; SET LOCAL ROLE authenticated;
+SELECT jsonb_build_object('case','vat-2027-lock','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SELECT jsonb_build_object('case','vat-2027-relock','result',pg_temp.attempt('SELECT public.close_year_atomic(2027)'));
+SELECT jsonb_build_object('case','vat-2027-post-lock-book','result',pg_temp.attempt('SELECT public.book_transaction_atomic(''{"idempotency_key":"5ff08c3c-8c61-4aae-ac0f-f47b8e8fac84","date":"2027-01-02","description":"KAN113 rollback synthetic","type":"kan113-sale","amount":100,"vat_rate":0,"ne_sales_basis":"taxable","ne_sales_basis_confirmed":true}''::jsonb)'));
+SELECT jsonb_build_object('case','vat-2027-state','result',pg_temp.attempt('SELECT jsonb_build_object(''locks'',(SELECT jsonb_agg(year) FROM public.closed_years WHERE user_id=''ad94b48e-4ba4-4e5e-a260-5c388612c5d2''),''transactions'',(SELECT count(*) FROM public.transactions WHERE user_id=''ad94b48e-4ba4-4e5e-a260-5c388612c5d2''),''debit'',(SELECT sum(debit) FROM public.journal_entries WHERE user_id=''ad94b48e-4ba4-4e5e-a260-5c388612c5d2''),''credit'',(SELECT sum(credit) FROM public.journal_entries WHERE user_id=''ad94b48e-4ba4-4e5e-a260-5c388612c5d2''))'));
+RESET ROLE;
+SELECT jsonb_build_object('same_session',pg_backend_pid()=:verified_pid);
+ROLLBACK TO SAVEPOINT synthetic;
+SELECT jsonb_build_object('after',pg_temp.digest_public(),'auth_count',(SELECT count(*) FROM auth.users));
+SELECT jsonb_build_object('residual_auth',(SELECT count(*) FROM auth.users WHERE id IN ('a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4','e7ff19a0-e45f-47c2-9067-fe43b438f7ff','6c59ddc7-7334-4e93-93b1-43bf2232411d','333e4de0-36dc-4980-9ad0-0e8690811744','a8b4120f-1e7e-4c6e-bc41-bca985aac393','ad94b48e-4ba4-4e5e-a260-5c388612c5d2')),'residual_profiles',(SELECT count(*) FROM public.profiles WHERE id IN ('a28ce0b8-665a-4a8a-acfc-9684d7c4c3c4','e7ff19a0-e45f-47c2-9067-fe43b438f7ff','6c59ddc7-7334-4e93-93b1-43bf2232411d','333e4de0-36dc-4980-9ad0-0e8690811744','a8b4120f-1e7e-4c6e-bc41-bca985aac393','ad94b48e-4ba4-4e5e-a260-5c388612c5d2')),'same_session_after',pg_backend_pid()=:verified_pid);
+ROLLBACK;
