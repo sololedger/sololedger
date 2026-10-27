@@ -59,7 +59,7 @@ try {
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     await page.getByLabel('Vad vill du kontrollera?').selectOption('buffer')
-    await page.getByLabel('Belopp i kronor', { exact: true }).fill('777')
+    await page.getByLabel('Extra buffert i kronor', { exact: true }).fill('777')
     const reads = await page.evaluate(() => window.focusTest.withdrawal.pending().length)
     await call('installVisibilityRecovery', 'A')
     // Drive the installed Supabase Auth SDK's real hidden -> visible recovery
@@ -80,7 +80,7 @@ try {
       await page.close(); continue
     }
     await expect(dialog).toBeVisible()
-    await expect(page.getByLabel('Belopp i kronor', { exact: true })).toHaveValue('777')
+    await expect(page.getByLabel('Extra buffert i kronor', { exact: true })).toHaveValue('777')
     assert.equal(await call('canWrite'), false, 'writes blocked during renewed profile validation')
     await call('finishProfile', 0)
     await expect(dialog).toBeVisible()
@@ -94,7 +94,7 @@ try {
       await call('event', 'A', event)
       await expect(dialog).toBeVisible()
       await call('finishProfile', 0)
-      await expect(page.getByLabel('Belopp i kronor', { exact: true })).toHaveValue('777')
+      await expect(page.getByLabel('Extra buffert i kronor', { exact: true })).toHaveValue('777')
     }
     await page.clock.fastForward(35 * 60 * 1000)
     await call('event', 'A', 'TOKEN_REFRESHED')

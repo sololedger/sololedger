@@ -165,7 +165,7 @@ try {
   await expect(amount()).toHaveText(/6\s*500\s*kr/)
   await expect(layoutSlider()).toHaveValue('35')
   await expect(page.getByRole('combobox',{name:'År',exact:true})).toHaveValue(String(layoutYear))
-  await expect(page.locator('section[aria-label="Uttagsutrymme"]')).toContainText(`Per ${asOf} · ${layoutYear}`)
+  await expect(page.locator('section[aria-label="Uttagsutrymme"]')).toContainText(`Per ${asOf} · flera år kan ingå`)
   await expect(page.getByRole('button',{name:`Spara årsprocent för ${layoutYear}`,exact:true})).toHaveCount(0)
   await expect(page.getByRole('group',{name:'Ekonomikontroller'}).getByRole('slider')).toHaveCount(1)
   const grid=page.locator('.grid.grid-cols-2')
@@ -182,7 +182,7 @@ try {
     if(width===1280)assert(boxes.every(b=>Math.abs(b.top-boxes[0].top)<2),'all five cards on one desktop row')
     assert(boxes.every(b=>b.height<250),'no oversized standalone card')
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'full dashboard fits viewport')
-    await expect(page.locator('section.from-emerald-500')).toHaveCount(1)
+    await expect(page.locator('section.from-emerald-500')).toHaveCount(0) // An estimate is not a success certificate.
     await page.screenshot({path:resolve(artifacts,`overview-positive-${width}.png`),fullPage:true})
     await page.getByRole('button',{name:'Visa beräkning och underlag'}).click()
     await expect(page.getByRole('dialog')).toBeVisible()

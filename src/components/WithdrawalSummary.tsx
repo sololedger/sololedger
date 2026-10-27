@@ -6,8 +6,8 @@ export default function WithdrawalSummary({ result, checkedAt, taxRates = [], co
   return <div className={compact ? 'flex flex-col' : undefined}>
     <h3 className={compact ? 'text-xs font-black uppercase tracking-widest opacity-70 mb-2' : 'font-bold'}>Säkert uttag</h3>
     <p role="status" className={compact ? 'text-[10px] font-bold opacity-80 mt-2 order-2' : 'font-semibold mt-1'}>{result.status === 'incomplete' ? 'Kan inte beräknas – kontroll krävs' : result.status === 'estimated' ? 'Uppskattat uttagsutrymme' : 'Beräknat uttagsutrymme'}</p>
-    {result.status !== 'incomplete' && result.recommendedOre !== null && <p className={compact ? 'text-2xl font-black leading-tight break-words order-1' : 'text-2xl font-black my-2 break-words'}>{withdrawalMoney(Math.floor(result.recommendedOre / 100) * 100)}</p>}
-    {compact ? <p className="text-[10px] opacity-75 mt-1 order-3">Per {result.asOf} · {result.asOf.slice(0, 4)}</p> : <>
+    {result.status !== 'incomplete' && result.recommendedOre !== null && <p className={compact ? 'text-2xl font-black leading-tight break-words order-1' : 'text-xl font-black my-2 break-words'}>{withdrawalMoney(Math.floor(result.recommendedOre / 100) * 100)}</p>}
+    {compact ? <><p className="text-xs opacity-90 mt-1 order-3">Per {result.asOf} · flera år kan ingå</p>{result.status === 'estimated' && <p className="text-xs mt-2 order-4">{!checkedAt ? 'Skattekonto ej kontrollerat; ingen kredit räknas.' : result.estimationNotes.some(n => n.startsWith('Bankbeloppet')) ? 'Bankens verkliga saldo är inte kontrollerat.' : 'Skatt eller framskrivna uppgifter är uppskattade.'}</p>}{result.status === 'incomplete' && <p className="text-xs mt-2 order-4">Underlaget är ofullständigt. Öppna kontrollen.</p>}</> : <>
     <p className="text-xs my-2">Beräknat per {result.asOf}. {checkedAt ? `Skattekontot kontrollerades av dig ${checkedAt}.` : 'Skattekontokredit används inte utan avstämning.'}</p>
     <dl className="text-sm space-y-1">
       <div><dt className="inline">Bokförd företagsbank: </dt><dd className="inline">{withdrawalMoney(result.bankOre)}</dd></div>

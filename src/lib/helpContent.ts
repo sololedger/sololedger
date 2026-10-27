@@ -1,4 +1,5 @@
 // Public, versioned guidance only. Never put customer examples or credentials here.
+import { withdrawalHelpArticles } from './withdrawalHelp'
 export const helpTopics = [
   { id: 'start', label: 'Kom igång & profil' },
   { id: 'book', label: 'Bokföring & underlag' },
@@ -36,6 +37,7 @@ const reviewed = '2026-10-27'
 
 // IDs are public permalinks: retain the ID or add an alias when renaming.
 export const helpArticles: HelpArticle[] = [
+  ...withdrawalHelpArticles,
   {
     id: 'kom-igang', topic: 'start', title: 'Var börjar jag i SoloLedger?',
     answer: 'Börja i Profil med företagets uppgifter, moms och betalningskonton. Kontrollera sedan underlaget innan du bokför.',
@@ -188,7 +190,7 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'sakert-uttag', topic: 'withdrawal', title: 'Vad betyder beloppet i Säkert uttag?',
     answer: 'Beloppet bygger på tillgängligt underlag och kan vara uppskattat. Läs statusen och kvarstående kontroller i kortet.',
-    paragraphs: ['Granska bank, kvarstående moms och årsvisa skatteuppskattningar samt de sparade kontroller som kortet visar. Ett banksaldo är inte samma sak som pengar som kan tas ut.', 'Beloppet är ingen garanti för faktisk skatt eller framtida utgifter. Utred saknade uppgifter före ett uttag.'],
+    paragraphs: ['Granska bank, kvarstående moms och årsvisa skatteuppskattningar samt de sparade kontroller som kortet visar. Ett banksaldo är inte samma sak som pengar som kan tas ut.', 'En uppskattning kan i vissa fall visas utan skattekontokontroll, men ingen skattekontokredit tillgodoräknas då. Det är inte bevis för att det faktiska saldot är 0 eller att ett uttag är säkert. Andra underlag kräver kontroll och visar inget uttagsbelopp.', 'Välj och återöppna en enskild kontroll i panelen. Paus och hjälp markerar inte kontrollen som klar; tidigare sparade uppgifter ändras först genom en ny sparning. Kontextuell hjälp öppnas i samma panel med möjlighet att återvända till kontrollen.', 'Beloppet är ingen garanti för faktisk skatt eller framtida utgifter. Utred saknade uppgifter före ett uttag.'],
     keywords: ['uttagsutrymme', 'ta ut', 'pengar', 'reserv', 'skatteuppskattning'], destinations: ['dashboard'], reviewed,
   },
 ]

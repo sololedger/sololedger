@@ -4,6 +4,14 @@ Hjälpen är statiskt versionshanterad i `src/lib/helpContent.ts`. `FAQ.tsx` vis
 innehållet; `helpNavigation.ts` och `useHelpNavigation.ts` hanterar endast hjälpens
 länkar, historik och läsläge. Ingen databas eller extern sökning används.
 
+KAN-107 kompletterar med sju publika artiklar i `src/lib/withdrawalHelp.ts`,
+inkluderade i samma register/sökning. `WithdrawalPanel` öppnar relevant artikel
+inne i panelen så att användaren kan återvända till samma kontroll och utkast.
+Länkens vanliga `?help=...`-adress fungerar även i en ny flik och i ordinarie FAQ.
+Ingen kontrolluppgift, ägare, belopp eller token skrivs till länken. Paus/hjälp
+sparar ingenting. Konto-/datumbyte rensar uttagspanelens tillstånd via dess
+befintliga sessionsgräns. Se `docs/reviews/KAN-107-LOCAL-IMPLEMENTATION-20261027.md`.
+
 ## Redigera en fråga
 
 - Behåll `id` när rubriken ändras. Om ett ID måste bytas, behåll det gamla i

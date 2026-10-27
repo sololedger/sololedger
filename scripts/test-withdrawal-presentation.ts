@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict'
+import {buildWithdrawalAssessment as assess} from '../src/lib/withdrawalAssessment.ts'
+import {withdrawalControlRows,withdrawalIssueTask,withdrawalHelpIds,withdrawalNextTask} from '../src/lib/withdrawalPresentation.ts'
+import {saleWithdrawal,sealWithdrawal,checkWithdrawalTax as tax,addWithdrawalFact as fact,addWithdrawalTx as tx} from '../tests/fixtures/withdrawalFixtures.ts'
+const s=saleWithdrawal(),a=assess(s),before=JSON.stringify([s,a])
+let rows=withdrawalControlRows(a,s,true)
+assert.equal(rows.find(r=>r.task==='coverage')!.group,'valid')
+assert.equal(rows.find(r=>r.task==='tax_account')!.group,'optional')
+assert(!rows.some(r=>r.task==='rate'))
+assert.equal(JSON.stringify([s,a]),before,'presentation never mutates accounting inputs/results')
+assert.equal(withdrawalNextTask(a,s),'tax_account')
+tax(s,0)
+assert.equal(withdrawalNextTask(assess(s),s),'bank')
+fact(s,'bank',{date:s.as_of,amountOre:12500000,bookOre:12500000,signature:s.signature})
+assert.equal(withdrawalNextTask(assess(s),s),'income','do not ask to repeat already-current bank/tax controls when only income tax is estimated')
+assert.equal(withdrawalIssueTask('Unknown future accounting problem'),'review')
+tx(s,'payment','2027-01-01','manual',[['1930',-1000],['2012',1000]]);sealWithdrawal(s)
+rows=withdrawalControlRows(assess(s),s,true)
+assert.equal(rows.find(r=>r.task==='tax_account')!.group,'required')
+assert.equal(rows.find(r=>r.task==='income')!.group,'required')
+tax(s,0)
+assert.equal(withdrawalControlRows(assess(s),s,true).find(r=>r.task==='tax_account')!.group,'valid')
+fact(s,'bank',{date:s.as_of,amountOre:12400000,bookOre:12400000,signature:s.signature})
+assert.equal(withdrawalControlRows(assess(s),s,true).find(r=>r.task==='bank')!.group,'valid')
+tx(s,'new-sale','2027-01-02','manual',[['1930',100],['3010',-100]]);sealWithdrawal(s)
+assert.equal(withdrawalControlRows(assess(s),s,true).find(r=>r.task==='bank')!.group,'optional','old signature never claims a fresh bank check')
+for(const task of ['coverage','tax_account','income','bank','other','buffer','rate','review'] as const)assert(withdrawalHelpIds[task])
+console.log('PASS KAN-107 presentation: no economic mutation, conditional controls, stale bank, unknown issue fallback, help mapping')

@@ -87,6 +87,7 @@ try {
     await page.evaluate(index => window.withdrawalConflictReads[index]({ data: structuredClone(window.withdrawalConflictSeed), error: null }), index)
     await page.getByText('Kan inte beräknas – kontroll krävs', {exact:true}).first().waitFor()
     await page.getByRole('button', { name: 'Visa beräkning och underlag' }).click()
+    await page.getByRole('button', { name: 'Öppna rekommenderad kontroll' }).click()
     await expect(page.getByLabel('Vad vill du kontrollera?')).toHaveValue(next)
     await page.getByRole('button', { name: 'Stäng underlaget' }).click()
   }

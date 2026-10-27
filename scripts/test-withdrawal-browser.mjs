@@ -31,8 +31,9 @@ try {
   assert(before.y>0,'background must start scrolled')
   await opener.click()
   const dialog=page.getByRole('dialog')
+  const scroller=dialog.locator('[data-withdrawal-scroll]')
   await page.getByLabel('Vad vill du kontrollera?').selectOption('income')
-  assert(await dialog.evaluate(el=>el.scrollHeight>el.clientHeight),'long modal must scroll')
+  assert(await scroller.evaluate(el=>el.scrollHeight>el.clientHeight),'long modal content must scroll')
   const background=()=>page.evaluate(()=>document.getElementById('root').getBoundingClientRect().top)
   const frozen=await background()
   assert.equal(frozen,before.top,'opening does not move the background')
@@ -49,11 +50,11 @@ try {
     // Allow native scrolling/inertia to settle before comparing positions.
     await page.waitForTimeout(300)
   }
-  await dialog.evaluate(el=>el.scrollTop=0)
+  await scroller.evaluate(el=>el.scrollTop=0)
   await gesture(180)
-  assert(await dialog.evaluate(el=>el.scrollTop>0),'gesture scrolls inside modal')
+  assert(await scroller.evaluate(el=>el.scrollTop>0),'gesture scrolls inside modal')
   for(const edge of ['bottom','top']) {
-    await dialog.evaluate((el,edge)=>el.scrollTop=edge==='bottom'?el.scrollHeight:0,edge)
+    await scroller.evaluate((el,edge)=>el.scrollTop=edge==='bottom'?el.scrollHeight:0,edge)
     for(let n=0;n<3;n++)await gesture(edge==='bottom'?500:-500)
     // Small consecutive wheel deltas approximate a trackpad's scroll stream.
     const box=await dialog.boundingBox()
@@ -106,6 +107,7 @@ try {
   await page.getByRole('button',{name:'Visa beräkning och underlag'}).click()
   const dialog=page.getByRole('dialog',{name:'Säkert uttag · beräkning och underlag'})
   await expect(dialog).toBeVisible()
+  await page.getByLabel('Vad vill du kontrollera?').selectOption('coverage')
   assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden')
   await page.getByRole('button',{name:'Stäng underlaget'}).focus()
   await page.keyboard.press('Shift+Tab')
@@ -119,6 +121,7 @@ try {
   assert.equal(await page.evaluate(()=>document.body.style.overflow),'')
   await page.keyboard.press('Enter')
   assert.equal(await page.evaluate(()=>document.activeElement?.textContent),'Säkert uttag · beräkning och underlag')
+  await page.getByLabel('Vad vill du kontrollera?').selectOption('coverage')
   await page.getByLabel('Underlaget omfattar tidigare åtaganden; inga ytterligare äldre belopp saknas.').check()
   await page.getByRole('button',{name:'Spara kontrollen'}).click()
   await page.waitForFunction(()=>window.withdrawalHarness.pending().length===2)

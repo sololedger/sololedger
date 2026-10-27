@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { helpArticles, helpTopics, helpDestinations, findHelpArticle, searchHelp, normalizeHelpText } from '../src/lib/helpContent.ts'
 import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination } from '../src/lib/helpNavigation.ts'
+import { withdrawalHelpIds } from '../src/lib/withdrawalPresentation.ts'
+for (const id of Object.values(withdrawalHelpIds)) assert.ok(findHelpArticle(id), 'Every contextual withdrawal link resolves')
 
 const ids = helpArticles.flatMap(a => [a.id, ...(a.aliases ?? [])])
 assert.equal(new Set(ids).size, ids.length, 'IDs and aliases must be unique')
@@ -14,7 +16,7 @@ for (const article of helpArticles) {
   for (const source of article.sources ?? []) {
     const url = new URL(source.href)
     assert.equal(url.protocol, 'https:')
-    assert.ok(['www.skatteverket.se', 'www.bfn.se'].includes(url.host))
+    assert.ok(['www.skatteverket.se', 'www4.skatteverket.se', 'www.bfn.se'].includes(url.host))
   }
   if (article.media) {
     assert.match(article.media.src, /^\/help\/[a-zA-Z0-9/_.-]+$/)
