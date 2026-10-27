@@ -1250,7 +1250,7 @@ export default function TransactionForm({
                         Betalningskälla
                       </p>
                       <p className="mt-1 text-[10px] font-bold text-indigo-500">
-                        Välj hur inköpet betalades. Kontot måste sparas explicit innan bokning kan kopplas in.
+                        Välj hur inköpet betalades. Betalningskontot måste vara konfigurerat och sparat i Profil före bokning.
                       </p>
                     </div>
 

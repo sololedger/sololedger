@@ -50,6 +50,10 @@ try {
       await expect(steps).toHaveCount(5)
       for (const step of await steps.all()) { await step.locator(':scope > summary').click();await expect(step).toContainText('Varför?') }
       await expect(region).toContainText('även om ingen varning visas')
+      await expect(region).toContainText('I NE-Bilaga kan du spara versioner i deklarationshistoriken.')
+      await expect(region).toContainText('Ett bokföringsunderlag kräver låst år och godkända kontroller.')
+      await expect(region).toContainText('Egna och faktiskt deklarerade uppgifter kan dokumenteras även utan låst år.')
+      await expect(region).not.toContainText('sparar ännu ingen deklarationshistorik')
       await expect(region).toContainText('Ta fram extern resultatrapport och bokslutsverifikationer')
       for (const card of await steps.nth(2).locator('details').all()) await card.locator('summary').click()
       for (const text of ['inte bedömda nollor', 'inte automatiskt samma belopp som förra årets bokföringsförlust', 'F-skatteinbetalningar är inte egenavgiftsavstämning', 'SoloLedger väljer ingen procentsats', 'omprövningsbeslut', 'R40', 'R41', 'R43', 'R24', 'R48', 'Skicka in', 'PDF', 'Ett sparat utkast bevisar inte inlämning']) await expect(region).toContainText(text)

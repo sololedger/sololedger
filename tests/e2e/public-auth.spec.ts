@@ -1,6 +1,18 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('public authentication UI', () => {
+  test('keeps a question link through reload and the signed-out reset form', async ({ page }) => {
+    await page.goto('/?help=ne-r14')
+    await expect(page.getByRole('button', { name: 'Logga in', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Hjälp & FAQ', exact: true })).toHaveCount(0)
+    await page.reload()
+    await page.getByRole('button', { name: 'Glömt lösenord?', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Skicka återställningslänk', exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/\?help=ne-r14$/)
+    await page.getByRole('button', { name: 'Tillbaka till inloggning', exact: true }).click()
+    await expect(page).toHaveURL(/\?help=ne-r14$/)
+  })
+
   test('renders the login screen without an existing session', async ({ page }) => {
     await page.goto('/')
 

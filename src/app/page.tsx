@@ -37,6 +37,8 @@ import AdminPanel from '@/components/AdminPanel'
 
 import { canCreateTransactions, FREE_TRANSACTION_LIMIT, getFreeTransactionUsage } from '@/lib/subscriptionLimits'
 import { useAuth } from '@/hooks/useAuth'
+import { useHelpNavigation } from '@/hooks/useHelpNavigation'
+import { helpNavigationUrl } from '@/lib/helpNavigation'
 import { newBookingCategoryError } from '@/lib/bookingCategoryVisibility'
 import AccountingDataBoundary from '@/components/AccountingDataBoundary'
 import { useAccountingData } from '@/hooks/useAccountingData'
@@ -75,6 +77,18 @@ import {
 
 export default function Home() {
   const auth = useAuth()
+  const helpOwner = useRef<string | null>(null)
+  useEffect(() => {
+    const owner = auth.user?.id ?? null
+    if (helpOwner.current && helpOwner.current !== owner &&
+      (new URL(window.location.href).searchParams.has('help') || window.history.state?.soloLedgerHelpDestination)) {
+      // Only public guide IDs are in the URL; still discard the previous visit
+      // on sign-out/account change. A signed-out incoming link survives login.
+      window.history.replaceState({ ...window.history.state, soloLedgerHelpDestination: null }, '', helpNavigationUrl(window.location.href, null))
+      window.dispatchEvent(new Event('sololedger-help-owner-change'))
+    }
+    helpOwner.current = owner
+  }, [auth.user?.id])
   return <HomeSession key={auth.user?.id ?? "signed-out"} auth={auth} />
 }
 
@@ -96,6 +110,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [password, setPassword] = useState('')
 
   const [activeTab, setActiveTabState] = useState('dashboard')
+  const help = useHelpNavigation(Boolean(user && !authLoading && !passwordRecoveryMode), setActiveTabState)
   const [profileDraft, setProfileDraft] = useState<ProfileSettingsDraft | null>(null)
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
@@ -108,6 +123,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [neGuideReturn, setNEGuideReturn] = useState<NEGuideVisit | null>(null)
   const [neGuideRestore, setNEGuideRestore] = useState<NEGuideVisit | null>(null)
   function setActiveTab(tab: string) {
+    if (tab === 'faq') { help.openHelp(); return }
+    if (activeTab === 'faq' || new URL(window.location.href).searchParams.has('help')) help.leaveHelp(tab)
     if(tab==='arsavslut'&&yearEndReturn?.scope.owner===user?.id){returnToYearEndGuide();return}
     if(tab==='arsavslut')setYearEndRestore(null)
     setNEGuideReturn(null)
@@ -1173,6 +1190,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </div>
       )}
 
+      {help.returnAvailable && activeTab !== 'faq' && (
+        <div className="mx-auto mb-5 max-w-7xl rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <button type="button" onClick={help.openHelp} className="min-h-11 rounded-lg px-3 py-2 font-semibold text-emerald-800 underline focus-visible:outline-2 focus-visible:outline-emerald-700">Tillbaka till Hjälp & FAQ</button>
+        </div>
+      )}
       {yearEndReturn?.scope.owner === user?.id && activeTab !== 'arsavslut' && (
         <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {yearEndReturn.scope.year}</button></div>
       )}
@@ -1375,7 +1397,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           />
         </SubscriptionGuard>
       ) : activeTab === 'faq' ? (
-        <FAQ />
+        <FAQ reading={help.reading} onReadingChange={help.setReading} unknownId={help.unknownId} focusRevision={help.focusRevision} onQuestion={help.openQuestion} onNavigate={help.openDestination} />
       ) : activeTab === 'profil' ? (
         <ProfileSettings draft={profileDraft} onDraftChange={setProfileDraft}
           key={`${user.id}:${profileContextKey}`}

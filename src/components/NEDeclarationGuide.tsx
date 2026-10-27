@@ -112,7 +112,7 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
           <li>Behåll även inlämnad NE, ditt underskrivna bokslut, skattebeslut och beräkningsunderlag i en mapp för {year}. Spara hjälputräkningarna separat enligt tjänstens instruktion.</li>
         </ol>
         <p><strong>Saknar du kvittensen?</strong> Kontrollera hos Skatteverket om deklarationen tagits emot och hämta kvittensen där. Ett sparat utkast bevisar inte inlämning. Betalning kontrolleras separat mot beslut och skattekonto.</p>
-        <p>SoloLedger sparar ännu ingen deklarationshistorik eller fryst NE-version. Årslåset ersätter inte dina sparade deklarationshandlingar.</p>
+        <p>I NE-Bilaga kan du spara versioner i deklarationshistoriken. Ett bokföringsunderlag kräver låst år och godkända kontroller. Egna och faktiskt deklarerade uppgifter kan dokumenteras även utan låst år. En sparad version är inte ett inlämningskvitto och årslåset ersätter inte dina deklarationshandlingar.</p>
         <Source href={sources.service}>Läs om granskning och kvittens</Source>
       </Step>
       <p className="text-xs text-gray-600">Källor kontrollerade 23 oktober 2026. Årsblankett, e-tjänst, datum och personliga förutsättningar måste kontrolleras för det år du deklarerar.</p>

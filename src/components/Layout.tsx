@@ -240,15 +240,15 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
   {/* TOPPRAD */}
   <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
 
-    <div className="flex w-full items-center justify-between gap-3 lg:w-auto lg:shrink-0">
+    <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:flex-nowrap lg:w-auto lg:shrink-0">
       {/* LOGGA */}
-      <div className="flex min-w-0 items-center gap-3 sm:min-w-[19rem] lg:min-w-[18rem] xl:min-w-[20rem]">
+      <div className="flex min-w-0 max-w-full items-center gap-3 sm:min-w-[19rem] lg:min-w-[18rem] xl:min-w-[20rem]">
         <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-lg shadow-emerald-200 shrink-0">
           S
         </div>
 
         <div className="flex flex-col min-w-0">
-          <h1 className="whitespace-nowrap text-xl font-black italic uppercase tracking-tighter text-gray-800 leading-none">
+          <h1 className="break-all text-xl font-black italic uppercase tracking-tighter text-gray-800 leading-none sm:break-normal sm:whitespace-nowrap">
             SoloLedger
           </h1>
 

@@ -1,0 +1,71 @@
+{
+  "task": "KAN-102",
+  "date": "2026-10-27",
+  "scope": "local uncommitted UI/content/navigation only",
+  "branch": "codex/KAN-102-help-center",
+  "head": "fff33fc4025a7ccee830e89608b97a04a3defdbf",
+  "preservedKAN117": "0b1192c1dd7d5396a74bfa5a6307565477c061bf",
+  "contentArticles": 24,
+  "helpBrowser": {
+    "status": "PASS",
+    "results": [
+      {
+        "width": 1440,
+        "status": "PASS",
+        "deepLinkLogin": true,
+        "recoveryPriority": true,
+        "history": true,
+        "search": true,
+        "ownerIsolation": true,
+        "copyPrivacy": true,
+        "noOverflow": true,
+        "text200": true,
+        "optionalMedia": true,
+        "accountingWrites": 0
+      },
+      {
+        "width": 390,
+        "status": "PASS",
+        "deepLinkLogin": true,
+        "recoveryPriority": true,
+        "history": true,
+        "search": true,
+        "ownerIsolation": true,
+        "copyPrivacy": true,
+        "noOverflow": true,
+        "text200": true,
+        "optionalMedia": true,
+        "accountingWrites": 0
+      },
+      {
+        "width": 320,
+        "status": "PASS",
+        "deepLinkLogin": true,
+        "recoveryPriority": true,
+        "history": true,
+        "search": true,
+        "ownerIsolation": true,
+        "copyPrivacy": true,
+        "noOverflow": true,
+        "text200": true,
+        "optionalMedia": true,
+        "accountingWrites": 0
+      }
+    ]
+  },
+  "lint": "PASS_NO_NEW_DIAGNOSTICS",
+  "typecheck": "PASS",
+  "build": "PASS with synthetic process configuration only",
+  "safeRegression": "PASS including 3 local public smoke tests",
+  "finalYearEndNavigation": "PASS 1440/1024/768/390/320 after final header layout change",
+  "preservedReports": true,
+  "financialCoreAndSql": "unchanged",
+  "physicalMobile": "NOT_RUN",
+  "actualScreenReader": "NOT_RUN",
+  "hostedRecoveryEmailAndAllowlist": "NOT_RUN",
+  "commits": 0,
+  "pushes": 0,
+  "deployments": 0,
+  "databaseChanges": 0,
+  "jiraMutations": 0
+}

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+.sl-help { overflow-wrap: anywhere; }
+.sl-help :is(button, a, input, select, summary):focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 3px;
+}
+.sl-help summary { scroll-margin-top: 6rem; }
+.sl-help summary:focus-visible { outline-offset: -3px; }
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

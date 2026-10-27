@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { beginProfileContext, isCurrentProfileContext, isProfileContextReady, acceptProfileContext, requireProfileContext, type ProfileTicket } from '@/lib/profileContext'
 import { verifyProfileWrite } from '@/lib/profileWriteGuard'
 import { supabase } from '@/lib/supabaseClient'
+import { helpPasswordResetUrl } from '@/lib/helpNavigation'
 import type {
   DeductionEntitlement,
   DomesticSalesVatTreatment,
@@ -156,7 +157,7 @@ export function useAuth() {
     }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        redirectTo: typeof window !== 'undefined' ? helpPasswordResetUrl(window.location.href) : undefined,
       })
       if (error) throw error
       setAuthNotice({

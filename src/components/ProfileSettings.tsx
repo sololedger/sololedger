@@ -753,13 +753,13 @@ export default function ProfileSettings({
 
               {vatStatus === 'not_registered' && (
                 <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <p className="text-[11px] font-bold leading-relaxed text-blue-700">Företaget är markerat som inte momsregistrerat. I nästa steg kopplar vi denna inställning till bokföringen så att nya vanliga bokningar inte skapar moms.</p>
+                  <p className="text-[11px] font-bold leading-relaxed text-blue-700">Företaget är markerat som inte momsregistrerat. Sparade momsuppgifter används redan i stödda bokföringsflöden. Kontrollera också svensk försäljningsbehandling och avdragsrätt nedan; de är separata uppgifter.</p>
                 </div>
               )}
 
               {vatStatus === 'unknown' && (
                 <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                  <p className="text-[11px] font-bold leading-relaxed text-amber-700">SoloLedger vet ännu inte företagets momsstatus. Bokföringen ändras inte av denna inställning förrän momsflödet kopplas in i nästa steg.</p>
+                  <p className="text-[11px] font-bold leading-relaxed text-amber-700">SoloLedger vet ännu inte företagets momsstatus. Kontrollera registreringen hos Skatteverket och spara rätt uppgifter. Saknade eller osäkra uppgifter kan stoppa berörda momsflöden; SoloLedger gissar inte.</p>
                 </div>
               )}
             </section>
@@ -806,7 +806,7 @@ export default function ProfileSettings({
 
               <div className={profileFieldClass}>
                 <label htmlFor="default-deduction-entitlement" className={profileLabelClass}>Normal avdragsrätt för ingående moms</label>
-                <p className={profileHelpClass}>Detta är bara en standardfaktauppgift för kommande momsflöden. Välj inte full avdragsrätt om inköpen normalt saknar avdragsrätt.</p>
+                <p className={profileHelpClass}>Den sparade uppgiften används som utgångspunkt i stödda inköpsflöden. Granska avdragsrätten för det enskilda inköpet. Momsregistrering innebär inte automatiskt full avdragsrätt.</p>
                 <select
                   id="default-deduction-entitlement"
                   value={defaultDeductionEntitlement}
