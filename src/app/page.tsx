@@ -84,7 +84,7 @@ export default function Home() {
       (new URL(window.location.href).searchParams.has('help') || window.history.state?.soloLedgerHelpDestination)) {
       // Only public guide IDs are in the URL; still discard the previous visit
       // on sign-out/account change. A signed-out incoming link survives login.
-      window.history.replaceState({ ...window.history.state, soloLedgerHelpDestination: null }, '', helpNavigationUrl(window.location.href, null))
+      window.history.replaceState({ ...window.history.state, soloLedgerHelpDestination: null, soloLedgerHelpVisit: null }, '', helpNavigationUrl(window.location.href, null))
       window.dispatchEvent(new Event('sololedger-help-owner-change'))
     }
     helpOwner.current = owner
@@ -123,8 +123,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [neGuideReturn, setNEGuideReturn] = useState<NEGuideVisit | null>(null)
   const [neGuideRestore, setNEGuideRestore] = useState<NEGuideVisit | null>(null)
   function setActiveTab(tab: string) {
-    if (tab === 'faq') { help.openHelp(); return }
-    if (activeTab === 'faq' || new URL(window.location.href).searchParams.has('help')) help.leaveHelp(tab)
+    if (tab === 'faq') { help.openHelpFromMenu(); return }
+    if (activeTab === 'faq' || help.returnAvailable || new URL(window.location.href).searchParams.has('help')) help.leaveHelp(tab)
     if(tab==='arsavslut'&&yearEndReturn?.scope.owner===user?.id){returnToYearEndGuide();return}
     if(tab==='arsavslut')setYearEndRestore(null)
     setNEGuideReturn(null)

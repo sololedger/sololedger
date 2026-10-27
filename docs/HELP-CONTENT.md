@@ -29,6 +29,12 @@ returadress kan bära ett verifierat fråge-ID, aldrig tokens eller annan queryd
 
 Sökning, ämne och öppna svar hålls endast i minnet för aktuell HomeSession.
 Återgång från en funktion bevarar läsläge och återför fokus till frågan.
+Vanliga menyval avslutar återgångsläget. Det aktiveras endast av en funktionsknapp
+i FAQ under aktuell session, aldrig av en kvarvarande historikpost efter omladdning.
+Historikens funktionsmål kan fortfarande återställa vyn; det ger i sig ingen
+återgångslänk. En besöksmarkering i historiken måste matcha det aktiva besöket i
+minnet. Äldre/avslutade besök återaktiveras inte av ett nytt besök.
+Bakåt/framåt inom ett aktivt hjälpbesök bevarar återgångsmöjligheten.
 Kontobyte/utloggning rensar besöket. Inga sökningar sparas i localStorage,
 sessionStorage, databasen eller en extern analys-/söktjänst.
 
