@@ -36,7 +36,7 @@ export async function checkReport(c, annual, cumulative) {
   const reads=[]
   globalThis.__kan93Rpc=async(n,a)=>{
     reads.push([n,a])
-    if(n==='get_ne_sales_summary') {assert.deepEqual(a,{p_year:year});return {data:{version:1,balances:rows(annual),r2_reallocation:c.r2??0,unresolved_count:c.unresolved??0,unresolved_amount:c.unresolved?100:0},error:null}}
+    if(n==='get_ne_sales_summary') {assert.deepEqual(a,{p_year:year});return {data:{version:1,result_closing_review:{version:1,year,through_date:`${year}-12-31`,blocked:!!c.zeroResult,entries:c.zeroResult?[{transaction_id:'synthetic-closing',date:`${year}-10-01`,ver_nr:2,journal_dates:[`${year}-10-01`],accounts:['3010','8990']}]:[]},balances:rows(annual),r2_reallocation:c.r2??0,unresolved_count:c.unresolved??0,unresolved_amount:c.unresolved?100:0},error:null}}
     if(n==='get_cumulative_account_balances') {assert.deepEqual(a,{p_through_date:`${year}-12-31`});return {data:rows(cumulative),error:null}}
     throw Error('Unexpected read/write '+n)
   }
@@ -47,15 +47,17 @@ export async function checkReport(c, annual, cumulative) {
   assert.equal(actual.B10_total,c.equity,c.name)
   assert.equal(before.B10_total,c.old??c.equity,c.name+' pre-fix')
   const {B10_total:oldB10,...oldRest}=before
-  const {B10_total:newB10,equityReviewRequired,...newRest}=actual
+  const {B10_total:newB10,equityReviewRequired,resultClosingReview,...newRest}=actual
   assert.equal(newB10,Math.round((oldB10-Object.entries(cumulative).filter(([a])=>/^899\d$/.test(a)).reduce((s,[,n])=>s+n,0))*100)/100)
   assert.deepEqual(newRest,oldRest,c.name+': all other amounts, KAN-88 decisions, KAN-90/91/92 warnings unchanged')
   const technical=Object.entries(cumulative).filter(([a])=>/^899\d$/.test(a)).reduce((sum,[,n])=>sum+n,0)
   assert.equal(Boolean(equityReviewRequired),technical!==0,c.name+' closing review')
   if(!c.blocked) assert.equal(calculateNeBalanceDiff(actual),0,c.name+' balance identity')
   if(c.zeroResult) {assert.equal(actual.R11,0);assert.equal(actual.R17,0)}
+  assert.equal(Boolean(resultClosingReview?.blocked),!!c.zeroResult,c.name+' KAN-96 closing safety')
   for(const locked of [false,true]) {
     const html=renderToStaticMarkup(React.createElement(api.NE,{neData:actual,selectedYear:year,isYearLocked:locked,onLockYear:async()=>{throw Error('No writes')}}))
+    if(c.zeroResult) assert(html.includes('Resultatunderlaget behöver granskas')&&html.includes('Osäkert underlag'))
     assert.equal(html.includes('Kontrollera bokslutsverifikationerna'),technical!==0)
     if(technical!==0) assert(html.includes('SoloLedger återskapar inte saknade resultatbelopp automatiskt.'))
     if(c.blocked && !locked) assert(html.includes('Balansräkningen måste balansera'))

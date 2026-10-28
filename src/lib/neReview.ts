@@ -5,6 +5,7 @@ import { calculateNeTaxAdjustments, type NeTaxReview } from './neTaxAdjustments'
 import { allocateNeSales, type NeSalesClassificationSummary } from './neSalesClassification'
 import { getBasAccountHelp } from './accountingKnowledge'
 import { calculateNeBalanceDiff } from './neBalance'
+import { resultClosingMessage, resultClosingNextStep, type ResultClosingReview } from './resultClosingReview'
 
 export type NeReviewPeriod = 'annual' | 'cumulative'
 export interface NeReviewEntry {
@@ -12,6 +13,7 @@ export interface NeReviewEntry {
   debit: number; credit: number; vatRate: number | null; decision?: { row: 'R1' | 'R2'; basis: string }
 }
 interface ReviewReport {
+  resultClosingReview?: ResultClosingReview
   reviewSources?: { annual: Record<string, number>; cumulative: Record<string, number> }
   neSalesClassification: NeSalesClassificationSummary
   warnings: ResultWarning[]; taxReviews: NeTaxReview[]; equityReviewRequired?: boolean
@@ -80,6 +82,7 @@ export function buildNeReview(report: ReviewReport, sales: NeReviewEntry[]): NeR
     if (/^R([1-9]|10|13|14)$/.test(group.id) && round(group.accounts.reduce((sum, row) => sum + (row.contribution ?? 0), 0)) !== group.amount) throw new Error('Kontounderlag och NE-ruta stämmer inte överens. Öppna kontrollen igen.')
   }
   const reviews = coverage.filter(row => row.status === 'review').map(row => ({ account: row.accountNumber, reason: row.reason, next: 'Öppna bokföringsposterna och jämför med underlaget. Ta hjälp av en redovisningskunnig om bedömningen är osäker.' }))
+  if (report.resultClosingReview?.blocked) reviews.push({ account: 'Resultat', reason: resultClosingMessage, next: resultClosingNextStep })
   for (const warning of report.warnings) if (!reviews.some(r => r.account === warning.accountNumber && r.reason === warning.message)) reviews.push({ account: warning.accountNumber, reason: warning.message, next: 'Granska underlaget före deklaration; ingen NE-ruta gissas.' })
   for (const review of report.taxReviews) if (!reviews.some(r => r.account === review.accountNumber && r.reason === review.reason)) reviews.push({ account: review.accountNumber, reason: review.reason, next: 'Granska skattebehandlingen före deklaration. Ändra inte bokföringen enbart för att släcka varningen.' })
   if (report.equityReviewRequired) reviews.push({ account: 'B10', reason: 'Kontrollera bokslutsverifikationerna. Resultatöverföringar nettas i B10; helt nollade externa resultatkonton återskapas inte till R11/R17.', next: 'Stäm av mot det externa bokslutet före deklaration.' })
@@ -88,5 +91,11 @@ export function buildNeReview(report: ReviewReport, sales: NeReviewEntry[]): NeR
   if (Math.abs(calculateNeBalanceDiff(report)) > 1) reviews.push({ account: 'Balansräkningen', reason: 'Tillgångar matchar inte eget kapital och skulder enligt befintlig balanskontroll.', next: 'Stäm av underlaget före deklaration. En differens ska inte döljas genom omklassificering i granskningsvyn.' })
   const titles: Record<string, string> = { R1: 'Momspliktiga intäkter', R2: 'Momsfria intäkter', R3: 'Bil- och bostadsförmån m.m.', R4: 'Ränteintäkter m.m.', R5: 'Varor, material och tjänster', R6: 'Övriga externa kostnader', R7: 'Anställd personal', R8: 'Räntekostnader m.m.', R9: 'Avskrivningar byggnader/mark', R10: 'Avskrivningar inventarier m.m.', R13: 'Ej avdragsgilla kostnader', R14: 'Bokförda intäkter som inte ska tas upp', B1: 'Immateriella anläggningstillgångar', B2: 'Byggnader och markanläggningar', B3: 'Mark och andra tillgångar', B4: 'Maskiner och inventarier', B5: 'Övriga anläggningstillgångar', B6: 'Varulager', B7: 'Kundfordringar', B8: 'Övriga fordringar', B9: 'Kassa och bank', B13: 'Låneskulder', B14: 'Skatteskulder', B15: 'Leverantörsskulder', B16: 'Övriga skulder' }
   for (const group of groups) group.title = titles[group.id] ?? group.title
+  if (report.resultClosingReview?.blocked) {
+    for (const group of groups) if (/^R\d+$/.test(group.id)) {
+      group.amount = null
+      group.explanation = resultClosingMessage + ' Kontosaldona nedan är bevarade granskningsuppgifter, inte ett tillförlitligt NE-resultat.'
+    }
+  }
   return { groups, reviews, sales }
 }

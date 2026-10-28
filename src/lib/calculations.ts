@@ -1,11 +1,13 @@
 import type { MomsBreakdown } from './accountingService'
 import { calculateBusinessResult } from './resultEngine.ts'
+import type { ResultClosingReview } from './resultClosingReview'
 
 export interface DashboardBalances {
   [accountNumber: string]: number
 }
 
 export interface DashboardData {
+  resultReviewRequired?: boolean
   bankSaldo: number
   intakter: number
   kostnader: number
@@ -62,7 +64,8 @@ export function getKostnader(balances: DashboardBalances): number {
 export function calculateDashboard(
   balances: DashboardBalances,
   taxRate: number,
-  momsBreakdown: MomsBreakdown
+  momsBreakdown: MomsBreakdown,
+  resultClosingReview?: ResultClosingReview
 ): DashboardData {
   const bankSaldo = getBankSaldo(balances)
 
@@ -93,7 +96,7 @@ export function calculateDashboard(
       : 0
 
   const taxReviewRequired = businessResult.taxReviews.length > 0
-  const sakertUttag = manualReviewRequired || taxReviewRequired
+  const sakertUttag = manualReviewRequired || taxReviewRequired || resultClosingReview?.blocked
     ? 0
     : Math.round(
         (bankSaldo - skattReserv - (momsNetto > 0 ? momsNetto : 0)) * 100
@@ -115,5 +118,6 @@ export function calculateDashboard(
     momsManualReviewMessage: manualReviewMessage ?? null,
     skattReserv,
     sakertUttag,
+    ...(resultClosingReview?.blocked ? { resultReviewRequired: true, taxReviewRequired: true } : {}),
   }
 }

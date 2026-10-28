@@ -50,7 +50,7 @@ globalThis.__rpc = async (name, args) => {
   assert.equal(name,'get_ne_sales_summary','Only existing read RPCs allowed')
   const rows=journal.filter(j=>dateById.get(j.transaction_id)?.startsWith(String(args.p_year))), byId=new Map(decisions.map(d=>[d.journal_entry_id,d]))
   const candidates=rows.filter(j=>j.account_number==='3010'&&(j.debit||j.credit)), unknown=candidates.filter(j=>!byId.has(j.id)&&Number(transactions.find(t=>t.id===j.transaction_id).vat_rate??0)===0)
-  return {data:{version:1,balances:balances(rows),r2_reallocation:candidates.filter(j=>byId.get(j.id)?.ne_row==='R2').reduce((s,j)=>s+j.credit-j.debit,0),unresolved_count:unknown.length,unresolved_amount:unknown.reduce((s,j)=>s+Math.abs(j.credit-j.debit),0)},error:null}
+  return {data:{version:1,result_closing_review:{version:1,year:args.p_year,through_date:`${args.p_year}-12-31`,blocked:false,entries:[]},balances:balances(rows),r2_reallocation:candidates.filter(j=>byId.get(j.id)?.ne_row==='R2').reduce((s,j)=>s+j.credit-j.debit,0),unresolved_count:unknown.length,unresolved_amount:unknown.reduce((s,j)=>s+Math.abs(j.credit-j.debit),0)},error:null}
 }
 globalThis.__from = table => {
   assert(['transactions','journal_entries','ne_sales_classifications'].includes(table));const filters=[],record={table,filters};calls.push(record)

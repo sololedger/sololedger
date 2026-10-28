@@ -40,7 +40,7 @@ const reports = {}
 for (const item of cases) {
   const balances = Object.entries(item.balances).map(([account_number, balance]) => ({ account_number, balance }))
   const fixture = freeze({
-    summary: { version: 1, balances, r2_reallocation: item.reallocation ?? 0, unresolved_count: item.unclassifiedSale ? 1 : 0, unresolved_amount: item.unclassifiedSale ? 1000 : 0 },
+    summary: { version: 1,result_closing_review:{version:1,year:2026,through_date:"2026-12-31",blocked:false,entries:[]}, balances, r2_reallocation: item.reallocation ?? 0, unresolved_count: item.unclassifiedSale ? 1 : 0, unresolved_amount: item.unclassifiedSale ? 1000 : 0 },
     cumulative: balances,
   })
   const inputBefore = JSON.stringify(fixture)
@@ -63,6 +63,7 @@ for (const item of cases) {
   }
   const expected = calculateBusinessResult(item.balances)
   if (item.code) assert(expected.warnings.some(w => w.code === item.code), 'Fixture produces intended warning: ' + item.name)
+  if (item.missing) { await assert.rejects(mod.exports.getNEData(2026), /Kontrollen av bokslutsposter/); continue }
   const report = await mod.exports.getNEData(2026)
   reports[item.name] = report
   const render = (extra = {}) => renderToStaticMarkup(React.createElement(mod.exports.NEBilaga, {

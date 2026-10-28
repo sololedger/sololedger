@@ -1,4 +1,5 @@
 import { calculateCumulativeNeResult, calculateNeReport } from './neCalculation'
+import { parseResultClosingReview } from './resultClosingReview'
 import { verifiedProfileRpc } from './profileWriteGuard'
 import { submitStandardBookingAttempt, parseStandardBookingReceipt, StandardBookingSubmissionError, type StandardBookingAttempt } from './standardBookingAttempt'
 import { parseStandardBookingAmount } from './standardBookingAmount'
@@ -1882,5 +1883,8 @@ export async function getNEData(year: number, includeReviewSources = false) {
   const balanceSheetBalances = await getBalanceSheetBalances(year)
 
   const cumulativeBalances = await loadCumulativeNeBalances(year)
-  return calculateNeReport({ annualBalances: balances, balanceSheetBalances, cumulativeBalances, neSalesClassification }, includeReviewSources)
+  // Fail closed against a database missing the KAN-96 safety protocol.
+  const resultClosingReview = parseResultClosingReview(salesData?.result_closing_review, year)
+  if (resultClosingReview.through_date !== `${year}-12-31`) throw new Error('Kontrollen av bokslutsposter täcker inte hela året.')
+  return { ...calculateNeReport({ annualBalances: balances, balanceSheetBalances, cumulativeBalances, neSalesClassification }, includeReviewSources), ...(resultClosingReview.blocked ? { resultClosingReview } : {}) }
 }

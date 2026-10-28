@@ -7,6 +7,7 @@ export interface NeSummarySource {
   warnings?: { accountNumber: string }[]
   taxReviews?: { accountNumber: string }[]
   equityReviewRequired?: boolean
+  resultClosingReview?: { blocked: boolean }
   neSalesClassification?: { available: boolean; reviewRequired: boolean }
   unclassifiedNegativeBankBalance?: number
   B1?: number; B2?: number; B3?: number; B4?: number; B5?: number; B6?: number
@@ -16,6 +17,7 @@ export interface NeSummarySource {
 export function neReviewSummary(source: NeSummarySource | null | undefined, ready = true) {
   if (!ready || !source) return { known: false, areas: [] as string[], text: 'Granskningsstatus är inte tillgänglig' }
   const areas = new Set<string>()
+  if (source.resultClosingReview?.blocked) areas.add('Bokslutsposter och resultat')
   for (const row of source.accountCoverage ?? []) if (row.status === 'review') areas.add(row.accountNumber)
   for (const row of [...source.warnings ?? [], ...source.taxReviews ?? []]) areas.add(row.accountNumber)
   if (source.equityReviewRequired) areas.add('B10')

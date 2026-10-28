@@ -76,7 +76,7 @@ for(const c of cases) {
   const year=c.year??2026
   const annual=Object.entries(c.annual).map(([account_number,balance])=>({account_number,balance}))
   const cumulative=Object.entries(c.cumulative??c.annual).map(([account_number,balance])=>({account_number,balance}))
-  const summary={version:1,balances:annual,r2_reallocation:c.r2??0,unresolved_count:c.unresolved??0,unresolved_amount:c.unresolved?100:0}
+  const summary={version:1,result_closing_review:{version:1,year,through_date:`${year}-12-31`,blocked:false,entries:[]},balances:annual,r2_reallocation:c.r2??0,unresolved_count:c.unresolved??0,unresolved_amount:c.unresolved?100:0}
   const unchanged=JSON.stringify({annual,cumulative,summary})
   const reads=[]
   globalThis.__kan92Rpc=async(name,args)=>{
@@ -86,6 +86,7 @@ for(const c of cases) {
     if(name==='get_cumulative_account_balances') {assert.deepEqual(args,{p_through_date:`${year}-12-31`});return {data:cumulative,error:null}}
     throw Error('Unexpected RPC/write '+name)
   }
+  if (c.missing) { await assert.rejects(current.getNEData(year), /Kontrollen av bokslutsposter/); continue }
   const prior=await before.getNEData(year)
   const priorReads=reads.splice(0)
   const actual=await current.getNEData(year)

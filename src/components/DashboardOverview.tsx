@@ -7,9 +7,12 @@ import { useWithdrawal } from '@/hooks/useWithdrawal'
 import { withdrawalAnnualRate } from '@/lib/withdrawalAssessment'
 import { calculateDashboard, type DashboardBalances } from '@/lib/calculations'
 import type { MomsBreakdown } from '@/lib/accountingService'
+import type { ResultClosingReview } from '@/lib/resultClosingReview'
+import ResultClosingNotice from './ResultClosingNotice'
 
 type Props = Omit<OverviewCardsProps, 'data' | 'taxRate' | 'withdrawal'> & {
   taxControlTarget: HTMLElement | null
+  resultClosingReview?: ResultClosingReview
   owner: string; refreshKey: unknown; balances: DashboardBalances; bankSaldo: number; momsBreakdown: MomsBreakdown
   onOpenVat?: () => void; onOpenNe?: () => void
 }
@@ -19,18 +22,19 @@ export default function DashboardOverview(props: Props) {
   return <DashboardSession key={`${props.owner}:${asOf}`} {...props} asOf={asOf} />
 }
 
-function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, taxControlTarget, asOf, ...cards }: Props & { asOf: string }) {
+function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, taxControlTarget, resultClosingReview, asOf, ...cards }: Props & { asOf: string }) {
   // One read/save lifecycle for both cards: conflicts and failed reads mask both.
   const model = useWithdrawal(owner, asOf, refreshKey)
   const loaded = model.data
   const [notice, setNotice] = useState<{ year: number; text: string } | null>(null)
   const rate = loaded ? withdrawalAnnualRate(loaded.assessment.facts, cards.selectedYear) : null
-  const data = calculateDashboard(balances, rate ?? 0, momsBreakdown)
+  const data = calculateDashboard(balances, rate ?? 0, momsBreakdown, resultClosingReview)
   data.bankSaldo = bankSaldo
   const income = loaded?.assessment.facts.find(f => f.key === `income:${cards.selectedYear}`)?.value
   const persisted = loaded?.assessment.facts.some(f => (f.key === `rate:${cards.selectedYear}` || f.key === `income:${cards.selectedYear}`) && typeof f.value.rate === 'number') ?? false
   const final = income?.finalOre !== null && income?.finalOre !== undefined
   return <>
+    <ResultClosingNotice review={resultClosingReview} />
     {taxControlTarget && createPortal(loaded && rate !== null ? <AnnualRateEditor key={`${cards.selectedYear}:${loaded.snapshot.revision?.id ?? 'default'}:${loaded.snapshot.signature}`}
       model={model} year={cards.selectedYear} asOf={asOf} rate={rate} final={final} persisted={persisted}
       notice={notice?.year === cards.selectedYear ? notice.text : ''} onNotice={text => setNotice({ year: cards.selectedYear, text })} /> : <p className="text-xs text-slate-600">Årsprocenten visas när uttagsunderlaget har laddats.</p>, taxControlTarget)}

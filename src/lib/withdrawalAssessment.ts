@@ -1,4 +1,5 @@
 import { calculateBusinessResult } from './resultEngine.ts'
+import { parseResultClosingReview, resultClosingMessage, type ResultClosingReview } from './resultClosingReview.ts'
 import { calculateVatReportFromLoadedRows, type LoadedVatReportRows } from './vatReportService.ts'
 import { assertOre, calculateWithdrawal, toOre, validWithdrawalDate, type WithdrawalPart } from './withdrawalModel.ts'
 import { validateWithdrawalInvoices, type WithdrawalInvoice, type WithdrawalInvoiceBooking } from './withdrawalInvoiceValidation.ts'
@@ -16,6 +17,7 @@ export interface WithdrawalMovement { id: string; user_id: string; transaction_i
 export interface WithdrawalFact { key: string; value: Record<string, unknown>; source?: string; observed_on?: string }
 export interface WithdrawalRevision { id: string; user_id: string; as_of_date: string; recorded_at: string; facts: WithdrawalFact[] }
 export interface WithdrawalSnapshot {
+  result_closing_reviews: ResultClosingReview[]
   supplierProof?: WithdrawalSupplierProof
   protocol: 3; user_id: string; as_of: string; signature: string
   invoices: WithdrawalInvoice[]; invoice_bookings: WithdrawalInvoiceBooking[]
@@ -60,6 +62,16 @@ export function withdrawalFinancialRows(s: WithdrawalSnapshot, date: string): st
 }
 export function validateWithdrawalSnapshot(s: WithdrawalSnapshot, owner: string, asOf: string) {
   if (!s || s.protocol !== 3 || s.user_id !== owner || s.as_of !== asOf || !s.signature || !s.financial_signature || !validWithdrawalDate(asOf)) throw new Error('Uttagsunderlaget saknar aktuellt fakturastöd eller tillhör fel sammanhang.')
+  if (!Array.isArray(s.result_closing_reviews)) throw new Error('Kontrollen av bokslutsposter saknas i uttagsunderlaget.')
+  for (const review of s.result_closing_reviews) {
+    parseResultClosingReview(review)
+    if (review.through_date !== (review.year === Number(asOf.slice(0, 4)) ? asOf : `${review.year}-12-31`) ||
+      review.year > Number(asOf.slice(0, 4))) throw new Error('Bokslutskontrollen gäller fel datum.')
+  }
+  if (new Set(s.result_closing_reviews.map(r => r.year)).size !== s.result_closing_reviews.length ||
+    s.journal.some(j => !s.result_closing_reviews.some(r => r.year === Number(j.date.slice(0, 4))))) {
+    throw new Error('Bokslutskontrollen täcker inte hela uttagsunderlaget.')
+  }
   for (const rows of [s.transactions, s.journal, s.periods, s.snapshots, s.events, s.movements, s.roles, s.invoices, s.invoice_bookings, s.invoice_journal]) {
     if (!Array.isArray(rows) || rows.some(r => r.user_id !== owner)) throw new Error('Uttagsunderlaget är ofullständigt eller tillhör en annan användare.')
   }
@@ -83,6 +95,8 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
     facts.set(f.key, f.value)
   }
   const issues: string[] = []
+  const closingYears = s.result_closing_reviews.filter(r => r.blocked).map(r => r.year)
+  if (closingYears.length) issues.push(resultClosingMessage + ' Berör inkomstår: ' + closingYears.join(', ') + '. Välj berört år i NE-underlaget för att se verifikationerna.')
   const invoiceValidation = validateWithdrawalInvoices(s)
   issues.push(...invoiceValidation.issues)
   const supplierValidation = validateWithdrawalSuppliers(s)

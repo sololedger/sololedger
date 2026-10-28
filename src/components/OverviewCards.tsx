@@ -92,7 +92,7 @@ export default function OverviewCards({
             </p>
 
             <p className="text-xl font-black tabular-nums text-orange-500">
-              {taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
+              {data.resultReviewRequired ? 'Osäkert underlag' : taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
             </p>
             {data.taxReviewRequired && <p className="text-xs text-amber-800">Preliminärt – skatteunderlaget behöver granskas</p>}
 
@@ -135,7 +135,7 @@ export default function OverviewCards({
             </p>
 
             <p className={`text-xl font-black tabular-nums ${data.bokfortResultat >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {data.bokfortResultat.toLocaleString('sv-SE')} kr
+              {data.resultReviewRequired ? 'Osäkert underlag' : data.bokfortResultat.toLocaleString('sv-SE') + ' kr'}
             </p>
 
             <p className="text-xs text-gray-400 font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -299,7 +299,7 @@ export default function OverviewCards({
                       Bokförda intäkter
                     </span>
                     <span className="font-black text-emerald-600">
-                      +{data.intakter.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : '+' + data.intakter.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
 
@@ -308,7 +308,7 @@ export default function OverviewCards({
                       Bokförda kostnader
                     </span>
                     <span className="font-black text-red-500">
-                      −{data.kostnader.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : '−' + data.kostnader.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
 
@@ -317,7 +317,7 @@ export default function OverviewCards({
                       Bokfört resultat
                     </span>
                     <span className={`font-black ${data.bokfortResultat >= 0 ? 'text-gray-700' : 'text-red-500'}`}>
-                      {data.bokfortResultat.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : data.bokfortResultat.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
 
@@ -327,7 +327,7 @@ export default function OverviewCards({
                         Ej avdragsgilla (R13)
                       </span>
                       <span className="font-black text-orange-500">
-                        {data.ejAvdragsgillt > 0 ? '+' : ''}{data.ejAvdragsgillt.toLocaleString('sv-SE')} kr
+                        {!data.resultReviewRequired && data.ejAvdragsgillt > 0 ? '+' : ''}{data.resultReviewRequired ? 'Osäkert underlag' : data.ejAvdragsgillt.toLocaleString('sv-SE') + ' kr'}
                       </span>
                     </div>
                   )}
@@ -335,7 +335,7 @@ export default function OverviewCards({
                   {(data.skattefriaIntakter ?? 0) !== 0 && (
                     <div className="flex flex-wrap justify-between items-center gap-2 bg-orange-50 rounded-2xl px-5 py-3">
                       <span className="text-xs font-black text-orange-500 uppercase">Skattefria intäkter (R14)</span>
-                      <span className="font-black text-orange-500">{(-(data.skattefriaIntakter ?? 0)).toLocaleString('sv-SE')} kr</span>
+                      <span className="font-black text-orange-500">{data.resultReviewRequired ? 'Osäkert underlag' : (-(data.skattefriaIntakter ?? 0)).toLocaleString('sv-SE') + ' kr'}</span>
                     </div>
                   )}
 
@@ -344,18 +344,18 @@ export default function OverviewCards({
                       Skattemässigt resultat
                     </span>
                     <span className="font-black text-orange-600">
-                      {data.skattemassigVinst.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : data.skattemassigVinst.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-6 pt-4 border-t-2 border-gray-100 flex flex-wrap justify-between items-center gap-2">
                   <span className="text-xs font-black uppercase text-gray-400">
-                    {taxRate === null ? 'Årsprocenten kunde inte hämtas' : `${data.skattemassigVinst.toLocaleString('sv-SE')} kr × ${taxRate}%`}
+                    {taxRate === null ? 'Årsprocenten kunde inte hämtas' : `${data.resultReviewRequired ? 'Osäkert underlag' : data.skattemassigVinst.toLocaleString('sv-SE') + ' kr'} × ${taxRate}%`}
                   </span>
 
                   <span className="text-2xl font-black text-orange-500">
-                    {taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
+                    {data.resultReviewRequired ? 'Osäkert underlag' : taxRate === null ? 'Underlag saknas' : `−${data.skattReserv.toLocaleString('sv-SE')} kr`}
                   </span>
                 </div>
               </>
@@ -450,7 +450,7 @@ export default function OverviewCards({
                       Bokförda intäkter
                     </span>
                     <span className="font-black text-emerald-700">
-                      +{data.intakter.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : '+' + data.intakter.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
 
@@ -459,7 +459,7 @@ export default function OverviewCards({
                       Bokförda kostnader
                     </span>
                     <span className="font-black text-rose-700">
-                      −{data.kostnader.toLocaleString('sv-SE')} kr
+                      {data.resultReviewRequired ? 'Osäkert underlag' : '−' + data.kostnader.toLocaleString('sv-SE') + ' kr'}
                     </span>
                   </div>
                 </div>
@@ -470,7 +470,7 @@ export default function OverviewCards({
                   </span>
 
                   <span className={`text-2xl font-black ${data.bokfortResultat >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {data.bokfortResultat.toLocaleString('sv-SE')} kr
+                    {data.resultReviewRequired ? 'Osäkert underlag' : data.bokfortResultat.toLocaleString('sv-SE') + ' kr'}
                   </span>
                 </div>
               </>

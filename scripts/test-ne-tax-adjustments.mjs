@@ -83,7 +83,7 @@ for (const item of cases) {
   globalThis.__kan91Rpc = async (name,args) => {
     if (name === 'get_ne_sales_summary') {
       assert.deepEqual(args, { p_year: year })
-      return item.missing ? { error: { code:'PGRST202' } } : { data: { version:1,balances:annual,r2_reallocation:item.r2??0,unresolved_count:0,unresolved_amount:0 },error:null }
+      return item.missing ? { error: { code:'PGRST202' } } : { data: { version:1,result_closing_review:{version:1,year,through_date:`${year}-12-31`,blocked:false,entries:[]},balances:annual,r2_reallocation:item.r2??0,unresolved_count:0,unresolved_amount:0 },error:null }
     }
     if (name === 'get_period_account_balances') {
       assert(item.missing)
@@ -96,6 +96,7 @@ for (const item of cases) {
     }
     throw Error('Unexpected read/write: '+name)
   }
+  if (item.missing) { await assert.rejects(mod.exports.getNEData(year), /Kontrollen av bokslutsposter/); continue }
   const report = await mod.exports.getNEData(year)
   for (const field of ['R13','R14','R17']) assert.equal(report[field], item[field], item.name+'/'+field)
   assert.equal(report.R17, Math.round((report.R12+report.R13-report.R14+report.R15-report.R16)*100)/100)

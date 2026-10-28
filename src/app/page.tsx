@@ -1222,6 +1222,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         <>
           <DashboardOverview
             owner={user.id} taxControlTarget={taxControlTarget} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
+            resultClosingReview={neData?.resultClosingReview}
             momsBreakdown={momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }}
             onOpenVat={() => setActiveTab('moms')} onOpenNe={() => setActiveTab('ne')}
             selectedYear={selectedYear}

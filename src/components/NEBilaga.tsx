@@ -8,8 +8,11 @@ import { getNeChartReviewReason } from '@/lib/neChartReview'
 import NEUnderlagReview from './NEUnderlagReview'
 import NEAccountTable from './NEAccountTable'
 import NEDeclarationGuide from './NEDeclarationGuide'
+import ResultClosingNotice from './ResultClosingNotice'
+import { resultClosingMessage, type ResultClosingReview } from '@/lib/resultClosingReview'
 
 interface NEData {
+  resultClosingReview?: ResultClosingReview;
   equityReviewRequired?: boolean;
   accountCoverage?: NeAccountCoverage[];
   warnings?: ResultWarning[];
@@ -147,10 +150,11 @@ export default function NEBilaga({
   const hasBalanceDifference = Math.abs(balansDiff) > 1
   const hasUnclassifiedNegativeBank = unclassifiedNegativeBankBalance > 1
   const yearCloseBlocked =
+    Boolean(neData.resultClosingReview?.blocked) ||
     hasBalanceDifference ||
     hasUnclassifiedNegativeBank ||
     Boolean(externalYearCloseBlockReason)
-  const yearCloseBlockReason = hasUnclassifiedNegativeBank
+  const yearCloseBlockReason = neData.resultClosingReview?.blocked ? resultClosingMessage : hasUnclassifiedNegativeBank
     ? 'Stäm av negativt saldo i kassa/bank innan räkenskapsåret låses.'
     : hasBalanceDifference
       ? 'Balansräkningen måste balansera innan räkenskapsåret låses.'
@@ -160,6 +164,7 @@ export default function NEBilaga({
   const separateAccountWarnings = accountsToReview.filter(row => !(hasUnclassifiedNegativeBank &&
     row.period === 'cumulative' && /^19\d{2}$/.test(row.accountNumber) &&
     negativeBankBalances.some(bank => bank.accountNumber === row.accountNumber && bank.balance === row.balance)))
+  const resultFmt = (value: number | null | undefined) => neData.resultClosingReview?.blocked ? 'Osäkert underlag' : fmt(value)
 
   return (
     <div className="sl-ne space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -169,6 +174,7 @@ export default function NEBilaga({
         </h2>
 
 <p className="mb-4 text-sm text-slate-600">Bokföringsvärden · inte en färdig deklaration.</p>
+        <ResultClosingNotice review={neData.resultClosingReview} />
 
 
 
@@ -181,32 +187,32 @@ export default function NEBilaga({
 
             <div className={`${!showAllNERows && Math.abs(neData.R1 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R1 Momspliktiga intäkter</span>
-              <span className="whitespace-nowrap">{fmt(neData.R1)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R1)}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R2 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R2 Momsfria intäkter</span>
-              <span className="whitespace-nowrap">{fmt(neData.R2)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R2)}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R3 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R3 Bil- och bostadsförmån m.m.</span>
-              <span className="whitespace-nowrap">{fmt(neData.R3)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R3)}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R4 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R4 Ränteintäkter m.m.</span>
-              <span className="whitespace-nowrap">{fmt(neData.R4)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R4)}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R5 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R5 Varor, material och tjänster</span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R5 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R5 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R6 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R6 Övriga externa kostnader</span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R6 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R6 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R7 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
@@ -214,22 +220,22 @@ export default function NEBilaga({
                 R7 Anställd personal
                 <Tooltip text="SoloLedger är avsett för enskild firma utan anställda. Denna ruta ska därför normalt vara 0 kr." />
               </span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R7 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R7 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R8 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R8 Räntekostnader m.m.</span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R8 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R8 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R9 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R9 Avskrivningar byggnader/mark</span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R9 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R9 ?? 0))}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R10 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R10 Avskrivningar inventarier m.m.</span>
-              <span className="whitespace-nowrap">{fmt(-(neData.R10 ?? 0))}</span>
+              <span className="whitespace-nowrap">{resultFmt(-(neData.R10 ?? 0))}</span>
             </div>
 
             <button
@@ -244,7 +250,7 @@ export default function NEBilaga({
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-700">
               <span>R11 Bokfört resultat</span>
-              <span className={`whitespace-nowrap ${neData.R11 < 0 ? 'text-red-500' : ''}`}>{fmt(neData.R11)}</span>
+              <span className={`whitespace-nowrap ${neData.R11 < 0 ? 'text-red-500' : ''}`}>{resultFmt(neData.R11)}</span>
             </div>
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
@@ -252,7 +258,7 @@ export default function NEBilaga({
                 R12 Bokfört resultat (överfört från R11)
                 <Tooltip text="R12 är samma bokförda resultat som R11 och är startpunkten för de skattemässiga justeringarna på NE-bilagans sida 2." />
               </span>
-              <span className="whitespace-nowrap">{fmt(neData.R12)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R12)}</span>
             </div>
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600">
@@ -260,22 +266,22 @@ export default function NEBilaga({
                 R13 Ej avdragsgilla kostnader
                 <Tooltip text="Återläggning av bokförda ej avdragsgilla kostnader på 6072, 6982 och 6992. Avdragsgilla delar och momsavdrag bedöms separat." />
               </span>
-              <span className="whitespace-nowrap">{fmt(neData.R13)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R13)}</span>
             </div>
 
             <div className={`${!showAllNERows && Math.abs(neData.R14 ?? 0) < 0.005 ? "hidden " : ""}flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm italic font-bold text-gray-600`}>
               <span>R14 Bokförda intäkter som inte ska tas upp</span>
-              <span className="whitespace-nowrap">{fmt(neData.R14)}</span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R14)}</span>
             </div>
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm text-gray-700">
               <span>R15 Intäkter som inte bokförts men ska tas upp</span>
-              <span className="whitespace-nowrap">{fmt(neData.R15)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R15)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
             </div>
 
             <div className="flex flex-wrap justify-between gap-x-3 border-b pb-2 pt-2 text-sm text-gray-700">
               <span>R16 Kostnader som inte bokförts men ska dras av</span>
-              <span className="whitespace-nowrap">{fmt(neData.R16)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
+              <span className="whitespace-nowrap">{resultFmt(neData.R16)} <span className="ml-1 text-xs font-medium text-amber-900">Inte bedömt</span></span>
             </div>
 
             <p className="mt-2 text-xs leading-relaxed text-gray-600">R15/R16: SoloLedger saknar individuell bedömning och använder 0 i beräkningen. Kontrollera om du har intäkter eller avdrag utanför det bokförda resultatet. Nollan är inte ett granskat skattebelopp.</p>
@@ -285,7 +291,7 @@ export default function NEBilaga({
                 R17 Sammanlagt resultat
                 <Tooltip text="R17 är resultatet efter skattemässiga justeringar: R12 + R13 − R14 + R15 − R16." />
               </span>
-              <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{fmt(R17)}</span>
+              <span className={`text-2xl tracking-tighter whitespace-nowrap ${r17Color}`}>{resultFmt(R17)}</span>
               <p className="w-full text-sm font-normal not-italic text-gray-700">Enligt SoloLedgers beräkning. Inte automatiskt ditt slutliga deklarationsresultat; egna skatteuppgifter och fler justeringar kan återstå hos Skatteverket.</p>
             </div>
           </div>

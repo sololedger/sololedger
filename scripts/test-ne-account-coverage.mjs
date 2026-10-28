@@ -65,7 +65,7 @@ for (const item of cases) {
   const year = item.year ?? 2026
   const annual = Object.entries(item.annual).map(([account_number, balance]) => ({ account_number, balance }))
   const cumulative = Object.entries(item.cumulative ?? item.annual).map(([account_number, balance]) => ({ account_number, balance }))
-  const fixture = freeze({ annual, cumulative, summary: { version: 1, balances: annual, r2_reallocation: item.reallocation ?? 0, unresolved_count: item.unresolved ? 1 : 0, unresolved_amount: item.unresolved ? 1000 : 0 } })
+  const fixture = freeze({ annual, cumulative, summary: { version: 1,result_closing_review:{version:1,year,through_date:`${year}-12-31`,blocked:false,entries:[]}, balances: annual, r2_reallocation: item.reallocation ?? 0, unresolved_count: item.unresolved ? 1 : 0, unresolved_amount: item.unresolved ? 1000 : 0 } })
   const original = JSON.stringify(fixture)
   const reads = []
   globalThis.__kan90Rpc = async (name, args) => {
@@ -75,6 +75,7 @@ for (const item of cases) {
     if (name === 'get_cumulative_account_balances') { assert.deepEqual(args, { p_through_date: `${year}-12-31` }); return { data: fixture.cumulative, error: null } }
     throw Error('Unexpected read or write: ' + name)
   }
+  if (item.missing) { await assert.rejects(api.getNEData(year), /Kontrollen av bokslutsposter/); continue }
   const before = await api.beforeNE(year)
   const previousReads = reads.splice(0)
   const report = await api.getNEData(year)
@@ -153,7 +154,7 @@ try {
     await page.setContent('<html lang="sv"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>')
     await page.addStyleTag({ content: css.css })
     await page.addScriptTag({ content: uiBundle.outputFiles[0].text })
-    for (const index of [0,1,3,4,6,14,16,18,19,20]) for (const locked of [false,true]) {
+    for (const index of reports.map((_,index)=>index)) for (const locked of [false,true]) {
       await page.evaluate(({index,locked}) => window.configure(index,locked), { index, locked })
       const heading = page.getByRole('heading', { name: 'NE-bilagan', exact: true })
       await expect(heading).toBeVisible()
@@ -176,7 +177,7 @@ try {
         await expect(accountRow).toContainText(row.status === 'review' ? 'Behöver granskas' : row.status === 'excluded' ? 'Undantaget från direkt koppling' : 'Känd koppling')
       }
       if (!report.accountCoverage.some(row => row.status === 'review')) await expect(page.getByText('Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.',{exact:true})).toBeVisible()
-      if (index === 18) await expect(page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för 8999',{exact:true})})).toContainText('Tekniskt resultatkonto')
+      if (report.accountCoverage.some(row=>row.accountNumber==='8999')) await expect(page.locator('tr').filter({has:page.getByLabel('Visa bokföringsposter för 8999',{exact:true})})).toContainText('Tekniskt resultatkonto')
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal overflow')
       if (index === 0 && !locked) await page.screenshot({ path: `test-results/kan90-ne-coverage/${width}.png`, fullPage: true })
     }
