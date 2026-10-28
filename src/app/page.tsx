@@ -111,7 +111,6 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [password, setPassword] = useState('')
 
   const [activeTab, setActiveTabState] = useState('dashboard')
-  const help = useHelpNavigation(Boolean(user && !authLoading && !passwordRecoveryMode), setActiveTabState)
   const [profileDraft, setProfileDraft] = useState<ProfileSettingsDraft | null>(null)
   // SSR-säkert: statiskt värde vid server-render
   const [taxControlTarget, setTaxControlTarget] = useState<HTMLDivElement | null>(null)
@@ -123,11 +122,22 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   type NEGuideVisit = { scope: typeof yearEndScope; openDetails: number[] }
   const [neGuideReturn, setNEGuideReturn] = useState<NEGuideVisit | null>(null)
   const [neGuideRestore, setNEGuideRestore] = useState<NEGuideVisit | null>(null)
-  function setActiveTab(tab: string) {
+  // Menu and Help/history navigation start a standalone visit. Explicit guide
+  // links and return buttons below retain their own scoped reading position.
+  const startStandaloneVisit = useCallback((tab: string) => {
+    setYearEndReturn(null)
+    setYearEndRestore(null)
+    setNEGuideReturn(null)
+    setNEGuideRestore(null)
+    setActiveTabState(tab)
+  }, [])
+  const help = useHelpNavigation(Boolean(user && !authLoading && !passwordRecoveryMode), startStandaloneVisit)
+  function setActiveTab(tab: string, standalone = false) {
     if (tab === 'faq') { help.openHelpFromMenu(); return }
     if (activeTab === 'faq' || help.returnAvailable || new URL(window.location.href).searchParams.has('help')) help.leaveHelp(tab)
-    if(tab==='arsavslut'&&yearEndReturn?.scope.owner===user?.id){returnToYearEndGuide();return}
-    if(tab==='arsavslut')setYearEndRestore(null)
+    if (standalone) { startStandaloneVisit(tab); return }
+    // A related work-view link (for example Inventarier -> Profil) is still
+    // part of an existing YearEnd visit; only the main menu ends that visit.
     setNEGuideReturn(null)
     setNEGuideRestore(null)
     setActiveTabState(tab)
@@ -154,6 +164,14 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     setNEGuideRestore(null)
     setNEGuideReturn({ scope: yearEndScope, openDetails })
     setActiveTabState('arsavslut')
+  }
+  function returnToNEGuide() {
+    if (neGuideReturn?.scope !== yearEndScope) return
+    setNEGuideRestore(neGuideReturn)
+    setNEGuideReturn(null)
+    setYearEndReturn(null)
+    setYearEndRestore(null)
+    setActiveTabState('ne')
   }
 
   const {
@@ -1060,7 +1078,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   return (
     <Layout 
       activeTab={activeTab} 
-      setActiveTab={setActiveTab}
+      setActiveTab={tab => setActiveTab(tab, true)}
       onLogout={handleLogout}
       isAdmin={isAdmin}
     >
@@ -1338,6 +1356,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           initialOpenControls={yearEndRestore?.scope.owner === user.id && yearEndRestore.scope.year === selectedYear ? yearEndRestore.openControls : []}
           initialControl={yearEndRestore?.scope.owner === user.id && yearEndRestore.scope.year === selectedYear ? yearEndRestore.control : null}
           showNEGuideReturn={neGuideReturn?.scope === yearEndScope}
+          onReturnToNEGuide={returnToNEGuide}
           onNavigate={openYearEndDestination} />
       ) : activeTab === 'kontoplan' ? (
         <Kontoplan onAccountCreated={loadKontoplanOptions} />

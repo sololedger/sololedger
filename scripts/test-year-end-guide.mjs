@@ -13,6 +13,7 @@ export function useAuth(){const f=useSyncExternalStore(cb=>{window.listeners.add
 return {user:{id:f.owner,email:f.owner+'@example.test'},profile:f.noProfile?null:{id:f.owner,company_name:f.name,subscription_type:'paid',role:'user',vat_status:'registered',domestic_sales_vat_treatment:'taxable',foreign_purchase_reporting:'required',default_deduction_entitlement:'full',vat_period_type:'year',vat_management_from:'2025-01-01'},profileContextKey:f.revision,profileContextReady:f.contextReady??true,profileError:f.noProfile?'Profil saknas':null,authLoading:false,verifyProfile:async()=>{throw Error('No writes allowed')},retryProfile:()=>{}}}`
 const forbidden = `const deny=(...a)=>{window.writes.push(a);throw Error('Forbidden synthetic write')};`
 const mock = {
+ image: `export default function Image({unoptimized,...props}){return <img {...props}/>}`,
  yearEndChecklistClient: `const keys=['documents','bank','customers','suppliers','inventory','vat','statements','tax','submission','payments','next_year'];
  export const checklistPort=(owner,year)=>{
  const identity=owner+':'+year;window.checklistDB??={};const get=()=>window.checklistDB[identity]??={owner,year,basis_version:1,basis:Object.fromEntries(keys.map(k=>[k,'a'.repeat(32)])),checks:[],system:{locked:false,periods:[],declaration_versions:0}};
@@ -31,13 +32,14 @@ window.harness={set(change){flushSync(()=>{window.fixture={...window.fixture,...
 createRoot(document.getElementById('root')).render(<Home/>);`
 const bundle = await build({ stdin: { contents: entry, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: 'tsconfig.json', plugins: [{ name: 'offline-year-end', setup(b) {
   b.onResolve({ filter: /.*/ }, args => {
+    if(args.path==='next/image')return {path:'image',namespace:'offline'}
     const leaf = args.path.split('/').at(-1)
     if (mock[leaf]) return { path: leaf, namespace: 'offline' }
-    if (args.importer.replaceAll('\\', '/').endsWith('/src/app/page.tsx') && args.path.startsWith('@/components/') && !['Layout', 'YearEndGuide', 'AccountingDataBoundary'].includes(leaf)) return { path: 'panel-' + leaf, namespace: 'offline' }
+    if (args.importer.replaceAll('\\', '/').endsWith('/src/app/page.tsx') && args.path.startsWith('@/components/') && !['Layout', 'YearEndGuide', 'AccountingDataBoundary', 'NESectionNavigation', 'FAQ'].includes(leaf)) return { path: 'panel-' + leaf, namespace: 'offline' }
   })
   b.onLoad({ filter: /.*/, namespace: 'offline' }, args => ({ contents: mock[args.path] || (args.path === 'panel-NEBilaga'
     ? `import Guide from './src/components/NEDeclarationGuide';export default function Panel(p){return <section data-panel="NEBilaga">NEBilaga<span>{p.selectedYear}</span><Guide key={p.userId+':'+p.selectedYear+':'+p.companyName} year={p.selectedYear} companyName={p.companyName} onOpenYearEnd={p.onOpenYearEnd} initialOpenDetails={p.initialGuideOpenDetails}/></section>}`
-    : `export default function Panel(p){if('isOpen' in p&&!p.isOpen)return null;return <section data-panel="${args.path.slice(6)}">${args.path.slice(6)}<span>{p.selectedYear??'egen period'}</span>{p.children}</section>}`), loader: 'tsx', resolveDir: process.cwd() }))
+    : `export default function Panel(p){if('isOpen' in p&&!p.isOpen)return null;return <section data-panel="${args.path.slice(6)}">${args.path.slice(6)}<span>{p.selectedYear??'egen period'}</span>{p.onOpenPaymentAccountSettings&&<button onClick={p.onOpenPaymentAccountSettings}>Öppna betalningskonton i Profil</button>}{p.children}</section>}`), loader: 'tsx', resolveDir: process.cwd() }))
 } }] })
 const css = (await postcss([tailwind({ base: process.cwd() })]).process(await readFile('src/app/globals.css', 'utf8'), { from: 'src/app/globals.css' })).css
 
@@ -46,7 +48,7 @@ const browser=await chromium.launch({headless:true});const results=[]
 try {
  for(const width of process.env.KAN112_MOBILE_ONLY==='1'?[390,320]:[1440,1024,768,390,320]){
   const context=await browser.newContext({viewport:{width,height:width===320?568:width===390?844:1000},isMobile:width<1024,hasTouch:width<1024}),page=await context.newPage(),errors=[],external=[]
-  page.on('pageerror',e=>errors.push(e.message))
+  page.on('pageerror',e=>{errors.push(e.message);console.error('UI error:',e.message)})
   await context.route('**/*',route=>{
    if(route.request().url()==='https://kan99.test/')return route.fulfill({contentType:'text/html',body:'<html lang="sv"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+css+'</style><body><div id="root"></div></body></html>'})
    external.push(route.request().url());return route.abort()
@@ -54,6 +56,7 @@ try {
   await page.goto('https://kan99.test/');await page.addScriptTag({content:bundle.outputFiles[0].text})
   await page.evaluate(()=>{window.scrollCalls=[];window.scrollEvents=[];window.focusEvents=[];addEventListener('scroll',()=>window.scrollEvents.push(scrollY));addEventListener('focusin',event=>window.focusEvents.push(event.target.tagName));const original=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(options){window.scrollCalls.push({text:this.textContent,options});return original.call(this,options)}})
   async function navigate(label){
+   await expect(page.getByRole('heading',{name:/^SoloLedger$/i})).toBeVisible()
    let b=page.getByRole('button',{name:label,exact:true}).filter({visible:true})
    if(!await b.count()){const mobile=page.getByRole('button',{name:'Öppna meny',exact:true});if(await mobile.isVisible())await mobile.click();else await page.getByRole('button',{name:/^Mer/}).click();b=page.getByRole('button',{name:label,exact:true}).filter({visible:true});if(!await b.count())b=page.getByRole('menuitem',{name:label,exact:true})}
    await b.click()
@@ -81,6 +84,60 @@ try {
    if(width<1024)await motionFinished()
    return item
   }
+  // Real Home navigation: a return consumes its visit; menu/history starts fresh.
+  const yearEndBack=page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true})
+  const neBack=page.getByRole('button',{name:'Tillbaka till NE-guiden',exact:true})
+  async function visitYearEndFromNE(){
+   await navigate('NE-Bilaga')
+   const neGuide=page.locator('#ne-guide')
+   if(await neGuide.getAttribute('open')===null)await neGuide.locator(':scope > summary').click()
+   await neGuide.getByRole('button',{name:'1 Gör bokslutet klart',exact:true}).click()
+   if(await neGuide.locator('.ne-step-detail').first().getAttribute('open')===null)await neGuide.locator('.ne-step-detail').first().locator(':scope > summary').click()
+   await neGuide.getByRole('button',{name:'Öppna Årsavslut',exact:true}).click()
+   await expect(neBack).toBeVisible()
+  }
+  await visitYearEndFromNE();await neBack.click()
+  await expect(page.locator('#ne-guide')).toHaveAttribute('open','')
+  await expect(page.locator('#ne-guide .ne-step-detail').first()).toHaveAttribute('open','')
+  await expect(yearEndBack).toHaveCount(0)
+  await visitYearEndFromNE();await navigate('Inventarier')
+  await expect(yearEndBack).toHaveCount(0);await expect(neBack).toHaveCount(0)
+  // Ordinary YearEnd -> NE is a work visit and still offers its legitimate return.
+  await navigate('Årsavslut');await open('inventory')
+  await guide.getByRole('button',{name:'Öppna NE-Bilaga',exact:true}).click()
+  await expect(yearEndBack).toBeVisible()
+  await page.locator('#ne-guide > summary').click()
+  await page.locator('#ne-guide .ne-step-detail').first().locator(':scope > summary').click()
+  await page.getByRole('button',{name:'Öppna Årsavslut',exact:true}).click()
+  await expect(guide.locator('article[data-check-key="inventory"] h3')).toBeVisible()
+  await neBack.click();await expect(yearEndBack).toHaveCount(0)
+  await navigate('Årsavslut');await open('inventory')
+  await guide.getByRole('button',{name:'Öppna Inventarier',exact:true}).click()
+  await page.getByRole('button',{name:'Öppna betalningskonton i Profil',exact:true}).click()
+  await expect(yearEndBack).toBeVisible();await yearEndBack.click()
+  await expect(guide.locator('article[data-check-key="inventory"] h3')).toBeVisible()
+  for(const destination of ['Inventarier','Bokföring','NE-Bilaga','Hjälp & FAQ','Årsavslut']){
+   await navigate('Årsavslut');await open('inventory')
+   await guide.getByRole('button',{name:'Öppna Inventarier',exact:true}).click()
+   await expect(yearEndBack).toBeVisible()
+   await navigate(destination);await expect(yearEndBack).toHaveCount(0);await expect(neBack).toHaveCount(0)
+  }
+  // Help owns browser history. Back/forward must keep its own return, but clear
+  // temporary YearEnd/NE visits even when the resulting tab bypasses the menu.
+  await navigate('Hjälp & FAQ')
+  await page.getByText('Hur gör jag klart året?',{exact:true}).click()
+  await page.getByRole('button',{name:'Öppna Årsavslut',exact:true}).click()
+  const helpBack=page.getByRole('button',{name:'Tillbaka till Hjälp & FAQ',exact:true})
+  await expect(helpBack).toBeVisible();await open('inventory')
+  await guide.getByRole('button',{name:'Öppna Inventarier',exact:true}).click()
+  await expect(yearEndBack).toBeVisible()
+  await page.goBack();await expect(page.getByRole('heading',{name:'Vad vill du ha hjälp med?',exact:true})).toBeVisible()
+  await expect(yearEndBack).toHaveCount(0);await expect(neBack).toHaveCount(0)
+  await page.goForward();await expect(guide).toBeVisible();await expect(helpBack).toBeVisible()
+  await expect(yearEndBack).toHaveCount(0);await expect(neBack).toHaveCount(0)
+  await helpBack.click();await expect(page.getByText('Hur gör jag klart året?',{exact:true})).toBeVisible()
+  await navigate('Årsavslut');await expect(helpBack).toHaveCount(0)
+  assert.deepEqual(await page.evaluate(()=>window.checklistWrites??[]),[],'navigation does not save checklist answers')
   const bank=guide.locator('article[data-check-key="bank"]'),checkbox=bank.getByRole('checkbox')
   async function noOverflow(){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'horizontal overflow at '+width)}
   await expect(guide).toContainText('0 av 11 bekräftade av dig');await expect(cards).toHaveCount(4);await expect(guide.locator('article')).toHaveCount(0)
@@ -173,7 +230,7 @@ try {
   await expect(guide.getByRole('heading',{name:'2. Färdigställ bokslutet',exact:true})).toBeFocused()
   await guide.locator('[data-check-nav="vat"]').focus();await page.keyboard.press('Enter');await expect(guide.getByRole('heading',{name:'Granska årets momsunderlag',exact:true})).toBeFocused()
   const countBeforeNavigation=await page.evaluate(()=>window.checklistWrites.length)
-  for(const [key,label,index] of [['documents','Profil',0],['customers','Fakturor',0],['suppliers','Bokslutsskulder',0],['inventory','Inventarier',0],['vat','Moms',1],['statements','NE-Bilaga',1]]){
+  for(const [key,label,index] of [['documents','Profil',0],['bank','Bokföring',0],['customers','Fakturor',0],['suppliers','Bokslutsskulder',0],['inventory','Inventarier',0],['vat','Moms',1],['statements','NE-Bilaga',1]]){
    const item=await open(key,index);await item.getByRole('button',{name:'Öppna '+label,exact:true}).click();if(await year.isVisible())await year.selectOption('2025');await page.evaluate(()=>window.harness.set({revision:50}))
    await page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true}).click();await expect(year).toHaveValue('2026');await expect(item.getByRole('heading',{level:3})).toBeFocused();await expect(guide.locator('article')).toHaveCount(1)
    const box=await item.getByRole('heading',{level:3}).boundingBox();assert(box.y>=0&&box.y<150,'return scrolls to instruction heading '+JSON.stringify({width,key,box}))

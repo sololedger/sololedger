@@ -162,8 +162,8 @@ function focusWorkspace(target:HTMLElement|null){
  }
 }
 
-export default function YearEndGuide({owner,companyName,year,ready,error,locked,contextKey,contextReady,initialOpenControls,initialControl,showNEGuideReturn,onNavigate}: {
- owner:string;companyName:string|null|undefined;year:number;ready:boolean;error:string|null;locked:boolean;contextKey:number;contextReady:boolean;initialOpenControls:readonly number[];initialControl:number|null;showNEGuideReturn?:boolean;onNavigate:(destination:YearEndDestination,openControls:number[],control:number|null)=>void
+export default function YearEndGuide({owner,companyName,year,ready,error,locked,contextKey,contextReady,initialOpenControls,initialControl,showNEGuideReturn,onReturnToNEGuide,onNavigate}: {
+ owner:string;companyName:string|null|undefined;year:number;ready:boolean;error:string|null;locked:boolean;contextKey:number;contextReady:boolean;initialOpenControls:readonly number[];initialControl:number|null;showNEGuideReturn?:boolean;onReturnToNEGuide?:()=>void;onNavigate:(destination:YearEndDestination,openControls:number[],control:number|null)=>void
 }) {
  const savedControl=initialControl??initialOpenControls.find(i=>i<11||i===200)??null
  const [activeControl,setActiveControl]=useState<number|null>(savedControl)
@@ -204,7 +204,7 @@ export default function YearEndGuide({owner,companyName,year,ready,error,locked,
  function chooseControl(index:number){setActiveControl(index);setFocusRequest({target:'instruction'})}
  return <section aria-label={'Årsavslut för '+year} className="min-w-0 space-y-5 pb-10">
   <header className="min-w-0 space-y-4 rounded-[2rem] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-   {showNEGuideReturn&&<button type="button" className={button} onClick={()=>navigate('ne',null)}>Tillbaka till NE-guiden</button>}
+   {showNEGuideReturn&&onReturnToNEGuide&&<button type="button" className={button} onClick={onReturnToNEGuide}>Tillbaka till NE-guiden</button>}
    <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
     <div className="min-w-0 max-w-2xl"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Din guide genom årsavslutet</p><h2 className="mt-2 break-words text-lg font-bold tracking-tight text-gray-900">{companyName?.trim()||'Företagsnamn saknas – kontrollera Profil'}</h2><p className="mt-2 text-sm leading-relaxed text-gray-600">Arbeta i valfri ordning. Dina bekräftelser sparas automatiskt. De betyder inte att SoloLedger har godkänt bokslutet.</p></div>
     <div className="w-full shrink-0 rounded-2xl bg-gray-50 p-4 md:w-72">
