@@ -177,7 +177,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'deklarationshistorik', topic: 'year', title: 'Kan jag spara NE-underlag och deklarationshistorik?',
-    answer: 'Ja. I NE-Bilaga finns deklarationshistorik med sparade versioner. Bokföringsunderlag kräver låst år och godkända kontroller.',
+    answer: 'Ja. Öppna Spara och dokumentera i NE-Bilaga. Där kan du spara NE-underlag, dokumentera egna uppgifter och visa sparade versioner. Bokföringsunderlag kräver låst år och godkända kontroller i sparfunktionen.',
     paragraphs: ['Du kan dokumentera egna och faktiskt deklarerade uppgifter även utan låst år. Granska vilken version och vilket underlag uppgifterna hör till.', 'En sparad version i SoloLedger är inte ett inlämningskvitto. Behåll Skatteverkets kvittens och dina deklarationshandlingar separat.'],
     keywords: ['fryst', 'ne-version', 'arkiv', 'kvittens', 'inlämnad'], destinations: ['ne'], reviewed,
   },

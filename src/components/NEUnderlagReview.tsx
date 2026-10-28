@@ -1,60 +1,36 @@
 'use client'
-import { useEffect, useState } from 'react'
-import type { NeReviewData } from '@/lib/neReview'
+import React,{useEffect,useRef,useState} from 'react'
 import NEAccountTable from './NEAccountTable'
-
-// Do not initialize extra transports for the normal, closed NE view.
-async function getNeReviewData(owner: string, year: number) {
-  return (await import('@/lib/neReviewService')).getNeReviewData(owner, year)
-}
-const money = (value: number) => `${value.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kr`
-type Load<T> = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: T }
-function message(error: unknown) { return error instanceof Error ? error.message : 'Underlaget kunde inte läsas fullständigt.' }
-function ReviewContent({ owner, year }: { owner: string; year: number }) {
-  const [state, setState] = useState<Load<NeReviewData>>({ status: 'loading' })
-  const [showEmpty, setShowEmpty] = useState(false)
-  useEffect(() => {
-    let cancelled = false
-    getNeReviewData(owner, year).then(data => { if (!cancelled) setState({ status: 'ready', data }) })
-      .catch(error => { if (!cancelled) setState({ status: 'error', message: message(error) }) })
-    return () => { cancelled = true }
-  }, [owner, year])
-  if (state.status === 'loading') return <p role="status" className="mt-4">Läser NE-underlag för {year}…</p>
-  if (state.status === 'error') return <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-bold">Underlaget kunde inte kontrolleras</p><p>{state.message}</p><p>Stäng och öppna sektionen för att försöka igen. Inget besked om fullständighet lämnas.</p></div>
-  return <div className="mt-4 space-y-4">
-    <section aria-label="Granskningsbehov" className="rounded-xl border border-gray-200 p-4 break-words">
-      <h3 className="font-bold">Granskningsbehov för {year}</h3>
-      {state.data.reviews.length === 0 ? <p>Inga granskningsbesked från de befintliga kontrollerna. Detta betyder inte att deklarationen är fullständigt kontrollerad.</p>
-        : <table className="mt-3 w-full table-fixed text-left text-sm">
-          <caption className="sr-only">Upptäckta frågor och nästa steg</caption>
-          <thead className="hidden md:table-header-group text-xs text-gray-600"><tr><th className="w-20 py-2">Konto / ruta</th><th className="p-2">SoloLedgers kontroll</th><th className="p-2">Din nästa åtgärd</th></tr></thead>
-          <tbody className="block md:table-row-group">{state.data.reviews.map((review, index) => <tr key={review.account+':'+index} className="grid gap-2 border-t border-gray-200 py-3 md:table-row">
-            <td className="font-semibold md:py-3 align-top">{review.account}</td><td className="break-words md:p-2 align-top">{review.reason}</td><td className="break-words md:p-2 align-top"><span className="font-medium md:hidden">Nästa steg: </span>{review.next}</td>
-          </tr>)}</tbody>
-        </table>}
-      <p className="mt-3 text-sm text-gray-600">Du behöver också bedöma uppgifter utanför bokföringen, även när inga kontovarningar visas. Här sparas inga granskningsbeslut.</p>
-    </section>
-    <details className="text-sm text-gray-600">
-      <summary className="min-h-11 cursor-pointer py-2 font-medium">Visa beräkningsförklaring</summary>
-      <p>Resultatkonton visar årets rörelser; balanskonton och B10 kan omfatta tidigare år. Kontosaldon summerar inte alltid direkt till rutans belopp, bland annat vid nettning i B8/B14 och beräkning av B10. Bidraget till en R-ruta visas under kontots detaljer.</p>
-    </details>
-    <button type="button" className="min-h-11 rounded-xl border px-3 py-2 font-bold text-emerald-800" aria-pressed={showEmpty} onClick={() => setShowEmpty(value => !value)}>{showEmpty ? 'Dölj rutor utan kontounderlag' : 'Visa även rutor utan kontounderlag'}</button>
-    {state.data.groups.filter(group => showEmpty || group.accounts.length > 0 || group.amount !== 0 || ['R12','R15','R16','R17','B10'].includes(group.id)).map(group => <details key={group.id} className="min-w-0 rounded-xl border p-4 break-words">
-      <summary className="min-h-11 cursor-pointer font-bold text-emerald-800">{group.id} · {group.title}{['R15', 'R16'].includes(group.id) ? ' · Inte bedömt' : group.amount == null ? '' : ` · ${money(group.amount)}`}</summary>
-      {group.id === 'B10' ? <>
-        <p className="my-3 text-sm text-gray-600">Eget kapital med bokförda resultat, insättningar och uttag till årets slut.</p>
-        <details className="my-2 text-sm text-gray-600"><summary className="min-h-11 cursor-pointer py-2 font-medium">Visa beräkningsförklaring</summary><p>{group.explanation}</p></details>
-      </> : <p className="my-3 text-sm text-gray-600">{/^R([1-9]|10)$/.test(group.id) ? 'Årets bokförda belopp. Öppna ett konto för att se hur det bidrar till rutan.' : group.explanation}</p>}
-      {group.accounts.length === 0 ? <p>Inga direkta kontounderlag att visa. Se förklaringen ovan.</p> : <NEAccountTable rows={group.accounts} owner={owner} year={year} />}
-    </details>)}
-    <p>Kontonamn är hjälpinformation och avgör inte NE-ruta. Sidan sparar inga beslut och ändrar ingen bokföring. Fullständigt nollade externa resultatkonton kan fortfarande behöva stämmas av mot det externa bokslutet.</p>
-  </div>
-}
-export default function NEUnderlagReview({ owner, year }: { owner: string; year: number }) {
-  const [open, setOpen] = useState(false)
-  return <details className="mb-6 min-w-0 rounded-2xl border border-emerald-200 p-4 text-sm text-gray-800 break-words" onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary className="min-h-11 cursor-pointer py-2 text-base font-bold text-emerald-800">Kontrollera NE-underlaget · {year}</summary>
-    <p>Följ ett belopp från NE-ruta till konto och verifikation. Inga uppgifter ändras här.</p>
-    {open && <ReviewContent key={`${owner}:${year}`} owner={owner} year={year} />}
-  </details>
+import {neReviewSummary,type NeSummarySource} from '@/lib/nePresentation'
+async function getNeReviewData(owner:string,year:number){return (await import('@/lib/neReviewService')).getNeReviewData(owner,year)}
+import type {NeReviewData} from '@/lib/neReview'
+const money=(v:number)=>v.toLocaleString('sv-SE',{maximumFractionDigits:2})+' kr'
+const categories=['Resultat','Skattejusteringar','Balans','Övriga konton']
+const category=(id:string)=>id==='Övrigt'?3:id.startsWith('B')?2:Number(id.slice(1))>=12?1:0
+export default function NEUnderlagReview(props:{owner:string;year:number;source?:NeSummarySource}){return <ReviewPanel key={props.owner+':'+props.year} {...props}/>}
+function ReviewPanel({owner,year,source}:{owner:string;year:number;source?:NeSummarySource}){
+ const[open,setOpen]=useState(false),[result,setResult]=useState<{source:NeSummarySource|undefined;retry:number;data?:NeReviewData;error?:string}|null>(null),[grouping,setGrouping]=useState(0),[showEmpty,setEmpty]=useState(false),[opened,setOpened]=useState<string[]>([]),[retry,setRetry]=useState(0)
+ const heading=useRef<HTMLHeadingElement>(null)
+ const current=result&&result.source===source&&result.retry===retry?result:null
+ const data=current?.data??null,error=current?.error??''
+ const compact=neReviewSummary(source)
+ useEffect(()=>{if(!open)return;let alive=true;getNeReviewData(owner,year).then(data=>{if(alive)setResult({source,retry,data})}).catch(e=>{if(alive)setResult({source,retry,error:e instanceof Error?e.message:'Underlaget kunde inte läsas fullständigt.'})});return()=>{alive=false}},[owner,year,open,retry,source])
+ const visible=data?.groups.filter(g=>showEmpty||g.accounts.length>0||g.amount!==0||['R12','R15','R16','R17','B10'].includes(g.id))??[]
+ function jump(account:string){const g=data?.groups.find(g=>g.id===account)??data?.groups.find(g=>g.id==='Övrigt'&&g.accounts.some(a=>a.accountNumber===account))??data?.groups.find(g=>g.accounts.some(a=>a.accountNumber===account));if(!g)return;setGrouping(category(g.id));setOpened(old=>old.includes(g.id)?old:[...old,g.id]);requestAnimationFrame(()=>{const summary=document.querySelector<HTMLElement>(`[data-ne-group="${g.id}"]>summary`);summary?.scrollIntoView({block:'start'});summary?.focus()})}
+ return <details id="ne-review" open={open} onToggle={e=>{const next=e.currentTarget.open;if(next&&!open)setRetry(value=>value+1);setOpen(next)}} className="sl-ne ne-review ne-disclosure mb-4 text-sm">
+ <summary className="ne-disclosure-summary" aria-expanded={open} aria-controls="ne-review-body"><span><strong>Kontrollera NE-underlaget · {year}</strong><span className={'ne-summary-meta '+(compact.areas.length||!compact.known?'ne-needs-review':'')}>{data?data.reviews.length+' granskningsbehov · egen kontroll återstår':error?'Granskningsstatus kunde inte läsas':compact.text}</span></span><span className="ne-disclosure-action" aria-hidden="true">{open?'Stäng −':'Öppna +'}</span></summary>
+ <div id="ne-review-body" className="ne-disclosure-body space-y-5"><p>Följ beloppet: NE-ruta → konto → verifikation. Här ändras inga uppgifter.</p>
+ {error?<div role="alert" className="ne-notice"><h3 className="font-bold">Underlaget kunde inte kontrolleras</h3><p>{error}</p><p>Inget besked om fullständighet lämnas.</p><button className="ne-secondary mt-3" onClick={()=>setRetry(n=>n+1)}>Försök läsa underlaget igen</button></div>:!data?<p role="status">Läser NE-underlag för {year}…</p>:<>
+ <section aria-label="Granskningsbehov" className={data.reviews.length?'ne-notice':'ne-review-note'}><h3 className="text-base font-bold">{data.reviews.length?'Det här behöver du granska':'Vad behöver du kontrollera själv?'}</h3>
+ {data.reviews.length?<><p className="my-2">SoloLedgers befintliga kontroller visar {data.reviews.length} granskningsbesked. De försvinner inte för att du läser guiden.</p><div className="divide-y divide-amber-200">{data.reviews.map((r,i)=><div key={r.account+':'+i} className="py-4"><p className="font-bold">{r.account==='Balansräkningen'||r.account==='Kassa/bank'?r.account:'Konto / ruta '+r.account}</p><p className="mt-1">{r.reason}</p><p className="mt-2"><strong>Din nästa åtgärd:</strong> {r.next}</p>{data.groups.some(g=>g.id===r.account||g.accounts.some(a=>a.accountNumber===r.account))&&<button type="button" className="ne-link mt-2" onClick={()=>jump(r.account)}>Visa underlaget för {r.account}</button>}</div>)}</div></>:<p className="mt-2">Inga granskningsbesked från de befintliga kontrollerna. Detta betyder inte att deklarationen är fullständigt kontrollerad.</p>}
+ <p className="mt-3 font-semibold">Du behöver också bedöma uppgifter utanför bokföringen. Här sparas inga granskningsbeslut och inga kontroller klarmarkeras.</p></section>
+ <details className="ne-explanation"><summary>Så hänger beloppen ihop · beräkningsförklaring</summary><p className="mt-3">Resultatkonton visar årets rörelser; balanskonton och B10 kan omfatta tidigare år. Kontosaldon summerar inte alltid direkt till rutans belopp, bland annat vid nettning i B8/B14 och beräkning av B10. Bidraget till en R-ruta visas under kontots detaljer.</p><p className="mt-2">SoloLedger beräknar rapporten från bokföringen. Du jämför verifikationerna med faktiska underlag och bedömer skatteuppgifter som ligger utanför beräkningen.</p></details>
+ <div><h3 ref={heading} className="text-base font-bold">Hitta NE-rutan och följ underlaget</h3><nav className="my-3 flex flex-wrap gap-2" aria-label="Grupper av NE-rutor">{categories.map((name,i)=><button type="button" className={'ne-category '+(grouping===i?'selected':'')} aria-pressed={grouping===i} onClick={()=>setGrouping(i)} key={name}>{name} · {visible.filter(g=>category(g.id)===i).length}</button>)}</nav><button type="button" className="ne-link" aria-pressed={showEmpty} onClick={()=>setEmpty(!showEmpty)}>{showEmpty?'Dölj rutor utan kontounderlag':'Visa även rutor utan kontounderlag'}</button><p className="mt-2 text-slate-600">Även använda konton med nettosaldo 0 finns i underlaget. R15/R16 kräver egen bedömning.</p></div>
+ <div className="space-y-3">{visible.filter(g=>category(g.id)===grouping).map(g=><details data-ne-group={g.id} key={g.id} open={opened.includes(g.id)} onToggle={e=>{const isOpen=e.currentTarget.open;setOpened(old=>isOpen?(old.includes(g.id)?old:[...old,g.id]):old.filter(id=>id!==g.id))}} className="ne-group"><summary className="ne-group-summary"><span><strong className="ne-group-id">{g.id}</strong><span aria-hidden="true"> · </span><span className="font-semibold">{g.title}</span></span><span className="ne-group-amount">{['R15','R16'].includes(g.id)?'Inte personligt bedömt':g.amount===null?'Se kontots hantering':money(g.amount)}</span></summary>
+ <div className="ne-group-body"><div className="mb-4"><p className="ne-eyebrow">{['R15','R16'].includes(g.id)?'Din egen bedömning återstår':g.id==='Övrigt'?'Befintlig kontohantering':'SoloLedgers beräkning'}</p><p className="mt-2">{g.explanation}</p>{/^R([1-9]|10)$/.test(g.id)&&<p className="mt-2 text-slate-600">Årets bokförda belopp. Öppna ett konto för att se hur det bidrar till rutan.</p>}{g.id==='B10'&&<p className="mt-2">Eget kapital med bokförda resultat, insättningar och uttag till årets slut.</p>}</div>
+ {g.accounts.length?<><p className="mb-3 font-semibold">Konton bakom rutan · {g.accounts.length}</p><NEAccountTable rows={g.accounts} owner={owner} year={year}/></>:<p className="rounded-lg bg-slate-50 p-3">Inga direkta kontounderlag att visa. Se förklaringen ovan.</p>}</div></details>)}</div>
+ <p className="text-slate-600">Kontonamn är hjälpinformation och avgör inte NE-ruta. Sidan sparar inga beslut och ändrar ingen bokföring. Fullständigt nollade externa resultatkonton kan fortfarande behöva stämmas av mot det externa bokslutet.</p>
+ </>}
+ </div>
+ </details>
 }

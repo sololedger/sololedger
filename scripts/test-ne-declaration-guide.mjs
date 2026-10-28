@@ -46,32 +46,32 @@ try {
       const region = guide()
       await expect(region).toContainText('Syntetiska A · Inkomstår 2026')
       await expect(region).toContainText('Här sparas inga svar eller klarmarkeringar och inget skickas in')
-      const steps = region.locator(':scope > details')
+      const steps = region.locator('.ne-step-detail')
       await expect(steps).toHaveCount(5)
-      for (const step of await steps.all()) { await step.locator(':scope > summary').click();await expect(step).toContainText('Varför?') }
+      for (let index=0;index<5;index++) {await region.getByRole('navigation',{name:'Guidens fem steg'}).getByRole('button').nth(index).click();await steps.nth(index).locator(':scope > summary').click();await expect(steps.nth(index)).toContainText('Varför?')}
       await expect(region).toContainText('även om ingen varning visas')
-      await expect(region).toContainText('I NE-Bilaga kan du spara versioner i deklarationshistoriken.')
+      await expect(region).toContainText('I Spara och dokumentera kan du spara NE-underlag, dokumentera egna uppgifter och visa sparade versioner.')
       await expect(region).toContainText('Ett bokföringsunderlag kräver låst år och godkända kontroller.')
       await expect(region).toContainText('Egna och faktiskt deklarerade uppgifter kan dokumenteras även utan låst år.')
       await expect(region).not.toContainText('sparar ännu ingen deklarationshistorik')
       await expect(region).toContainText('Ta fram extern resultatrapport och bokslutsverifikationer')
-      for (const card of await steps.nth(2).locator('details').all()) await card.locator('summary').click()
+      await region.getByRole('navigation',{name:'Guidens fem steg'}).getByRole('button').nth(2).click();for (const card of await steps.nth(2).locator('details').all()) await card.locator('summary').click()
       for (const text of ['inte bedömda nollor', 'inte automatiskt samma belopp som förra årets bokföringsförlust', 'F-skatteinbetalningar är inte egenavgiftsavstämning', 'SoloLedger väljer ingen procentsats', 'omprövningsbeslut', 'R40', 'R41', 'R43', 'R24', 'R48', 'Skicka in', 'PDF', 'Ett sparat utkast bevisar inte inlämning']) await expect(region).toContainText(text)
-      for (const link of await region.getByRole('link').all()) { assert.equal(new URL(await link.getAttribute('href')).hostname,'www.skatteverket.se');assert.equal(await link.getAttribute('target'),'_blank');assert((await link.getAttribute('rel')).includes('noopener')) }
+      for (const link of await region.getByRole('link',{includeHidden:true}).all()) { assert.equal(new URL(await link.getAttribute('href')).hostname,'www.skatteverket.se');assert.equal(await link.getAttribute('target'),'_blank');assert((await link.getAttribute('rel')).includes('noopener')) }
       await expect(region.locator('input,form,progress,[role=progressbar]')).toHaveCount(0)
-      await region.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
+      await region.getByRole('navigation',{name:'Guidens fem steg'}).getByRole('button').nth(0).click();await region.getByRole('button', { name: 'Öppna Årsavslut', exact: true }).click()
       assert.equal((await page.evaluate(() => window.visits)).at(-1),'yearend')
       assert.deepEqual(await amounts('#current'), await amounts('#before'))
       assert((await amounts('#current')).length>10)
       assert(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth))
-      if (scenario==='normal'&&!locked) { await steps.nth(2).scrollIntoViewIfNeeded(); await page.screenshot({ path: out+`/tax-details-${width}.png` }) }
+      if (scenario==='normal'&&!locked) { await region.getByRole('navigation',{name:'Guidens fem steg'}).getByRole('button').nth(2).click();await steps.nth(2).scrollIntoViewIfNeeded(); await page.screenshot({ path: out+`/tax-details-${width}.png` }) }
       // Collapse before changing a scenario, as native details intentionally retain state within one context.
-      for (const detail of (await region.locator('details[open]').all()).reverse()) await detail.locator(':scope > summary').click()
+      await region.locator('details[open]').evaluateAll(nodes=>nodes.forEach(node=>node.open=false))
       await toggle.click()
       results.push({ width, scenario, locked, status: 'PASS' })
     }
     await toggle.press('Enter');await expect(guide()).toBeVisible()
-    await guide().locator(':scope > details').nth(1).locator(':scope > summary').click()
+    await guide().getByRole('navigation',{name:'Guidens fem steg'}).getByRole('button').nth(1).click();await guide().locator('.ne-step-detail').nth(1).locator(':scope > summary').click()
     await page.screenshot({ path: out+`/import-instruction-${width}.png` })
     for (const change of [{year:2027},{owner:'b',name:'Syntetiska B'},{name:'Nytt namn'}]) {
       await page.evaluate(change => window.configure(change), change)

@@ -155,7 +155,7 @@ try {
     await page.addScriptTag({ content: uiBundle.outputFiles[0].text })
     for (const index of [0,1,3,4,6,14,16,18,19,20]) for (const locked of [false,true]) {
       await page.evaluate(({index,locked}) => window.configure(index,locked), { index, locked })
-      const heading = page.getByText('NE-Bilaga Specifikation', { exact: true })
+      const heading = page.getByRole('heading', { name: 'NE-bilagan', exact: true })
       await expect(heading).toBeVisible()
       if (locked) await expect(page.getByText('Räkenskapsår 2026 är låst',{exact:true})).toBeVisible()
       else await expect(page.getByRole('button',{name:'Lås räkenskapsår 2026'})).toBeVisible()

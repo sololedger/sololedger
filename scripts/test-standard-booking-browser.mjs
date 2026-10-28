@@ -34,7 +34,7 @@ const bundle=await build({stdin:{contents:"import React from 'react';import{crea
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
-  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','SubscriptionGuard','SupplierYearEndPanel'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
+  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','NESectionNavigation','SubscriptionGuard','SupplierYearEndPanel'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
  b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button><button onClick={()=>p.setActiveTab('leverantorsskulder')}>Test Bokslutsskulder</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})

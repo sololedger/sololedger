@@ -1,6 +1,11 @@
 'use client'
 
-import { useCallback, useRef, type ReactNode } from 'react'
+import { createContext,useCallback,useContext,useRef,useState,type ReactNode } from 'react'
+import {openNESection} from './NESectionNavigation'
+const StepContext=createContext(0)
+const stepLabels=['Gör bokslutet klart','Kontrollera beloppen','Ta fram egna skatteuppgifter','Fyll i hos Skatteverket','Signera och behåll kvittot']
+const stepPlaces=['SoloLedger och dina underlag','SoloLedger och ditt bokslut','Dina handlingar och Skatteverket','Hos Skatteverket','Hos Skatteverket och i SoloLedger']
+const stepActions=['Samla årets underlag och följ Årsavslut.','Jämför rapporten med ditt bokslut och följ beloppen till journalen.','Läs frågorna som berör dig. Okänt får inte bli en antagen nolla.','Välj rätt inkomstår och för över granskade uppgifter.','Signera hos Skatteverket, spara kvittensen och dokumentera dina uppgifter här.']
 
 const sources = {
   ne: 'https://www.skatteverket.se/foretag/inkomstdeklaration/deklareraenskildnaringsverksamhet/fyllainebilagan/skattemassigajusteringar.4.361dc8c15312eff6fd2c7d1.html',
@@ -13,11 +18,12 @@ function Source({ href, children }: { href: string; children: ReactNode }) {
   return <a href={href} target="_blank" rel="noopener noreferrer" className="inline-block py-2 text-emerald-800 underline underline-offset-2">{children} (Skatteverket, ny flik)</a>
 }
 
-function Step({ title, why, children }: { title: string; why: string; children: ReactNode }) {
-  return <details className="rounded-xl border border-gray-200 bg-white">
-    <summary className="min-h-11 cursor-pointer p-4 font-semibold text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">{title}</summary>
-    <div className="space-y-3 border-t border-gray-100 p-4 leading-relaxed"><p><strong>Varför?</strong> {why}</p>{children}</div>
-  </details>
+function Step({ title,why,children }:{title:string;why:string;children:ReactNode}){
+ const active=useContext(StepContext),index=Number(title.slice(0,1))-1
+ return <div hidden={active!==index} className="ne-step-content"><p className="ne-eyebrow">{stepPlaces[index]}</p><h3 className="mt-2 text-lg font-bold">{title}</h3><p className="my-3">{stepActions[index]}</p>
+ {index===1&&<button type="button" className="ne-primary" onClick={()=>openNESection('ne-review')}>Kontrollera NE-underlaget</button>}
+ {index===4&&<button type="button" className="ne-secondary" onClick={()=>openNESection('ne-documentation')}>Till Spara och dokumentera</button>}
+ <details className="ne-step-detail"><summary className="ne-link">Läs instruktioner och förklaringar</summary><div className="space-y-3 border-t border-slate-200 pt-4 leading-relaxed"><p><strong>Varför?</strong> {why}</p>{children}</div></details></div>
 }
 
 export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, initialOpenDetails }: {
@@ -27,6 +33,11 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
   initialOpenDetails?: readonly number[]
 }) {
   const guide = useRef<HTMLDetailsElement | null>(null)
+  const heading=useRef<HTMLHeadingElement>(null)
+  const stepIndices=[1,2,3,9,10]
+  const [active,setActive]=useState(()=>Math.max(0,stepIndices.findIndex(index=>initialOpenDetails?.includes(index))))
+  const [open,setOpen]=useState(false)
+  function select(index:number){setActive(index);requestAnimationFrame(()=>heading.current?.focus({preventScroll:true}))}
   const restoreGuide = useCallback((node: HTMLDetailsElement | null) => {
     guide.current = node
     if (!node || !initialOpenDetails) return
@@ -41,12 +52,14 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
       .flatMap((detail, index) => detail.open ? [index] : [])
     onOpenYearEnd(openDetails)
   }
-  return <details ref={restoreGuide} className="mb-6 rounded-2xl border border-gray-200 text-sm text-gray-700 break-words">
-    <summary className="min-h-11 cursor-pointer p-4 text-base font-bold text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Från NE-underlag till deklaration · fem steg</summary>
-    <section aria-label={`Deklarationsvägledning för ${year}`} className="space-y-3 border-t border-gray-100 p-3 sm:p-4">
+  return <details id="ne-guide" ref={restoreGuide} onToggle={e=>setOpen(e.currentTarget.open)} className="sl-ne ne-disclosure mb-4 text-sm text-gray-700 break-words">
+    <summary className="ne-disclosure-summary" aria-expanded={open} aria-controls="ne-guide-body"><span><strong>Från NE-underlag till deklaration · fem steg</strong><span className="ne-summary-meta">Steg {active+1} av 5 · läsposition, ingen klarstatus</span></span><span className="ne-disclosure-action" aria-hidden="true">{open?'Stäng −':'Öppna +'}</span></summary>
+    <section id="ne-guide-body" aria-label={`Deklarationsvägledning för ${year}`} className="ne-disclosure-body space-y-3"><h3 ref={heading} tabIndex={-1} className="text-lg font-bold">{stepLabels[active]}</h3>
       <p className="font-semibold">{companyName?.trim() || 'Företagsnamn saknas – kontrollera Profil'} · Inkomstår {year}</p>
       <p>Läs ett steg i taget. Deklarationen för {year} lämnas normalt {year + 1}. Kontrollera årets blankett och datum hos Skatteverket.</p>
       <p className="rounded-xl bg-gray-50 p-3">SoloLedger visar bokföringsunderlag. Du bedömer kompletteringarna. Skatteverket hanterar deklarationen och skatteuträkningen. Här sparas inga svar eller klarmarkeringar och inget skickas in.</p>
+      <nav aria-label="Guidens fem steg" className="ne-steps">{stepLabels.map((label,index)=><button type="button" key={label} aria-current={active===index?'step':undefined} className={'ne-step-button '+(active===index?'selected':'')} onClick={()=>select(index)}><span className="ne-step-number">{index+1}</span>{label}</button>)}</nav>
+      <StepContext.Provider value={active}>
       <Step title="1. Gör bokslutsunderlaget klart" why="Saknade eller dubbla poster ger fel underlag även om balansräkningen balanserar.">
         <ol className="list-decimal space-y-2 pl-5">
           <li>Ta fram kontoutdrag, kvitton och fakturor för hela {year}, samt ditt bokslut om du redan har gjort ett.</li>
@@ -58,7 +71,7 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
       </Step>
       <Step title="2. Hitta beloppen och kontrollera dem" why="Bokförda belopp är inte automatiskt bedömda skatteuppgifter.">
         <ol className="list-decimal space-y-2 pl-5">
-          <li>Stäng guiden för att se rapporten nedanför. B-rutorna visar tillgångar, eget kapital och skulder. R1–R11 visar årets bokförda resultat. Jämför med ditt bokslut.</li>
+          <li>Välj genvägen NE-bilagan ovan för att se rapportens belopp. B-rutorna visar tillgångar, eget kapital och skulder. R1–R11 visar årets bokförda resultat. Jämför med ditt bokslut.</li>
           <li>Öppna Kontrollera NE-underlaget, välj en ruta och Visa detaljer vid ett konto. Journalen visar datum, verifikationsnummer och bokförda belopp. Visa beräkningsförklaring berättar hur underlaget används.</li>
           <li>R12 har samma resultat som R11. R13/R14 innehåller vissa befintliga anpassningar till skattereglerna. Kontrollera vad som redan ingår innan du kompletterar, så att samma belopp inte räknas två gånger.</li>
         </ol>
@@ -112,9 +125,10 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
           <li>Behåll även inlämnad NE, ditt underskrivna bokslut, skattebeslut och beräkningsunderlag i en mapp för {year}. Spara hjälputräkningarna separat enligt tjänstens instruktion.</li>
         </ol>
         <p><strong>Saknar du kvittensen?</strong> Kontrollera hos Skatteverket om deklarationen tagits emot och hämta kvittensen där. Ett sparat utkast bevisar inte inlämning. Betalning kontrolleras separat mot beslut och skattekonto.</p>
-        <p>I NE-Bilaga kan du spara versioner i deklarationshistoriken. Ett bokföringsunderlag kräver låst år och godkända kontroller. Egna och faktiskt deklarerade uppgifter kan dokumenteras även utan låst år. En sparad version är inte ett inlämningskvitto och årslåset ersätter inte dina deklarationshandlingar.</p>
+        <p>I Spara och dokumentera kan du spara NE-underlag, dokumentera egna uppgifter och visa sparade versioner. Ett bokföringsunderlag kräver låst år och godkända kontroller. Egna och faktiskt deklarerade uppgifter kan dokumenteras även utan låst år. En sparad version är inte ett inlämningskvitto och årslåset ersätter inte dina deklarationshandlingar.</p>
         <Source href={sources.service}>Läs om granskning och kvittens</Source>
       </Step>
+      </StepContext.Provider><div className="ne-step-actions"><button type="button" className="ne-secondary" disabled={active===0} onClick={()=>select(active-1)}>Föregående steg</button><span>Läsordning – ingen klarstatus</span><button type="button" className="ne-secondary" disabled={active===4} onClick={()=>select(active+1)}>Nästa steg</button></div>
       <p className="text-xs text-gray-600">Källor kontrollerade 23 oktober 2026. Årsblankett, e-tjänst, datum och personliga förutsättningar måste kontrolleras för det år du deklarerar.</p>
     </section>
   </details>

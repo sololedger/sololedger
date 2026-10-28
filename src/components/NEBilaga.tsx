@@ -162,106 +162,15 @@ export default function NEBilaga({
     negativeBankBalances.some(bank => bank.accountNumber === row.accountNumber && bank.balance === row.balance)))
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
+    <div className="sl-ne space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="bg-white p-5 sm:p-8 md:p-12 rounded-[3rem] border shadow-sm">
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
-          NE-Bilaga Specifikation
+          NE-bilagan
         </h2>
 
-        <p className="mb-5 text-sm leading-relaxed text-gray-600">Beloppen bygger på bokföringen. Kända kontokopplingar och en balanserad balansräkning betyder inte att skatteuppgifterna är granskade eller att deklarationen är färdig.</p>
+<p className="mb-4 text-sm text-slate-600">Bokföringsvärden · inte en färdig deklaration.</p>
 
-        <NEDeclarationGuide key={`${userId}:${selectedYear}:${companyName}`} year={selectedYear} companyName={companyName} onOpenYearEnd={onOpenYearEnd} initialOpenDetails={initialGuideOpenDetails} />
 
-        {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} />}
-
-        {neData.equityReviewRequired && (
-          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
-            <p className="font-bold">Kontrollera bokslutsverifikationerna</p>
-            <p>B10 tar hänsyn till bokförda resultatöverföringar på 8990–8999 så att eget kapital inte räknas dubbelt. R-raderna har inte räknats om. Om ett annat system också har nollställt intäkts- och kostnadskontona behöver årets resultat stämmas av mot det systemets bokslut före deklaration. SoloLedger återskapar inte saknade resultatbelopp automatiskt.</p>
-          </div>
-        )}
-
-        {taxReviews.length > 0 && (
-          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
-            <p className="font-bold">Skattejusteringar behöver granskas</p>
-            <p>R13, R14 och R17 är preliminära. Ingen skattejustering har gissats för följande konton.</p>
-            <ul className="my-2 list-disc space-y-2 pl-5">
-              {taxReviews.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}, saldo {fmt(row.balance)}: {row.reason}</li>)}
-            </ul>
-            <p className="font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
-          </div>
-        )}
-        {warnings.length > 0 && (
-          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-bold">NE-underlaget är inte komplett</p>
-            <p>Beloppen ingår i det bokförda resultatet, men följande konton saknar en säker NE-klassificering.</p>
-            <ul className="my-2 list-disc space-y-1 pl-5">
-              {warnings.map(warning => (
-                <li key={warning.accountNumber + '-' + warning.code}>{warning.message} Saldo: {fmt(warning.balance)}.</li>
-              ))}
-            </ul>
-            <p>Resultatpåverkan som ännu saknar NE-ruta: {fmt(neData.unresolvedResultEffect)}</p>
-            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
-          </div>
-        )}
-        {separateAccountWarnings.length > 0 && (
-          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
-            <p className="font-bold">Konton behöver granskas före deklaration</p>
-            {hasChartConflicts && (
-              <p className="mt-2 font-bold">Fördelningen mellan NE-rutorna är preliminär eftersom konton kan ha olika betydelse i BAS K1 och vanlig BAS. Visade belopp är oförändrade.</p>
-            )}
-            <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
-            <ul className="my-2 list-disc space-y-2 pl-5">
-              {separateAccountWarnings.map(row => (
-                <li key={row.accountNumber}>
-                  <span className="font-bold">Konto {row.accountNumber}: {fmt(row.balance)}</span>
-                  {' — '}{row.reason}
-                </li>
-              ))}
-            </ul>
-            <p>Saldo visas som debet minus kredit: resultatkonton för valt år, balanskonton till årets slut.</p>
-            <p className="mt-2">Varningen betyder inte alltid att bokföringen är fel. Ändra inte bokföringen enbart för att få bort varningen. Ta hjälp av en redovisningskunnig om du är osäker.</p>
-            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
-          </div>
-        )}
-        {neData.accountCoverage && (
-          <details className="mb-6 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 break-words">
-            <summary className="cursor-pointer font-bold">Kontotäckning ({accountCoverage.length} konton med saldo)</summary>
-            <p className="my-3 text-sm">Kända kopplingar visar hur SoloLedger placerar bokförda belopp. De intygar inte att kontot använts rätt eller att skattebehandlingen är granskad.</p>
-            <p className="mb-3 text-sm text-gray-600">{accountsToReview.length > 0 ? accountsToReview.length+' konton behöver granskas.' : 'Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.'}</p>
-            <NEAccountTable key={userId+':'+selectedYear} rows={accountCoverage} owner={userId} year={selectedYear} />
-          </details>
-        )}
-        {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
-          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-bold">R1/R2 behöver kontrolleras före deklaration</p>
-            <p>{neData.neSalesClassification?.available
-              ? `För ${neData.neSalesClassification.unresolvedCount} intäktsrader på 3010 saknas ett sparat NE-beslut. Beloppen ingår i resultatet, men fördelningen mellan R1 och R2 är preliminär.`
-              : 'Sparad NE-klassificering är inte tillgänglig. R1/R2 visas enligt kontokopplingen och är inte färdigverifierade.'}</p>
-            <p>Äldre försäljning kräver granskat underlag. Dagens momsprofil används inte för att klassificera historiken.</p>
-          </div>
-        )}
-
-        {(hasBalanceDifference || hasUnclassifiedNegativeBank) && (
-          <section id="ne-bank-balance-review" role="alert" aria-label="Kontrollera bank och balans" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
-            <h3 className="font-bold">Kontrollera bank och balans</h3>
-            <dl className="mt-2 divide-y divide-amber-200">
-              {hasUnclassifiedNegativeBank && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
-                <dt className="font-semibold">Negativ kassa/bank</dt>
-                <dd>
-                  <p className="font-semibold">{fmt(unclassifiedNegativeBankBalance)}</p>
-                  {negativeBankBalances.length > 0 && <ul className="my-1 flex flex-wrap gap-x-4 gap-y-1">{negativeBankBalances.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}: {fmt(row.balance)}</li>)}</ul>}
-                  <p>Stäm av saldot och underlaget för eventuell kredit eller skuld. SoloLedger flyttar inte beloppet till en skuldruta automatiskt.</p>
-                </dd>
-              </div>}
-              {hasBalanceDifference && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
-                <dt className="font-semibold">Balansdifferens</dt>
-                <dd><p className="font-semibold">{fmt(balansDiff)}</p><p>Tillgångar stämmer inte med eget kapital och skulder. Stäm av bokföringen och NE-underlaget.</p></dd>
-              </div>}
-            </dl>
-            <p className="mt-2">Granska före deklaration. Året kan inte låsas så länge någon av dessa kontroller visar en avvikelse.</p>
-          </section>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
           {/* VÄNSTER KOLUMN: RESULTAT (R) */}
@@ -526,8 +435,97 @@ export default function NEBilaga({
           </div>
         </div>
 
-        {/* Låsningsknapp */}
-        <div className="mt-8 pt-6 border-t border-dashed border-gray-200 flex justify-end">
+<section aria-label="Rapportens fullständiga granskningsvarningar">        <p className="mb-5 text-sm leading-relaxed text-gray-600">Beloppen bygger på bokföringen. Kända kontokopplingar och en balanserad balansräkning betyder inte att skatteuppgifterna är granskade eller att deklarationen är färdig.</p>        {neData.equityReviewRequired && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Kontrollera bokslutsverifikationerna</p>
+            <p>B10 tar hänsyn till bokförda resultatöverföringar på 8990–8999 så att eget kapital inte räknas dubbelt. R-raderna har inte räknats om. Om ett annat system också har nollställt intäkts- och kostnadskontona behöver årets resultat stämmas av mot det systemets bokslut före deklaration. SoloLedger återskapar inte saknade resultatbelopp automatiskt.</p>
+          </div>
+        )}
+
+        {taxReviews.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Skattejusteringar behöver granskas</p>
+            <p>R13, R14 och R17 är preliminära. Ingen skattejustering har gissats för följande konton.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {taxReviews.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}, saldo {fmt(row.balance)}: {row.reason}</li>)}
+            </ul>
+            <p className="font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {warnings.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">NE-underlaget är inte komplett</p>
+            <p>Beloppen ingår i det bokförda resultatet, men följande konton saknar en säker NE-klassificering.</p>
+            <ul className="my-2 list-disc space-y-1 pl-5">
+              {warnings.map(warning => (
+                <li key={warning.accountNumber + '-' + warning.code}>{warning.message} Saldo: {fmt(warning.balance)}.</li>
+              ))}
+            </ul>
+            <p>Resultatpåverkan som ännu saknar NE-ruta: {fmt(neData.unresolvedResultEffect)}</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {separateAccountWarnings.length > 0 && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <p className="font-bold">Konton behöver granskas före deklaration</p>
+            {hasChartConflicts && (
+              <p className="mt-2 font-bold">Fördelningen mellan NE-rutorna är preliminär eftersom konton kan ha olika betydelse i BAS K1 och vanlig BAS. Visade belopp är oförändrade.</p>
+            )}
+            <p>En balansdifferens på 0 kr bevisar inte att NE-underlaget är komplett. Konton kan saknas eller ta ut varandra när beloppen räknas ihop.</p>
+            <ul className="my-2 list-disc space-y-2 pl-5">
+              {separateAccountWarnings.map(row => (
+                <li key={row.accountNumber}>
+                  <span className="font-bold">Konto {row.accountNumber}: {fmt(row.balance)}</span>
+                  {' — '}{row.reason}
+                </li>
+              ))}
+            </ul>
+            <p>Saldo visas som debet minus kredit: resultatkonton för valt år, balanskonton till årets slut.</p>
+            <p className="mt-2">Varningen betyder inte alltid att bokföringen är fel. Ändra inte bokföringen enbart för att få bort varningen. Ta hjälp av en redovisningskunnig om du är osäker.</p>
+            <p className="mt-2 font-bold">Använd inte NE-underlaget för deklaration innan kontona har granskats.</p>
+          </div>
+        )}
+        {neData.accountCoverage && (
+          <details className="mb-6 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 break-words">
+            <summary className="cursor-pointer font-bold">Kontotäckning ({accountCoverage.length} konton med saldo)</summary>
+            <p className="my-3 text-sm">Kända kopplingar visar hur SoloLedger placerar bokförda belopp. De intygar inte att kontot använts rätt eller att skattebehandlingen är granskad.</p>
+            <p className="mb-3 text-sm text-gray-600">{accountsToReview.length > 0 ? accountsToReview.length+' konton behöver granskas.' : 'Inga osäkra kontokopplingar hittades. Skatteuppgifter och underlag behöver fortfarande granskas.'}</p>
+            <NEAccountTable key={userId+':'+selectedYear} rows={accountCoverage} owner={userId} year={selectedYear} />
+          </details>
+        )}
+        {(!neData.neSalesClassification || neData.neSalesClassification.reviewRequired) && (
+          <div role="alert" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">R1/R2 behöver kontrolleras före deklaration</p>
+            <p>{neData.neSalesClassification?.available
+              ? `För ${neData.neSalesClassification.unresolvedCount} intäktsrader på 3010 saknas ett sparat NE-beslut. Beloppen ingår i resultatet, men fördelningen mellan R1 och R2 är preliminär.`
+              : 'Sparad NE-klassificering är inte tillgänglig. R1/R2 visas enligt kontokopplingen och är inte färdigverifierade.'}</p>
+            <p>Äldre försäljning kräver granskat underlag. Dagens momsprofil används inte för att klassificera historiken.</p>
+          </div>
+        )}
+
+        {(hasBalanceDifference || hasUnclassifiedNegativeBank) && (
+          <section id="ne-bank-balance-review" role="alert" aria-label="Kontrollera bank och balans" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 break-words">
+            <h3 className="font-bold">Kontrollera bank och balans</h3>
+            <dl className="mt-2 divide-y divide-amber-200">
+              {hasUnclassifiedNegativeBank && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
+                <dt className="font-semibold">Negativ kassa/bank</dt>
+                <dd>
+                  <p className="font-semibold">{fmt(unclassifiedNegativeBankBalance)}</p>
+                  {negativeBankBalances.length > 0 && <ul className="my-1 flex flex-wrap gap-x-4 gap-y-1">{negativeBankBalances.map(row => <li key={row.accountNumber}>Konto {row.accountNumber}: {fmt(row.balance)}</li>)}</ul>}
+                  <p>Stäm av saldot och underlaget för eventuell kredit eller skuld. SoloLedger flyttar inte beloppet till en skuldruta automatiskt.</p>
+                </dd>
+              </div>}
+              {hasBalanceDifference && <div className="py-2 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-3">
+                <dt className="font-semibold">Balansdifferens</dt>
+                <dd><p className="font-semibold">{fmt(balansDiff)}</p><p>Tillgångar stämmer inte med eget kapital och skulder. Stäm av bokföringen och NE-underlaget.</p></dd>
+              </div>}
+            </dl>
+            <p className="mt-2">Granska före deklaration. Året kan inte låsas så länge någon av dessa kontroller visar en avvikelse.</p>
+          </section>
+        )}
+
+</section>        {/* Låsningsknapp */}
+        <div id="ne-year-lock" tabIndex={-1} className="mt-8 pt-6 border-t border-dashed border-gray-200 flex justify-end">
           {isYearLocked ? (
             <div className="w-full sm:w-auto flex items-center justify-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
               <span>🔒</span>
@@ -564,6 +562,8 @@ export default function NEBilaga({
           )}
         </div>
       </div>
+        <NEDeclarationGuide key={`${userId}:${selectedYear}:${companyName}`} year={selectedYear} companyName={companyName} onOpenYearEnd={onOpenYearEnd} initialOpenDetails={initialGuideOpenDetails} />
+        {userId && <NEUnderlagReview key={`${userId}:${selectedYear}`} owner={userId} year={selectedYear} source={neData} />}
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { getBankSaldo } from '@/lib/calculations'
 import Layout from '@/components/Layout'
 import NEBilaga from '@/components/NEBilaga'
 import NEDeclarationArchive from '@/components/NEDeclarationArchive'
+import NESectionNavigation from '@/components/NESectionNavigation'
 import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
@@ -1428,9 +1429,8 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
           requiredLevel="paid"
           fallback={<Paywall feature="NE-Bilaga" user={user} />}
         >
-          <div className="mx-auto mb-5 max-w-7xl px-4 sm:px-6 lg:px-8">
-            <NEDeclarationArchive key={`${user.id}:${selectedYear}`} owner={user.id} year={selectedYear} locked={accountingDataReady&&isYearLocked}/>
-          </div>
+          <div className="sl-ne mx-auto max-w-7xl">
+          <NESectionNavigation ready={accountingDataReady} source={neData}>
           <AccountingDataBoundary ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
           <NEBilaga
             key={`${user.id}:${selectedYear}`}
@@ -1445,6 +1445,17 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             onLockYear={handleLockYear}
           />
           </AccountingDataBoundary>
+          </NESectionNavigation>
+          <NEDeclarationArchive
+            key={`${user.id}:${selectedYear}`}
+            owner={user.id}
+            year={selectedYear}
+            locked={accountingDataReady&&isYearLocked}
+            ready={accountingDataReady}
+            error={accountingDataError}
+            onOpenYearEnd={()=>openYearEndFromNEGuide([0,1])}
+          />
+          </div>
         </SubscriptionGuard>
       )}
       </AccountingDataBoundary>
