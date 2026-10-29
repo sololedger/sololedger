@@ -231,10 +231,10 @@ const sie = await exportSIEForUserFromDb(
   YEAR,
   async (balanceYear): Promise<Record<string, number>> => {
     if (balanceYear === 2025) {
-      return { '1930': 500, '2010': -500 }
+      return { '1930': 2002 }
     }
     if (balanceYear === 2026) {
-      return { '1930': 10510, '2010': -500 }
+      return { '1930': 12012 }
     }
     return {}
   },
@@ -267,12 +267,12 @@ assertEqual(
   'SIE export previous-year #RES uses complete previous-year rows'
 )
 assertEqual(
-  sie.includes('#IB 0 1930 500.00'),
+  sie.includes('#IB 0 1930 2002.00'),
   true,
   'SIE export #IB uses complete previous-year balance'
 )
 assertEqual(
-  sie.includes('#UB 0 1930 10510.00'),
+  sie.includes('#UB 0 1930 12012.00'),
   true,
   'SIE export #UB uses complete current-year balance'
 )

@@ -181,7 +181,18 @@ for (const response of [{ data: null, error: null }, { data: false, error: new E
   assert.throws(() => dashboardVatBreakdownFromReportResult(result), /Kunde inte hämta momsunderlaget/, 'KAN-78: failed history read is a load error, never zero VAT')
 }
 for (const [rows, year, count] of [[crossPeriod, 2026, 2], [fixture('2025-05-15'), 2025, 1], [fixture('2025-05-15'), 2026, 1]] as const) {
-  const text = await exportSIEForUserFromDb(dbFor(rows) as never, userId, year, async () => ({}))
+  // KAN-108 verifies balances against the journal. Supply the fixture's actual
+  // cumulative balance accounts instead of the former empty placeholder.
+  const text = await exportSIEForUserFromDb(dbFor(rows) as never, userId, year, async balanceYear => {
+    const ids = new Set(rows.transactions.filter(tx => tx.date <= `${balanceYear}-12-31`).map(tx => tx.id))
+    const balances: Record<string, number> = {}
+    for (const row of rows.journalRows) {
+      if (ids.has(row.transaction_id) && /^[12]/.test(row.account_number)) {
+        balances[row.account_number] = (balances[row.account_number] ?? 0) + Number(row.debit) - Number(row.credit)
+      }
+    }
+    return balances
+  })
   assert.equal([...text.matchAll(/^#VER /gm)].length, count, 'SIE retains original and correction in respective years')
 }
 

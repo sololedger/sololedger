@@ -1,3 +1,4 @@
+import { reconcileSieExportBalances } from './sieExportBalances.ts'
 import {
   fetchAllRows,
   fetchAllRowsByChunks,
@@ -153,7 +154,7 @@ export async function exportSIEForUserFromDb(
     accounts,
     profileResponse,
     jan1Transactions,
-    prevYearTransactions,
+    historicalTransactions,
   ] = await Promise.all([
     fetchAllRows<SieTransactionRow>({
       context: 'SIE export year transactions',
@@ -193,15 +194,14 @@ export async function exportSIEForUserFromDb(
         >,
     }),
 
-    // P1-fix (SIE 4C, jämförelseår): behövs för att avgöra om föregående
-    // räkenskapsår "finns" samt som underlag för #RES -1 nedan.
+    // Load complete prior history for the export carry. Only year-1 rows
+    // contribute to #RES -1; older result is represented in opening capital.
     fetchAllRows<Pick<SieTransactionRow, 'id' | 'date'>>({
-      context: 'SIE export previous year transactions',
+      context: 'SIE export historical transactions',
       createQuery: () => db
         .from('transactions')
         .select('id, date', { count: 'exact' })
         .eq('user_id', userId)
-        .gte('date', `${year - 1}-01-01`)
         .lte('date', `${year - 1}-12-31`) as FetchAllRangeQuery<
           Pick<SieTransactionRow, 'id' | 'date'>
         >,
@@ -269,7 +269,6 @@ export async function exportSIEForUserFromDb(
       .map(t => t.id)
   )
 
-  const openingBalanceEntries = (entries || []).filter(e => openingBalanceTxIds.has(e.transaction_id))
   const regularEntries = (entries || []).filter(e => !openingBalanceTxIds.has(e.transaction_id))
 
   // Flyttat hit (oförändrad kod, se tidigare BALANS-sektion) - behövs redan
@@ -277,15 +276,16 @@ export async function exportSIEForUserFromDb(
   const prevYearBalances = await loadBalanceSheetBalances(year - 1)
   const currentBalances = await loadBalanceSheetBalances(year)
 
-  const prevYearTransactionIds = prevYearTransactions.map(t => t.id)
+  const prevYearTransactionIds = historicalTransactions.filter(t => t.date >= `${year - 1}-01-01`).map(t => t.id)
+  const historicalTransactionIds = historicalTransactions.map(t => t.id)
 
-  // Hämta föregående års journalrader redan här så att konton som endast
-  // förekommer i #RES -1 också kan deklareras med #KONTO innan saldoposterna skrivs.
-  let prevYearEntries: SieJournalEntryRow[] = []
-  if (prevYearTransactionIds.length > 0) {
-    prevYearEntries = await fetchAllRowsByChunks<SieJournalEntryRow, string>({
-      context: 'SIE export previous year journal entries',
-      values: prevYearTransactionIds,
+  // Complete historical journal rows verify the carry against raw balances.
+  // The year-1 subset also supplies comparison accounts and #RES -1.
+  let historicalEntries: SieJournalEntryRow[] = []
+  if (historicalTransactionIds.length > 0) {
+    historicalEntries = await fetchAllRowsByChunks<SieJournalEntryRow, string>({
+      context: 'SIE export historical journal entries',
+      values: historicalTransactionIds,
       createQuery: ids => db
         .from('journal_entries')
         .select('*', { count: 'exact' })
@@ -293,6 +293,12 @@ export async function exportSIEForUserFromDb(
         .in('transaction_id', ids) as FetchAllRangeQuery<SieJournalEntryRow>,
     })
   }
+
+  const previousIds = new Set(prevYearTransactionIds)
+  const prevYearEntries = historicalEntries.filter(row => previousIds.has(row.transaction_id))
+  const exportBalances = reconcileSieExportBalances(
+    historicalEntries, entries, openingBalanceTxIds, prevYearBalances, currentBalances,
+  )
 
   // P1-fix (SIE 4C): föregående räkenskapsår räknas som "finns" om det
   // antingen har egna transaktioner (oavsett typ) ELLER om det finns
@@ -357,11 +363,11 @@ export async function exportSIEForUserFromDb(
   // resultatdata (#RES -1) finnas i kontolistan, även om de saknar aktivitet
   // innevarande år och inte längre finns i accounts-tabellen.
   ;[
-    ...Object.keys(prevYearBalances || {}),
-    ...Object.keys(currentBalances || {})
+    ...Object.keys(exportBalances.opening),
+    ...Object.keys(exportBalances.closing)
   ].forEach(accountNumber => {
     if (!konton.has(accountNumber)) {
-      konton.set(accountNumber, `Konto ${accountNumber}`)
+      konton.set(accountNumber, accountNumber === '2010' ? 'Eget kapital' : `Konto ${accountNumber}`)
     }
   })
 
@@ -400,23 +406,9 @@ export async function exportSIEForUserFromDb(
   // prevYearBalances/currentBalances hämtas numera tidigare (se ovan) - de
   // behövdes redan innan headern skrevs för att avgöra #RAR -1.
 
-  // #IB = föregående års kumulativa balans (1xxx-2xxx, sedan bokföringens
-  // start) PLUS eventuella explicit identifierade öppningsbalans-poster
-  // daterade exakt årets första dag. Det senare ledet är 0 för alla år
-  // utom det där en sådan post faktiskt finns - formeln är alltså
-  // självutslocknande och kräver ingen särlogik för "vanliga" år.
-  const ibBalances: Record<string, number> = { ...prevYearBalances }
-  openingBalanceEntries.forEach(e => {
-    const acc = e.account_number.toString()
-    // Endast balanskonton (1xxx-2xxx) - samma begränsning som
-    // getBalanceSheetBalances redan tillämpar för prevYearBalances/
-    // currentBalances, som en säkerhetsåtgärd om en öppningsbalans-flaggad
-    // transaktion mot förmodan skulle innehålla en rad utanför den klassen.
-    if (!acc.startsWith('1') && !acc.startsWith('2')) return
-    ibBalances[acc] = Math.round(
-      ((ibBalances[acc] || 0) + (Number(e.debit) - Number(e.credit))) * 100
-    ) / 100
-  })
+  // KAN-108: journal-verified prior result is represented on 2010 in the
+  // export only. Identical carry in IB and UB preserves every current #TRANS.
+  const ibBalances = exportBalances.opening
 
   Object.entries(ibBalances || {}).forEach(([konto, value]) => {
     if (value !== 0) {
@@ -425,7 +417,7 @@ export async function exportSIEForUserFromDb(
   })
   sie += '\n'
 
-  Object.entries(currentBalances || {}).forEach(([konto, value]) => {
+  Object.entries(exportBalances.closing).forEach(([konto, value]) => {
     if (value !== 0) {
       sie += `#UB 0 ${konto} ${Number(value).toFixed(2)}\n`
     }
