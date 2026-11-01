@@ -763,7 +763,9 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       await refreshData()
     } catch (err: any) {
       console.error('Fel vid korrigering:', err)
-      alert('Kunde inte skapa korrigering: ' + err.message)
+      alert(err instanceof Error && err.name === 'CorrectionBlockedError'
+        ? err.message
+        : 'Kunde inte skapa korrigering: ' + err.message)
     }
   }
 

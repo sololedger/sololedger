@@ -1750,6 +1750,11 @@ export async function createCorrectionTransaction(originalTxId: string): Promise
   })
 
   if (error) {
+    if (error.details?.startsWith('KAN124_')) {
+      const blocked = new Error(error.message)
+      blocked.name = 'CorrectionBlockedError'
+      throw blocked
+    }
     throw new Error('Korrigeringen misslyckades och rullades tillbaka: ' + error.message)
   }
 
