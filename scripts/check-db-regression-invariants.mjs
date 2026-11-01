@@ -116,6 +116,21 @@ function latestBody(name, beforeFile) {
   return match[2]
 }
 let currentDelete = latestBody('delete_user_data_atomic')
+if (latestCriticalDefinitions.delete_user_data_atomic === '20261101213818_kan128_attachment_history.sql') {
+  for (const needle of ['public.lock_accounting_year_boundary(p_user_id,true)',
+    "IF target_role='admin'", 'INSERT INTO public.delete_user_data_atomic_lifecycle_context',
+    'DELETE FROM public.accounting_attachment_history WHERE user_id=p_user_id',
+    'GET DIAGNOSTICS history_count=ROW_COUNT',
+    'DELETE FROM public.year_end_checklist WHERE user_id=p_user_id',
+    'public.delete_user_data_atomic_pre_kan98(p_user_id)',
+    'OR EXISTS(SELECT 1 FROM public.accounting_attachment_history',
+    "'accounting_attachment_history',history_count"]) assertIncludes(currentDelete,needle,'KAN128 deletion wrapper')
+  if (currentDelete.indexOf('INSERT INTO public.delete_user_data_atomic_lifecycle_context') >= currentDelete.indexOf('DELETE FROM public.accounting_attachment_history') ||
+      currentDelete.indexOf('DELETE FROM public.accounting_attachment_history') >= currentDelete.indexOf('r:=public.delete_user_data_atomic_pre_kan98')) fail('KAN128 history must be deleted within lifecycle context before sources')
+  assertIncludes(edge,"'accounting_attachment_history'",edgeFunctionPath)
+  assertIncludes(adminDryRun,"'accounting_attachment_history'",adminDryRunPath)
+  currentDelete = latestBody('delete_user_data_atomic_pre_kan98')
+}
 if (latestCriticalDefinitions.delete_user_data_atomic === '20261026092741_kan112_year_end_checklist.sql') {
   // KAN-112 extends the released wrapper; retain checks on the real preserved
   // inner deletion boundary rather than requiring duplicated security logic.
@@ -144,6 +159,14 @@ let currentClose = latestBody('close_year_atomic')
 let currentCloseFile = latestCriticalDefinitions.close_year_atomic
 const dateGuardMigration = '20261026162305_kan113_calendar_year_close_guard.sql'
 const coverageMigration = '20261026090000_kan110_vat_year_coverage.sql'
+if (currentCloseFile === '20261031133758_kan122_closed_year_boundary.sql') {
+  for (const needle of ['public.lock_accounting_year_boundary(auth.uid(),true)',
+    "clock_timestamp() AT TIME ZONE 'Europe/Stockholm'", 'generate_series(v_first_year,p_year-1)',
+    'public.get_result_closing_review(p_year)', 'public.assert_vat_year_coverage(p_year)',
+    'RETURN public.close_year_unchecked_inventory(p_year)']) assertIncludes(currentClose,needle,'KAN122 closed-year boundary')
+  currentClose = latestBody('close_year_atomic',currentCloseFile)
+  currentCloseFile = dateGuardMigration
+}
 if (currentCloseFile === dateGuardMigration) {
   for (const needle of ["clock_timestamp() AT TIME ZONE 'Europe/Stockholm'", 'p_year >= extract(year',
     'p_year IS NULL OR p_year < 1900 OR p_year > 9999', "USING ERRCODE='23514'", '1 januari']) {

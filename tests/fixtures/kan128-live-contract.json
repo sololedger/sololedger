@@ -1,0 +1,122 @@
+{
+  "project": "wbaxmuvudpnkvuliicuy",
+  "capturedOn": "2026-11-01",
+  "scope": "Read-only schema metadata only; no user rows, credentials or file bytes. Local prerequisites must match, never silently replaced.",
+  "functions": [
+    {
+      "name": "transaction_source_is_controlled_vat_lifecycle",
+      "signature": "transaction_source_is_controlled_vat_lifecycle(text)",
+      "sha256": "339e553602bcfaae39bebdbed42b7b52c55c6a1d4a30121a23d3d3d30ab8e027"
+    },
+    {
+      "name": "manage_supplier_year_end_invoice",
+      "signature": "manage_supplier_year_end_invoice(jsonb)",
+      "sha256": "aa471e6005ccdb49ce84bd50266a78109c168505077030714ad67e951888d336"
+    },
+    {
+      "name": "delete_user_data_atomic",
+      "signature": "delete_user_data_atomic(uuid)",
+      "sha256": "4dcbb5e9534009ccb5af8ef078ffcd227aa06c3f3d96ef8fb2cd5e6526defcc0"
+    },
+    {
+      "name": "update_customer_invoice_unbooked_atomic",
+      "signature": "update_customer_invoice_unbooked_atomic(uuid,jsonb)",
+      "sha256": "9f71a4d49062050b4e06db9637a37d1c2c71ac68a967e2831eea1509bd4363b5"
+    },
+    {
+      "name": "lock_accounting_year_boundary",
+      "signature": "lock_accounting_year_boundary(uuid,boolean)",
+      "sha256": "8afbe4cf47476475b15dc88a4f417e11cd9d3efbecd6b505d456f3fb382055aa"
+    },
+    {
+      "name": "assert_accounting_dates_open",
+      "signature": "assert_accounting_dates_open(uuid,date[])",
+      "sha256": "ab0210d0faf1c1846943185c9fd0d63ba8fce7f76190c3104896bfd75e6f8c23"
+    },
+    {
+      "name": "update_transaction_safe",
+      "signature": "update_transaction_safe(uuid,jsonb)",
+      "sha256": "d2851bea40660fcd541903159f2614cc6dba3e09764e798abe3835a07c5813c8"
+    },
+    {
+      "name": "prevent_customer_invoice_booking_mutation",
+      "signature": "prevent_customer_invoice_booking_mutation()",
+      "sha256": "1164ef20ab1d0ccf84975bf11f0d7d596b3f2e0ed65a96fceccd288b7a32fab5"
+    },
+    {
+      "name": "create_customer_invoice_atomic",
+      "signature": "create_customer_invoice_atomic(jsonb)",
+      "sha256": "f45d9a2a541a6f052d8f37f03dc62d3810ae89f486da45ca2a78c1bc1699efa0"
+    },
+    {
+      "name": "delete_user_data_atomic_pre_kan98",
+      "signature": "delete_user_data_atomic_pre_kan98(uuid)",
+      "sha256": "11760ae9ea5d7466ea9b3fe9217f614687fffde81d60b4512c5d7d7e99a8c828"
+    }
+  ],
+  "storage": {
+    "foldername": "CREATE OR REPLACE FUNCTION storage.foldername(name text)\n RETURNS text[]\n LANGUAGE plpgsql\n IMMUTABLE\nAS $function$\nDECLARE\n    _parts text[];\nBEGIN\n    -- Split on \"/\" to get path segments\n    SELECT string_to_array(name, '/') INTO _parts;\n    -- Return everything except the last segment\n    RETURN _parts[1 : array_length(_parts,1) - 1];\nEND\n$function$\n",
+    "policies": [
+      {
+        "cmd": "INSERT",
+        "qual": null,
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "objects",
+        "permissive": "PERMISSIVE",
+        "policyname": "Användare kan ladda upp sina egna bilagor",
+        "schemaname": "storage",
+        "with_check": "((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "objects",
+        "permissive": "PERMISSIVE",
+        "policyname": "Användare kan läsa sina egna bilagor",
+        "schemaname": "storage",
+        "with_check": null
+      },
+      {
+        "cmd": "DELETE",
+        "qual": "((bucket_id = 'attachments'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "objects",
+        "permissive": "PERMISSIVE",
+        "policyname": "Användare kan radera sina egna bilagor",
+        "schemaname": "storage",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "((bucket_id = 'attachments'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1]))",
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "objects",
+        "permissive": "PERMISSIVE",
+        "policyname": "Give users access to own folder 1mt4rzk_0",
+        "schemaname": "storage",
+        "with_check": null
+      },
+      {
+        "cmd": "INSERT",
+        "qual": null,
+        "roles": [
+          "authenticated"
+        ],
+        "tablename": "objects",
+        "permissive": "PERMISSIVE",
+        "policyname": "Give users access to own folder 1mt4rzk_1",
+        "schemaname": "storage",
+        "with_check": "((bucket_id = 'attachments'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1]))"
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { getSupplierYearEndInvoices, openSupplierAttachment, submitSupplierCommand, supplierExpenseChoices, SupplierRejectedError,
   type SupplierYearEndInvoice, type SupplierCommand } from '@/lib/supplierYearEnd'
 import SwedishDateInput from '@/components/SwedishDateInput'
+import AccountingAttachmentHistory from './AccountingAttachmentHistory'
 import {formatIsoDateSv} from '@/lib/dateUi'
 
 interface Props {
@@ -140,6 +141,7 @@ export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,ac
         <p>Bokslut {row.fiscal_year}: {money(row.gross_amount)} kr. {row.status==='booked'?'Bokförd skuld, ännu inte betald':row.status==='paid'?'Betalningen är bokförd':'Rättad med spegelbokning'}.</p>
         <p className="text-sm">Fakturamoms {money(row.invoice_vat)} kr; avdragsgill del {money(row.deductible_vat)} kr.</p>
         <button type="button" className="rounded-lg border p-2" onClick={()=>void openSupplierAttachment(owner,row.attachment_path).catch(()=>setNotice('Bilagan kunde inte öppnas. Försök igen.'))}>Öppna fakturabilagan</button>
+        <AccountingAttachmentHistory owner={owner} entityType="supplier_invoice" entityId={row.id} locked={isYearLocked} onUpload={onUploadAttachment} />
         {row.events?.map((event,i)=><p key={i} className="text-sm">
           {{year_end:'Bokslutsskuld',payment:'Betalning',payment_reversal:'Återförd betalning',year_end_reversal:'Återförd skuld'}[event.kind] ?? 'Bokföringshändelse'} {formatIsoDateSv(event.event_date)} · VER-{event.ver_nr}
           {onOpenBookkeeping && <button type="button" className="ml-2 underline" onClick={()=>onOpenBookkeeping(Number(event.event_date.slice(0,4)))}>Visa i Bokföring</button>}

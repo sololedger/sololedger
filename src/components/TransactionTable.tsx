@@ -10,6 +10,7 @@ import {
 import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
 import AttachmentTransactionGroup from './AttachmentTransactionGroup'
+import AccountingAttachmentHistory from './AccountingAttachmentHistory'
 import TransactionPresentation from './TransactionPresentation'
 import { buildHistoryPresentations } from '@/lib/transactionHistoryPresentation'
 import {
@@ -888,6 +889,7 @@ export default function TransactionTable({
                         📎 Visa bilaga
                       </button>
                     )}
+                    {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} />}
                   </td>
 
                   <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${presentation?.amountClass ?? amountClass}`}>
@@ -1224,6 +1226,7 @@ export default function TransactionTable({
                   📎 Visa bilaga
                 </button>
               )}
+              {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} />}
 
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {journal.map((e: any) => {

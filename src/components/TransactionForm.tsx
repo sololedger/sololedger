@@ -2,6 +2,7 @@
 import { standardBookingAmountError } from '@/lib/standardBookingAmount'
 import { useRef, useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
+import AccountingAttachmentHistory from './AccountingAttachmentHistory'
 import SwedishDateInput from './SwedishDateInput'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
@@ -91,6 +92,7 @@ interface TransactionFormProps {
   ) => Promise<void>
   onCancelEdit: () => void
   userId: string
+  onUploadAttachment?: (file: File) => Promise<string>
   vatStatus: 'registered' | 'not_registered' | 'unknown'
   domesticSalesVatTreatment: DomesticSalesVatTreatment
   companyVatProfileResult: CompanyVatProfileAdapterResult
@@ -172,6 +174,7 @@ export default function TransactionForm({
   onVatV2Submit,
   onCancelEdit,
   userId,
+  onUploadAttachment,
   vatStatus,
   domesticSalesVatTreatment,
   companyVatProfileResult,
@@ -561,6 +564,7 @@ export default function TransactionForm({
       )}
 
       {selectedCategoryError && <p role="alert" className="mb-3 text-sm text-amber-800">{selectedCategoryError}</p>}
+      {editingId && <AccountingAttachmentHistory owner={userId} entityType="transaction" entityId={editingId} locked={isYearLocked} onUpload={onUploadAttachment} />}
       <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : handleOrdinarySubmit}>
         {editingBooked ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">

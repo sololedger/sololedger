@@ -42,8 +42,10 @@ import {
   type CustomerInvoiceYearEndFilter,
 } from '@/lib/customerInvoiceFilters'
 import type { DomesticSalesVatTreatment } from '@/lib/vatDomain'
+import AccountingAttachmentHistory from './AccountingAttachmentHistory'
 
 interface CustomerInvoicesPanelProps {
+  owner?: string
   verifyProfile: () => Promise<string>
   selectedYear: number
   isYearLocked: boolean
@@ -103,6 +105,7 @@ function invoiceBookingLabel(booking: CustomerInvoice['bookings'][number]) {
 }
 
 export default function CustomerInvoicesPanel({
+  owner,
   verifyProfile,
   selectedYear,
   isYearLocked,
@@ -974,6 +977,8 @@ export default function CustomerInvoicesPanel({
                           <span>{customerInvoiceVatLabel(invoice)}</span>
                           <span>{invoice.attachmentUrl ? 'Underlag bifogat' : 'Underlag saknas'}</span>
                         </div>
+
+                        {owner && <AccountingAttachmentHistory owner={owner} entityType="customer_invoice" entityId={invoice.id} locked={isYearLocked} onUpload={onUploadAttachment} />}
 
                         {invoice.bookings.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">

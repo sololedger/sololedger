@@ -1276,6 +1276,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
             <fieldset disabled={Boolean(pendingBooking || bookingStorageError || bookingOwnerLoaded !== user.id)} className="min-w-0">
             <TransactionForm
               userId={user.id}
+              onUploadAttachment={handleFileUpload}
               vatStatus={profile?.vat_status ?? 'unknown'}
               domesticSalesVatTreatment={
                 profile?.domestic_sales_vat_treatment ?? 'unknown'
@@ -1366,6 +1367,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       ) : activeTab === 'fakturor' ? (
         <CustomerInvoicesPanel
           key={`${user.id}:${selectedYear}`}
+          owner={user.id}
           verifyProfile={verifyProfile}
           selectedYear={selectedYear}
           isYearLocked={isYearLocked}

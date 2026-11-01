@@ -1,4 +1,5 @@
 export const ADMIN_DELETE_DRY_RUN_COUNT_KEYS = [
+  'accounting_attachment_history',
   'year_end_checklist',
   'declaration_revisions',
   'declaration_source_snapshots',
@@ -42,6 +43,7 @@ export const ADMIN_DELETE_DRY_RUN_COUNT_LABELS: Record<
   AdminDeleteDryRunCountKey,
   string
 > = {
+  accounting_attachment_history: 'bilagehistorikposter',
   year_end_checklist: 'årsavslutsbekräftelser',
   declaration_revisions: 'deklarationsversioner',
   declaration_source_snapshots: 'frysta deklarationsunderlag',

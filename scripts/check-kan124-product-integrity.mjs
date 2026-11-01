@@ -1,5 +1,6 @@
 // Test infrastructure only: an immutable accepted product baseline and a narrow
-// allowlist for the reviewed KAN124 candidate. Never updates its own hashes.
+// allowlists for KAN124 and the locally reviewed KAN128 candidate. Never updates
+// its own hashes. Unknown files and drift in allowed files still fail closed.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -15,7 +16,17 @@ const approved=new Map([
  ['src/lib/accountingService.ts','e8e16a863e7b487045c79f66fb86a1d31f70686c441a81c2b66032a2b20b14ab'],
  ['src/app/page.tsx','378b957122885378c424b257082ba98b0df3034e1814ca02db878e38af5dab76'],
  [migration,'b7bef556583827457303d6a129e0c618ef2de984378645b7e38d03f2d97d5e90'],
- ['package.json','4ca03f1ee75499add0d5d18852249a035c1278fb681664806d3794834436bbce'],
+ ['package.json','6329be8d527ef8145156756cf3e3cd9fdf3375d2bf4b493f82d0ef952fa105e8'],
+ // KAN128: explicit local implementation scope; no publication approval implied.
+ ['src/components/AccountingAttachmentHistory.tsx','20fe04cf2891a27b4e40205fd1562542b29440f0b369a139605061645b8fa093'],
+ ['src/components/TransactionForm.tsx','04d48a87cfe2a40a04c45fda116d94cfd7283386a902c2b803b8882acac33064'],
+ ['src/components/CustomerInvoicesPanel.tsx','3e75bcaaf6543fb3e6e03b0e971244702d2078233ba9ffbbbf0a613228a2fa0e'],
+ ['src/components/SupplierYearEndPanel.tsx','26138a63c7ee3ef3ffa84007f85893620d9ba6454d61561e3dc61ca28fddedcb'],
+ ['src/components/TransactionTable.tsx','dc8cc7e6498d59f436b0e444da41be02dce38a7eec5da381a9698fedc324e383'],
+ ['src/app/page.tsx','e6c1b3a37de2b83738e74e01280d3fdee0e7f6ca70fb63e9aeddbb7919bf88b1'],
+ ['src/lib/adminDeleteDryRun.ts','bc523f546c9531ccc4e2408c4a0608e64789a6add90a2d17e4bd059db9bb55a7'],
+ ['supabase/functions/delete-user/index.ts','d18751108084b8a4cf10bf6a0d9835eb2b7b90fad224dc63b9e5d503c84d7475'],
+ ['supabase/migrations/20261101213818_kan128_attachment_history.sql','4b50eb38fbe7eef380760486e4468707cc0e8dd93b615477ad679e9db8bab9a2'],
 ])
 const scopes=['src','supabase','package.json','package-lock.json','next.config.ts','next.config.js','next.config.mjs','tsconfig.json','eslint.config.mjs','.gitignore']
 const hash=b=>createHash('sha256').update(b).digest('hex')
@@ -54,7 +65,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
  const context=loadIntegrityContext(),result=verifyProductIntegrity(context)
  if(process.argv.includes('--self-test')){
   const altered=(file,change)=>({...context,readWorkingFile:p=>p===file?change(context.readWorkingFile(p)):context.readWorkingFile(p)})
-  for(const file of ['src/lib/resultEngine.ts','src/components/NEBilaga.tsx',kan122,'src/lib/accountingService.ts',migration,'package.json'])assert.throws(()=>verifyProductIntegrity(altered(file,b=>Buffer.concat([b,Buffer.from('\n// unrelated edit\n')]))),/changed|Unapproved/)
+  for(const file of new Set(['src/lib/resultEngine.ts','src/components/NEBilaga.tsx',kan122,...approved.keys()]))assert.throws(()=>verifyProductIntegrity(altered(file,b=>Buffer.concat([b,Buffer.from('\n// unrelated edit\n')]))),/changed|Unapproved/)
   const unexpected='supabase/migrations/20990101000000_unapproved.sql'
   assert.throws(()=>verifyProductIntegrity({...context,currentFiles:new Set([...context.currentFiles,unexpected]),readWorkingFile:p=>{assert.notEqual(p,unexpected,'Must not read unknown file');return context.readWorkingFile(p)}}),/Unapproved new protected file/)
   assert.throws(()=>verifyProductIntegrity({...context,readWorkingFile:p=>{if(p===migration)throw Error('ENOENT');return context.readWorkingFile(p)}}),/Missing protected product file/)

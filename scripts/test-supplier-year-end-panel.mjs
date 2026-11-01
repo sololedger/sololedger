@@ -20,7 +20,9 @@ if(window.fx.lose){window.fx.lose=false;throw Error('Svaret tappades. Återuppta
 return{success:true,invoice_id:'invoice',transaction_id:'tx',ver_nr:1,idempotent_replay:window.fx.calls.length>1}}`
 const bundle=await build({stdin:{contents:entry,loader:'tsx',resolveDir:process.cwd()},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',plugins:[{
   name:'local-supplier-transport',setup(b){b.onResolve({filter:/\/supplierYearEnd$/},()=>({path:'supplier',namespace:'synthetic'}));
-    b.onLoad({filter:/.*/,namespace:'synthetic'},()=>({contents:mock}))}}]})
+    b.onLoad({filter:/.*/,namespace:'synthetic'},()=>({contents:mock}));
+    b.onResolve({filter:/supabaseClient$/},()=>({path:'history',namespace:'offline-history'}));
+    b.onLoad({filter:/.*/,namespace:'offline-history'},()=>({contents:`export const supabase={from(){throw Error('History must stay lazy in the supplier lifecycle fixture')}}`}))}}]})
 const css=await postcss([tailwindcss()]).process(readFileSync('src/app/globals.css','utf8').replace('@import "tailwindcss";',
   '@import "tailwindcss" source(none);\n@source "./src/components/SupplierYearEndPanel.tsx";\n@source "./src/components/SwedishDateInput.tsx";'),{from:path.resolve('supplier-test.css')})
 const dir='test-results/kan98-'+Date.now();mkdirSync(dir,{recursive:true})
