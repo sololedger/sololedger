@@ -1342,6 +1342,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   />
 ) : transactionHistoryViewState === 'table' ? (
   <TransactionTable
+    onUploadAttachment={handleFileUpload}
     transactions={transactions}
     journalMap={journalMap}
     kontoplan={kontoplan}

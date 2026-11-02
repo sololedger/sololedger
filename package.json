@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test:kan128": "node scripts/test-kan128-attachment-ui.mjs",
+    "test:kan128": "node scripts/test-kan128-attachment-ui-v2.mjs",
     "test:kan128:db": "node scripts/test-kan128-local-db.mjs",
     "test:kan122": "node scripts/test-kan122-year-lock-message.mjs",
     "test:kan122:db": "node scripts/test-kan122-local-db.mjs",

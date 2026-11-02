@@ -11,6 +11,7 @@ import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
 import AttachmentTransactionGroup from './AttachmentTransactionGroup'
 import AccountingAttachmentHistory from './AccountingAttachmentHistory'
+import { useAttachmentHistoryChanges } from '@/hooks/useAttachmentHistoryChanges'
 import TransactionPresentation from './TransactionPresentation'
 import { buildHistoryPresentations } from '@/lib/transactionHistoryPresentation'
 import {
@@ -39,6 +40,7 @@ interface TransactionTableProps {
   onEdit: (tx: any) => void
   onDelete: (tx: any) => void
   onFavorite: (tx: any) => void
+  onUploadAttachment?: (file: File) => Promise<string>
 }
 
 type FixedAssetReclassificationTraceLink = {
@@ -66,7 +68,9 @@ export default function TransactionTable({
   onEdit,
   onDelete,
   onFavorite,
+  onUploadAttachment,
 }: TransactionTableProps) {
+  const hasAttachmentChanges = useAttachmentHistoryChanges(transactions)
   // Paginering sker på VISUELLA rader. En ångrad SIE-import med t.ex.
   // 50 tekniska KORRVER räknas alltså som en rad tills den fälls ut.
   const [visibleCount, setVisibleCount] = useState(50)
@@ -889,7 +893,7 @@ export default function TransactionTable({
                         📎 Visa bilaga
                       </button>
                     )}
-                    {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} />}
+                    {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={onUploadAttachment} />}
                   </td>
 
                   <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${presentation?.amountClass ?? amountClass}`}>
@@ -1226,7 +1230,7 @@ export default function TransactionTable({
                   📎 Visa bilaga
                 </button>
               )}
-              {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} />}
+              {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={onUploadAttachment} />}
 
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {journal.map((e: any) => {
