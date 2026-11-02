@@ -13,7 +13,8 @@ interface Props {
   onOpenBookkeeping?: (year: number) => void
 }
 const money = (n: number) => Number(n).toLocaleString('sv-SE',{minimumFractionDigits:2,maximumFractionDigits:2})
-const inputClass = 'block w-full rounded-lg border p-2 text-base text-gray-900'
+const inputClass = 'block min-h-11 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
+const buttonClass = 'min-h-11 max-w-full rounded-xl border px-4 py-3 text-sm font-semibold whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
 export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,accountingReady=true,onUploadAttachment,onBookkeepingChanged,onOpenBookkeeping}: Props) {
   const [rows,setRows] = useState<SupplierYearEndInvoice[]>([])
   const [ready,setReady] = useState(false)
@@ -122,63 +123,77 @@ export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,ac
       : 'Skapa en spårbar spegelbokning på ursprungsdatumet? Låst år eller momsperiod ändras inte.'))return
     void perform(command)
   }
-  return <section className="mx-auto max-w-3xl space-y-5 rounded-2xl bg-white p-4 sm:p-8">
+  return <section aria-label="Bokslutsskulder" className="min-w-0 w-full space-y-5 pb-6">
+    <header className="space-y-4 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
     <h2 className="text-xl font-bold">Obetalda leverantörsfakturor vid bokslut {selectedYear}</h2>
+    <div className="max-w-prose space-y-3 text-sm leading-relaxed text-gray-700">
     <p>Öppna fakturorna och jämför med bankens betalningar till och med 31 december. Ta bara med helt obetalda svenska kostnadsfakturor i SEK som hör till året. Du bekräftar själv att alla underlag finns med; SoloLedger kan inte hitta saknade fakturor.</p>
     <p>Först bokas kostnad, eventuell avdragsgill moms och skuld den 31 december. När betalningen kommer nästa år öppnar du samma skuld här. <strong>Bokför inte betalningen som en ny vanlig kostnad.</strong></p>
     <p className="text-sm">Delbetalningar, kreditfakturor, utlandsinköp, inventarier, lager, förskott och osäker eller delvis avdragsgill moms stöds inte här. Stanna och kontrollera underlaget; ingen automatisk alternativ bokning görs.</p>
+    </div>
+    </header>
+    <section aria-label="Registrerade bokslutsskulder" className="min-w-0 space-y-4 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+    <h3 className="text-lg font-bold text-gray-900">Registrerade bokslutsskulder</h3>
     {error && <p role="alert">{error}</p>}
     {storageError && <p role="alert">{storageError}</p>}
     {notice && <p role="status" className="rounded-lg bg-amber-50 p-3">{notice}</p>}
-    <button type="button" disabled={busy} onClick={()=>void load()} className="rounded-lg border p-2">Läs in skulderna igen</button>
+    <button type="button" disabled={busy} onClick={()=>void load()} className={buttonClass+' w-full border-gray-300 sm:w-auto'}>Läs in skulderna igen</button>
     {pending && <div className="rounded-lg border border-amber-500 p-3"><p>Ett sparat försök behöver bekräftas. Inga nya försök kan skapas under tiden.</p>
-      <button disabled={busy} onClick={()=>void perform(pending)} className="rounded-lg bg-emerald-700 p-3 text-white">Återuppta samma försök</button></div>}
+      <button disabled={busy} onClick={()=>void perform(pending)} className={buttonClass+' mt-3 w-full border-emerald-700 bg-emerald-700 text-white sm:w-auto'}>Återuppta samma försök</button></div>}
     {!ready && !error && <p>Hämtar rätt års skulder…</p>}
     {ready && <>
       <p>{rows.filter(r=>r.status==='booked').length} registrerade obetalda bokslutsskulder till och med {selectedYear}. En registrerad post är också bokförd.</p>
-      {rows.map(row=><article key={row.id} className="space-y-3 rounded-lg border p-4 break-words">
-        <h3 className="font-bold">{row.supplier_name} · {row.invoice_number}</h3>
-        <p>Bokslut {row.fiscal_year}: {money(row.gross_amount)} kr. {row.status==='booked'?'Bokförd skuld, ännu inte betald':row.status==='paid'?'Betalningen är bokförd':'Rättad med spegelbokning'}.</p>
-        <p className="text-sm">Fakturamoms {money(row.invoice_vat)} kr; avdragsgill del {money(row.deductible_vat)} kr.</p>
-        <button type="button" className="rounded-lg border p-2" onClick={()=>void openSupplierAttachment(owner,row.attachment_path).catch(()=>setNotice('Bilagan kunde inte öppnas. Försök igen.'))}>Öppna fakturabilagan</button>
+      {rows.map(row=><article key={row.id} className="min-w-0 space-y-4 rounded-2xl border border-gray-200 p-4 break-words sm:p-5">
+        <header className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start">
+        <h4 className="min-w-0 font-bold [overflow-wrap:anywhere]">{row.supplier_name} · {row.invoice_number}</h4>
+        <p className="min-w-0 text-sm md:text-right">Bokslut {row.fiscal_year}: <strong className="tabular-nums">{money(row.gross_amount)} kr.</strong> <span className="mt-1 block font-semibold text-gray-700">{row.status==='booked'?'Bokförd skuld, ännu inte betald':row.status==='paid'?'Betalningen är bokförd':'Rättad med spegelbokning'}.</span></p>
+        </header>
+        <p className="max-w-prose text-sm text-gray-600">Fakturamoms {money(row.invoice_vat)} kr; avdragsgill del {money(row.deductible_vat)} kr.</p>
+        <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <button type="button" className={buttonClass+' w-full border-gray-300 sm:w-auto'} onClick={()=>void openSupplierAttachment(owner,row.attachment_path).catch(()=>setNotice('Bilagan kunde inte öppnas. Försök igen.'))}>Öppna fakturabilagan</button>
         <AccountingAttachmentHistory owner={owner} entityType="supplier_invoice" entityId={row.id} locked={isYearLocked} onUpload={onUploadAttachment} />
-        {row.events?.map((event,i)=><p key={i} className="text-sm">
+        </div>
+        {row.events?.map((event,i)=><p key={i} className="max-w-prose text-sm">
           {{year_end:'Bokslutsskuld',payment:'Betalning',payment_reversal:'Återförd betalning',year_end_reversal:'Återförd skuld'}[event.kind] ?? 'Bokföringshändelse'} {formatIsoDateSv(event.event_date)} · VER-{event.ver_nr}
-          {onOpenBookkeeping && <button type="button" className="ml-2 underline" onClick={()=>onOpenBookkeeping(Number(event.event_date.slice(0,4)))}>Visa i Bokföring</button>}
+          {onOpenBookkeeping && <button type="button" className="min-h-11 max-w-full px-2 py-2 underline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={()=>onOpenBookkeeping(Number(event.event_date.slice(0,4)))}>Visa i Bokföring</button>}
         </p>)}
-        {row.status==='booked' && <form onSubmit={e=>{e.preventDefault();act(row,'pay',e.currentTarget)}} className="space-y-2">
-          <label className="block">Betalningsdatum <SwedishDateInput ariaLabel="Betalningsdatum" value={paymentDates[row.id]??''} onChange={v=>setPaymentDates(p=>({...p,[row.id]:v}))} required min={`${row.fiscal_year+1}-01-01`} className={inputClass}/><input type="hidden" name="payment_date" value={paymentDates[row.id]??''}/></label>
-          <label className="block">Hela beloppet som betalats (kr) <input name="paid_amount" type="number" step="0.01" required defaultValue={row.gross_amount} className={inputClass}/></label>
-          <button disabled={busy||!!pending||!storageReady} className="rounded-lg bg-emerald-700 p-3 text-white">Bokför betalning av denna skuld</button>
+        {row.status==='booked' && <form onSubmit={e=>{e.preventDefault();act(row,'pay',e.currentTarget)}} className="grid min-w-0 gap-3 rounded-xl bg-gray-50 p-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end sm:p-4">
+          <label className="block min-w-0 text-sm font-medium">Betalningsdatum <SwedishDateInput ariaLabel="Betalningsdatum" value={paymentDates[row.id]??''} onChange={v=>setPaymentDates(p=>({...p,[row.id]:v}))} required min={`${row.fiscal_year+1}-01-01`} className={inputClass}/><input type="hidden" name="payment_date" value={paymentDates[row.id]??''}/></label>
+          <label className="block min-w-0 text-sm font-medium">Hela beloppet som betalats (kr) <input name="paid_amount" type="number" step="0.01" required defaultValue={row.gross_amount} className={inputClass}/></label>
+          <button disabled={busy||!!pending||!storageReady} className={buttonClass+' w-full border-emerald-700 bg-emerald-700 text-white md:col-span-2 xl:col-span-1'}>Bokför betalning av denna skuld</button>
         </form>}
-        {row.status!=='cancelled' && <details><summary>Rätta en felbokning</summary><p>Historiken sparas. Rättelse görs på ursprungsdatum och stoppas om året eller relevant momsperiod är låst. En betald skuld behöver först få betalningen återförd. Registrera sedan korrekt underlag om själva skulden var fel.</p>
-          <form onSubmit={e=>{e.preventDefault();act(row,row.status==='paid'?'undo_payment':'cancel',e.currentTarget)}}>
-            <label className="block">Orsak <input name="reason" required minLength={5} maxLength={300} className={inputClass}/></label>
-            <button disabled={busy||!!pending||!storageReady} className="rounded-lg border p-2">{row.status==='paid'?'Återför felaktig betalning':'Återför felaktig bokslutsskuld'}</button>
+        {row.status!=='cancelled' && <details className="min-w-0 border-t border-gray-100 pt-2 text-sm"><summary className="min-h-11 cursor-pointer py-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Rätta en felbokning</summary><p className="max-w-prose leading-relaxed">Historiken sparas. Rättelse görs på ursprungsdatum och stoppas om året eller relevant momsperiod är låst. En betald skuld behöver först få betalningen återförd. Registrera sedan korrekt underlag om själva skulden var fel.</p>
+          <form onSubmit={e=>{e.preventDefault();act(row,row.status==='paid'?'undo_payment':'cancel',e.currentTarget)}} className="mt-3 max-w-3xl space-y-3">
+            <label className="block min-w-0">Orsak <input name="reason" required minLength={5} maxLength={300} className={inputClass}/></label>
+            <button disabled={busy||!!pending||!storageReady} className={buttonClass+' w-full border-gray-300 sm:w-auto'}>{row.status==='paid'?'Återför felaktig betalning':'Återför felaktig bokslutsskuld'}</button>
           </form></details>}
       </article>)}
-      <details open><summary className="font-bold">Registrera och bokför en obetald faktura för {selectedYear}</summary>
+    </>}
+    </section>
+    {ready && <details open className="min-w-0 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6"><summary className="min-h-11 cursor-pointer py-2 text-lg font-bold focus-visible:outline-2 focus-visible:outline-offset-2">Registrera och bokför en obetald faktura för {selectedYear}</summary>
         {!accountingReady ? <p>Årets ekonomiska uppgifter kunde inte kontrolleras. Läs om dem före en ny bokslutsskuld. Ett sparat försök kan fortfarande återupptas säkert.</p>
           : isYearLocked && <p>Året är låst. Nya bokslutsskulder kan inte läggas till.</p>}
         <form onSubmit={book} className="mt-3 space-y-3">
-          <fieldset disabled={busy||!!pending||isYearLocked||!storageReady} className="space-y-3">
-            <label className="block">Leverantörens namn <input name="supplier_name" required maxLength={160} className={inputClass}/></label>
-            <label className="block">Leverantörens organisations- eller personnummer (10 siffror) <input name="supplier_identity" required pattern="[0-9 -]{10,12}" className={inputClass}/></label>
-            <label className="block">Fakturanummer <input name="invoice_number" required maxLength={80} className={inputClass}/></label>
-            <label className="block">Fakturadatum <SwedishDateInput ariaLabel="Fakturadatum" value={invoiceDate} onChange={setInvoiceDate} required min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} className={inputClass}/><input type="hidden" name="invoice_date" value={invoiceDate}/></label>
-            <label className="block">Datum du fick fakturan <SwedishDateInput ariaLabel="Datum du fick fakturan" value={receivedDate} onChange={setReceivedDate} required max={`${selectedYear}-12-31`} className={inputClass}/><input type="hidden" name="received_date" value={receivedDate}/></label>
-            <label className="block">Vad gäller inköpet? <select name="expense_account" required defaultValue="" className={inputClass}><option value="" disabled>Välj vanlig kostnad</option>{supplierExpenseChoices.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
-            <label className="block">Hela fakturabeloppet inklusive moms (SEK) <input name="gross_amount" type="number" min="0.01" step="0.01" required className={inputClass}/></label>
-            <label className="block">Fakturans svenska momssats <select name="vat_rate" required defaultValue="" className={inputClass}><option value="" disabled>Kontrollera fakturan</option>{[0,6,12,25].map(n=><option key={n} value={n}>{n} %</option>)}</select></label>
-            <label className="block">Momsbelopp som faktiskt står på fakturan (kr) <input name="invoice_vat" type="number" min="0" step="0.01" required className={inputClass}/></label>
-            <label className="block">Rätt att dra av denna moms <select name="deduction" required defaultValue="" className={inputClass}><option value="" disabled>Kontrollera avdragsrätten</option><option value="none">Ingen avdragsrätt – hela fakturan blir kostnad</option><option value="full">Full avdragsrätt för detta inköp</option></select></label>
-            <label className="block">Fakturabilaga <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required onChange={e=>setFile(e.target.files?.[0]??null)} className={inputClass}/></label>
-            <label className="block"><input type="checkbox" required/> Jag har kontrollerat att detta är en svensk vanlig kostnad i SEK för leverans under {selectedYear}, helt obetald 31 december, inte tidigare bokförd och utan kredit eller delbetalning. Moms och avdragsrätt är klara.</label>
-            <p>Bekräfta först när årets underlag är klart. Knappen bokför skulden den 31 december; den betalar inte fakturan och låser inte året.</p>
-            <button className="rounded-lg bg-emerald-700 p-3 text-white">Registrera och bokför bokslutsskulden</button>
+          <fieldset disabled={busy||!!pending||isYearLocked||!storageReady} className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+            <h4 className="border-b border-gray-100 pb-2 font-semibold md:col-span-2">Leverantör och faktura</h4>
+            <label className="block min-w-0">Leverantörens namn <input name="supplier_name" required maxLength={160} className={inputClass}/></label>
+            <label className="block min-w-0">Leverantörens organisations- eller personnummer (10 siffror) <input name="supplier_identity" required pattern="[0-9 -]{10,12}" className={inputClass}/></label>
+            <label className="block min-w-0">Fakturanummer <input name="invoice_number" required maxLength={80} className={inputClass}/></label>
+            <label className="block min-w-0">Fakturadatum <SwedishDateInput ariaLabel="Fakturadatum" value={invoiceDate} onChange={setInvoiceDate} required min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} className={inputClass}/><input type="hidden" name="invoice_date" value={invoiceDate}/></label>
+            <label className="block min-w-0">Datum du fick fakturan <SwedishDateInput ariaLabel="Datum du fick fakturan" value={receivedDate} onChange={setReceivedDate} required max={`${selectedYear}-12-31`} className={inputClass}/><input type="hidden" name="received_date" value={receivedDate}/></label>
+            <label className="block min-w-0">Vad gäller inköpet? <select name="expense_account" required defaultValue="" className={inputClass}><option value="" disabled>Välj vanlig kostnad</option>{supplierExpenseChoices.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+            <h4 className="border-b border-gray-100 pb-2 font-semibold md:col-span-2">Belopp och moms</h4>
+            <label className="block min-w-0">Hela fakturabeloppet inklusive moms (SEK) <input name="gross_amount" type="number" min="0.01" step="0.01" required className={inputClass}/></label>
+            <label className="block min-w-0">Fakturans svenska momssats <select name="vat_rate" required defaultValue="" className={inputClass}><option value="" disabled>Kontrollera fakturan</option>{[0,6,12,25].map(n=><option key={n} value={n}>{n} %</option>)}</select></label>
+            <label className="block min-w-0">Momsbelopp som faktiskt står på fakturan (kr) <input name="invoice_vat" type="number" min="0" step="0.01" required className={inputClass}/></label>
+            <label className="block min-w-0">Rätt att dra av denna moms <select name="deduction" required defaultValue="" className={inputClass}><option value="" disabled>Kontrollera avdragsrätten</option><option value="none">Ingen avdragsrätt – hela fakturan blir kostnad</option><option value="full">Full avdragsrätt för detta inköp</option></select></label>
+            <h4 className="border-b border-gray-100 pb-2 font-semibold md:col-span-2">Underlag och bekräftelse</h4>
+            <label className="block min-w-0 md:col-span-2">Fakturabilaga <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required onChange={e=>setFile(e.target.files?.[0]??null)} className={inputClass}/></label>
+            <label className="flex max-w-prose items-start gap-3 text-sm leading-relaxed md:col-span-2"><input type="checkbox" required className="mt-1 size-5 shrink-0"/> <span>Jag har kontrollerat att detta är en svensk vanlig kostnad i SEK för leverans under {selectedYear}, helt obetald 31 december, inte tidigare bokförd och utan kredit eller delbetalning. Moms och avdragsrätt är klara.</span></label>
+            <p className="max-w-prose text-sm leading-relaxed md:col-span-2">Bekräfta först när årets underlag är klart. Knappen bokför skulden den 31 december; den betalar inte fakturan och låser inte året.</p>
+            <button className={buttonClass+' w-full justify-self-start border-emerald-700 bg-emerald-700 text-white sm:w-auto md:col-span-2'}>Registrera och bokför bokslutsskulden</button>
           </fieldset>
         </form>
-      </details>
-    </>}
+      </details>}
   </section>
 }
