@@ -46,6 +46,9 @@ function HistorySession({ owner, entityType, entityId, locked, onUpload, variant
   const [file, setFile] = useState<File | null>(null)
   const [note, setNote] = useState('')
   const headingId = useId()
+  const fileId = useId()
+  const fileNameId = useId()
+  const fileInput = useRef<HTMLInputElement>(null)
   const dialog = useRef<HTMLDialogElement>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const alive = useRef(true)
@@ -138,7 +141,14 @@ function HistorySession({ owner, entityType, entityId, locked, onUpload, variant
         </details>
       </li>)}</ul>}
       {locked ? <p>Året är låst. Du kan öppna bilagor men inte ändra eller lägga till.</p> : onUpload && rows && <div className="space-y-2 border-t pt-4">
-        <label className="block">Kompletterande bilaga <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy} onChange={e => { setFile(e.target.files?.[0] ?? null); uploaded.current = null }} className="block max-w-full" /></label>
+        <div>
+          <label htmlFor={fileId} className="block">Kompletterande bilaga</label>
+          <input ref={fileInput} id={fileId} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy} onChange={e => { setFile(e.target.files?.[0] ?? null); uploaded.current = null }} tabIndex={-1} className="sr-only" />
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <button type="button" disabled={busy} aria-describedby={fileNameId} onClick={() => fileInput.current?.click()} className="shrink-0 rounded border border-gray-300 bg-white px-3 py-2 font-medium hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Välj fil</button>
+            <span id={fileNameId} role="status" className="min-w-0 break-all">{file?.name ?? 'Ingen fil vald'}</span>
+          </div>
+        </div>
         <label className="block">Beskriv tillägget <input value={note} maxLength={500} disabled={busy} onChange={e => setNote(e.target.value)} className="block w-full rounded border p-2" /></label>
         <button type="button" disabled={busy || !file || !note.trim()} onClick={() => void add()} className="rounded border px-3 py-2">Spara bilagetillägg</button>
         <p className="text-xs">Tillägget ändrar inte tidigare referenser eller bokföringsbelopp.</p>
