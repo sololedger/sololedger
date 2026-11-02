@@ -25,7 +25,16 @@ const multipleGroups = [
   ...Array.from({ length: 55 }, (_, i) => ({ ...common, id: 'between-' + i, date: '2026-09-01', description: 'BETWEEN ' + i, amount: 100 })),
   ...['A', 'B', 'C'].map(id => ({ ...common, id: 'last-' + id, date: '2026-08-01', description: 'LAST GROUP ' + id, amount: 100, file_url: 'fixture-owner/last.pdf' })),
 ]
-const transactions = window.fixtureMode === 'multiple' ? multipleGroups
+const correctedTransactions = [
+  { ...common, id: 'unique', date: '2026-10-16', description: 'Rättat unikt underlag', amount: 100, file_url: 'fixture-owner/unique.pdf' },
+  { ...common, id: 'unique-correction', date: '2026-10-17', description: 'Rättelse av unikt underlag', amount: 100, is_correction: true, corrects_ver_nr: 201 },
+  { ...common, id: 'shared', date: '2026-10-16', description: 'Rättat gemensamt underlag', amount: 100, file_url: 'fixture-owner/shared.pdf' },
+  { ...common, id: 'shared-correction', date: '2026-10-17', description: 'Rättelse av gemensamt underlag', amount: 100, is_correction: true, corrects_ver_nr: 203 },
+  { ...common, id: 'peer', date: '2026-10-15', description: 'Annan post med samma underlag', amount: 100, file_url: 'fixture-owner/shared.pdf' },
+  { ...common, id: 'missing', date: '2026-10-14', description: 'Original utan bilaga', amount: 100 },
+  { ...common, id: 'missing-correction', date: '2026-10-17', description: 'Rättelse utan bilaga', amount: 100, is_correction: true, corrects_ver_nr: 206 },
+]
+const transactions = window.fixtureMode === 'corrections' ? correctedTransactions : window.fixtureMode === 'multiple' ? multipleGroups
   : window.fixtureMode === 'none' ? [{ ...common, id: 'only', date: '2026-10-12', description: 'Ensam verifikation', amount: 100, file_url: 'fixture-owner/only.pdf' }]
   : window.fixtureMode === 'empty' ? [] : defaultTransactions
 const journalMap = Object.fromEntries(transactions.map((tx, i) => [tx.id, [
@@ -37,13 +46,16 @@ for (const tx of transactions) Object.freeze(tx)
 for (const rows of Object.values(journalMap)) { rows.forEach(Object.freeze); Object.freeze(rows) }
 Object.freeze(transactions); Object.freeze(journalMap)
 window.fixtureCalls = []
+window.fixtureReads = []
+window.fixtureHistory = window.fixtureMode === 'corrections' ? [{ id: 1, user_id: 'fixture-owner', transaction_id: 'unique', path: 'fixture-owner/old.pdf', original_path: 'fixture-owner/old.pdf', action: 'replacement', actor_id: 'fixture-owner', recorded_at: '2026-10-16T12:00:00Z', note: 'Tidigare underlag bevarat.' }] : []
 window.open = (...args) => { window.fixtureCalls.push(['open', ...args]); return null }
 window.verifyOriginal = () => original === JSON.stringify({ transactions, journalMap })
 createRoot(document.getElementById('root')).render(<TransactionTable
   transactions={transactions} journalMap={journalMap} selectedYear={2026}
-  kontoplan={[{ id: 'programvaror', name: 'Programvaror' }]} isYearLocked={false} editingId={null}
+  kontoplan={[{ id: 'programvaror', name: 'Programvaror' }]} isYearLocked={!!window.fixtureLocked} editingId={null}
   onEdit={tx => window.fixtureCalls.push(['edit', tx.id])}
-  onDelete={tx => window.fixtureCalls.push(['correct', tx.id])} onFavorite={() => {}} />)
+  onDelete={tx => window.fixtureCalls.push(['correct', tx.id])} onFavorite={() => {}}
+  onUploadAttachment={async () => { throw new Error('Unexpected upload in read-only test') }} />)
 `
 
 const bundle = await build({
@@ -54,18 +66,75 @@ const bundle = await build({
   plugins: [{ name: 'offline-storage', setup(builder) {
     builder.onResolve({ filter: /supabaseClient$/ }, () => ({ path: 'offline-storage', namespace: 'fixture' }))
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `
-      export const supabase = { storage: { from: bucket => ({ createSignedUrl: async (file, ttl) => {
+      export const supabase = { from: table => { const eqs={},ins={}; const b={select:()=>b,eq:(k,v)=>{eqs[k]=v;return b},in:(k,v)=>{ins[k]=v;return b},order:()=>b,range:async()=>{
+        window.fixtureReads.push({table,eqs,ins}); const rows=window.fixtureHistory.filter(r=>Object.entries(eqs).every(([k,v])=>r[k]===v)&&Object.entries(ins).every(([k,v])=>v.includes(r[k]))); return {data:rows,count:rows.length,error:null}; }}; return b; }, storage: { from: bucket => ({ createSignedUrl: async (file, ttl) => {
         window.fixtureCalls.push(['signed', bucket, file, ttl]);
+        if(window.denyAttachment) return {data:null,error:{message:'synthetic denied'}};
         return { data: { signedUrl: 'https://attachment.invalid/view' } };
       } }) } }` }))
   } }],
 })
 const styles = (await readFile('src/app/globals.css', 'utf8'))
-  .replace('@import "tailwindcss";', '@import "tailwindcss" source(none);\n@source "./src/components/TransactionTable.tsx";\n@source "./src/components/AttachmentTransactionGroup.tsx";')
+  .replace('@import "tailwindcss";', '@import "tailwindcss" source(none);\n@source "./src/components/TransactionTable.tsx";\n@source "./src/components/AttachmentTransactionGroup.tsx";\n@source "./src/components/AccountingAttachmentHistory.tsx";')
 const css = await postcss([tailwindcss()]).process(styles, { from: path.resolve('history-ui.css') })
 await mkdir('test-results/attachment-groups', { recursive: true })
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
+  // KAN-129: reuse the same actual-component/offline harness for corrected originals.
+  for (const width of [1440, 390]) for (const locked of [false, true]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } }), errors = []
+    page.on('pageerror', e => errors.push(e.message))
+    await page.route('**/*', r => r.abort())
+    await page.setContent('<html lang="sv"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>')
+    await page.addStyleTag({ content: css.css })
+    await page.evaluate(locked => { window.fixtureMode = 'corrections'; window.fixtureLocked = locked }, locked)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    const row = name => width >= 768 ? page.getByRole('row').filter({ hasText: name })
+      : page.getByText(name, { exact: true }).filter({ visible: true }).locator('..')
+    for (const [description, file] of [['Rättat unikt underlag', 'unique.pdf'], ['Rättat gemensamt underlag', 'shared.pdf']]) {
+      const original = row(description)
+      await expect(original).toContainText('Rättat original')
+      const open = original.getByRole('button', { name: '📎 Visa originalbilaga', exact: true })
+      await open.focus(); await open.press('Enter')
+      await expect.poll(() => page.evaluate(() => window.fixtureCalls.slice(-2))).toEqual([
+        ['signed', 'attachments', 'fixture-owner/' + file, 60], ['open', 'https://attachment.invalid/view', '_blank'],
+      ])
+      await expect(original.getByRole('button', { name: '✎', exact: true })).toHaveCount(0)
+      await expect(original.getByRole('button', { name: '✕', exact: true })).toHaveCount(0)
+    }
+    await expect(row('Rättelse av unikt underlag')).toContainText('Korrigering')
+    await expect(row('Rättelse av unikt underlag')).toContainText('Rättar VER-201')
+    await expect(row('Original utan bilaga').getByRole('button', { name: /Visa.*bilaga/ })).toHaveCount(0)
+    // A denied signed-URL response must never open a file.
+    await page.evaluate(() => { window.denyAttachment = true })
+    const denied = page.waitForEvent('dialog').then(async alert => { assert.match(alert.message(), /behörighet/); await alert.dismiss() })
+    await row('Rättat unikt underlag').getByRole('button', { name: '📎 Visa originalbilaga' }).click(); await denied
+    assert.equal((await page.evaluate(() => window.fixtureCalls.at(-1)))[0], 'signed')
+    await page.evaluate(() => { window.denyAttachment = false })
+    // Original history is readable, including preserved references, but offers no writes.
+    await row('Rättat unikt underlag').getByRole('button', { name: 'Historik', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Hantera bilagor' })
+    await expect(dialog.getByRole('button', { name: 'Öppna bilaga' })).toBeVisible()
+    await expect(dialog.getByLabel('Kompletterande bilaga')).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: 'Spara bilagetillägg' })).toHaveCount(0)
+    if (locked) await expect(dialog).toContainText('Året är låst')
+    await expect.poll(() => page.evaluate(() => window.fixtureReads.some(r => r.eqs.user_id === 'fixture-owner' && r.eqs.transaction_id === 'unique'))).toBe(true)
+    await page.keyboard.press('Escape')
+    await page.getByRole('switch', { name: 'Gruppera gemensamma underlag' }).click()
+    const group = page.getByRole('region', { name: 'Gemensamt underlag' }).filter({ visible: true })
+    await group.getByRole('button', { name: 'Visa verifikationer', exact: true }).click()
+    await expect(group.getByRole('article', { name: 'VER-203', exact: true })).toContainText('Rättad med korrigeringsverifikation')
+    await expect(group.getByRole('article', { name: 'VER-203', exact: true }).getByRole('button')).toHaveCount(0)
+    await group.getByRole('button', { name: 'Visa gemensam bilaga' }).click()
+    await expect.poll(() => page.evaluate(() => window.fixtureCalls.slice(-2))).toEqual([
+      ['signed', 'attachments', 'fixture-owner/shared.pdf', 60], ['open', 'https://attachment.invalid/view', '_blank'],
+    ])
+    assert.equal(await page.evaluate(() => window.verifyOriginal()), true)
+    assert.deepEqual(errors, [])
+    await page.screenshot({ path: `test-results/attachment-groups/kan129-${width}-${locked ? 'locked' : 'open'}.png`, fullPage: true })
+    await page.close()
+    console.log('PASS KAN-129: ' + width + 'px, locked=' + locked + ', unique/shared originals, labels, history, permission denial, frozen accounting input')
+  }
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     const page = await browser.newPage({ viewport })
     const errors = []

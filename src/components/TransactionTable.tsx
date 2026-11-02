@@ -800,8 +800,8 @@ export default function TransactionTable({
                           ↩ Korrigering
                         </p>
                       ) : isNeutralized ? (
-                        <p className="text-[10px] font-black text-gray-300 uppercase line-through">
-                          {accountDef?.name || tx.type}
+                        <p className="text-[10px] font-black text-gray-600 uppercase">
+                          Rättat original · {accountDef?.name || tx.type}
                         </p>
                       ) : isOpeningBalance ? (
                         <p className="text-[10px] font-black text-sky-500 uppercase">
@@ -885,15 +885,15 @@ export default function TransactionTable({
 
                     <ReclassificationTraceNote tx={tx} />
 
-                    {tx.file_url && !isNeutralized && !isVatClosing && (
+                    {tx.file_url && !isVatClosing && (
                       <button
                         onClick={() => handleOpenAttachment(tx.file_url)}
                         className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
                       >
-                        📎 Visa bilaga
+                        {isNeutralized ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
                       </button>
                     )}
-                    {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={onUploadAttachment} />}
+                    {tx.user_id && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={isNeutralized ? undefined : onUploadAttachment} />}
                   </td>
 
                   <td className={`p-8 text-right font-black text-lg whitespace-nowrap ${presentation?.amountClass ?? amountClass}`}>
@@ -1161,8 +1161,8 @@ export default function TransactionTable({
                 {isCorrection ? (
                   <p className="text-[10px] font-black text-amber-600 uppercase">↩ Korrigering</p>
                 ) : isNeutralized ? (
-                  <p className="text-[10px] font-black text-gray-300 uppercase line-through">
-                    {accountDef?.name || tx.type}
+                  <p className="text-[10px] font-black text-gray-600 uppercase">
+                    Rättat original · {accountDef?.name || tx.type}
                   </p>
                 ) : isOpeningBalance ? (
                   <p className="text-[10px] font-black text-sky-500 uppercase">Ingående balans</p>
@@ -1222,15 +1222,15 @@ export default function TransactionTable({
 
               <ReclassificationTraceNote tx={tx} compact />
 
-              {tx.file_url && !isNeutralized && !isVatClosing && (
+              {tx.file_url && !isVatClosing && (
                 <button
                   onClick={() => handleOpenAttachment(tx.file_url)}
                   className="text-emerald-400 text-xs mb-2 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
                 >
-                  📎 Visa bilaga
+                  {isNeutralized ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
                 </button>
               )}
-              {tx.user_id && !isNeutralized && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={onUploadAttachment} />}
+              {tx.user_id && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={isNeutralized ? undefined : onUploadAttachment} />}
 
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {journal.map((e: any) => {

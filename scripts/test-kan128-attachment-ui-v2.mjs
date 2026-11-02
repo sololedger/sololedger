@@ -216,15 +216,15 @@ try {
       await expect(page.getByRole('button', { name: 'Historik', exact: true }).filter({ visible: true })).toHaveCount(2)
       await page.setViewportSize({ width, height: 900 })
     })
-    await check(width + ': initial-only history is quiet and correction shortcut condition is unchanged', async () => {
+    await check(width + ': initial-only history is quiet and corrected original remains accessible (KAN-129)', async () => {
       // New synthetic session for an initial-only fixture; immutable history is not deleted in the product.
       await page.evaluate(() => window.mount('owner-b', false))
       await expect(page.getByRole('button', { name: 'Hantera bilagor', exact: true })).toBeVisible()
       await page.evaluate(() => { window.fx.actor = 'owner-a'; window.fx.rows = window.fx.rows.filter(row => row.action === 'observed_existing'); window.mountTable(false, false, 'owner-a/original.pdf') })
       await expect(page.getByRole('button', { name: 'Historik', exact: true })).toHaveCount(0)
       await page.evaluate(() => window.mountTable(false, true, 'owner-a/original.pdf'))
-      await expect(page.getByRole('button', { name: '📎 Visa bilaga', exact: true })).toHaveCount(0)
-      // Full domain history still opens the original, without claiming KAN-129 fixed.
+      await expect(page.getByRole('button', { name: '📎 Visa originalbilaga', exact: true }).filter({ visible: true })).toBeVisible()
+      // Full domain history also retains the original reference after correction.
       await page.evaluate(() => window.mount('owner-a', true)); await open()
       const popup = page.waitForEvent('popup'); await dialog.getByRole('button', { name: 'Öppna bilaga' }).first().click()
       const pdf = await popup; await pdfView(pdf, true, 'original-after-correction-state-' + width); await pdf.close(); await page.keyboard.press('Escape')
