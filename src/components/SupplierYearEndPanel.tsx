@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { getSupplierYearEndInvoices, openSupplierAttachment, submitSupplierCommand, supplierExpenseChoices, SupplierRejectedError,
   type SupplierYearEndInvoice, type SupplierCommand } from '@/lib/supplierYearEnd'
 import SwedishDateInput from '@/components/SwedishDateInput'
@@ -25,6 +25,13 @@ export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,ac
   const [storageReady,setStorageReady] = useState(false)
   const [storageError,setStorageError] = useState('')
   const [file,setFile] = useState<File | null>(null)
+  const [fileError,setFileError] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const fileButton = useRef<HTMLButtonElement>(null)
+  const fileId = useId()
+  const fileLabelId = useId()
+  const fileNameId = useId()
+  const fileErrorId = useId()
   const [invoiceDate,setInvoiceDate]=useState('')
   const [receivedDate,setReceivedDate]=useState('')
   const [paymentDates,setPaymentDates]=useState<Record<string,string>>({})
@@ -194,8 +201,18 @@ export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,ac
             <label className="block min-w-0">Momsbelopp som faktiskt står på fakturan (kr) <input name="invoice_vat" type="number" min="0" step="0.01" required className={inputClass}/></label>
             <label className="block min-w-0">Rätt att dra av denna moms <select name="deduction" required defaultValue="" className={inputClass}><option value="" disabled>Kontrollera avdragsrätten</option><option value="none">Ingen avdragsrätt – hela fakturan blir kostnad</option><option value="full">Full avdragsrätt för detta inköp</option></select></label>
             <h4 className="border-b border-gray-100 pb-2 font-semibold md:col-span-2">Underlag och bekräftelse</h4>
-            <label className="block min-w-0 md:col-span-2">Fakturabilaga <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required onChange={e=>setFile(e.target.files?.[0]??null)} className={inputClass}/></label>
-            <label className="flex max-w-prose items-start gap-3 text-sm leading-relaxed md:col-span-2"><input type="checkbox" required className="mt-1 size-5 shrink-0"/> <span>Jag har kontrollerat att detta är en svensk vanlig kostnad i SEK för leverans under {selectedYear}, helt obetald 31 december, inte tidigare bokförd och utan kredit eller delbetalning. Moms och avdragsrätt är klara.</span></label>
+            <div role="group" aria-labelledby={fileLabelId} className="min-w-0 md:col-span-2">
+              <label id={fileLabelId} htmlFor={fileId} className="block">Fakturabilaga</label>
+              <input ref={fileInput} id={fileId} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required tabIndex={-1} className="sr-only" aria-invalid={fileError} aria-describedby={fileError ? fileErrorId : undefined}
+                onInvalid={e=>{e.preventDefault();setFileError(true);fileButton.current?.focus()}}
+                onChange={e=>{setFile(e.target.files?.[0]??null);setFileError(false)}}/>
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-gray-300 p-3">
+                <button ref={fileButton} type="button" aria-describedby={fileNameId} onClick={()=>fileInput.current?.click()} className={buttonClass+' shrink-0 border-gray-300 bg-white'}>Välj fil</button>
+                <span id={fileNameId} role="status" className="min-w-0 break-all text-sm">{file?.name ?? 'Ingen fil vald'}</span>
+              </div>
+              {fileError && <p id={fileErrorId} role="alert" className="mt-2 text-sm text-red-700">Välj en fakturabilaga innan du registrerar.</p>}
+            </div>
+            <label className="flex max-w-prose items-start gap-4 rounded-xl bg-gray-50 p-3 text-base leading-7 md:col-span-2"><input type="checkbox" required className="mt-1 size-5 shrink-0"/> <span>Jag har kontrollerat att detta är en svensk vanlig kostnad i SEK för leverans under {selectedYear}, helt obetald 31 december, inte tidigare bokförd och utan kredit eller delbetalning. Moms och avdragsrätt är klara.</span></label>
             <p className="max-w-prose text-sm leading-relaxed md:col-span-2">Bekräfta först när årets underlag är klart. Knappen bokför skulden den 31 december; den betalar inte fakturan och låser inte året.</p>
             <button className={buttonClass+' w-full justify-self-start border-emerald-700 bg-emerald-700 text-white sm:w-auto md:col-span-2'}>Registrera och bokför bokslutsskulden</button>
           </fieldset>
