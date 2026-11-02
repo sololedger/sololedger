@@ -62,10 +62,26 @@ try {
       } else {
         await expect(originalRow()).toContainText('Rättat original')
         await expect(visible('Rättad genom VER-4, ' + (mode === 'same' ? '2025' : '2026') + '-11-02')).toBeVisible()
+        await expect(originalRow()).toContainText('Rättelsens räkenskapsår: ' + (mode === 'same' ? '2025' : '2026'))
+        await expect(visible('Syntetiskt original')).toHaveClass(/text-gray-500 line-through/)
+        await expect(originalRow()).toHaveClass(/bg-gray-50/)
+        await expect(originalRow().getByTestId('correction-history')).toHaveClass(/text-amber-800/)
+        const fileButton = originalRow().getByRole('button', { name: '📎 Visa originalbilaga', exact: true })
+        await expect(fileButton).toHaveClass(/text-emerald-700/)
+        await expect(fileButton).toHaveClass(/underline/)
+        assert.equal(await fileButton.evaluate(el => {
+          for (let node = el; node; node = node.parentElement) if (Number(getComputedStyle(node).opacity) !== 1) return false
+          return getComputedStyle(el).textDecorationLine.includes('line-through') === false
+        }), true, 'Original link must stay fully readable')
         if (mode === 'cross') {
           await expect(page.getByText('Syntetisk rättelse', { exact: true })).toHaveCount(0)
-          await expect(visible('Syntetiskt original')).not.toHaveClass(/line-through/)
+          await expect(originalRow().getByText(/^- 1\s000 kr$/)).toBeVisible()
+        } else {
+          await expect(visible('Syntetisk rättelse')).toHaveClass(/text-amber-700/)
+          await expect(visible('Syntetisk rättelse')).not.toHaveClass(/line-through/)
+          await expect(originalRow().getByText(/^1\s000 kr$/)).toBeVisible()
         }
+        await page.screenshot({ path: path.join(dir, `${mode}-${width}-locked.png`), fullPage: true })
       }
       const reads = await page.evaluate(() => window.reads)
       assert(reads.length > 0); assert(reads.every(r => r.eqs.user_id === 'owner-a'))
@@ -101,7 +117,7 @@ try {
     await page.evaluate(() => window.mount('owner-a', 'cross', false))
     await expect(visible(link)).toBeVisible()
     await expect(originalRow().getByRole('button', { name: /^✎/ })).toBeVisible()
-    await expect(visible('Syntetiskt original')).not.toHaveClass(/line-through/)
+    await expect(visible('Syntetiskt original')).toHaveClass(/line-through/)
     assert.equal(await page.evaluate(() => window.unchanged()), true)
     await page.screenshot({ path: path.join(dir, `cross-year-${width}.png`), fullPage: true })
     assert.deepEqual(errors, []); checks++; await page.close()

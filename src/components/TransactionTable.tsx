@@ -152,6 +152,10 @@ export default function TransactionTable({
     const isCorrection = tx.is_correction === true
     const verNr = journal[0]?.ver_nr
     const isNeutralized = !isCorrection && verNr != null && neutralizedVerNrs.has(verNr)
+    const correctionState = isCorrection ? undefined : correctionHistory(tx.id)
+    // Presentation only: never use this flag for amounts, actions or write access.
+    const isCorrectedPresentation = !isCorrection && (isNeutralized ||
+      (correctionState?.status === 'ready' && correctionState.links.length > 0))
 
     const isImported = tx.source === 'sie_import'
     const isOpeningBalance = tx.source === 'sie_opening_balance'
@@ -200,8 +204,8 @@ export default function TransactionTable({
     // markeras neutraliserad och genomstruken.
     const rowClass = isCorrection
       ? 'bg-amber-50/55 hover:bg-amber-50/80'
-      : isNeutralized
-      ? 'bg-gray-50 opacity-60'
+      : isCorrectedPresentation
+      ? 'bg-gray-50'
       : editingId === tx.id
       ? 'bg-amber-50/50'
       : isVatV2
@@ -220,8 +224,8 @@ export default function TransactionTable({
 
     const textClass = isCorrection
       ? 'text-amber-700'
-      : isNeutralized
-      ? 'text-gray-400 line-through'
+      : isCorrectedPresentation
+      ? 'text-gray-500 line-through'
       : isVatV2
       ? 'text-indigo-900'
       : isVatClosing
@@ -238,8 +242,8 @@ export default function TransactionTable({
 
     const verClass = isCorrection
       ? 'text-amber-500'
-      : isNeutralized
-      ? 'text-gray-300 line-through'
+      : isCorrectedPresentation
+      ? 'text-gray-500 line-through'
       : isVatV2
       ? 'text-indigo-500'
       : isVatClosing
@@ -298,7 +302,8 @@ export default function TransactionTable({
 
     return {
       tx,
-      correctionHistory: isCorrection ? undefined : correctionHistory(tx.id),
+      correctionHistory: correctionState,
+      isCorrectedPresentation,
       presentation: presentations.get(tx.id),
       journal: sortedJournal,
       isCorrection,
@@ -754,6 +759,7 @@ export default function TransactionTable({
                 isCorrection,
                 verNr,
                 isNeutralized,
+                isCorrectedPresentation,
                 isImported,
                 isOpeningBalance,
                 isVatClosing,
@@ -781,7 +787,7 @@ export default function TransactionTable({
               return (
                 <tr key={tx.id} className={`group transition-all duration-150 ${rowClass}`}>
                   <td className="p-8 font-bold text-gray-400 text-sm">
-                    <span className={isCorrection ? 'text-amber-600' : isNeutralized ? 'text-gray-400' : ''}>
+                    <span className={isCorrection ? 'text-amber-600' : isCorrectedPresentation ? 'text-gray-500' : ''}>
                       {tx.date}
                     </span>
                     {verNr && (
@@ -802,7 +808,7 @@ export default function TransactionTable({
                         <p className="text-[10px] font-black text-amber-600 uppercase">
                           ↩ Korrigering
                         </p>
-                      ) : isNeutralized ? (
+                      ) : isCorrectedPresentation ? (
                         <p className="text-[10px] font-black text-gray-600 uppercase">
                           Rättat original · {accountDef?.name || tx.type}
                         </p>
@@ -887,14 +893,14 @@ export default function TransactionTable({
                     )}
 
                     <ReclassificationTraceNote tx={tx} />
-                    {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isNeutralized} />}
+                    {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isCorrectedPresentation} />}
 
                     {tx.file_url && !isVatClosing && (
                       <button
                         onClick={() => handleOpenAttachment(tx.file_url)}
-                        className="text-emerald-400 text-xs mt-1 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
+                        className={`${isCorrectedPresentation ? 'font-semibold text-emerald-700 underline underline-offset-2' : 'text-emerald-400'} text-xs mt-1 inline-block hover:text-emerald-600 transition-colors cursor-pointer`}
                       >
-                        {isNeutralized ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
+                        {isCorrectedPresentation ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
                       </button>
                     )}
                     {tx.user_id && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={isNeutralized ? undefined : onUploadAttachment} />}
@@ -1066,6 +1072,7 @@ export default function TransactionTable({
             isCorrection,
             verNr,
             isNeutralized,
+            isCorrectedPresentation,
             isImported,
             isOpeningBalance,
             isVatClosing,
@@ -1095,8 +1102,8 @@ export default function TransactionTable({
               className={`rounded-[1.75rem] border p-5 shadow-sm transition-colors ${
                 isCorrection
                   ? 'bg-amber-50/60 border-amber-100'
-                  : isNeutralized
-                  ? 'bg-gray-50 border-gray-100 opacity-70'
+                  : isCorrectedPresentation
+                  ? 'bg-gray-50 border-gray-200'
                 : editingId === tx.id
                 ? 'bg-amber-50/50 border-amber-200'
                 : isVatV2
@@ -1116,7 +1123,7 @@ export default function TransactionTable({
             >
               <div className="flex justify-between items-start gap-3 mb-3">
                 <div>
-                  <p className={`font-bold text-sm ${isCorrection ? 'text-amber-600' : isNeutralized ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`font-bold text-sm ${isCorrection ? 'text-amber-600' : 'text-gray-500'}`}>
                     {tx.date}
                   </p>
                   {verNr && (
@@ -1164,7 +1171,7 @@ export default function TransactionTable({
               <div className="flex items-center flex-wrap gap-2 mb-1.5">
                 {isCorrection ? (
                   <p className="text-[10px] font-black text-amber-600 uppercase">↩ Korrigering</p>
-                ) : isNeutralized ? (
+                ) : isCorrectedPresentation ? (
                   <p className="text-[10px] font-black text-gray-600 uppercase">
                     Rättat original · {accountDef?.name || tx.type}
                   </p>
@@ -1225,14 +1232,14 @@ export default function TransactionTable({
               )}
 
               <ReclassificationTraceNote tx={tx} compact />
-              {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isNeutralized} />}
+              {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isCorrectedPresentation} />}
 
               {tx.file_url && !isVatClosing && (
                 <button
                   onClick={() => handleOpenAttachment(tx.file_url)}
-                  className="text-emerald-400 text-xs mb-2 inline-block hover:text-emerald-600 transition-colors cursor-pointer"
+                  className={`${isCorrectedPresentation ? 'font-semibold text-emerald-700 underline underline-offset-2' : 'text-emerald-400'} text-xs mb-2 inline-block hover:text-emerald-600 transition-colors cursor-pointer`}
                 >
-                  {isNeutralized ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
+                  {isCorrectedPresentation ? '📎 Visa originalbilaga' : '📎 Visa bilaga'}
                 </button>
               )}
               {tx.user_id && !isVatClosing && <AccountingAttachmentHistory owner={tx.user_id} entityType="transaction" entityId={tx.id} locked={isYearLocked} variant="list" hasChanges={hasAttachmentChanges(tx.user_id, tx.id)} onUpload={isNeutralized ? undefined : onUploadAttachment} />}

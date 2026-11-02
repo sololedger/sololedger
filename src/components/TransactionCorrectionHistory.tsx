@@ -11,7 +11,7 @@ interface Link { id: string; verNr: number; date: string }
 export type CorrectionHistoryState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; links: Link[] }
 
 // Display-only sidecar. Never merge these rows into yearly transactions/journals,
-// or use this state to decide accounting amounts, strike-throughs or actions.
+// or use this state to decide accounting amounts or actions.
 export function useTransactionCorrectionHistory(transactions: Target[], journalMap: Record<string, Journal[]>) {
   const key = JSON.stringify(transactions.filter(tx => !tx.is_correction && tx.user_id)
     .map(tx => [tx.id, tx.user_id, journalMap[tx.id]?.[0]?.ver_nr ?? null]).sort())
@@ -71,8 +71,11 @@ export default function TransactionCorrectionHistory({ state, labelled = false }
   if (state.status === 'loading') return <p className="mt-1 text-xs text-gray-600" role="status">Kontrollerar rättelsehistorik…</p>
   if (state.status === 'error') return <p className="mt-1 text-xs text-amber-800" role="alert">Rättelsehistoriken kunde inte verifieras. Ladda om vyn för att försöka igen.</p>
   if (!state.links.length) return null
-  return <div className="mt-1 text-xs text-gray-700" data-testid="correction-history">
+  return <div className="mt-2 border-l-2 border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-testid="correction-history">
     {!labelled && <p className="font-bold">Rättat original</p>}
-    {state.links.map(link => <p key={link.id}>Rättad genom VER-{link.verNr}, {link.date}</p>)}
+    {state.links.map(link => <div key={link.id}>
+      <p>Rättad genom VER-{link.verNr}, {link.date}</p>
+      <p className="mt-0.5">Rättelsens räkenskapsår: {link.date.slice(0, 4)}</p>
+    </div>)}
   </div>
 }
