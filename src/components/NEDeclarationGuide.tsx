@@ -22,7 +22,7 @@ function Step({ title,why,children }:{title:string;why:string;children:ReactNode
  const active=useContext(StepContext),index=Number(title.slice(0,1))-1
  return <div hidden={active!==index} className="ne-step-content"><p className="ne-eyebrow">{stepPlaces[index]}</p><h3 className="mt-2 text-lg font-bold">{title}</h3><p className="my-3">{stepActions[index]}</p>
  {index===1&&<button type="button" className="ne-primary" onClick={()=>openNESection('ne-review')}>Kontrollera NE-underlaget</button>}
- {index===4&&<button type="button" className="ne-secondary" onClick={()=>openNESection('ne-documentation')}>Till Spara och dokumentera</button>}
+ {index===4&&<button type="button" className="ne-secondary" onClick={()=>openNESection('ne-documentation')}>Till Spara och historik</button>}
  <details className="ne-step-detail"><summary className="ne-link">Läs instruktioner och förklaringar</summary><div className="space-y-3 border-t border-slate-200 pt-4 leading-relaxed"><p><strong>Varför?</strong> {why}</p>{children}</div></details></div>
 }
 
@@ -53,7 +53,7 @@ export default function NEDeclarationGuide({ year, companyName, onOpenYearEnd, i
     onOpenYearEnd(openDetails)
   }
   return <details id="ne-guide" ref={restoreGuide} onToggle={e=>setOpen(e.currentTarget.open)} className="sl-ne ne-disclosure mb-4 text-sm text-gray-700 break-words">
-    <summary className="ne-disclosure-summary" aria-expanded={open} aria-controls="ne-guide-body"><span><strong>Från NE-underlag till deklaration · fem steg</strong><span className="ne-summary-meta">Steg {active+1} av 5 · läsposition, ingen klarstatus</span></span><span className="ne-disclosure-action" aria-hidden="true">{open?'Stäng −':'Öppna +'}</span></summary>
+    <summary className="ne-disclosure-summary" aria-expanded={open} aria-controls="ne-guide-body"><span><strong>Vägledning – från NE-underlag till deklaration</strong><span className="ne-summary-meta">Fem steg · Steg {active+1} av 5 · läsposition, ingen klarstatus</span></span><span className="ne-disclosure-action" aria-hidden="true">{open?'Stäng −':'Öppna +'}</span></summary>
     <section id="ne-guide-body" aria-label={`Deklarationsvägledning för ${year}`} className="ne-disclosure-body space-y-3"><h3 ref={heading} tabIndex={-1} className="text-lg font-bold">{stepLabels[active]}</h3>
       <p className="font-semibold">{companyName?.trim() || 'Företagsnamn saknas – kontrollera Profil'} · Inkomstår {year}</p>
       <p>Läs ett steg i taget. Deklarationen för {year} lämnas normalt {year + 1}. Kontrollera årets blankett och datum hos Skatteverket.</p>

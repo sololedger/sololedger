@@ -168,7 +168,7 @@ export default function NEBilaga({
 
   return (
     <div className="sl-ne space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <div className="bg-white p-5 sm:p-8 md:p-12 rounded-[3rem] border shadow-sm">
+      <div data-ne-figures-card className="bg-white p-5 sm:p-8 md:p-12 rounded-[3rem] border shadow-sm">
         <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-emerald-600 mb-8 border-b pb-4">
           NE-bilagan
         </h2>
