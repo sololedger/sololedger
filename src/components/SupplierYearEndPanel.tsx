@@ -126,10 +126,16 @@ export default function SupplierYearEndPanel({owner,selectedYear,isYearLocked,ac
   return <section aria-label="Bokslutsskulder" className="min-w-0 w-full space-y-5 pb-6">
     <header className="space-y-4 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
     <h2 className="text-xl font-bold">Obetalda leverantörsfakturor vid bokslut {selectedYear}</h2>
-    <div className="max-w-prose space-y-3 text-sm leading-relaxed text-gray-700">
+    <div className="grid gap-6 text-sm leading-relaxed text-gray-700 lg:grid-cols-2">
+    <section aria-label="Vad ska jag göra?" className="min-w-0 max-w-prose space-y-3">
+    <h3 className="font-semibold text-gray-900">Vad ska jag göra?</h3>
     <p>Öppna fakturorna och jämför med bankens betalningar till och med 31 december. Ta bara med helt obetalda svenska kostnadsfakturor i SEK som hör till året. Du bekräftar själv att alla underlag finns med; SoloLedger kan inte hitta saknade fakturor.</p>
+    </section>
+    <section aria-label="Viktigt att känna till" className="min-w-0 max-w-prose space-y-3">
+    <h3 className="font-semibold text-gray-900">Viktigt att känna till</h3>
     <p>Först bokas kostnad, eventuell avdragsgill moms och skuld den 31 december. När betalningen kommer nästa år öppnar du samma skuld här. <strong>Bokför inte betalningen som en ny vanlig kostnad.</strong></p>
     <p className="text-sm">Delbetalningar, kreditfakturor, utlandsinköp, inventarier, lager, förskott och osäker eller delvis avdragsgill moms stöds inte här. Stanna och kontrollera underlaget; ingen automatisk alternativ bokning görs.</p>
+    </section>
     </div>
     </header>
     <section aria-label="Registrerade bokslutsskulder" className="min-w-0 space-y-4 rounded-[2rem] border border-gray-200 bg-white p-4 shadow-sm sm:p-6">

@@ -88,7 +88,20 @@ try{
     const clipped=await panel.locator('input:not([type="hidden"]),select,button').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length&&getComputedStyle(el).opacity!=='0').filter(el=>{const r=el.getBoundingClientRect();return r.left<0||r.right>innerWidth+1}).map(el=>el.getAttribute('name')||el.textContent))
     assert.deepEqual(clipped,[],'Visible controls must fit the viewport')
     const intro=panel.locator(':scope>header')
-    assert(await intro.locator('.max-w-prose').evaluate(el=>el.clientWidth<=parseFloat(getComputedStyle(el).fontSize)*66),'Help text keeps a readable measure')
+    const actionInfo=intro.getByRole('region',{name:'Vad ska jag göra?',exact:true}),importantInfo=intro.getByRole('region',{name:'Viktigt att känna till',exact:true})
+    await expect(actionInfo.getByRole('heading',{name:'Vad ska jag göra?',exact:true})).toBeVisible()
+    await expect(importantInfo.getByRole('heading',{name:'Viktigt att känna till',exact:true})).toBeVisible()
+    const actionRect=await actionInfo.boundingBox(),importantRect=await importantInfo.boundingBox()
+    if(width>=1024){assert(Math.abs(actionRect.y-importantRect.y)<2);assert(importantRect.x>actionRect.x+actionRect.width);assert(Math.abs(actionRect.width-importantRect.width)<2)}
+    else assert(importantRect.y>=actionRect.y+actionRect.height)
+    for(const group of [actionInfo,importantInfo])assert(await group.evaluate(el=>el.clientWidth<=parseFloat(getComputedStyle(el).fontSize)*66),'Help text keeps a readable measure')
+    assert.deepEqual(await intro.locator('p').allTextContents(),[
+      'Öppna fakturorna och jämför med bankens betalningar till och med 31 december. Ta bara med helt obetalda svenska kostnadsfakturor i SEK som hör till året. Du bekräftar själv att alla underlag finns med; SoloLedger kan inte hitta saknade fakturor.',
+      'Först bokas kostnad, eventuell avdragsgill moms och skuld den 31 december. När betalningen kommer nästa år öppnar du samma skuld här. Bokför inte betalningen som en ny vanlig kostnad.',
+      'Delbetalningar, kreditfakturor, utlandsinköp, inventarier, lager, förskott och osäker eller delvis avdragsgill moms stöds inte här. Stanna och kontrollera underlaget; ingen automatisk alternativ bokning görs.'
+    ],'All original instructions and warnings remain verbatim and in order')
+    await expect(importantInfo.locator('strong')).toHaveText('Bokför inte betalningen som en ny vanlig kostnad.')
+    await intro.screenshot({path:dir+`/intro-${width}.png`})
     const registration=page.locator('details').filter({has:page.getByText('Registrera och bokför en obetald faktura för 2026',{exact:true})})
     const order=await panel.evaluate(el=>[...el.children].map(n=>n.tagName))
     assert.deepEqual(order,['HEADER','SECTION','DETAILS'],'Keep introduction, existing debts and registration in order')
