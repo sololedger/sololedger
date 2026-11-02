@@ -18,6 +18,7 @@ import NESectionNavigation from '@/components/NESectionNavigation'
 import Kontoplan from '@/components/Kontoplan'
 import FAQ from '@/components/FAQ'
 import Momsrapport from '@/components/Momsrapport'
+import CorrectionBlockedDialog, { type CorrectionBlockedNotice } from '@/components/CorrectionBlockedDialog'
 import ProfileSettings from '@/components/ProfileSettings'
 import type { ProfileSettingsDraft } from '@/lib/profileSettingsDraft'
 import TransactionTable from '@/components/TransactionTable'
@@ -267,6 +268,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     return () => window.removeEventListener('storage', readPending)
   }, [user?.id])
   const [showSieImport, setShowSieImport] = useState(false)
+  const [correctionBlocked, setCorrectionBlocked] = useState<CorrectionBlockedNotice | null>(null)
   const [activeModal, setActiveModal] = useState<null | 'bank' | 'skatt' | 'moms' | 'resultat'>(null)
   const [lastSubmitted, setLastSubmitted] = useState<{ type: string; amount: string; vatRate: number } | null>(null)
   const [customerInvoiceYearCloseBlocker, setCustomerInvoiceYearCloseBlocker] =
@@ -763,9 +765,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       await refreshData()
     } catch (err: any) {
       console.error('Fel vid korrigering:', err)
-      alert(err instanceof Error && err.name === 'CorrectionBlockedError'
-        ? err.message
-        : 'Kunde inte skapa korrigering: ' + err.message)
+      if (err instanceof Error && err.name === 'CorrectionBlockedError') {
+        setCorrectionBlocked({ message: err.message, verNr, description: tx.description ?? '' })
+      } else {
+        alert('Kunde inte skapa korrigering: ' + err.message)
+      }
     }
   }
 
@@ -1084,6 +1088,9 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       onLogout={handleLogout}
       isAdmin={isAdmin}
     >
+      {correctionBlocked && <CorrectionBlockedDialog notice={correctionBlocked}
+        onClose={() => setCorrectionBlocked(null)}
+        onOpenVatReport={() => { setCorrectionBlocked(null); setActiveTab('moms') }} />}
       {showLimitPaywall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative bg-white rounded-[2.5rem] p-8 max-w-lg w-full shadow-2xl border-2 border-amber-400 animate-in zoom-in-95 duration-200">
