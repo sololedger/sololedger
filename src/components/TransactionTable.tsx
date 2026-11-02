@@ -11,6 +11,7 @@ import { isOwnerDepositCategoryId } from '@/lib/accountCategoryUi'
 import { transactionVatBadges } from '@/lib/transactionVatPresentation'
 import AttachmentTransactionGroup from './AttachmentTransactionGroup'
 import AccountingAttachmentHistory from './AccountingAttachmentHistory'
+import TransactionCorrectionHistory, { useTransactionCorrectionHistory } from './TransactionCorrectionHistory'
 import { useAttachmentHistoryChanges } from '@/hooks/useAttachmentHistoryChanges'
 import TransactionPresentation from './TransactionPresentation'
 import { buildHistoryPresentations } from '@/lib/transactionHistoryPresentation'
@@ -71,6 +72,7 @@ export default function TransactionTable({
   onUploadAttachment,
 }: TransactionTableProps) {
   const hasAttachmentChanges = useAttachmentHistoryChanges(transactions)
+  const correctionHistory = useTransactionCorrectionHistory(transactions, journalMap)
   // Paginering sker på VISUELLA rader. En ångrad SIE-import med t.ex.
   // 50 tekniska KORRVER räknas alltså som en rad tills den fälls ut.
   const [visibleCount, setVisibleCount] = useState(50)
@@ -296,6 +298,7 @@ export default function TransactionTable({
 
     return {
       tx,
+      correctionHistory: isCorrection ? undefined : correctionHistory(tx.id),
       presentation: presentations.get(tx.id),
       journal: sortedJournal,
       isCorrection,
@@ -884,6 +887,7 @@ export default function TransactionTable({
                     )}
 
                     <ReclassificationTraceNote tx={tx} />
+                    {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isNeutralized} />}
 
                     {tx.file_url && !isVatClosing && (
                       <button
@@ -1221,6 +1225,7 @@ export default function TransactionTable({
               )}
 
               <ReclassificationTraceNote tx={tx} compact />
+              {!isCorrection && <TransactionCorrectionHistory state={correctionHistory(tx.id)} labelled={isNeutralized} />}
 
               {tx.file_url && !isVatClosing && (
                 <button

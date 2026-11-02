@@ -2,11 +2,13 @@
 
 import { useId, type Ref } from 'react'
 import TransactionPresentation from './TransactionPresentation'
+import TransactionCorrectionHistory, { type CorrectionHistoryState } from './TransactionCorrectionHistory'
 import type { HistoryPresentation } from '@/lib/transactionHistoryPresentation'
 import type { AttachmentDisplayItem, AttachmentGroupItem } from '@/lib/transactionAttachmentGroups'
 
 export interface AttachmentGroupMember extends AttachmentGroupItem {
   presentation?: HistoryPresentation
+  correctionHistory?: CorrectionHistoryState
   tx: AttachmentGroupItem['tx'] & {
     id: string
     description?: string | null
@@ -83,6 +85,7 @@ export default function AttachmentTransactionGroup({
               </div>
               {member.isCorrection && <p className="text-sm text-amber-700">Korrigering · rättar VER-{member.tx.corrects_ver_nr ?? '–'}</p>}
               {member.isNeutralized && <p className="text-sm text-gray-600">Rättad med korrigeringsverifikation</p>}
+              <TransactionCorrectionHistory state={member.correctionHistory} />
               {member.presentation ? (
                 <TransactionPresentation presentation={member.presentation} original={member.tx.description ?? ''} />
               ) : <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800">{member.tx.description}</p>}
