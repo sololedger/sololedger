@@ -70,6 +70,7 @@ html {
 }
 
 /* KAN-109: scoped NE presentation. */
+.sl-ne .ne-navigation-highlight{position:relative}.sl-ne .ne-navigation-highlight::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:rgb(16 185 129 / .08);box-shadow:inset 0 0 0 2px #059669;opacity:0;z-index:1}
 .sl-ne{overflow-wrap:anywhere;color:#0f172a}.sl-ne :is(button,a,summary,input,select,textarea,[tabindex="-1"]):focus-visible{outline:3px solid #047857;outline-offset:3px}.sl-ne [id]{scroll-margin-top:24px}
 .sl-ne .ne-primary,.sl-ne .ne-secondary,.sl-ne .ne-category{min-height:44px;padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;line-height:1.5;max-width:100%;white-space:normal;cursor:pointer}
 .sl-ne .ne-primary{background:#047857;color:#fff;border:1px solid #047857}.sl-ne .ne-primary:hover{background:#065f46}.sl-ne .ne-secondary{background:#fff;color:#334155;border:1px solid #cbd5e1}.sl-ne :is(.ne-primary,.ne-secondary,.ne-category):disabled{cursor:not-allowed;background:#f1f5f9;color:#64748b;border-color:#cbd5e1;box-shadow:none}

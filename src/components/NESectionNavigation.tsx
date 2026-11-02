@@ -2,33 +2,65 @@
 import { neReviewSummary, type NeSummarySource } from '@/lib/nePresentation'
 import type { ReactNode } from 'react'
 
+let cancelSectionNavigation: (() => void) | undefined
+
 export function openNESection(id: string) {
   const target = document.getElementById(id)
   if (!target) return
+  cancelSectionNavigation?.()
+  // The figures wrapper also contains other sections; mark only its report card.
+  const card = target.querySelector<HTMLElement>('[data-ne-figures-card]') ?? target
+  let frame = 0
+  let animation: Animation | undefined
+  const cancel = () => {
+    cancelAnimationFrame(frame)
+    if (animation) {
+      animation.onfinish = null
+      animation.cancel()
+    }
+    card.classList.remove('ne-navigation-highlight')
+    if (cancelSectionNavigation === cancel) cancelSectionNavigation = undefined
+  }
+  cancelSectionNavigation = cancel
   for (let node: HTMLElement | null = target; node; node = node.parentElement) {
     if (node instanceof HTMLDetailsElement) node.open = true
   }
-  requestAnimationFrame(() => {
-    if (!target.isConnected) return
+  frame = requestAnimationFrame(() => {
+    if (!target.isConnected) return cancel()
     const focus = target instanceof HTMLDetailsElement ? target.querySelector<HTMLElement>(':scope > summary') : target
     focus?.focus({ preventScroll: true })
     // Let focus/disclosure layout settle before starting smooth scrolling.
-    requestAnimationFrame(() => {
-      if (!target.isConnected) return
+    frame = requestAnimationFrame(() => {
+      if (!target.isConnected) return cancel()
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      target.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' })
-      // The figures section also contains the guide/review; mark only its report card.
-      const card = target.querySelector<HTMLElement>('[data-ne-figures-card]') ?? target
-      for (const animation of card.getAnimations()) {
-        if (animation.id === 'ne-section-highlight') animation.cancel()
-      }
-      const highlight = 'inset 0 0 0 2px rgb(5 150 105 / 0.35), 0 0 0 3px rgb(5 150 105 / 0.12)'
-      card.animate(
+      card.classList.add('ne-navigation-highlight')
+      animation = card.animate(
         reducedMotion
-          ? [{ boxShadow: highlight }, { boxShadow: highlight }]
-          : [{ boxShadow: highlight, offset: 0 }, { boxShadow: highlight, offset: 0.35 }, { boxShadow: 'inset 0 0 0 2px transparent, 0 0 0 3px transparent', offset: 1 }],
-        { id: 'ne-section-highlight', duration: 1800, easing: 'ease-out' }
+          ? [{ opacity: 1 }, { opacity: 1 }]
+          : [{ opacity: 1, offset: 0 }, { opacity: 1, offset: 3000 / 3400 }, { opacity: 0, offset: 1 }],
+        { id: 'ne-section-highlight', pseudoElement: '::after', duration: reducedMotion ? 3000 : 3400, fill: 'both' }
       )
+      // Keep the full tint during scrolling; start the three-second hold on arrival.
+      animation.pause()
+      animation.currentTime = 0
+      target.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' })
+      const started = performance.now()
+      let stableSince = started
+      let previous = target.getBoundingClientRect()
+      function waitForArrival(now: number) {
+        if (!target!.isConnected || now - started > 10000) return cancel()
+        const rect = target!.getBoundingClientRect()
+        if (Math.abs(rect.top - previous.top) > 0.5 || Math.abs(rect.left - previous.left) > 0.5) stableSince = now
+        previous = rect
+        if (rect.bottom > 0 && rect.top < window.innerHeight && now - stableSince >= 200) {
+          animation!.onfinish = cancel
+          animation!.play()
+          frame = 0
+        } else {
+          frame = requestAnimationFrame(waitForArrival)
+        }
+      }
+      frame = requestAnimationFrame(waitForArrival)
     })
   })
 }

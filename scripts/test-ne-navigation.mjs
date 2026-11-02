@@ -24,10 +24,22 @@ try {
     await page.addScriptTag({ content: js })
     await page.evaluate(() => {
       window.neScrolls = []
+      window.neArrivalProbes = []
       const scroll = Element.prototype.scrollIntoView
       Element.prototype.scrollIntoView = function (options) {
         window.neScrolls.push({ id: this.id, ...options })
-        return scroll.call(this, options)
+        const result = scroll.call(this, options)
+        const card = this.querySelector('[data-ne-figures-card]') ?? this
+        const top = () => this.getBoundingClientRect().top
+        const samples = []; window.neArrivalProbes.push(samples)
+        function sample(now) {
+          const a = card.getAnimations({ subtree: true }).find(a => a.id === 'ne-section-highlight')
+          if (!a) return
+          samples.push({ now, top: top(), state: a.playState, time: a.currentTime, opacity: getComputedStyle(card, '::after').opacity })
+          if (a.playState !== 'running') requestAnimationFrame(sample)
+        }
+        requestAnimationFrame(sample)
+        return result
       }
     })
     const nav = page.getByRole('navigation', { name: 'NE-vyns delar' })
@@ -48,36 +60,53 @@ try {
       await expect(focus).toBeFocused()
       if (id !== 'ne-figures') await expect(target).toHaveAttribute('open', '')
       await expect(target).toBeInViewport()
-      await expect.poll(() => card.evaluate(el => el.getAnimations().filter(a => a.id === 'ne-section-highlight').length)).toBe(1)
+      await expect.poll(() => card.evaluate(el => el.getAnimations({ subtree: true }).filter(a => a.id === 'ne-section-highlight').length)).toBe(1)
+      await expect.poll(() => card.evaluate(el => el.getAnimations({ subtree: true }).find(a => a.id === 'ne-section-highlight')?.playState)).toBe('running')
+      const arrival = await page.evaluate(() => window.neArrivalProbes.at(-1))
+      assert(arrival.length >= 8, 'Arrival must wait for a stable viewport, including reduced-motion')
+      for (const sample of arrival.slice(0, -1)) {
+        assert.equal(sample.state, 'paused', 'No fading during scroll')
+        assert.equal(sample.time, 0, 'The hold countdown must not run during scroll')
+        assert.equal(sample.opacity, '1', 'Keep the whole-card tint at full strength during scroll')
+      }
+      let lastMovement = arrival[0].now
+      for (let i = 1; i < arrival.length; i++) if (Math.abs(arrival[i].top - arrival[i - 1].top) > 0.5) lastMovement = arrival[i].now
+      assert(arrival.at(-1).now - lastMovement >= 150, 'Countdown starts after scrolling settles')
       const metrics = await card.evaluate(el => {
-        const a = el.getAnimations().find(a => a.id === 'ne-section-highlight')
+        const a = el.getAnimations({ subtree: true }).find(a => a.id === 'ne-section-highlight')
         const before = { width: el.offsetWidth, height: el.offsetHeight, top: el.offsetTop }
-        a.pause(); a.currentTime = 900
-        const middle = getComputedStyle(el).boxShadow
-        a.currentTime = 1700
-        const end = getComputedStyle(el).boxShadow
-        return { before, after: { width: el.offsetWidth, height: el.offsetHeight, top: el.offsetTop }, middle, end, duration: a.effect.getTiming().duration }
+        a.pause(); a.currentTime = 2900
+        const middle = getComputedStyle(el, '::after').opacity
+        const style = getComputedStyle(el, '::after')
+        a.currentTime = a.effect.getTiming().duration - 100
+        const end = getComputedStyle(el, '::after').opacity
+        return { before, after: { width: el.offsetWidth, height: el.offsetHeight, top: el.offsetTop }, middle, end, tint: style.backgroundColor, edge: style.boxShadow, pointerEvents: style.pointerEvents, duration: a.effect.getTiming().duration }
       })
       assert.deepEqual(metrics.before, metrics.after, 'Highlight must not move or resize the card')
-      assert.equal(metrics.duration, 1800)
+      assert.equal(metrics.duration, reducedMotion === 'reduce' ? 3000 : 3400)
+      assert.equal(metrics.middle, '1', 'Full highlight remains for three seconds after arrival')
+      assert.equal(metrics.tint, 'rgba(16, 185, 129, 0.08)')
+      assert.match(metrics.edge, /rgb\(5, 150, 105\).*inset|inset.*rgb\(5, 150, 105\)/)
+      assert.equal(metrics.pointerEvents, 'none')
       if (reducedMotion === 'reduce') assert.equal(metrics.middle, metrics.end)
       else assert.notEqual(metrics.middle, metrics.end, 'Normal highlight must fade')
       // Two clicks in one event turn must leave one freshly restarted animation.
       await button.evaluate(el => { el.click(); el.click() })
       await expect.poll(() => card.evaluate(el => {
-        const animations = el.getAnimations().filter(a => a.id === 'ne-section-highlight')
+        const animations = el.getAnimations({ subtree: true }).filter(a => a.id === 'ne-section-highlight')
         return animations.length === 1 && animations[0].playState === 'running' && animations[0].currentTime < 900
-      })).toBe(true)
+      }), { intervals: [16, 32, 64] }).toBe(true)
+      await expect(page.locator('.ne-navigation-highlight')).toHaveCount(1)
       // Enter and Space must both restart a nearly expired highlight.
       for (const key of ['Enter', 'Space']) {
-        await card.evaluate(el => { window.previousNEHighlight = el.getAnimations().find(a => a.id === 'ne-section-highlight') })
+        await card.evaluate(el => { window.previousNEHighlight = el.getAnimations({ subtree: true }).find(a => a.id === 'ne-section-highlight') })
         await button.focus()
         await button.press(key)
         await expect(focus).toBeFocused()
         await expect.poll(() => card.evaluate(el => {
-          const a = el.getAnimations().find(a => a.id === 'ne-section-highlight')
+          const a = el.getAnimations({ subtree: true }).find(a => a.id === 'ne-section-highlight')
           return a !== window.previousNEHighlight && a?.playState === 'running' && a.currentTime < 900 && window.previousNEHighlight.playState === 'idle'
-        })).toBe(true)
+        }), { intervals: [16, 32, 64] }).toBe(true)
         await expect(target).toBeInViewport()
       }
       assert.deepEqual(await page.evaluate(() => window.neScrolls.at(-1)), { id, block: 'start', behavior: reducedMotion === 'reduce' ? 'instant' : 'smooth' })
@@ -87,13 +116,19 @@ try {
         await page.screenshot({ path: `${output}/guide-${width}-${reducedMotion}.png` })
       }
     }
-    await page.waitForTimeout(1900)
-    assert.equal(await page.locator('#ne-documentation').evaluate(el => el.getAnimations().filter(a => a.id === 'ne-section-highlight').length), 0, 'Highlight must disappear automatically')
+    await page.waitForTimeout(3600)
+    assert.equal(await page.locator('#ne-documentation').evaluate(el => el.getAnimations({ subtree: true }).filter(a => a.id === 'ne-section-highlight').length), 0, 'Highlight must disappear automatically')
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal overflow')
     assert.equal(await page.evaluate(() => window.neWrites?.length ?? 0), 0, 'Navigation must not save anything')
     assert.deepEqual(errors, [])
     assert.deepEqual(requests, [])
-    results.push({ width, reducedMotion, status: 'PASS', shortcuts: 4, repeatEnterSpace: true, noLayoutShift: true, noExternalRequests: true, noSaves: true })
+    await expect(page.locator('.ne-navigation-highlight')).toHaveCount(0)
+    // A navigation interrupted by unmount must release its pending animation/frame.
+    await nav.getByRole('button', { name: 'Vägledning', exact: true }).evaluate(el => el.click())
+    await page.evaluate(() => window.neHarness.set({ owner: 'synthetic-b' }))
+    await page.waitForTimeout(300)
+    await expect(page.locator('.ne-navigation-highlight')).toHaveCount(0)
+    results.push({ width, reducedMotion, status: 'PASS', shortcuts: 4, threeSecondsAfterScroll: true, fullCardTint: true, repeatEnterSpace: true, noLayoutShift: true, noExternalRequests: true, noSaves: true })
     await page.close()
   }
   await writeFile(output + '/result.json', JSON.stringify({ status: 'PASS', results }, null, 2))
