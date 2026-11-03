@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { filterKontoplan, groupKontoplan, type KontoplanVisibility } from '@/lib/kontoplanPresentation'
+import { filterKontoplan, groupKontoplan, findKontoplanAccountMatches, type KontoplanVisibility } from '@/lib/kontoplanPresentation'
 import CategoryVisibilityControl from './CategoryVisibilityControl'
 import { supabase } from '@/lib/supabaseClient'
 import {
@@ -75,6 +75,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
   const selectedCategory = getBookingCategory(newAccount.id)
   const guidance = selectedCategory?.categoryGuidance ?? null
+  const selectedQuickSuggestion = !showManualForm && !editingId
+    ? kontoforslag.find(suggestion => suggestion.id === newAccount.id) : undefined
+  const matchingCategories = selectedQuickSuggestion
+    ? findKontoplanAccountMatches(kontoplan, newAccount.debit_account, newAccount.credit_account, newAccount.id) : []
 
   useEffect(() => {
     loadKontoplan()
@@ -378,6 +382,11 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 <button type="button" aria-label={'Radera kategori: ' + acc.name} onClick={() => void handleDelete(acc.id)} className="min-h-11 rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Radera</button>
               </div>
             </div>
+            <dl aria-label="Kontoinställningar" className="mt-2 flex flex-wrap gap-2 text-sm text-gray-800">
+              <div className="inline-flex items-baseline gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1"><dt><abbr title="Debetkonto" className="no-underline">D</abbr></dt><dd className="font-mono">{acc.debit_account}</dd></div>
+              <div className="inline-flex items-baseline gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1"><dt><abbr title="Kreditkonto" className="no-underline">K</abbr></dt><dd className="font-mono">{acc.credit_account}</dd></div>
+              <div className="inline-flex items-baseline gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1"><dt>Förvald moms</dt><dd>{acc.default_vat_rate} %</dd></div>
+            </dl>
             <div className="mt-1"><CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking} disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} /></div>
             {(isPersonnelAccount(acc.debit_account) || isPersonnelAccount(acc.credit_account)) && <p className="mt-2 rounded-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-sm leading-snug text-amber-900">{personnelAccountWarning(isPersonnelAccount(acc.debit_account) ? acc.debit_account : acc.credit_account)}</p>}
             <details className="mt-1 border-t border-gray-100">
@@ -492,6 +501,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 )}
               </div>
             )}
+
+            {matchingCategories.length > 0 && <aside role="note" aria-label="Befintliga kategorier med samma konton" className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+              <p className="font-semibold text-gray-900"><span aria-hidden="true">ℹ </span>Samma konton används redan</p>
+              <p className="mt-1">Följande kategorier har också debetkonto {newAccount.debit_account} och kreditkonto {newAccount.credit_account}:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">{matchingCategories.map(category => <li key={category.id} className="break-words">{category.name}{category.hidden_from_new_booking === true ? ' (dold)' : ''}</li>)}</ul>
+              <p className="mt-2">Detta är inte automatiskt ett fel. Kategorier kan ha olika namn, användning och förvald moms.</p>
+            </aside>}
 
             {guidance && (
               <div

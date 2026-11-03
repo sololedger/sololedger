@@ -41,3 +41,8 @@ export function groupKontoplan<T extends KontoplanItem>(rows: readonly T[]): { l
   return [...groups].sort(([a], [b]) => a === 'Övriga kategorier' ? 1 : b === 'Övriga kategorier' ? -1 : a.localeCompare(b, 'sv-SE'))
     .map(([label, members]) => ({ label, rows: [...members].sort((a, b) => a.name.localeCompare(b.name, 'sv-SE')) }))
 }
+
+/** Informational match only; never used to accept/reject a category or hide presets. */
+export function findKontoplanAccountMatches<T extends KontoplanItem>(rows: readonly T[], debitAccount: string, creditAccount: string, selectedId: string): T[] {
+  return rows.filter(row => row.id !== selectedId && row.debit_account === debitAccount && row.credit_account === creditAccount)
+}

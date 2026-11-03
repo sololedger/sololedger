@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { filterKontoplan, groupKontoplan } from '../src/lib/kontoplanPresentation.ts'
+import { filterKontoplan, groupKontoplan, findKontoplanAccountMatches } from '../src/lib/kontoplanPresentation.ts'
 const base={id:'forsaljning',name:'Försäljning',debit_account:'1930',credit_account:'3010',default_vat_rate:25,comment:'Kundintäkter',hidden_from_new_booking:false}
 const rows=Object.freeze([Object.freeze(base),Object.freeze({...base,id:'own',name:'Eget',hidden_from_new_booking:true}),Object.freeze({...base,id:'legacy',hidden_from_new_booking:undefined})])
 const snapshot=JSON.stringify(rows)
@@ -15,3 +15,11 @@ assert.equal(groupKontoplan([base])[0].label,'Försäljning')
 for(const changed of [{...base,id:'unknown'},{...base,debit_account:'6991'},{...base,credit_account:'2018'},{...base,default_vat_rate:0}])assert.equal(groupKontoplan([changed])[0].label,'Övriga kategorier')
 assert.equal(JSON.stringify(rows),snapshot,'presentation never mutates stored data')
 console.log('PASS Kontoplan presentation: name/debit/credit/comment search, combined and unknown-visibility filters, exact preset grouping, modified/unknown fallback, immutable data')
+
+const matches=findKontoplanAccountMatches(rows,'1930','3010','forsaljning')
+assert.deepEqual(matches.map(r=>r.id),['own','legacy'],'same accounts are found across visibility states, excluding selected ID')
+assert.equal(findKontoplanAccountMatches(rows,'3010','1930','selected').length,0,'reversed account order is a different pair')
+assert.equal(findKontoplanAccountMatches(rows,'1930','3011','selected').length,0,'both accounts must match')
+assert.equal(findKontoplanAccountMatches([{...base,id:'different-vat',default_vat_rate:0}],'1930','3010','selected').length,1,'different VAT defaults do not hide account-pair information')
+assert.equal(JSON.stringify(rows),snapshot,'matching never changes category data')
+console.log('PASS informational account matches: ID exclusion, hidden/unknown visibility, both sides/order, different VAT, no mutation')

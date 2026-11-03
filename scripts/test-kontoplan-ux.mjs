@@ -9,7 +9,7 @@ const fixture = `import React from 'react';import {createRoot} from 'react-dom/c
 createRoot(document.getElementById('root')).render(<Layout activeTab="kontoplan" setActiveTab={tab=>{window.selectedTab=tab}}><Kontoplan onAccountCreated={()=>{window.refreshes++}}/></Layout>);`
 const bundle=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'offline',setup(b){b.onResolve({filter:/supabaseClient$/},()=>({path:'offline',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const supabase={auth:{getUser:async()=>({data:{user:{id:"synthetic-owner"}}})},from:(...a)=>window.db.from(...a)}'}))}}]})
 const css=(await postcss([tailwind({base:process.cwd()})]).process(await readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css
-await mkdir('test-results/kontoplan-ux-v2',{recursive:true})
+await mkdir('test-results/kontoplan-ux-v3',{recursive:true})
 const browser=await chromium.launch({headless:true,channel:'chrome'})
 try {for (const width of [1440,390,320]) {
  const page=await browser.newPage({viewport:{width,height:1000}}), errors=[]
@@ -21,7 +21,7 @@ try {for (const width of [1440,390,320]) {
  window.rows=[
  {id:'programvaror',name:'Programvaror',debit_account:'5420',credit_account:'1930',default_vat_rate:25,comment:'Licenser och verktyg',hidden_from_new_booking:false,user_id:'synthetic-owner'},
  {id:'forsaljning',name:'Försäljning',debit_account:'1930',credit_account:'3010',default_vat_rate:25,comment:'Kundintäkter',hidden_from_new_booking:false,user_id:'synthetic-owner'},
- {id:'custom',name:'Egen kategori',debit_account:'6991',credit_account:'1930',default_vat_rate:0,comment:'Särskilt underlag',hidden_from_new_booking:true,user_id:'synthetic-owner'},
+ {id:'custom',name:'Egen kategori',debit_account:'6110',credit_account:'1930',default_vat_rate:0,comment:'Särskilt underlag',hidden_from_new_booking:true,user_id:'synthetic-owner'},
  {id:'legacy',name:'Äldre kategori',debit_account:'7000',credit_account:'1930',default_vat_rate:0,comment:'Historik',user_id:'synthetic-owner'},
  {id:'other-user',name:'Annan användare',debit_account:'5420',credit_account:'1930',default_vat_rate:25,user_id:'someone-else'}]
  window.db={from(table){let filters={},payload,op;const q={select(){return q},eq(k,v){filters[k]=v;return q},order:async()=>({data:window.rows.filter(r=>r.user_id===filters.user_id),error:null}),update(p){op='update';payload=p;return q},insert(p){op='insert';payload=p;return q},delete(){op='delete';return q},single:async()=>execute(),then(resolve,reject){return Promise.resolve(table==='transactions'?{count:1,error:null}:execute()).then(resolve,reject)}};function execute(){window.writes.push({table,op,filters,payload});if(window.fail)return{data:null,error:{message:'synthetic failure'}};if(op==='insert'){window.rows.push(...payload.map(r=>({hidden_from_new_booking:false,...r})));return{error:null}};const row=window.rows.find(r=>r.id===filters.id&&r.user_id===filters.user_id);if(row&&op==='update')Object.assign(row,payload);return{data:row?{...row}:null,error:null}}return q}}
@@ -44,6 +44,9 @@ try {for (const width of [1440,390,320]) {
  await expect(overview).not.toContainText('Annan användare')
  await expect(overview.getByRole('region',{name:'Utrustning',exact:true})).toContainText('Programvaror')
  await expect(overview.getByRole('region',{name:'Övriga kategorier',exact:true})).toContainText('Egen kategori')
+ const badges=overview.getByRole('article',{name:'Programvaror',exact:true}).locator('dl[aria-label="Kontoinställningar"]')
+ await expect(badges).toBeVisible();await expect(badges.locator('dd')).toHaveText(['5420','1930','25 %'])
+ await expect(overview.getByRole('article',{name:'Egen kategori',exact:true}).locator('dl[aria-label="Kontoinställningar"] dd').last()).toHaveText('0 %')
  const search=page.getByRole('searchbox',{name:'Sök kategorier'})
  for(const [query,count] of [['  PROGRAMVAROR  ',1],['5420',1],['1930',4],['verktyg',1],['saknas',0]]){await search.fill(query);await expect(overview.getByRole('article')).toHaveCount(count)}
  await search.fill('');await page.getByRole('button',{name:'Visade',exact:true}).click();await expect(overview.getByRole('article')).toHaveCount(2)
@@ -52,7 +55,7 @@ try {for (const width of [1440,390,320]) {
  await search.fill('');await page.getByRole('button',{name:'Alla',exact:true}).click()
  const own=overview.getByRole('article',{name:'Egen kategori',exact:true})
  await own.getByText('Konton och förvald moms', {exact:true}).click();await expect(own).toContainText('0 % innebär inte automatiskt')
- await page.screenshot({path:'test-results/kontoplan-ux-v2/overview-'+width+'.png',fullPage:true})
+ await page.screenshot({path:'test-results/kontoplan-ux-v3/overview-'+width+'.png',fullPage:true})
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'no horizontal overflow')
  await page.getByRole('button',{name:'Dölj vid ny bokföring: Programvaror',exact:true}).click()
  await expect(page.getByRole('button',{name:'Visa igen: Programvaror',exact:true})).toBeVisible()
@@ -88,20 +91,21 @@ try {for (const width of [1440,390,320]) {
    await form.getByRole('button',{name:'Visa alla kategoriförslag',exact:true}).click()
  }
  assert.deepEqual(await proposals.evaluateAll(items=>items.map(item=>item.dataset.categorySuggestion)),allProposalIds)
- await form.screenshot({path:'test-results/kontoplan-ux-v2/proposals-all-'+width+'.png'})
+ await form.screenshot({path:'test-results/kontoplan-ux-v3/proposals-all-'+width+'.png'})
  if(width<768)await form.getByRole('button',{name:'Visa färre',exact:true}).click()
- await form.screenshot({path:'test-results/kontoplan-ux-v2/proposals-'+width+'.png'})
+ await form.screenshot({path:'test-results/kontoplan-ux-v3/proposals-'+width+'.png'})
  await form.getByRole('button',{name:'+ Lägg till egen kategori manuellt',exact:true}).click()
- for(const [index,value] of [[0,'egen_ny'],[1,'Ny kategori'],[2,'Testkommentar'],[3,'6991'],[4,'1930']])await form.locator('input').nth(index).fill(value)
+ for(const [index,value] of [[0,'egen_ny'],[1,'Ny kategori'],[2,'Testkommentar'],[3,'6110'],[4,'1930']])await form.locator('input').nth(index).fill(value)
  await form.getByLabel('Debetkonto',{exact:true}).fill('69')
  const writesBeforeInvalid=await page.evaluate(()=>window.writes.length)
  await form.getByRole('button',{name:'Spara konto',exact:true}).click()
  assert.match((await page.evaluate(()=>window.alerts)).at(-1),/exakt fyra siffror/)
  assert.equal(await page.evaluate(()=>window.writes.length),writesBeforeInvalid)
- await form.getByLabel('Debetkonto',{exact:true}).fill('6991')
+ await form.getByLabel('Debetkonto',{exact:true}).fill('6110')
+ await expect(form.getByRole('note')).toHaveCount(0)
  await form.getByRole('button',{name:'Spara konto',exact:true}).click()
  await expect(overview.getByRole('article',{name:'Ny kategori',exact:true})).toBeVisible()
- const added=await page.evaluate(()=>window.rows.find(r=>r.id==='egen_ny'));assert.equal(added.default_vat_rate,0);assert.equal(added.debit_account,'6991')
+ const added=await page.evaluate(()=>window.rows.find(r=>r.id==='egen_ny'));assert.equal(added.default_vat_rate,0);assert.equal(added.debit_account,'6110')
  await page.getByRole('button',{name:'Redigera kategori: Ny kategori',exact:true}).click();await form.locator('input').nth(1).fill('Ändrat namn');await form.getByRole('button',{name:'Avbryt redigering',exact:true}).click()
  assert.equal(await page.evaluate(()=>window.rows.find(r=>r.id==='egen_ny').name),'Ny kategori')
  await page.getByRole('button',{name:'Radera kategori: Ny kategori',exact:true}).click();assert.match((await page.evaluate(()=>window.alerts)).at(-1),/Historiken måste bevaras/)
@@ -112,6 +116,7 @@ try {for (const width of [1440,390,320]) {
  await form.getByRole('button',{name:'+ IT-tjänster',exact:true}).click()
  await expect(form.getByRole('form',{name:'Vald kategori och inställningar'})).toBeFocused()
  await expect(form.locator('details').filter({has:page.getByText('Välj en annan kategori',{exact:true})})).not.toHaveAttribute('open','')
+ await expect(form.getByRole('note')).toHaveCount(0)
  await expect(form.getByText('Vägledning för kategorin',{exact:true})).toBeVisible()
  await expect(form).not.toContainText('SoloLedger-guide')
  await form.getByRole('button',{name:'Byt kategori',exact:true}).click()
@@ -122,7 +127,14 @@ try {for (const width of [1440,390,320]) {
  await expect(form.getByLabel('Debetkonto',{exact:true})).toHaveValue('6110')
  await expect(form.getByLabel('Kreditkonto',{exact:true})).toHaveValue('1930')
  await expect(form.getByLabel('Förvald moms %',{exact:true})).toHaveValue('25')
- await form.screenshot({path:'test-results/kontoplan-ux-v2/form-'+width+'.png'})
+ const duplicateInfo=form.getByRole('note',{name:'Befintliga kategorier med samma konton'})
+ await expect(duplicateInfo).toContainText('Egen kategori (dold)')
+ await expect(duplicateInfo).toContainText('Ny kategori')
+ await expect(duplicateInfo).toContainText('Detta är inte automatiskt ett fel')
+ await expect(form.getByRole('button',{name:'Lägg till kategori',exact:true})).toBeEnabled()
+ await form.getByLabel('Kreditkonto',{exact:true}).fill('2018');await expect(duplicateInfo).toHaveCount(0)
+ await form.getByLabel('Kreditkonto',{exact:true}).fill('1930');await expect(duplicateInfo).toBeVisible()
+ await form.screenshot({path:'test-results/kontoplan-ux-v3/form-'+width+'.png'})
  await form.getByRole('button',{name:'Lägg till kategori',exact:true}).click()
  await expect(overview.getByRole('article',{name:'Kontorsmaterial',exact:true})).toBeVisible()
  const quick=await page.evaluate(()=>window.rows.find(r=>r.id==='kontorsmaterial'));assert.equal(quick.debit_account,'6110');assert.equal(quick.credit_account,'1930');assert.equal(quick.default_vat_rate,25)
@@ -131,9 +143,18 @@ try {for (const width of [1440,390,320]) {
  await form.getByRole('button',{name:'Spara ändringar',exact:true}).click()
  await expect(overview.getByRole('article',{name:'Kontorsmaterial',exact:true})).toContainText('Uppdaterad kommentar')
  assert.deepEqual(await page.evaluate(()=>window.rows.find(r=>r.id==='kontorsmaterial')),{...quick,comment:'Uppdaterad kommentar'})
+ await page.getByRole('button',{name:'Redigera kategori: Kontorsmaterial',exact:true}).click()
+ await form.getByLabel('Namn',{exact:true}).fill('Papper i verksamheten')
+ await expect(form.getByRole('note')).toHaveCount(0)
+ await form.getByRole('button',{name:'Spara ändringar',exact:true}).click()
+ await page.getByRole('button',{name:'Dölj vid ny bokföring: Papper i verksamheten',exact:true}).click()
+ await expect(page.getByRole('button',{name:'Visa igen: Papper i verksamheten',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'Lägg till kategori',exact:true}).click()
+ await expect(form.locator('[data-category-suggestion="kontorsmaterial"]')).toHaveCount(0,'existing standard ID is excluded even when renamed and hidden')
+ await form.getByRole('button',{name:'Stäng tilläggsformuläret',exact:true}).click()
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'form has no horizontal overflow')
  assert.equal(await page.locator('.kontoplan-ux button').filter({visible:true}).evaluateAll(items=>items.every(item=>item.getBoundingClientRect().height>=44)),true,'tap targets retain at least 44px height')
  assert.equal(requests,0);assert.deepEqual(errors,[])
- console.log('PASS Bokföringskategorier v2 '+width+': search, combined filters, safe grouping, details, hide/restore/failure, preserved edit, manual add, cancel, deletion protection, user scope, no external traffic or overflow')
+ console.log('PASS Bokföringskategorier v3 '+width+': search, combined filters, safe grouping, details, hide/restore/failure, preserved edit, manual add, cancel, deletion protection, user scope, no external traffic or overflow')
  await page.close()
 }} finally {await browser.close()}
