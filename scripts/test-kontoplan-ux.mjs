@@ -9,9 +9,9 @@ const fixture = `import React from 'react';import {createRoot} from 'react-dom/c
 createRoot(document.getElementById('root')).render(<Layout activeTab="kontoplan" setActiveTab={tab=>{window.selectedTab=tab}}><Kontoplan onAccountCreated={()=>{window.refreshes++}}/></Layout>);`
 const bundle=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'offline',setup(b){b.onResolve({filter:/supabaseClient$/},()=>({path:'offline',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const supabase={auth:{getUser:async()=>({data:{user:{id:"synthetic-owner"}}})},from:(...a)=>window.db.from(...a)}'}))}}]})
 const css=(await postcss([tailwind({base:process.cwd()})]).process(await readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css
-await mkdir('test-results/kontoplan-ux-v3',{recursive:true})
+await mkdir('test-results/kontoplan-ux-v4',{recursive:true})
 const browser=await chromium.launch({headless:true,channel:'chrome'})
-try {for (const width of [1440,390,320]) {
+try {for (const width of [1440,768,767,390,320]) {
  const page=await browser.newPage({viewport:{width,height:1000}}), errors=[]
  page.on('pageerror',e=>errors.push(e.message))
  let requests=0;await page.route('**/*',r=>{requests++;return r.abort()})
@@ -30,10 +30,10 @@ try {for (const width of [1440,390,320]) {
  const overview=page.getByRole('region',{name:'Befintliga kategorier',exact:true})
  await expect(overview.getByRole('article')).toHaveCount(4)
  await expect(page.getByRole('heading',{name:'Bokföringskategorier',exact:true})).toBeVisible()
- if(width<768)await page.getByRole('button',{name:'Öppna meny',exact:true}).click()
+ if(width<1024)await page.getByRole('button',{name:'Öppna meny',exact:true}).click()
  const navCategory=page.getByRole('button',{name:'Bokföringskategorier',exact:true}).filter({visible:true})
  await navCategory.click();assert.equal(await page.evaluate(()=>window.selectedTab),'kontoplan','navigation key is preserved')
- if(width<768){await page.getByRole('button',{name:'Öppna meny',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'long mobile navigation name fits');await page.getByRole('button',{name:'Stäng meny',exact:true}).click()}
+ if(width<1024){await page.getByRole('button',{name:'Öppna meny',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'long mobile navigation name fits');await page.getByRole('button',{name:'Stäng meny',exact:true}).click()}
  await expect(page.getByText('Bra att veta',{exact:true})).toBeVisible()
  await expect(page.locator('header details')).not.toHaveAttribute('open','')
  await page.getByText('Bra att veta',{exact:true}).click();await expect(page.locator('header details')).toHaveAttribute('open','')
@@ -55,7 +55,7 @@ try {for (const width of [1440,390,320]) {
  await search.fill('');await page.getByRole('button',{name:'Alla',exact:true}).click()
  const own=overview.getByRole('article',{name:'Egen kategori',exact:true})
  await own.getByText('Konton och förvald moms', {exact:true}).click();await expect(own).toContainText('0 % innebär inte automatiskt')
- await page.screenshot({path:'test-results/kontoplan-ux-v3/overview-'+width+'.png',fullPage:true})
+ await page.screenshot({path:'test-results/kontoplan-ux-v4/overview-'+width+'.png',fullPage:true})
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'no horizontal overflow')
  await page.getByRole('button',{name:'Dölj vid ny bokföring: Programvaror',exact:true}).click()
  await expect(page.getByRole('button',{name:'Visa igen: Programvaror',exact:true})).toBeVisible()
@@ -91,9 +91,9 @@ try {for (const width of [1440,390,320]) {
    await form.getByRole('button',{name:'Visa alla kategoriförslag',exact:true}).click()
  }
  assert.deepEqual(await proposals.evaluateAll(items=>items.map(item=>item.dataset.categorySuggestion)),allProposalIds)
- await form.screenshot({path:'test-results/kontoplan-ux-v3/proposals-all-'+width+'.png'})
+ await form.screenshot({path:'test-results/kontoplan-ux-v4/proposals-all-'+width+'.png'})
  if(width<768)await form.getByRole('button',{name:'Visa färre',exact:true}).click()
- await form.screenshot({path:'test-results/kontoplan-ux-v3/proposals-'+width+'.png'})
+ await form.screenshot({path:'test-results/kontoplan-ux-v4/proposals-'+width+'.png'})
  await form.getByRole('button',{name:'+ Lägg till egen kategori manuellt',exact:true}).click()
  for(const [index,value] of [[0,'egen_ny'],[1,'Ny kategori'],[2,'Testkommentar'],[3,'6110'],[4,'1930']])await form.locator('input').nth(index).fill(value)
  await form.getByLabel('Debetkonto',{exact:true}).fill('69')
@@ -113,17 +113,35 @@ try {for (const width of [1440,390,320]) {
  for(const write of writes){if(write.op==='insert')assert.equal(write.payload[0].user_id,'synthetic-owner');else assert.equal(write.filters.user_id,'synthetic-owner')}
  await page.getByRole('button',{name:'Lägg till kategori',exact:true}).click()
  if(width<768)await form.getByRole('button',{name:'Visa alla kategoriförslag',exact:true}).click()
- await form.getByRole('button',{name:'+ IT-tjänster',exact:true}).click()
- await expect(form.getByRole('form',{name:'Vald kategori och inställningar'})).toBeFocused()
- await expect(form.locator('details').filter({has:page.getByText('Välj en annan kategori',{exact:true})})).not.toHaveAttribute('open','')
- await expect(form.getByRole('note')).toHaveCount(0)
- await expect(form.getByText('Vägledning för kategorin',{exact:true})).toBeVisible()
- await expect(form).not.toContainText('SoloLedger-guide')
- await form.getByRole('button',{name:'Byt kategori',exact:true}).click()
- await expect(form.locator('summary').filter({hasText:'Välj en annan kategori'})).toBeFocused()
- await form.getByRole('button',{name:'+ Kontorsmaterial',exact:true}).click()
- await expect(form.getByRole('form',{name:'Vald kategori och inställningar'})).toBeFocused()
- await form.getByRole('button',{name:'+ Ändra bokföringsinställningar',exact:true}).click()
+ const list=form.locator('details').filter({has:page.locator('summary').filter({hasText:/Kategoriförslag|Välj en annan kategori/})})
+ const summary=list.locator('summary')
+ const selectedDetails=form.getByRole('form',{name:'Vald kategori och inställningar'})
+ const it=form.locator('[data-category-suggestion="it_tjanster"]')
+ await it.focus();await it.press('Enter')
+ await expect(it).toHaveAttribute('aria-pressed','true')
+ if(width>=768){await expect(list).toHaveAttribute('open','');await expect(it).toBeFocused();await expect(it).toBeInViewport()}
+ else {await expect(list).not.toHaveAttribute('open','');await expect(selectedDetails).toBeFocused();await form.getByRole('button',{name:'Byt kategori',exact:true}).click();await expect(summary).toBeFocused()}
+ // Both native summary keys must work without losing the current selection.
+ await summary.focus();await summary.press('Enter');await expect(list).not.toHaveAttribute('open','')
+ await summary.press('Space');await expect(list).toHaveAttribute('open','')
+ await expect(it).toHaveAttribute('aria-pressed','true')
+ for(const [id,debit,credit,vat] of [['lokalhyra','5010','1930','0'],['egen_bil','5843','2018','0'],['kontorsmaterial','6110','1930','25']]){
+   const choice=form.locator('[data-category-suggestion="'+id+'"]')
+   await choice.focus();await choice.press('Enter')
+   await expect(choice).toHaveAttribute('aria-pressed','true')
+   await expect(form.locator('[data-category-suggestion][aria-pressed="true"]')).toHaveCount(1)
+   await expect(it).toHaveAttribute('aria-pressed','false')
+   if(width>=768){await expect(list).toHaveAttribute('open','');await expect(choice).toBeFocused();await expect(choice).toBeInViewport()}
+   else {await expect(list).not.toHaveAttribute('open','');await expect(selectedDetails).toBeFocused()}
+   await form.getByRole('button',{name:'+ Ändra bokföringsinställningar',exact:true}).click()
+   await expect(form.getByLabel('Debetkonto',{exact:true})).toHaveValue(debit)
+   await expect(form.getByLabel('Kreditkonto',{exact:true})).toHaveValue(credit)
+   await expect(form.getByLabel('Förvald moms %',{exact:true})).toHaveValue(vat)
+   const {getBookingCategory}=await import('../src/lib/accountingKnowledge.ts')
+   await expect(form.getByText(getBookingCategory(id).categoryGuidance.summary,{exact:true})).toBeVisible()
+   await expect(form).not.toContainText('SoloLedger-guide')
+   if(id!=='kontorsmaterial'){await form.getByRole('button',{name:'Byt kategori',exact:true}).click();await expect(summary).toBeFocused()}
+ }
  await expect(form.getByLabel('Debetkonto',{exact:true})).toHaveValue('6110')
  await expect(form.getByLabel('Kreditkonto',{exact:true})).toHaveValue('1930')
  await expect(form.getByLabel('Förvald moms %',{exact:true})).toHaveValue('25')
@@ -134,7 +152,7 @@ try {for (const width of [1440,390,320]) {
  await expect(form.getByRole('button',{name:'Lägg till kategori',exact:true})).toBeEnabled()
  await form.getByLabel('Kreditkonto',{exact:true}).fill('2018');await expect(duplicateInfo).toHaveCount(0)
  await form.getByLabel('Kreditkonto',{exact:true}).fill('1930');await expect(duplicateInfo).toBeVisible()
- await form.screenshot({path:'test-results/kontoplan-ux-v3/form-'+width+'.png'})
+ await form.screenshot({path:'test-results/kontoplan-ux-v4/form-'+width+'.png'})
  await form.getByRole('button',{name:'Lägg till kategori',exact:true}).click()
  await expect(overview.getByRole('article',{name:'Kontorsmaterial',exact:true})).toBeVisible()
  const quick=await page.evaluate(()=>window.rows.find(r=>r.id==='kontorsmaterial'));assert.equal(quick.debit_account,'6110');assert.equal(quick.credit_account,'1930');assert.equal(quick.default_vat_rate,25)
@@ -155,6 +173,6 @@ try {for (const width of [1440,390,320]) {
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'form has no horizontal overflow')
  assert.equal(await page.locator('.kontoplan-ux button').filter({visible:true}).evaluateAll(items=>items.every(item=>item.getBoundingClientRect().height>=44)),true,'tap targets retain at least 44px height')
  assert.equal(requests,0);assert.deepEqual(errors,[])
- console.log('PASS Bokföringskategorier v3 '+width+': search, combined filters, safe grouping, details, hide/restore/failure, preserved edit, manual add, cancel, deletion protection, user scope, no external traffic or overflow')
+ console.log('PASS Bokföringskategorier v4 '+width+': search, combined filters, safe grouping, details, hide/restore/failure, preserved edit, manual add, cancel, deletion protection, user scope, no external traffic or overflow')
  await page.close()
 }} finally {await browser.close()}

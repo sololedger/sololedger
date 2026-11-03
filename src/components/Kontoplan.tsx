@@ -116,9 +116,13 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     credit_account: string
     default_vat_rate: number
     comment: string
-  }) {
-    setSuggestionsOpen(false)
-    requestAnimationFrame(() => selectedForm.current?.focus())
+  }, button: HTMLButtonElement) {
+    const keepSuggestionsOpen = window.matchMedia('(min-width: 48rem)').matches
+    setSuggestionsOpen(keepSuggestionsOpen)
+    requestAnimationFrame(() => {
+      if (keepSuggestionsOpen) button.scrollIntoView({ block: 'nearest' })
+      else selectedForm.current?.focus()
+    })
     setEditingId(null)
     setShowManualForm(false)
     setShowAdvancedSettings(false)
@@ -894,15 +898,16 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     <button
                       key={forslag.id}
                       data-category-suggestion={forslag.id}
+                      aria-pressed={isSelected}
                       type="button"
-                      onClick={() => {
+                      onClick={event => {
                         if (newAccount.id === forslag.id) {
                           setSuggestionsOpen(true)
                           setNewAccount(EMPTY_ACCOUNT)
                           setShowManualForm(false)
                           setShowAdvancedSettings(false)
                         } else {
-                          applyForslag(forslag)
+                          applyForslag(forslag, event.currentTarget)
                         }
                       }}
                       className={`${index >= 6 && !showAllSuggestions ? 'hidden md:inline-flex' : 'inline-flex'} items-center text-left text-sm font-semibold px-3 py-2 rounded-xl border transition-all shadow-sm ${isSelected
