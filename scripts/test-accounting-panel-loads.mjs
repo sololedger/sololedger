@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { vatReportBlockedMessage } from '../src/lib/vatReportPresentation.ts'
 
 async function callbacks(file, names, context) {
   const source = await readFile(file, 'utf8')
@@ -94,6 +95,7 @@ const vatContext = {
   loadAvailableYears() {}, resetSettlementIntent() {}, resetMovementIntent() {},
   isVatReportRequestCurrent: (a, b) => a.periodId === b.periodId && a.contextKey === b.contextKey,
   buildVatReportPresentation: report => report,
+  vatReportBlockedMessage,
 }
 const vat = await callbacks('src/components/Momsrapport.tsx', ['loadAvailableYears', 'loadVatPeriods', 'handleYearChange', 'handlePeriodChange', 'fetchMomsForPeriod'], vatContext)
 await vat.loadAvailableYears()
@@ -139,3 +141,62 @@ vatContext.selectionContextRef.current = { periodId: '2027', contextKey: '2027' 
 reportReads.requests.shift().resolve({ status: 'ready', report: { amount: 126 } }); await first
 assert.equal(vat.state.setVatReport, null)
 console.log('PASS VAT actual report: year/period A -> B -> A invalidates pending report and settlement/movement reads')
+
+// KAN-81: execute the unchanged report loader and its real render/action guards.
+const vatSource = await readFile('src/components/Momsrapport.tsx', 'utf8')
+const vatTree = ts.createSourceFile('Momsrapport.tsx', vatSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+const guardNames = ['hasCurrentReport', 'canCloseSelectedPeriod', 'canDeclareSelectedPeriod', 'currentVatReport']
+const expressions = new Map(), disabledExpressions = new Map()
+function findGuards(node) {
+  if (ts.isVariableDeclaration(node) && guardNames.includes(node.name.getText(vatTree))) {
+    expressions.set(node.name.getText(vatTree), node.initializer.getText(vatTree))
+  }
+  if (ts.isJsxOpeningElement(node) && node.tagName.getText(vatTree) === 'button') {
+    const props = node.attributes.properties.filter(ts.isJsxAttribute)
+    const action = props.find(prop => prop.name.getText(vatTree) === 'onClick')?.initializer?.expression?.getText(vatTree)
+    if (['handleClosePeriod', 'handleDeclarePeriod'].includes(action)) {
+      disabledExpressions.set(action, props.find(prop => prop.name.getText(vatTree) === 'disabled').initializer.expression.getText(vatTree))
+    }
+  }
+  ts.forEachChild(node, findGuards)
+}
+findGuards(vatTree)
+assert.equal(expressions.size, 4); assert.equal(disabledExpressions.size, 2)
+assert.match(vatSource, /\{currentVatReport && selectedPeriod && \(/, 'report amounts stay behind the current-report gate')
+function reportGuards() {
+  const code = guardNames.map(name => `const ${name} = ${expressions.get(name)};`).join('\n') + `
+    ({hasCurrentReport,currentVatReport,closeDisabled:${disabledExpressions.get('handleClosePeriod')},declareDisabled:${disabledExpressions.get('handleDeclarePeriod')}})`
+  const result = vm.runInNewContext(code, {
+    selectedPeriod: period(2027)[0], selectedPeriodContextKey: '2027',
+    fetched: vat.state.setFetched, loading: vat.state.setLoading, vatReport: vat.state.setVatReport,
+    reportPeriodId: vat.state.setReportPeriodId, reportContextKey: vat.state.setReportContextKey,
+    lifecycleCanCloseSelectedPeriod: true, lifecycleCanDeclareSelectedPeriod: true,
+    reportNeedsReview: false, declarationSubmittedOnIsValid: true,
+    closing: false, declaring: false, periodsLoading: false,
+  })
+  return JSON.parse(JSON.stringify(result))
+}
+first = vat.fetchMomsForPeriod(period(2027)[0], '2027')
+reportReads.requests.shift().resolve({ status: 'ready', report: { netVat: 126 } }); await first
+assert.deepEqual(reportGuards(), { hasCurrentReport: true, currentVatReport: { netVat: 126 }, closeDisabled: false, declareDisabled: false })
+for (const [code, fragment] of [
+  ['customer_invoice_voucher_inconsistent', 'Fakturor/Bokföring'], ['customer_invoice_vat_unsupported', 'kundfakturas momsunderlag'],
+  ['vat_v2_snapshot_missing', 'omvänd moms'], ['legacy_reverse_charge_ambiguous', 'Äldre eller importerad'],
+  ['fixed_asset_voucher_inconsistent', 'Inventarier/Bokföring'], ['supplier_invoice_voucher_inconsistent', 'Bokslutsskulder/Bokföring'],
+  ['future_reason', 'underlaget inte kan verifieras'],
+]) {
+  first = vat.fetchMomsForPeriod(period(2027)[0], '2027')
+  assert.equal(vat.state.setVatReport, null, 'previous amounts cleared before the read')
+  reportReads.requests.shift().resolve({ status: 'blocked', report: null, errors: [{ code: 'aggregation_blocked', message: 'raw',
+    aggregationErrors: [{ code, transactionId: 'synthetic', message: 'raw' }] }] })
+  await first
+  assert.equal(vat.state.setFetched, false)
+  assert(vat.state.setReportError.includes(fragment))
+  assert.deepEqual(reportGuards(), { hasCurrentReport: false, currentVatReport: null, closeDisabled: true, declareDisabled: true })
+}
+const blockedActions = await callbacks('src/components/Momsrapport.tsx', ['handleClosePeriod', 'handleDeclarePeriod'], {
+  selectedPeriod: period(2027)[0], canCloseSelectedPeriod: false, canDeclareSelectedPeriod: false,
+  closeInFlightRef: { current: false }, declareInFlightRef: { current: false },
+})
+await blockedActions.handleClosePeriod(); await blockedActions.handleDeclarePeriod()
+console.log('PASS KAN81 actual report callback and guards: correct reasons, no old amounts, disabled closing/declaration, blocked action handlers return without writes')

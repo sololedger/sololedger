@@ -107,13 +107,50 @@ export function buildVatReportPresentation(
 }
 
 export function vatReportBlockedMessage(errors: VatReportServiceError[]) {
-  if (errors.some(error => error.code === 'invalid_loaded_scope')) {
-    return 'Momsrapporten kan inte beräknas säkert eftersom laddad data inte matchar inloggat konto.'
+  const fallback = 'Momsrapporten kan inte beräknas säkert eftersom underlaget inte kan verifieras. Granska periodens verifikationer och momsunderlag i Bokföring.'
+  const reasonFor = (code: string) => {
+    switch (code) {
+      case 'customer_invoice_voucher_inconsistent':
+        return 'En kundfakturas verifikation är ofullständig eller motsägelsefull. Granska fakturans verifikation och momsunderlag i Fakturor/Bokföring.'
+      case 'customer_invoice_vat_unsupported':
+        return 'En kundfakturas momsunderlag kan inte hanteras säkert i rapporten. Granska fakturans momsunderlag och verifikation i Fakturor/Bokföring.'
+      case 'vat_v2_snapshot_missing':
+        return 'Momsunderlag saknas för ett inköp med omvänd moms. Granska inköpets verifikation och momsunderlag i Bokföring.'
+      case 'vat_v2_snapshot_duplicate':
+        return 'Ett inköp med omvänd moms har flera momsunderlag kopplade till samma verifikation. Granska inköpets momsunderlag och verifikation i Bokföring.'
+      case 'vat_v2_snapshot_unexpected':
+        return 'Ett momsunderlag har en oväntad koppling till bokföringen. Granska underlaget och den berörda verifikationen i Bokföring.'
+      case 'vat_v2_snapshot_malformed':
+        return 'Ett inköps momsunderlag är ofullständigt eller felaktigt utformat. Granska inköpets momsunderlag och verifikation i Bokföring.'
+      case 'vat_v2_snapshot_unsupported':
+        return 'Ett inköps momsunderlag har ett format eller en momsbehandling som rapporten inte stöder. Granska inköpets momsunderlag och verifikation i Bokföring.'
+      case 'vat_v2_snapshot_inconsistent':
+        return 'Momsunderlaget för ett inköp med omvänd moms stämmer inte med verifikationen. Granska inköpets momsunderlag och verifikation i Bokföring.'
+      case 'legacy_reverse_charge_ambiguous':
+        return 'Äldre eller importerad bokföring innehåller uppgifter om omvänd moms som inte kan tolkas säkert. Granska verifikationen och momsunderlaget i Bokföring.'
+      case 'fixed_asset_voucher_inconsistent':
+        return 'En inventaries verifikation är ofullständig eller motsägelsefull. Granska inventarien och dess verifikation i Inventarier/Bokföring.'
+      case 'supplier_invoice_voucher_inconsistent':
+        return 'En leverantörsskulds verifikation är ofullständig eller motsägelsefull. Granska skulden och dess verifikation i Bokslutsskulder/Bokföring.'
+      default:
+        return fallback
+    }
   }
 
-  if (errors.some(error => error.code === 'query_failed')) {
-    return 'Momsrapporten kunde inte hämtas just nu. Inga belopp visas förrän rapporten kan beräknas säkert.'
+  // Keep every distinct reason, without exposing raw server messages or details.
+  const messages = new Set<string>()
+  for (const error of errors) {
+    if (error.code === 'invalid_loaded_scope') {
+      messages.add('Momsrapporten kan inte beräknas säkert eftersom laddad data inte matchar inloggat konto.')
+    } else if (error.code === 'query_failed') {
+      messages.add('Momsrapporten kunde inte hämtas just nu. Inga belopp visas förrän rapporten kan beräknas säkert.')
+    } else if (error.code === 'aggregation_blocked' && error.aggregationErrors?.length) {
+      for (const reason of error.aggregationErrors) messages.add(reasonFor(reason.code))
+    } else {
+      messages.add(fallback)
+    }
   }
-
-  return 'Momsrapporten kan inte beräknas säkert eftersom ett inköp med omvänd moms saknar kontrollerbart underlag.'
+  if (messages.size === 0) return fallback
+  const reasons = [...messages]
+  return reasons.length === 1 ? reasons[0] : `Momsrapporten har flera blockeringsorsaker. ${reasons.join(' ')}`
 }
