@@ -748,7 +748,7 @@ assertDeepEqual(
 assertDeepEqual(
   ids(applyTo(sourceCategoryItems, { category: 'customer_invoices' })),
   ['tx-customer-invoice'],
-  'customer invoice category uses only customer_invoice source rows'
+  'without verified historical links, customer invoice category uses native source rows only'
 )
 assertDeepEqual(
   ids(applyTo(sourceCategoryItems, { category: 'income' })),
@@ -834,4 +834,13 @@ assertEqual(
   'page.tsx still gates TransactionTable behind the verified KAN-35 table state'
 )
 
+assertDeepEqual(ids(applyTo([
+  { tx: { id: 'native', source: 'customer_invoice' }, journal: [] },
+  { tx: { id: 'historical', source: 'manual', historical_customer_invoice_link: true }, journal: [] },
+  { tx: { id: 'ordinary', source: 'manual' }, journal: [] },
+  { tx: { id: 'unverified', source: 'manual', customer_invoice_id: 'invoice' }, journal: [] },
+  { tx: { id: 'false-marker', source: 'manual', historical_customer_invoice_link: false }, journal: [] },
+  { tx: { id: 'wrong-source', source: 'sie_import', historical_customer_invoice_link: true }, journal: [] },
+], { category: 'customer_invoices' })).sort(), ['historical', 'native'],
+'customer invoices include native and verified historical manual rows only')
 console.log('\nAll transaction history filter tests passed.\n')

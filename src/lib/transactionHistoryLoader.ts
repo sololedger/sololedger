@@ -8,6 +8,8 @@ export interface TransactionHistoryRow {
   id: string
   user_id?: string | null
   date?: string | null
+  // Read-only presentation evidence, rebuilt on every complete history load.
+  historical_customer_invoice_link?: boolean
   [key: string]: unknown
 }
 
@@ -42,6 +44,22 @@ interface TransactionHistoryFixedAssetRow {
   user_id?: string | null
   acquisition_transaction_id: string
   name?: string | null
+}
+
+interface HistoricalCustomerInvoiceBookingRow {
+  id: string
+  user_id: string
+  transaction_id: string
+  invoice_id: string
+  booking_kind: string
+  booking_date: string
+  fiscal_year: number
+  reverses_booking_id: string | null
+}
+
+interface HistoricalCustomerInvoiceRow {
+  id: string
+  user_id: string
 }
 
 interface TransactionHistoryFixedAssetEventRow {
@@ -261,6 +279,71 @@ async function attachFixedAssetReclassificationTrace({
   }
 }
 
+async function attachHistoricalCustomerInvoiceLinks({
+  client, userId, transactions,
+}: {
+  client: TransactionHistorySupabaseClient
+  userId: string
+  transactions: TransactionHistoryRow[]
+}) {
+  const manualById = new Map(transactions.filter(tx => tx.source === 'manual').map(tx => [tx.id, tx]))
+  if (manualById.size === 0) return
+
+  const bookings = await fetchAllRowsByChunks<HistoricalCustomerInvoiceBookingRow, string>({
+    context: 'transaction history historical customer invoice bookings',
+    values: [...manualById.keys()],
+    createQuery: ids => client.from<HistoricalCustomerInvoiceBookingRow>('customer_invoice_bookings')
+      .select('id, user_id, transaction_id, invoice_id, booking_kind, booking_date, fiscal_year, reverses_booking_id', { count: 'exact' })
+      .eq('user_id', userId)
+      // Read every link for these manual rows: an unexpected kind is an error,
+      // not evidence that the manual transaction has no invoice link.
+      .in('transaction_id', ids)
+      .order('id', { ascending: true }) as TransactionHistoryQueryBuilder<HistoricalCustomerInvoiceBookingRow> &
+      FetchAllRangeQuery<HistoricalCustomerInvoiceBookingRow>,
+  })
+
+  const bookingIds = new Set<string>(), transactionIds = new Set<string>(), invoiceIds = new Set<string>()
+  for (const booking of bookings) {
+    const tx = manualById.get(booking.transaction_id)
+    const date = booking.booking_date
+    const validDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date
+    if (typeof booking.id !== 'string' || !booking.id.trim() ||
+      typeof booking.invoice_id !== 'string' || !booking.invoice_id.trim() || booking.user_id !== userId || !tx ||
+      booking.booking_kind !== 'historical_payment_same_year' || booking.reverses_booking_id !== null ||
+      !validDate || date !== tx.date || booking.fiscal_year !== Number(date.slice(0, 4)) ||
+      bookingIds.has(booking.id) || transactionIds.has(booking.transaction_id) || invoiceIds.has(booking.invoice_id)) {
+      throw new TransactionHistoryLoadError('Historiska kundfakturalänkar kunde inte verifieras: fel ägare, koppling, datum, år eller dubbla uppgifter.')
+    }
+    bookingIds.add(booking.id)
+    transactionIds.add(booking.transaction_id)
+    invoiceIds.add(booking.invoice_id)
+  }
+
+  const invoices = await fetchAllRowsByChunks<HistoricalCustomerInvoiceRow, string>({
+    context: 'transaction history historical customer invoices',
+    values: [...invoiceIds],
+    createQuery: ids => client.from<HistoricalCustomerInvoiceRow>('customer_invoices')
+      .select('id, user_id', { count: 'exact' })
+      .eq('user_id', userId)
+      .in('id', ids)
+      .order('id', { ascending: true }) as TransactionHistoryQueryBuilder<HistoricalCustomerInvoiceRow> &
+      FetchAllRangeQuery<HistoricalCustomerInvoiceRow>,
+  })
+  const verifiedInvoices = new Set<string>()
+  for (const invoice of invoices) {
+    if (invoice.user_id !== userId || !invoiceIds.has(invoice.id) || verifiedInvoices.has(invoice.id)) {
+      throw new TransactionHistoryLoadError('Historiska kundfakturor kunde inte verifieras: fel ägare, koppling eller dubbla uppgifter.')
+    }
+    verifiedInvoices.add(invoice.id)
+  }
+  if (verifiedInvoices.size !== invoiceIds.size) {
+    throw new TransactionHistoryLoadError('Historiska kundfakturor kunde inte verifieras: en kopplad faktura saknas.')
+  }
+  // Do not expose any classification until all pages and references are verified.
+  for (const id of transactionIds) manualById.get(id)!.historical_customer_invoice_link = true
+}
+
 export async function loadCompleteTransactionHistory({
   client,
   userId,
@@ -272,7 +355,7 @@ export async function loadCompleteTransactionHistory({
   startDate: string
   endDate: string
 }): Promise<CompleteTransactionHistoryResult> {
-  const transactions = await fetchAllRows<TransactionHistoryRow>({
+  const rawTransactions = await fetchAllRows<TransactionHistoryRow>({
     context: 'transaction history transactions',
     createQuery: () =>
       client
@@ -286,7 +369,8 @@ export async function loadCompleteTransactionHistory({
         FetchAllRangeQuery<TransactionHistoryRow>,
   })
 
-  assertTransactionRows(transactions, userId, startDate, endDate)
+  assertTransactionRows(rawTransactions, userId, startDate, endDate)
+  const transactions = rawTransactions.map(tx => ({ ...tx, historical_customer_invoice_link: false }))
 
   const transactionIds = transactions.map(transaction => transaction.id)
   const allowedTransactionIds = new Set(transactionIds)
@@ -317,6 +401,8 @@ export async function loadCompleteTransactionHistory({
     transactions,
     journalMap,
   })
+
+  await attachHistoricalCustomerInvoiceLinks({ client, userId, transactions })
 
   return {
     transactions,

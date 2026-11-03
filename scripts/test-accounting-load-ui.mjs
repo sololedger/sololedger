@@ -38,6 +38,13 @@ try {
   async function amount(value) { await page.waitForFunction(v => document.querySelector('[data-testid="amount"]')?.textContent === String(v), value) }
   async function select(owner, year) {
     assert.equal(await page.evaluate(([u, y]) => window.harness.select(u, y), [owner, year]), true, 'stale values hidden in the first render')
+    assert.deepEqual((await page.evaluate(() => window.harness.visible())).history, [], 'historical invoice markers are masked immediately with the old scope')
+  }
+  async function linked(owner, year, value) {
+    assert.deepEqual((await page.evaluate(() => window.harness.visible())).history, [{
+      id: 'synthetic-' + value, user_id: owner, date: year + '-01-01', source: 'manual',
+      description: 'Syntetiskt', historical_customer_invoice_link: true,
+    }], 'only verified markers from the current complete load are published')
   }
   async function hidden() { assert.equal(await page.locator('[data-testid="values"]').count(), 0) }
   await finish(await batch(), 126); await amount(126)
@@ -51,7 +58,9 @@ try {
     process.exitCode = 0
   } else {
   console.log('PASS 2026 successful load; real dashboard and NE rendered')
+  await linked('company-a', 2026, 126)
   await select('company-a', 2027); await finish(await batch(), 227); await amount(227)
+  await linked('company-a', 2027, 227)
   console.log('PASS 2026 -> 2027 success, immediate masking')
   for (const kind of ['balances', 'cumulative', 'ne', 'history', 'vat', 'lock', 'missing-ne']) {
     await select('company-a', 2026); await finish(await batch(), 126); await amount(126)
@@ -70,20 +79,24 @@ try {
   await finish(newest, 428); await amount(428)
   await finish(middle, 529); await finish(old, 628)
   await amount(428)
+  await linked('company-a', 2028, 428)
   console.log('PASS rapid A -> B -> A, replies out of order')
   await page.evaluate(() => { void window.harness.refresh() }); const refreshOld = await batch()
   await page.evaluate(() => { void window.harness.refresh() }); const refreshNew = await batch()
   await finish(refreshNew, 728); await amount(728)
   await finish(refreshOld, 828, 'ne'); await amount(728)
+  await linked('company-a', 2028, 728)
   console.log('PASS overlapping refreshes in same year, stale failure ignored')
   await page.evaluate(() => { void window.harness.refresh() }); const userOld = await batch()
   await select('company-b', 2028); const userNew = await batch()
   await finish(userNew, 928); await amount(928)
   await finish(userOld, 1028); await amount(928)
+  await linked('company-b', 2028, 928)
   console.log('PASS user/company switch in same year')
   await page.evaluate(() => { void window.harness.refresh() }); const logoutOld = await batch()
   await select(null, 2028); await finish(logoutOld, 1128); await hidden()
   assert.equal((await page.evaluate(() => window.harness.visible())).ready, false)
+  assert.deepEqual((await page.evaluate(() => window.harness.visible())).history, [], 'logout clears historical invoice evidence')
   console.log('PASS logout invalidates pending replies')
   await select('company-b', 2030); await finish(await batch(), 0); await amount(0)
   assert.equal(await page.getByTestId('history').innerText(), 'Tomt år')

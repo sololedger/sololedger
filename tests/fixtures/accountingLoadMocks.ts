@@ -32,7 +32,8 @@ export function finish(groupId: number, value: number, failKind?: string) {
       balances: { '3010': -value }, cumulative: { '1930': value },
       ne: { R1: value, R11: value, R17: value, bank: value, B9: value, B10_total: value },
       vat: { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }, lock: false,
-      history: { transactions: value ? [{ id: 'synthetic', date: '2026-01-01', description: 'Syntetiskt' }] : [], journalMap: {} },
+      history: { transactions: value ? [{ id: 'synthetic-' + value, user_id: item.owner, date: item.year + '-01-01',
+        source: 'manual', description: 'Syntetiskt', historical_customer_invoice_link: true }] : [], journalMap: {} },
     }
     item.resolve(failKind === 'missing-ne' && item.kind === 'ne' ? null : values[item.kind])
   }

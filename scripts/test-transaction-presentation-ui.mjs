@@ -16,14 +16,15 @@ const {transactions, journalMap} = kan84Fixture()
 const common = {user_id:'fixture-owner',booked:true,vat_rate:0,source:'manual',is_correction:false}
 for(const [ver,description,source,correction,corrects] of [
   [70,'Vanlig kostnad','manual',false,null], [71,'Vanlig försäljning','manual',false,null],
+  [72,'Vanlig kundfaktura','customer_invoice',false,null], [73,'Historiskt kopplad kundfaktura','manual',false,null],
   [80,'Befintlig KORRVER','manual',true,79],
   [90,'Ångrad SIE-import: synthetic.se — korrigering av VER-88','sie_import_undo',true,88],
   [91,'Ångrad SIE-import: synthetic.se — korrigering av VER-89','sie_import_undo',true,89]]) {
   const id='other-'+ver
   transactions.push({...common,id,date:'2026-10-01',description,amount:57,type:'ordinary',source,
-    is_correction:correction,corrects_ver_nr:corrects,import_batch_id:source==='sie_import_undo'?'synthetic-undo':null})
-  journalMap[id]=[{id:id+'d',transaction_id:id,user_id:common.user_id,date:'2026-10-01',ver_nr:ver,account_number:ver===71?'1930':'5420',debit:57,credit:0},
-    {id:id+'c',transaction_id:id,user_id:common.user_id,date:'2026-10-01',ver_nr:ver,account_number:ver===71?'3010':'1930',debit:0,credit:57}]
+    historical_customer_invoice_link:ver===73,is_correction:correction,corrects_ver_nr:corrects,import_batch_id:source==='sie_import_undo'?'synthetic-undo':null})
+  journalMap[id]=[{id:id+'d',transaction_id:id,user_id:common.user_id,date:'2026-10-01',ver_nr:ver,account_number:[71,72,73].includes(ver)?'1930':'5420',debit:57,credit:0},
+    {id:id+'c',transaction_id:id,user_id:common.user_id,date:'2026-10-01',ver_nr:ver,account_number:[71,72,73].includes(ver)?'3010':'1930',debit:0,credit:57}]
 }
 const original=JSON.stringify({transactions,journalMap})
 transactions.forEach(Object.freeze);Object.values(journalMap).forEach(rows=>{rows.forEach(Object.freeze);Object.freeze(rows)})
@@ -83,6 +84,12 @@ try {
     await expect(row(71)).toContainText('+ 57 kr')
     await expect(row(80)).toContainText('Befintlig KORRVER')
     await expect(row(22)).toContainText('- 285 kr')
+    await page.getByRole('button', { name: 'Kundfakturor', exact: true }).click()
+    await expect(page.getByText('Visar 2 inkluderade av 26 transaktioner')).toBeVisible()
+    for (const ver of [72,73]) await expect(visibleText('VER-' + ver)).toHaveCount(1)
+    for (const ver of [70,71]) await expect(visibleText('VER-' + ver)).toHaveCount(0)
+    assert.equal(await page.evaluate(() => window.verifyOriginal()), true)
+    await page.getByRole('button', { name: 'Alla', exact: true }).click()
     const original = kan84Fixture().transactions.find(t => t.id === 'synthetic-tx-18').description
     await row(18).getByText('Visa originalbeskrivning', { exact: true }).click()
     await expect(row(18).getByText(original, { exact: true })).toBeVisible()
@@ -90,12 +97,12 @@ try {
     await row(28).screenshot({ path: `test-results/history-presentation/${viewport.width}-refund.png` })
     const search = page.getByRole('searchbox', { name: 'Sök transaktionshistorik' })
     await search.fill('Adobe')
-    await expect(page.getByText('Visar 19 inkluderade av 24 transaktioner')).toBeVisible()
+    await expect(page.getByText('Visar 19 inkluderade av 26 transaktioner')).toBeVisible()
     for (const month of ['juni', 'juli', 'augusti', 'september', 'oktober']) {
       await expect(visibleText('Adobe – EU-tjänst ' + month + ' 2026')).toBeVisible()
     }
     await search.fill('TESTINVOICE6')
-    await expect(page.getByText('Visar 1 inkluderade av 24 transaktioner')).toBeVisible()
+    await expect(page.getByText('Visar 1 inkluderade av 26 transaktioner')).toBeVisible()
     await search.fill('')
     await page.screenshot({ path: `test-results/history-presentation/${viewport.width}-rows.png`, fullPage: true })
     await page.getByRole('switch', { name: 'Gruppera gemensamma underlag' }).click()

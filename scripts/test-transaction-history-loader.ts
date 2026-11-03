@@ -8,7 +8,8 @@ import {
 } from '../src/lib/transactionHistoryLoader.ts'
 import type { FetchAllQueryResult, FetchAllRangeQuery } from '../src/lib/supabaseFetchAll.ts'
 
-type TableName = 'transactions' | 'journal_entries' | 'fixed_asset_events' | 'fixed_assets'
+type TableName = 'transactions' | 'journal_entries' | 'fixed_asset_events' | 'fixed_assets' |
+  'customer_invoice_bookings' | 'customer_invoices'
 type FixedAssetEventTestRow = {
   id: string
   user_id?: string | null
@@ -45,6 +46,7 @@ interface FakeClientOptions {
   countOffsetTable?: TableName
   errorTable?: TableName
   ignoreFiltersTable?: TableName
+  beforeResponse?: (table: TableName) => Promise<void>
 }
 
 function assertEqual<T>(actual: T, expected: T, label: string) {
@@ -181,7 +183,7 @@ class FakeQuery<T extends TestRow> implements FetchAllRangeQuery<T> {
       count,
     }
 
-    return Promise.resolve(result).then(onfulfilled, onrejected)
+    return Promise.resolve(this.options.beforeResponse?.(this.table)).then(() => result).then(onfulfilled, onrejected)
   }
 }
 
@@ -199,6 +201,8 @@ class FakeSupabaseClient {
       journal_entries: tables.journal_entries ?? [],
       fixed_asset_events: tables.fixed_asset_events ?? [],
       fixed_assets: tables.fixed_assets ?? [],
+      customer_invoice_bookings: tables.customer_invoice_bookings ?? [],
+      customer_invoices: tables.customer_invoices ?? [],
     }
     this.options = options
   }
@@ -208,7 +212,9 @@ class FakeSupabaseClient {
       table !== 'transactions' &&
       table !== 'journal_entries' &&
       table !== 'fixed_asset_events' &&
-      table !== 'fixed_assets'
+      table !== 'fixed_assets' &&
+      table !== 'customer_invoice_bookings' &&
+      table !== 'customer_invoices'
     ) {
       throw new Error(`Unexpected table: ${table}`)
     }
@@ -608,4 +614,109 @@ for (const invalid of [
     userId:fixture.userA,startDate:'2026-01-01',endDate:'2026-12-31',
   }), 'Inventarie', 'incomplete or invalid reclassification trace fails closed')
 }
+function historicalFixture() {
+  return {
+    transactions: [
+      { id: 'manual-linked', user_id: 'owner', date: '2026-02-03', source: 'manual' },
+      { id: 'manual-ordinary', user_id: 'owner', date: '2026-02-03', source: 'manual', customer_invoice_id: 'unverified-id', historical_customer_invoice_link: true },
+      { id: 'native', user_id: 'owner', date: '2026-02-03', source: 'customer_invoice' },
+      { id: 'old', user_id: 'owner', date: '2025-02-03', source: 'manual' },
+      { id: 'foreign', user_id: 'other-owner', date: '2026-02-03', source: 'manual' },
+    ],
+    customer_invoice_bookings: [{ id: 'link', user_id: 'owner', transaction_id: 'manual-linked', invoice_id: 'invoice',
+      booking_kind: 'historical_payment_same_year', booking_date: '2026-02-03', fiscal_year: 2026, reverses_booking_id: null as string | null }],
+    customer_invoices: [{ id: 'invoice', user_id: 'owner' }],
+  }
+}
+async function loadHistorical(client: FakeSupabaseClient) {
+  return loadCompleteTransactionHistory({ client: asHistoryClient(client), userId: 'owner', startDate: '2026-01-01', endDate: '2026-12-31' })
+}
+const historicalTables = historicalFixture()
+const originalTables = JSON.stringify(historicalTables)
+const historicalClient = new FakeSupabaseClient(historicalTables)
+const historical = await loadHistorical(historicalClient)
+assertEqual(historical.transactions.length, 3, 'historical links do not add transactions from other owners or years')
+assertTrue(historical.transactions.find(tx => tx.id === 'manual-linked')?.historical_customer_invoice_link === true, 'valid historical link is marked')
+assertTrue(historical.transactions.find(tx => tx.id === 'manual-ordinary')?.historical_customer_invoice_link === false, 'raw flags and customer_invoice_id never prove historical linkage')
+assertTrue(historical.transactions.find(tx => tx.id === 'manual-linked')?.source === 'manual', 'stored source is preserved')
+assertEqual(JSON.stringify(historicalTables), originalTables, 'classification never mutates input or stored rows')
+for (const table of ['customer_invoice_bookings', 'customer_invoices'] as const) {
+  assertTrue(historicalClient.calls.filter(call => call.table === table).every(call => call.selectCount === 'exact' && call.filters.includes('user_id=') && call.orders.some(order => order.column === 'id')), `${table} uses owner scope, exact count and stable order`)
+}
+assertTrue(historicalClient.calls.find(call => call.table === 'customer_invoice_bookings')!.filters.includes('transaction_id in 2'), 'only already loaded manual transactions are queried')
+
+const malformedBookings: Array<Partial<typeof historicalTables.customer_invoice_bookings[number]>> = [
+  { user_id: 'other-owner' }, { transaction_id: 'unknown' }, { transaction_id: 'native' },
+  { transaction_id: 'old' }, { transaction_id: 'foreign' }, { invoice_id: '' }, { id: '' },
+  { booking_kind: 'payment_same_year' }, { fiscal_year: 2025 }, { booking_date: '2026-02-04' },
+  { booking_date: '2026-02-30' }, { booking_date: '2026-2-03' }, { reverses_booking_id: 'reversal' },
+]
+for (const change of malformedBookings) {
+  const tables = historicalFixture()
+  Object.assign(tables.customer_invoice_bookings[0], change)
+  await assertThrows(() => loadHistorical(new FakeSupabaseClient(tables, { ignoreFiltersTable: 'customer_invoice_bookings' })),
+    'Historiska kundfakturalänkar', 'invalid booking fails closed: ' + JSON.stringify(change))
+}
+const wrongKindTables = historicalFixture()
+wrongKindTables.customer_invoice_bookings[0].booking_kind = 'payment_same_year'
+await assertThrows(() => loadHistorical(new FakeSupabaseClient(wrongKindTables)), 'Historiska kundfakturalänkar',
+  'unexpected booking kind for a manual transaction is not silently excluded by a query filter')
+for (const duplicate of [
+  { id: 'link' },
+  { id: 'another', invoice_id: 'another-invoice' },
+  { id: 'another', transaction_id: 'manual-ordinary' },
+]) {
+  const tables = historicalFixture()
+  tables.customer_invoice_bookings.push({ ...tables.customer_invoice_bookings[0], ...duplicate })
+  await assertThrows(() => loadHistorical(new FakeSupabaseClient(tables)), 'Historiska kundfakturalänkar', 'duplicate booking, transaction or historical invoice fails closed')
+}
+for (const invoices of [[], [{ id: 'invoice', user_id: 'other-owner' }],
+  [{ id: 'unexpected', user_id: 'owner' }], [{ id: 'invoice', user_id: 'owner' }, { id: 'invoice', user_id: 'owner' }]]) {
+  const tables = historicalFixture()
+  tables.customer_invoices = invoices
+  await assertThrows(() => loadHistorical(new FakeSupabaseClient(tables, { ignoreFiltersTable: 'customer_invoices' })),
+    'Historiska kundfakturor', 'missing, foreign, unexpected or duplicate invoice fails closed')
+}
+for (const table of ['customer_invoice_bookings', 'customer_invoices'] as const) {
+  for (const options of [{ missingCountTable: table }, { countOffsetTable: table }, { errorTable: table }]) {
+    await assertThrows(() => loadHistorical(new FakeSupabaseClient(historicalFixture(), options)),
+      table === 'customer_invoice_bookings' ? 'historical customer invoice bookings' : 'historical customer invoices',
+      `${table}: absent count, incomplete pagination or read error fails closed`)
+  }
+}
+
+// The same input objects are reused to expose any stale annotation across refreshes.
+const refreshTables = historicalFixture(), refreshClient = new FakeSupabaseClient(refreshTables)
+const savedLink = refreshTables.customer_invoice_bookings.pop()!
+assertTrue((await loadHistorical(refreshClient)).transactions.every(tx => !tx.historical_customer_invoice_link), 'no link initially')
+refreshTables.customer_invoice_bookings.push(savedLink)
+assertTrue((await loadHistorical(refreshClient)).transactions.some(tx => tx.historical_customer_invoice_link), 'refresh discovers a new link without new bookkeeping')
+refreshTables.customer_invoice_bookings.length = 0
+assertTrue((await loadHistorical(refreshClient)).transactions.every(tx => !tx.historical_customer_invoice_link), 'refresh rebuilds all temporary classifications')
+
+let invoiceReadStarted!: () => void, releaseOldInvoiceRead!: () => void
+const invoiceRead = new Promise<void>(resolve => { invoiceReadStarted = resolve })
+const oldInvoiceReply = new Promise<void>(resolve => { releaseOldInvoiceRead = resolve })
+const overlappingTables = historicalFixture()
+const oldLoad = loadHistorical(new FakeSupabaseClient(overlappingTables, { beforeResponse: table => {
+  if (table === 'customer_invoices') { invoiceReadStarted(); return oldInvoiceReply }
+  return Promise.resolve()
+} }))
+await invoiceRead
+overlappingTables.customer_invoice_bookings.length = 0
+const newLoad = await loadHistorical(new FakeSupabaseClient(overlappingTables))
+releaseOldInvoiceRead()
+assertTrue((await oldLoad).transactions.some(tx => tx.historical_customer_invoice_link), 'delayed invoice existence check finishes its own snapshot')
+assertTrue(newLoad.transactions.every(tx => !tx.historical_customer_invoice_link), 'late link verification cannot mutate a newer history snapshot')
+
+const manyTransactions = Array.from({ length: 1101 }, (_, i) => ({ id: 'manual-' + i, user_id: 'owner', date: '2026-02-03', source: 'manual' }))
+const manyBookings = manyTransactions.map(tx => ({ ...savedLink, id: 'link-' + tx.id, transaction_id: tx.id, invoice_id: 'invoice-' + tx.id }))
+const manyClient = new FakeSupabaseClient({ transactions: manyTransactions, customer_invoice_bookings: manyBookings,
+  customer_invoices: manyBookings.map(b => ({ id: b.invoice_id, user_id: 'owner' })) })
+assertEqual((await loadHistorical(manyClient)).transactions.filter(tx => tx.historical_customer_invoice_link).length, 1101, 'all historical links load beyond both 200 and 1000 rows')
+assertEqual(manyClient.calls.filter(call => call.table === 'customer_invoice_bookings').length, 3, 'booking queries are safely chunked')
+assertEqual(manyClient.calls.filter(call => call.table === 'customer_invoices').length, 3, 'invoice existence checks are safely chunked')
+const noManualClient = new FakeSupabaseClient({ transactions: historicalFixture().transactions.filter(tx => tx.source === 'customer_invoice') })
+await loadHistorical(noManualClient)
+assertTrue(noManualClient.calls.every(call => !call.table.startsWith('customer_invoice')), 'no extra requests without manual candidates')
 console.log('\nAll transaction history loader tests passed.\n')

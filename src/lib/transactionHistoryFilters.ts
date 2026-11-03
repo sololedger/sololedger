@@ -52,6 +52,7 @@ export interface TransactionHistoryFilterItem {
     source_ver_series?: string | null
     source_ver_number?: string | number | null
     customer_invoice_id?: string | null
+    historical_customer_invoice_link?: boolean
     vat_rate?: string | number | null
     is_correction?: boolean | null
     corrects_ver_nr?: string | number | null
@@ -184,7 +185,10 @@ function itemMatchesCategory(
   if (category === 'all') return true
   if (category === 'income') return hasResultAccountType(item, 'income')
   if (category === 'costs') return hasResultAccountType(item, 'expense')
-  if (category === 'customer_invoices') return sourceIs(item, ['customer_invoice'])
+  if (category === 'customer_invoices') {
+    return sourceIs(item, ['customer_invoice']) ||
+      (sourceIs(item, ['manual']) && item.tx.historical_customer_invoice_link === true)
+  }
   if (category === 'foreign_purchases') return sourceIs(item, ['vat_v2'])
   if (category === 'vat_tax') {
     return sourceIs(item, ['vat_closing', 'vat_settlement', 'tax_account_movement'])
