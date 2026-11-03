@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { filterKontoplan, groupKontoplan, type KontoplanVisibility } from '@/lib/kontoplanPresentation'
 import CategoryVisibilityControl from './CategoryVisibilityControl'
 import { supabase } from '@/lib/supabaseClient'
 import {
@@ -50,6 +51,15 @@ function personnelAccountWarning(accountNumber: string) {
 export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   const [kontoplan, setKontoplan] = useState<AccountRow[]>([])
   const [newAccount, setNewAccount] = useState<AccountForm>(EMPTY_ACCOUNT)
+  const [search, setSearch] = useState('')
+  const [visibility, setVisibility] = useState<KontoplanVisibility>('all')
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true)
+  const selectedForm = useRef<HTMLFormElement>(null)
+  const suggestionsSummary = useRef<HTMLElement>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const formHeading = useRef<HTMLHeadingElement>(null)
+  const addButton = useRef<HTMLButtonElement>(null)
   const [saving, setSaving] = useState(false)
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [visibilityError, setVisibilityError] = useState<string | null>(null)
@@ -103,6 +113,8 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     default_vat_rate: number
     comment: string
   }) {
+    setSuggestionsOpen(false)
+    requestAnimationFrame(() => selectedForm.current?.focus())
     setEditingId(null)
     setShowManualForm(false)
     setShowAdvancedSettings(false)
@@ -117,6 +129,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
   }
 
   function startEdit(acc: AccountRow) {
+    setFormOpen(true)
     setEditingId(acc.id)
     setShowManualForm(true)
     setShowAdvancedSettings(false)
@@ -129,10 +142,12 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       comment: acc.comment ?? '',
     })
 
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    requestAnimationFrame(() => formHeading.current?.focus())
   }
 
   function cancelEdit() {
+    setFormOpen(false)
+    addButton.current?.focus()
     setEditingId(null)
     setShowManualForm(false)
     setShowAdvancedSettings(false)
@@ -163,7 +178,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     setSaving(true)
 
     try {
-      validateAccountNumber(newAccount.debit_account, 'Debitkonto')
+      validateAccountNumber(newAccount.debit_account, 'Debetkonto')
       validateAccountNumber(newAccount.credit_account, 'Kreditkonto')
 
       const {
@@ -209,10 +224,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       if (onAccountCreated) {
         await onAccountCreated()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
       alert(
-        `Kunde inte ${editingId ? 'uppdatera' : 'spara'} konto: ${err.message}`
+        `Kunde inte ${editingId ? 'uppdatera' : 'spara'} konto: ${err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err)}`
       )
     } finally {
       setSaving(false)
@@ -299,9 +314,9 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
       if (onAccountCreated) {
         await onAccountCreated()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      alert(err?.message || 'Kunde inte radera kontot.')
+      alert(err && typeof err === 'object' && 'message' in err ? String(err.message) : 'Kunde inte radera kontot.')
     }
   }
 
@@ -314,109 +329,105 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
     newAccount.credit_account
   )
 
+  const filtered = filterKontoplan(kontoplan, search, visibility)
+  const groups = groupKontoplan(filtered)
+
   return (
-    <div className="space-y-8">
-      <p className="text-sm text-gray-600">Dölj kategorier som du inte vill välja vid ny bokföring. Historik och rapporter bevaras. Du kan alltid välja Visa igen.</p>
-      {visibilityError && <p role="alert" className="text-sm text-red-700">{visibilityError}</p>}
-      <div className="bg-white p-4 sm:p-8 rounded-[2.5rem] border shadow-sm">
+    <div className="kontoplan-ux min-w-0 space-y-5 pb-6">
+
+      <header className="space-y-3 rounded-[2rem] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="text-xl font-bold text-gray-900">Bokföringskategorier</h2>
+        <p className="max-w-3xl text-sm leading-relaxed text-gray-700">Hantera kategorierna du väljer när du bokför. Sök, lägg till eller dölj kategorier du inte använder.</p>
+        <details className="text-sm text-gray-700">
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold text-gray-800">Bra att veta</summary>
+          <div className="max-w-3xl space-y-2 pb-2 leading-relaxed">
+            <p>Varje kategori har förinställda bokföringskonton och en förvald momssats. Kontrollera att inställningarna passar den aktuella händelsen.</p>
+            <p>De vanligaste kategorierna finns redan. Dolda kategorier finns kvar i historik och rapporter och kan visas igen.</p>
+            <p>0 % förvald moms innebär inte automatiskt att momsbehandlingen är korrekt.</p>
+          </div>
+        </details>
+      </header>
+      <section aria-label="Befintliga kategorier" className="space-y-5 rounded-[2rem] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <label className="block w-full max-w-xl text-sm font-semibold text-gray-800">Sök kategorier
+            <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Namn, kontonummer eller kommentar" className="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base font-normal text-gray-900 placeholder:text-gray-500" />
+          </label>
+          <button ref={addButton} type="button" aria-expanded={formOpen} aria-controls="kontoplan-form" onClick={() => {
+            setSuggestionsOpen(true)
+            setShowAllSuggestions(false)
+            setEditingId(null)
+            setNewAccount(EMPTY_ACCOUNT)
+            setShowManualForm(false)
+            setShowAdvancedSettings(false)
+            setFormOpen(true)
+            requestAnimationFrame(() => formHeading.current?.focus())
+          }} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Lägg till kategori</button>
+        </div>
+        <div role="group" aria-label="Filtrera kategorier" className="flex flex-wrap gap-2">
+          {([['all', 'Alla'], ['visible', 'Visade'], ['hidden', 'Dolda']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={visibility === value} onClick={() => setVisibility(value)} className={'min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold ' + (visibility === value ? 'border-emerald-700 bg-emerald-50 text-emerald-900' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50')}>{label}</button>)}
+        </div>
+        <p role="status" className="text-sm text-gray-600">Visar {filtered.length} av {kontoplan.length} kategorier.</p>
+        {visibilityError && <p role="alert" className="text-sm text-red-700">{visibilityError}</p>}
+        {groups.map(group => <section key={group.label} aria-label={group.label} className="space-y-3">
+          <h3 className="text-base font-semibold text-gray-900">{group.label} <span className="font-normal text-gray-600">({group.rows.length})</span></h3>
+          {group.rows.map(acc => <article key={acc.id} aria-label={acc.name} className="min-w-0 rounded-2xl border border-gray-200 p-3 sm:p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0"><h4 className="break-words text-base font-semibold text-gray-900">{acc.name}</h4>{acc.comment && <p className="mt-1 break-words text-sm leading-relaxed text-gray-700">{acc.comment}</p>}</div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button type="button" aria-label={'Redigera kategori: ' + acc.name} onClick={() => startEdit(acc)} className="min-h-11 rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Redigera</button>
+                <button type="button" aria-label={'Radera kategori: ' + acc.name} onClick={() => void handleDelete(acc.id)} className="min-h-11 rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Radera</button>
+              </div>
+            </div>
+            <div className="mt-1"><CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking} disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} /></div>
+            {(isPersonnelAccount(acc.debit_account) || isPersonnelAccount(acc.credit_account)) && <p className="mt-2 rounded-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-sm leading-snug text-amber-900">{personnelAccountWarning(isPersonnelAccount(acc.debit_account) ? acc.debit_account : acc.credit_account)}</p>}
+            <details className="mt-1 border-t border-gray-100">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-800">Konton och förvald moms</summary>
+              <dl className="grid gap-4 py-2 sm:grid-cols-3">
+                <div><dt className="text-sm font-semibold text-gray-700">Debetkonto</dt><dd className="mt-1 font-mono text-base text-gray-900">{acc.debit_account}</dd>{getBasAccountHelp(acc.debit_account) && <dd className="mt-1 text-sm text-gray-600">{getBasAccountHelp(acc.debit_account)}</dd>}</div>
+                <div><dt className="text-sm font-semibold text-gray-700">Kreditkonto</dt><dd className="mt-1 font-mono text-base text-gray-900">{acc.credit_account}</dd>{getBasAccountHelp(acc.credit_account) && <dd className="mt-1 text-sm text-gray-600">{getBasAccountHelp(acc.credit_account)}</dd>}</div>
+                <div><dt className="text-sm font-semibold text-gray-700">Förvald moms</dt><dd className="mt-1 text-base text-gray-900">{acc.default_vat_rate} %</dd></div>
+              </dl>
+              <p className="mt-2 text-sm leading-relaxed text-gray-700">Förvald moms är en inställning för kategorin. 0 % innebär inte automatiskt att momsbehandlingen är korrekt.</p>
+              <p className="mt-3 break-all text-xs text-gray-600">Kategori-ID: {acc.id}</p>
+            </details>
+          </article>)}
+        </section>)}
+        {filtered.length === 0 && <p className="rounded-xl bg-gray-50 p-5 text-sm text-gray-700">{kontoplan.length === 0 ? 'Inga kategorier tillagda ännu.' : 'Inga kategorier matchar sökningen och filtret.'}</p>}
+      </section>
+      {formOpen && <section id="kontoplan-form" aria-label="Kategoriformulär">
+      <div className="bg-white p-4 sm:p-6 rounded-[2rem] border border-gray-200 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div>
-            <h2 className="text-sm font-black uppercase text-emerald-600 tracking-widest">
+            <h2 ref={formHeading} tabIndex={-1} className="scroll-mt-6 text-lg font-bold text-gray-900">
               {editingId ? 'Redigera bokföringskategori' : 'Lägg till bokföringskategori'}
             </h2>
-            <p className="text-[10px] text-gray-400 font-medium mt-1 max-w-2xl leading-relaxed">
+            <p className="text-sm text-gray-600 font-medium mt-1 max-w-2xl leading-relaxed">
               SoloLedger har redan lagt till de vanligaste bokföringskategorierna åt
               dig. Lägg bara till fler när du behöver dem.
             </p>
           </div>
 
-          {editingId && (
+          {formOpen && (
             <button
               type="button"
               onClick={cancelEdit}
-              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 text-[10px] font-black uppercase tracking-wider transition-colors"
+              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 text-sm font-semibold tracking-wider transition-colors"
             >
-              Avbryt redigering
+              {editingId ? 'Avbryt redigering' : 'Stäng tilläggsformuläret'}
             </button>
           )}
         </div>
 
-        {!editingId && (
-          <div className="mb-6">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-              Vanliga kategorier att lägga till
-            </p>
-
-            <p className="text-[10px] text-gray-400 mb-3">
-              Klicka på en kategori för att se vad den används till innan du lägger
-              till den.
-            </p>
-
-            {tillgangligaForslag.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {tillgangligaForslag.map(forslag => {
-                  const isSelected = newAccount.id === forslag.id
-
-                  return (
-                    <button
-                      key={forslag.id}
-                      type="button"
-                      onClick={() => {
-                        if (newAccount.id === forslag.id) {
-                          setNewAccount(EMPTY_ACCOUNT)
-                          setShowManualForm(false)
-                          setShowAdvancedSettings(false)
-                        } else {
-                          applyForslag(forslag)
-                        }
-                      }}
-                      className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-all shadow-sm ${isSelected
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800'
-                        }`}
-                    >
-                      {isSelected ? '✓' : '+'} {forslag.name}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-[10px] text-gray-400 italic">
-                Alla snabbförslag finns redan i din kontoplan.
-              </p>
-            )}
-          </div>
-        )}
-
-        {!editingId && !newAccount.id && (
-          <div className="mb-5">
-            <button
-              type="button"
-              onClick={() => {
-                setShowManualForm(current => !current)
-
-                if (showManualForm) {
-                  setNewAccount(EMPTY_ACCOUNT)
-                }
-              }}
-              className="text-[10px] font-black text-gray-500 hover:text-emerald-700 transition-colors"
-            >
-              {showManualForm
-                ? '− Stäng manuell inmatning'
-                : '+ Lägg till egen kategori manuellt'}
-            </button>
-          </div>
-        )}
-
         {(newAccount.id || showManualForm || editingId) && (
-          <form onSubmit={handleSaveAccount}>
+          <form ref={selectedForm} tabIndex={-1} aria-label="Vald kategori och inställningar" onSubmit={handleSaveAccount}>
+            <p className="mb-4 text-sm leading-relaxed text-gray-700">Förvald moms är en inställning för kategorin. 0 % innebär inte automatiskt att momsbehandlingen är korrekt.</p>
             {(showManualForm || editingId) && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  <label htmlFor={"kontoplan-field-1"} className="text-sm font-semibold text-gray-500 ml-1">
                     ID {editingId ? '(kan inte ändras)' : '(t.ex. resor)'}
                   </label>
-                  <input
+                  <input id={"kontoplan-field-1"}
                     type="text"
                     value={newAccount.id}
                     onChange={e =>
@@ -424,39 +435,39 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     }
                     placeholder="resor"
                     disabled={Boolean(editingId)}
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 placeholder:text-gray-600/70 transition-all disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
                     required
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  <label htmlFor={"kontoplan-field-2"} className="text-sm font-semibold text-gray-500 ml-1">
                     Namn
                   </label>
-                  <input
+                  <input id={"kontoplan-field-2"}
                     type="text"
                     value={newAccount.name}
                     onChange={e =>
                       setNewAccount({ ...newAccount, name: e.target.value })
                     }
                     placeholder="Resor"
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 placeholder:text-gray-600/70 transition-all"
                     required
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  <label htmlFor={"kontoplan-field-3"} className="text-sm font-semibold text-gray-500 ml-1">
                     Kommentar
                   </label>
-                  <input
+                  <input id={"kontoplan-field-3"}
                     type="text"
                     value={newAccount.comment}
                     onChange={e =>
                       setNewAccount({ ...newAccount, comment: e.target.value })
                     }
                     placeholder="T.ex. tåg, taxi, parkering"
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 placeholder:text-gray-600/70 transition-all"
                   />
                 </div>
               </div>
@@ -464,14 +475,18 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
 
             {!showManualForm && !editingId && newAccount.id && (
               <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
-                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                <p className="text-sm font-semibold tracking-wider text-sky-800">
                   Vald bokföringskategori
                 </p>
                 <p className="mt-1 text-sm font-black text-gray-800">
                   {newAccount.name}
                 </p>
+                <button type="button" onClick={() => {
+                  setSuggestionsOpen(true)
+                  requestAnimationFrame(() => suggestionsSummary.current?.focus())
+                }} className="mt-2 min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Byt kategori</button>
                 {newAccount.comment && (
-                  <p className="mt-1 text-[10px] text-gray-500 leading-relaxed">
+                  <p className="mt-1 text-sm text-gray-500 leading-relaxed">
                     {newAccount.comment}
                   </p>
                 )}
@@ -484,7 +499,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                   ? 'border-amber-200 bg-amber-50'
                   : guidance.status === 'technical'
                     ? 'border-sky-200 bg-sky-50'
-                    : 'border-emerald-200 bg-emerald-50'
+                    : 'border-sky-200 bg-sky-50'
                   }`}
               >
                 <div className="flex items-start gap-3">
@@ -493,42 +508,42 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                       ? 'bg-amber-100'
                       : guidance.status === 'technical'
                         ? 'bg-sky-100'
-                        : 'bg-emerald-100'
+                        : 'bg-sky-100'
                       }`}
                   >
                     {guidance.status === 'conditional'
                       ? '⚠'
                       : guidance.status === 'technical'
                         ? '⚙'
-                        : '✓'}
+                        : 'ℹ'}
                   </div>
 
                   <div className="min-w-0">
                     <p
-                      className={`text-[10px] font-black uppercase tracking-wider ${guidance.status === 'conditional'
+                      className={`text-sm font-semibold tracking-wider ${guidance.status === 'conditional'
                         ? 'text-amber-700'
                         : guidance.status === 'technical'
                           ? 'text-sky-700'
-                          : 'text-emerald-700'
+                          : 'text-sky-800'
                         }`}
                     >
                       {guidance.status === 'conditional'
                         ? 'Kontrollera först'
                         : guidance.status === 'technical'
                           ? 'Teknisk kategori'
-                          : 'SoloLedger-guide'}
+                          : 'Vägledning för kategorin'}
                     </p>
 
-                    <p className="mt-1 text-xs font-semibold text-gray-700 leading-relaxed">
+                    <p className="mt-1 text-sm font-semibold text-gray-700 leading-relaxed">
                       {guidance.summary}
                     </p>
 
                     {guidance.suitableWhen && (
                       <div className="mt-2">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+                        <span className="text-sm font-semibold tracking-wider text-gray-500">
                           Passar när
                         </span>
-                        <p className="mt-0.5 text-[10px] text-gray-600 leading-relaxed">
+                        <p className="mt-0.5 text-sm text-gray-600 leading-relaxed">
                           {guidance.suitableWhen}
                         </p>
                       </div>
@@ -541,7 +556,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                           : 'bg-white/60'
                           }`}
                       >
-                        <p className="text-[10px] text-gray-600 leading-relaxed">
+                        <p className="text-sm text-gray-600 leading-relaxed">
                           {guidance.warning}
                         </p>
                       </div>
@@ -555,10 +570,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
               <div>
                 <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">
+                    <p className="text-sm font-semibold tracking-wider text-gray-500">
                       Bokföringsinställningar
                     </p>
-                    <p className="mt-1 text-[10px] text-gray-400">
+                    <p className="mt-1 text-sm text-gray-600">
                     SoloLedger har förifyllt bokföringsinställningarna för den här kategorin.
                     </p>
                   </div>
@@ -567,51 +582,51 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 {!showAdvancedSettings ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                      <p className="text-sm font-semibold tracking-wider text-gray-600">
                         Debetkonto
                       </p>
                       <div className="mt-1 flex items-center gap-2">
-                        <span className="font-mono text-sm font-black text-emerald-700">
+                        <span className="font-mono text-sm font-black text-sky-800">
                           {newAccount.debit_account}
                         </span>
-                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-md">
+                        <span className="text-sm font-black text-emerald-600 bg-sky-100 px-1.5 py-0.5 rounded-md">
                           D
                         </span>
                       </div>
                       {debitHelp && (
-                        <p className="mt-1 text-[9px] text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500">
                           {debitHelp}
                         </p>
                       )}
                     </div>
 
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                      <p className="text-sm font-semibold tracking-wider text-gray-600">
                         Kreditkonto
                       </p>
                       <div className="mt-1 flex items-center gap-2">
                         <span className="font-mono text-sm font-black text-orange-600">
                           {newAccount.credit_account}
                         </span>
-                        <span className="text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">
+                        <span className="text-sm font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">
                           K
                         </span>
                       </div>
                       {creditHelp && (
-                        <p className="mt-1 text-[9px] text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500">
                           {creditHelp}
                         </p>
                       )}
                     </div>
 
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">
-                        Standardmoms
+                      <p className="text-sm font-semibold tracking-wider text-gray-600">
+                        Förvald moms
                       </p>
                       <p className="mt-1 text-sm font-black text-gray-800">
                         {newAccount.default_vat_rate}%
                       </p>
-                      <p className="mt-1 text-[9px] text-gray-500">
+                      <p className="mt-1 text-sm text-gray-500">
                         Förifyllt värde – kontrollera alltid underlaget.
                       </p>
                     </div>
@@ -619,10 +634,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                        Debitkonto
+                      <label htmlFor={"kontoplan-field-4"} className="text-sm font-semibold text-gray-500 ml-1">
+                        Debetkonto
                       </label>
-                      <input
+                      <input id={"kontoplan-field-4"}
                         type="text"
                         inputMode="numeric"
                         maxLength={4}
@@ -633,20 +648,20 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                             debit_account: e.target.value.replace(/\D/g, '').slice(0, 4),
                           })
                         }
-                        className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 transition-all"
+                        className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 transition-all"
                         required
                       />
                       {debitHelp && (
-                        <p className="text-[9px] text-emerald-600 font-bold ml-1">
+                        <p className="text-sm text-emerald-600 font-bold ml-1">
                           BAS: {debitHelp}
                         </p>
                       )}
                       {debitPersonnelWarning && (
                         <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                          <p className="text-sm font-semibold tracking-wider text-amber-700 mb-0.5">
                             ⚠ Personalkonto
                           </p>
-                          <p className="text-[9px] leading-relaxed text-amber-700">
+                          <p className="text-sm leading-relaxed text-amber-700">
                             {debitPersonnelWarning}
                           </p>
                         </div>
@@ -654,10 +669,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                      <label htmlFor={"kontoplan-field-5"} className="text-sm font-semibold text-gray-500 ml-1">
                         Kreditkonto
                       </label>
-                      <input
+                      <input id={"kontoplan-field-5"}
                         type="text"
                         inputMode="numeric"
                         maxLength={4}
@@ -668,20 +683,20 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                             credit_account: e.target.value.replace(/\D/g, '').slice(0, 4),
                           })
                         }
-                        className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 transition-all"
+                        className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 transition-all"
                         required
                       />
                       {creditHelp && (
-                        <p className="text-[9px] text-orange-600 font-bold ml-1">
+                        <p className="text-sm text-orange-600 font-bold ml-1">
                           BAS: {creditHelp}
                         </p>
                       )}
                       {creditPersonnelWarning && (
                         <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                          <p className="text-sm font-semibold tracking-wider text-amber-700 mb-0.5">
                             ⚠ Personalkonto
                           </p>
-                          <p className="text-[9px] leading-relaxed text-amber-700">
+                          <p className="text-sm leading-relaxed text-amber-700">
                             {creditPersonnelWarning}
                           </p>
                         </div>
@@ -689,10 +704,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                        Standard moms %
+                      <label htmlFor={"kontoplan-field-6"} className="text-sm font-semibold text-gray-500 ml-1">
+                        Förvald moms %
                       </label>
-                      <select
+                      <select id={"kontoplan-field-6"}
                         value={newAccount.default_vat_rate}
                         onChange={e =>
                           setNewAccount({
@@ -700,7 +715,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                             default_vat_rate: Number(e.target.value),
                           })
                         }
-                        className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
+                        className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
                       >
                         <option value={0}>0%</option>
                         <option value={6}>6%</option>
@@ -715,7 +730,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                   <button
                     type="button"
                     onClick={() => setShowAdvancedSettings(current => !current)}
-                    className="text-left text-[10px] font-black text-gray-500 hover:text-emerald-700 transition-colors"
+                    className="text-left text-sm font-black text-gray-500 hover:text-sky-800 transition-colors"
                   >
                     {showAdvancedSettings
                       ? '− Dölj bokföringsinställningar'
@@ -725,7 +740,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="sm:min-w-[220px] bg-emerald-600 text-white h-[52px] px-6 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
+                    className="sm:min-w-[220px] bg-emerald-600 text-white h-[52px] px-6 rounded-2xl font-semibold text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
                   >
                     {saving ? '...' : 'Lägg till kategori'}
                   </button>
@@ -734,10 +749,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                    Debitkonto
+                  <label htmlFor={"kontoplan-field-7"} className="text-sm font-semibold text-gray-500 ml-1">
+                    Debetkonto
                   </label>
-                  <input
+                  <input id={"kontoplan-field-7"}
                     type="text"
                     inputMode="numeric"
                     maxLength={4}
@@ -749,20 +764,20 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                       })
                     }
                     placeholder="5800"
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 placeholder:text-gray-600/70 transition-all"
                     required
                   />
                   {debitHelp && (
-                    <p className="text-[9px] text-emerald-600 font-bold ml-1">
+                    <p className="text-sm text-emerald-600 font-bold ml-1">
                       BAS: {debitHelp}
                     </p>
                   )}
                   {debitPersonnelWarning && (
                     <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                      <p className="text-sm font-semibold tracking-wider text-amber-700 mb-0.5">
                         ⚠ Personalkonto
                       </p>
-                      <p className="text-[9px] leading-relaxed text-amber-700">
+                      <p className="text-sm leading-relaxed text-amber-700">
                         {debitPersonnelWarning}
                       </p>
                     </div>
@@ -770,10 +785,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  <label htmlFor={"kontoplan-field-8"} className="text-sm font-semibold text-gray-500 ml-1">
                     Kreditkonto
                   </label>
-                  <input
+                  <input id={"kontoplan-field-8"}
                     type="text"
                     inputMode="numeric"
                     maxLength={4}
@@ -785,20 +800,20 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                       })
                     }
                     placeholder="1930"
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs border border-transparent focus:border-emerald-300 placeholder:text-gray-300/70 transition-all"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-normal text-base border border-transparent focus:border-emerald-300 placeholder:text-gray-600/70 transition-all"
                     required
                   />
                   {creditHelp && (
-                    <p className="text-[9px] text-orange-600 font-bold ml-1">
+                    <p className="text-sm text-orange-600 font-bold ml-1">
                       BAS: {creditHelp}
                     </p>
                   )}
                   {creditPersonnelWarning && (
                     <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-700 mb-0.5">
+                      <p className="text-sm font-semibold tracking-wider text-amber-700 mb-0.5">
                         ⚠ Personalkonto
                       </p>
-                      <p className="text-[9px] leading-relaxed text-amber-700">
+                      <p className="text-sm leading-relaxed text-amber-700">
                         {creditPersonnelWarning}
                       </p>
                     </div>
@@ -806,10 +821,10 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-gray-500 ml-1">
-                    Standard moms %
+                  <label htmlFor={"kontoplan-field-9"} className="text-sm font-semibold text-gray-500 ml-1">
+                    Förvald moms %
                   </label>
-                  <select
+                  <select id={"kontoplan-field-9"}
                     value={newAccount.default_vat_rate}
                     onChange={e =>
                       setNewAccount({
@@ -817,7 +832,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                         default_vat_rate: Number(e.target.value),
                       })
                     }
-                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
+                    className="p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm cursor-pointer border border-transparent focus:border-emerald-300 transition-all"
                   >
                     <option value={0}>0%</option>
                     <option value={6}>6%</option>
@@ -829,7 +844,7 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-emerald-600 text-white h-[58px] rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
+                  className="bg-emerald-600 text-white h-[58px] rounded-2xl font-semibold text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:bg-gray-300"
                 >
                   {saving
                     ? '...'
@@ -841,213 +856,81 @@ export default function Kontoplan({ onAccountCreated }: KontoplanProps) {
             )}
           </form>
         )}
-      </div>
 
-      <div className="hidden md:block bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[9px] font-black text-gray-600 uppercase tracking-widest border-b">
-            <tr>
-              <th className="p-6">Namn</th>
-              <th className="p-6">Debet</th>
-              <th className="p-6">Kredit</th>
-              <th className="p-6">Moms</th>
-              <th className="p-6">Kommentar</th>
-              <th className="p-6 text-right pr-8">Åtgärd</th>
-            </tr>
-          </thead>
+        {!editingId && (
+          <details open={suggestionsOpen} onToggle={event => setSuggestionsOpen(event.currentTarget.open)} className="my-4 rounded-xl border border-gray-200 p-3">
+            <summary ref={suggestionsSummary} className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-gray-800">{newAccount.id ? 'Välj en annan kategori' : 'Kategoriförslag'}</summary>
+            <p className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-1">
+              Vanliga kategorier att lägga till
+            </p>
 
-          <tbody className="divide-y divide-gray-50">
-            {kontoplan.map(acc => (
-              <tr
-                key={acc.id}
-                className="hover:bg-gray-50/50 transition-all"
-              >
-                <td className="p-6">
-                  <p className="font-black text-gray-800">{acc.name}</p>
-                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">
-                    {acc.id}
-                  </p>
+            <p className="text-sm text-gray-600 mb-3">
+              Klicka på en kategori för att se vad den används till innan du lägger
+              till den.
+            </p>
 
-                  {(isPersonnelAccount(acc.debit_account) ||
-                    isPersonnelAccount(acc.credit_account)) && (
-                      <span
-                        className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
-                        title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
-                      >
-                        ⚠ Personalkonto
-                      </span>
-                    )}
-                </td>
+            {tillgangligaForslag.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tillgangligaForslag.map((forslag, index) => {
+                  const isSelected = newAccount.id === forslag.id
 
-                <td className="p-6">
-                  <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
-                    <span>{acc.debit_account}</span>
-                    <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">
-                      D
-                    </span>
-                  </span>
-
-                  {getBasAccountHelp(acc.debit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">
-                      {getBasAccountHelp(acc.debit_account)}
-                    </p>
-                  )}
-                </td>
-
-                <td className="p-6">
-                  <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
-                    <span>{acc.credit_account}</span>
-                    <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">
-                      K
-                    </span>
-                  </span>
-
-                  {getBasAccountHelp(acc.credit_account) && (
-                    <p className="mt-1 text-[8px] text-gray-400 max-w-[180px]">
-                      {getBasAccountHelp(acc.credit_account)}
-                    </p>
-                  )}
-                </td>
-
-                <td className="p-6 font-bold text-gray-400 text-xs">
-                  {acc.default_vat_rate > 0
-                    ? `${acc.default_vat_rate}%`
-                    : '—'}
-                </td>
-
-                <td className="p-6 text-xs text-gray-400 italic">
-                  {acc.comment || '—'}
-                </td>
-
-                <td className="p-6 text-right pr-8">
-                  <div className="inline-flex flex-wrap items-center gap-2">
-                    <CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking}
-                      disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} />
+                  return (
                     <button
-                      onClick={() => startEdit(acc)}
-                      className="text-gray-300 hover:text-emerald-600 font-bold transition-colors text-sm"
-                      title="Redigera konto"
+                      key={forslag.id}
+                      data-category-suggestion={forslag.id}
+                      type="button"
+                      onClick={() => {
+                        if (newAccount.id === forslag.id) {
+                          setSuggestionsOpen(true)
+                          setNewAccount(EMPTY_ACCOUNT)
+                          setShowManualForm(false)
+                          setShowAdvancedSettings(false)
+                        } else {
+                          applyForslag(forslag)
+                        }
+                      }}
+                      className={`${index >= 6 && !showAllSuggestions ? 'hidden md:inline-flex' : 'inline-flex'} items-center text-left text-sm font-semibold px-3 py-2 rounded-xl border transition-all shadow-sm ${isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-100/70 hover:bg-emerald-100 hover:text-emerald-800'
+                        }`}
                     >
-                      ✎
+                      {isSelected ? 'Vald:' : '+'} {forslag.name}
                     </button>
-
-                    <button
-                      onClick={() => handleDelete(acc.id)}
-                      className="text-red-100 hover:text-red-400 font-bold transition-colors text-sm"
-                      title="Radera konto"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="md:hidden flex flex-col gap-3">
-        {kontoplan.length === 0 ? (
-          <div className="bg-white rounded-[1.75rem] border p-8 text-center text-gray-300 italic font-medium shadow-sm">
-            Inga konton tillagda ännu
-          </div>
-        ) : (
-          kontoplan.map(acc => (
-            <div
-              key={acc.id}
-              className="bg-white rounded-[1.75rem] border p-5 shadow-sm"
-            >
-              <div className="flex justify-between items-start gap-3 mb-3">
-                <div>
-                  <p className="font-black text-gray-800">{acc.name}</p>
-                  <p className="text-[9px] text-gray-300 font-mono mt-0.5">
-                    {acc.id}
-                  </p>
-
-                  {(isPersonnelAccount(acc.debit_account) ||
-                    isPersonnelAccount(acc.credit_account)) && (
-                      <span
-                        className="inline-flex mt-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"
-                        title="Konton 70xx–76xx används normalt för personalkostnader. SoloLedger är avsett för enskild firma utan anställda."
-                      >
-                        ⚠ Personalkonto
-                      </span>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => startEdit(acc)}
-                    className="shrink-0 text-gray-300 hover:text-emerald-600 font-bold transition-colors text-sm w-8 h-8 flex items-center justify-center rounded-lg hover:bg-emerald-50"
-                    title="Redigera konto"
-                  >
-                    ✎
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(acc.id)}
-                    className="shrink-0 text-red-300 hover:text-red-500 font-bold transition-colors text-sm w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50"
-                    title="Radera konto"
-                  >
-                    ✕
-                  </button>
-                </div>
+                  )
+                })}
               </div>
-
-              <div className="mb-3">
-                <CategoryVisibilityControl name={acc.name} hidden={acc.hidden_from_new_booking}
-                  disabled={visibilitySaving} onToggle={() => void toggleVisibility(acc)} />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 font-mono font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
-                  <span>{acc.debit_account}</span>
-                  <span className="text-[9px] font-sans opacity-50 bg-emerald-200/50 px-1 rounded font-black">
-                    D
-                  </span>
-                </span>
-
-                <span className="inline-flex items-center gap-1.5 font-mono font-black text-orange-600 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-xl text-xs shadow-sm">
-                  <span>{acc.credit_account}</span>
-                  <span className="text-[9px] font-sans opacity-60 bg-orange-200/40 px-1 rounded font-black">
-                    K
-                  </span>
-                </span>
-
-                {acc.default_vat_rate > 0 && (
-                  <span className="text-[10px] font-black uppercase bg-gray-100 text-gray-500 px-2 py-1 rounded-lg border border-gray-200">
-                    Moms {acc.default_vat_rate}%
-                  </span>
-                )}
-              </div>
-
-              {(getBasAccountHelp(acc.debit_account) ||
-                getBasAccountHelp(acc.credit_account)) && (
-                  <div className="text-[9px] text-gray-400 mb-2 space-y-0.5">
-                    {getBasAccountHelp(acc.debit_account) && (
-                      <p>
-                        D {acc.debit_account}:{' '}
-                        {getBasAccountHelp(acc.debit_account)}
-                      </p>
-                    )}
-
-                    {getBasAccountHelp(acc.credit_account) && (
-                      <p>
-                        K {acc.credit_account}:{' '}
-                        {getBasAccountHelp(acc.credit_account)}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-              {acc.comment && (
-                <p className="text-xs text-gray-400 italic">
-                  {acc.comment}
-                </p>
-              )}
-            </div>
-          ))
+            ) : (
+              <p className="text-sm text-gray-600 italic">
+                Alla snabbförslag finns redan bland dina bokföringskategorier.
+              </p>
+            )}
+            {tillgangligaForslag.length > 6 && <button type="button" aria-expanded={showAllSuggestions} onClick={() => setShowAllSuggestions(current => !current)} className="mt-3 min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 md:hidden">{showAllSuggestions ? 'Visa färre' : 'Visa alla kategoriförslag'}</button>}
+          </details>
         )}
+
+        {!editingId && !newAccount.id && (
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={() => {
+                setShowManualForm(current => !current)
+
+                if (showManualForm) {
+                  setNewAccount(EMPTY_ACCOUNT)
+                }
+              }}
+              className="text-sm font-black text-gray-500 hover:text-emerald-700 transition-colors"
+            >
+              {showManualForm
+                ? '− Stäng manuell inmatning'
+                : '+ Lägg till egen kategori manuellt'}
+            </button>
+          </div>
+        )}
+
+
       </div>
+      </section>}
     </div>
   )
 }

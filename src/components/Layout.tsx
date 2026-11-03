@@ -18,7 +18,7 @@ const useSafeLayoutEffect = typeof window === 'undefined' ? useEffect : useLayou
 
 const BASE_NAV_ITEMS: NavItem[] = [
   { tab: 'dashboard', label: 'Bokföring' },
-  { tab: 'kontoplan', label: 'Kontoplan' },
+  { tab: 'kontoplan', label: 'Bokföringskategorier' },
   { tab: 'fakturor', label: 'Fakturor' },
   { tab: 'leverantorsskulder', label: 'Bokslutsskulder' },
   { tab: 'inventarier', label: 'Inventarier' },
@@ -395,7 +395,7 @@ export default function Layout({ children, activeTab, setActiveTab, onLogout, is
             type="button"
             onClick={() => selectMobileTab(item.tab)}
             aria-current={activeTab === item.tab ? 'page' : undefined}
-            className={`px-4 py-3 rounded-xl font-bold text-sm text-left transition-all ${
+            className={`min-w-0 px-4 py-3 rounded-xl font-bold text-sm text-left transition-all ${item.tab === 'kontoplan' ? 'col-span-2' : ''} ${
               activeTab === item.tab
                 ? 'bg-white text-emerald-600 shadow-sm'
                 : 'text-gray-500 hover:bg-white'

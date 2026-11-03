@@ -1127,7 +1127,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         {activeTab === 'dashboard'
           ? 'Ekonomiöversikt'
           : activeTab === 'kontoplan'
-            ? 'Kontoplan'
+            ? 'Bokföringskategorier'
             : activeTab === 'fakturor'
               ? 'Fakturor'
             : activeTab === 'leverantorsskulder' ? 'Bokslutsskulder'

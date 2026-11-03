@@ -84,3 +84,10 @@ html {
 @media(min-width:768px){.sl-ne .ne-review td table th:first-child{min-width:100px}.sl-ne .ne-review td table td:first-child{white-space:nowrap}}
 @media(max-width:1100px){.sl-ne .ne-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:767px){.sl-ne .ne-disclosure-summary{padding:14px;gap:10px}.sl-ne .ne-disclosure-body{padding:14px}.sl-ne .ne-disclosure-summary strong{font-size:15px}.sl-ne .ne-review-banner{flex-wrap:wrap;gap:4px}.sl-ne .ne-section-nav{display:grid;grid-template-columns:1fr 1fr}.sl-ne>.bg-white{padding:18px 14px}.sl-ne .ne-group-summary{flex-wrap:wrap;padding:14px}.sl-ne .ne-group-summary>span:first-child{flex:1 1 100%;padding-right:20px}.sl-ne .ne-group-amount{padding-left:62px;text-align:left}.sl-ne .ne-group-body{padding:12px}.sl-ne .ne-notice{padding:16px}.sl-ne .ne-step-content{padding:16px}.sl-ne .ne-step-button{min-height:54px}.sl-ne .ne-steps{grid-template-columns:1fr}.sl-ne .ne-review table tr{margin-bottom:8px}.sl-ne .ne-review table td{min-width:0}}
+
+/* Kontoplan: readable controls and visible keyboard focus, scoped to this page. */
+.kontoplan-ux :is(button, input, select, summary, [tabindex="-1"]):focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 3px;
+}
+.kontoplan-ux button { min-height: 44px; }
