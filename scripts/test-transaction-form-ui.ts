@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import vm from 'node:vm'
+import ts from 'typescript'
 import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi.ts'
+import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
+import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
+import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -312,4 +318,121 @@ assert(
   'KAN-36 database guard redirects only ordinary manual 5410 transactions without banning the account globally'
 )
 
+// KAN-24: execute the actual effect/dependency array and category/VAT handlers.
+// Only synthetic state is provided; no React application, network or DB is started.
+const reproduceBefore = process.argv.includes('--reproduce-before')
+const normalizationSource = reproduceBefore
+  ? execFileSync('git', ['show', '739cb52:src/app/page.tsx'], { encoding: 'utf8' })
+  : appPageSource
+const pageTree = ts.createSourceFile('page.tsx', normalizationSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+const formTree = ts.createSourceFile('TransactionForm.tsx', transactionFormSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+let normalization: ts.CallExpression | undefined
+let categoryChange: ts.Expression | undefined
+let vatChange: ts.Expression | undefined
+let editableAmounts: ts.IfStatement | undefined
+function findNormalization(node: ts.Node) {
+  if (ts.isCallExpression(node) && node.expression.getText(pageTree) === 'useEffect' &&
+    node.arguments[0]?.getText(pageTree).includes('const selectedCategory = kontoplan.find')) normalization = node
+  if (ts.isIfStatement(node) && node.expression.getText(pageTree) === '!editingBooked' &&
+    node.thenStatement.getText(pageTree).includes('updatePayload.vat_rate')) editableAmounts = node
+  ts.forEachChild(node, findNormalization)
+}
+function findFormHandlers(node: ts.Node) {
+  if (ts.isJsxOpeningElement(node) && node.tagName.getText(formTree) === 'select') {
+    const attrs = node.attributes.properties.filter(ts.isJsxAttribute)
+    const label = attrs.find(attr => attr.name.getText(formTree) === 'aria-label')?.initializer
+    const value = attrs.find(attr => attr.name.getText(formTree) === 'value')?.initializer
+    const change = attrs.find(attr => attr.name.getText(formTree) === 'onChange')?.initializer
+    if (change && ts.isJsxExpression(change)) {
+      if (label && ts.isStringLiteral(label) && label.text === 'Kategori') categoryChange = change.expression
+      if (value && ts.isJsxExpression(value) && value.expression?.getText(formTree) === 'formData.vatRate') vatChange = change.expression
+    }
+  }
+  ts.forEachChild(node, findFormHandlers)
+}
+findNormalization(pageTree); findFormHandlers(formTree)
+assert(normalization && categoryChange && vatChange && editableAmounts, 'Actual form effect, handlers and saved-amount guard exist')
+const accounts = [
+  { id: 'cost25', debit_account: '6110', credit_account: '1930', default_vat_rate: 25 },
+  { id: 'cost12', debit_account: '6212', credit_account: '1930', default_vat_rate: 12 },
+  { id: 'sale', debit_account: '1930', credit_account: '3010', default_vat_rate: 25 },
+]
+type SyntheticForm = { type: string; vatRate: number; amount: string; description: string; inputVatDeduction: string }
+let form: SyntheticForm
+const currentForm = (): SyntheticForm => form
+const context: Record<string, unknown> = {
+  kontoplan: accounts, categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId,
+  setFormData(next: SyntheticForm | ((previous: SyntheticForm) => SyntheticForm)) {
+    form = typeof next === 'function' ? next(form) : next
+    context.formData = form
+  },
+}
+vm.createContext(context)
+const operations = vm.runInContext(ts.transpileModule(`
+  const normalize = ${normalization.arguments[0].getText(pageTree)};
+  const dependencies = () => ${normalization.arguments[1].getText(pageTree)};
+  const category = ${categoryChange.getText(formTree)};
+  const vat = ${vatChange.getText(formTree)};
+  ({normalize, dependencies, category, vat})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context) as {
+    normalize: () => void; dependencies: () => unknown[]
+    category: (event: { target: { value: string } }) => void
+    vat: (event: { target: { value: string } }) => void
+  }
+let previousDependencies: unknown[] | null = null
+function render() {
+  const dependencies = Array.from(operations.dependencies())
+  if (!previousDependencies || dependencies.some((value, i) => !Object.is(value, previousDependencies![i]))) {
+    previousDependencies = dependencies
+    operations.normalize()
+  }
+}
+function start(type: string, vatRate: number, booked: boolean, treatment: 'taxable' | 'exempt_other' = 'exempt_other') {
+  form = { type, vatRate, amount: '1250', description: 'synthetic', inputVatDeduction: 'none' }
+  Object.assign(context, { formData: form, editingBooked: booked, kontoplan: accounts,
+    profile: { vat_status: 'registered', domestic_sales_vat_treatment: treatment },
+    isNotVatRegistered: false, ordinarySalesVatPolicy: getOrdinarySalesVatPolicy(treatment) })
+  previousDependencies = null
+  render()
+}
+function choose(type: string) { operations.category({ target: { value: type } }); render() }
+start('sale', 25, true)
+if (reproduceBefore) {
+  assert(currentForm().vatRate === 0, 'Before fix: current exempt profile overwrites historical booked VAT')
+  console.log('PASS reproduced KAN-24 before fix: historical booked 25% displayed as 0%')
+} else {
+  assert(currentForm().vatRate === 25 && currentForm().type === 'sale', 'Booked historical category and 25% VAT are preserved under current exempt profile')
+  context.kontoplan = [...accounts]; render()
+  assert(currentForm().vatRate === 25, 'Account refresh cannot overwrite booked historical VAT')
+  // Only the edit mode changes; missing editingBooked dependency would fail this.
+  context.editingBooked = false; render()
+  assert(currentForm().vatRate === 0, 'Leaving booked edit with same category/profile resumes normalization for a new entry')
+  start('sale', 25, true)
+  assert(currentForm().vatRate === 25, 'Returning to a historical booked row restores its saved VAT')
+  context.profile = { vat_status: 'not_registered', domestic_sales_vat_treatment: 'exempt_other' }; render()
+  assert(currentForm().vatRate === 25 && currentForm().type === 'sale', 'Current profile changes do not rewrite booked category/VAT')
+  start('cost25', 25, false, 'taxable'); choose('cost12')
+  assert(currentForm().type === 'cost12' && currentForm().vatRate === 12 && currentForm().inputVatDeduction === 'profile_default', 'Category change uses its default rate and resets deduction choice')
+  operations.vat({ target: { value: '6' } }); render()
+  context.kontoplan = [...accounts]; render()
+  assert(currentForm().vatRate === 6 && currentForm().type === 'cost12', 'Valid chosen purchase VAT/category survive account refresh')
+  choose('sale'); operations.vat({ target: { value: '12' } }); render()
+  context.kontoplan = [...accounts]; render()
+  assert(currentForm().vatRate === 12, 'Valid chosen taxable sales VAT survives account refresh')
+  choose('')
+  assert(currentForm().type === '' && currentForm().vatRate === 0 && currentForm().inputVatDeduction === 'profile_default', 'Clearing category clears rate and deduction selection')
+  start('cost25', 25, false); choose('sale')
+  assert(currentForm().vatRate === 0 && currentForm().type === 'sale', 'New exempt sale still uses existing zero-VAT policy')
+  assert(currentForm().amount === '1250' && currentForm().description === 'synthetic', 'Normalization/category selection do not alter amount or description')
+  console.log('PASS KAN-24 actual effect/dependencies/handlers: booked history, mode switches, categories, empty selection, custom VAT and refresh')
+}
+// Exercise the actual saved-field conditional, never the transport or database.
+for (const booked of [true, false]) {
+  const saved = vm.runInNewContext(`${editableAmounts.getText(pageTree)}; updatePayload`, {
+    editingBooked: booked, formData: { type: 'sale', vatRate: 25, amount: '1250' }, parseStandardBookingAmount,
+    updatePayload: { date: '2025-06-01', description: 'synthetic historical edit' },
+  })
+  assert(booked ? !('type' in saved) && !('vat_rate' in saved) && !('amount' in saved)
+    : saved.type === 'sale' && saved.vat_rate === 25 && saved.amount === 1250,
+  'Saved fields remain unchanged: booked edits omit category, VAT and amount; unbooked edits include them')
+}
 console.log('Transaction form UI regression tests passed.')

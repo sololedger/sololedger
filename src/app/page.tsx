@@ -405,6 +405,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
   // momsregistrerad firma kan fortfarande ha svensk försäljning utan moms.
   // Databasen är fortfarande den riktiga säkerhetsgränsen.
   useEffect(() => {
+    if (editingBooked) return
     const selectedCategory = kontoplan.find(k => k.id === formData.type)
     if (
       !selectedCategory ||
@@ -420,6 +421,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     }
     setFormData(prev => prev.vatRate === 0 ? prev : { ...prev, vatRate: 0 })
   }, [
+    editingBooked,
     formData.type,
     kontoplan,
     profile?.vat_status,
