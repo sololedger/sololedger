@@ -17,6 +17,7 @@ export default function WithdrawalSummary({ result, checkedAt, taxRates = [], co
       <div><dt className="inline">Andra betalningar: </dt><dd className="inline">{withdrawalMoney(result.otherOre)}</dd></div>
       <div><dt className="inline">Extra buffert: </dt><dd className="inline">{withdrawalMoney(result.bufferOre)}</dd></div>
     </dl>
+    {result.taxAccountOre !== null && result.taxAccountOre > 0 && <p className="text-xs mt-3">Beräkningen behåller hela reserven för moms och skatt eftersom överskottet på skattekontot kan behövas till andra skatter eller betalas ut.</p>}
     {result.status !== 'incomplete' && result.recommendedOre !== null && result.reserveOre !== null && <p className="text-xs mt-3">Bank {withdrawalMoney(result.bankOre)} − kvar att finansiera för moms/skatt {withdrawalMoney(result.reserveOre)} − andra betalningar {withdrawalMoney(result.otherOre)} − buffert {withdrawalMoney(result.bufferOre)}.</p>}
     {result.rawOre !== null && result.rawOre < 0 && result.status !== 'incomplete' && <p className="mt-2">Det saknas {withdrawalMoney(-result.rawOre)} för de betalningar och reserver som visas.</p>}
     {result.status === 'incomplete' && <div className="mt-2 text-sm" role="status"><p>{result.issues[0]}</p><p>Delbeloppen är underlag, inte en rekommendation att ta ut pengar.</p></div>}

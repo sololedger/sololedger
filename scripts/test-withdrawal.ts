@@ -84,7 +84,7 @@ fact(debt,'other',{amountOre:1,basis:before.otherBasis})
 eq(buildWithdrawalAssessment(sealWithdrawal(debt)).result.status,'incomplete','manual total cannot hide known unpaid debt')
 for(const estimate of [20000,25000,30000]) {
  const r=calculateWithdrawal({asOf:'2027-01-20',bankOre:10000000,bankQuality:'estimated',taxAccountOre:8000000,parts:[{key:'v',kind:'vat',ore:2500000,quality:'checked'},{key:'e',kind:'estimate',ore:estimate*100,quality:'estimated'}],bufferOre:0,issues:[]})
- eq(r.recommendedOre,10000000,'bounded irrelevant estimate never requires exact tax '+estimate)
+ eq(r.recommendedOre,(75000-estimate)*100,'surplus does not offset VAT or the estimated tax '+estimate)
 }
 const unknown=calculateWithdrawal({asOf:'2027-01-20',bankOre:100,bankQuality:'estimated',taxAccountOre:-10000,parts:[],bufferOre:0,issues:['Äldre skatt okänd']})
 eq(unknown.recommendedOre,null,'known stop plus unknown additional debt is not positive advice')

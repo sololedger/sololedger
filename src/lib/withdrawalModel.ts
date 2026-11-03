@@ -64,7 +64,7 @@ export function calculateWithdrawal(input: WithdrawalInput): WithdrawalResult {
   const incomeTaxOre = totals.preliminary + totals.final + totals.estimate
   const issues = [...new Set(input.issues)]
   if (input.taxAccountOre === null) issues.push('Skattekontots påverkan behöver kontrolleras.')
-  const reserveOre = input.taxAccountOre === null ? null : Math.max(0, totals.vat + incomeTaxOre - input.taxAccountOre)
+  const reserveOre = input.taxAccountOre === null ? null : totals.vat + incomeTaxOre - Math.min(0, input.taxAccountOre)
   if (reserveOre !== null) assertOre(reserveOre)
   const rawOre = reserveOre === null ? null : input.bankOre - reserveOre - totals.other - input.bufferOre
   if (rawOre !== null) assertOre(rawOre, true)

@@ -56,8 +56,8 @@
     "E": 30000,
     "N": 0,
     "B": 0,
-    "raw": 70000,
-    "recommended": 70000
+    "raw": 45000,
+    "recommended": 45000
   },
   {
     "id": "5-vat-paid-before-year-end",
@@ -260,8 +260,8 @@
     "E": 30000,
     "N": 0,
     "B": 0,
-    "raw": 65000,
-    "recommended": 65000
+    "raw": 45000,
+    "recommended": 45000
   },
   {
     "id": "14-unpaid-preliminary-plus-final-extra",
@@ -308,8 +308,8 @@
     "E": 30000,
     "N": 0,
     "B": 0,
-    "raw": 100000,
-    "recommended": 100000
+    "raw": 45000,
+    "recommended": 45000
   },
   {
     "id": "17-supplier-invoice-once",
@@ -344,7 +344,7 @@
     "E": 30000,
     "N": 0,
     "B": 0,
-    "raw": 95000,
-    "recommended": 95000
+    "raw": 70000,
+    "recommended": 70000
   }
 ]

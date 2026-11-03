@@ -3,6 +3,22 @@ import { test } from 'node:test'
 import { buildWithdrawalAssessment as assess, stableWithdrawalValue, withdrawalAnnualRate } from '../src/lib/withdrawalAssessment.ts'
 import { addWithdrawalFact as fact, addWithdrawalTx as tx, checkWithdrawalTax as tax, emptyWithdrawal, saleWithdrawal, sealWithdrawal } from '../tests/fixtures/withdrawalFixtures.ts'
 
+test('KAN-118: saved tax account surplus cannot fund undebited VAT', () => {
+  const s = emptyWithdrawal()
+  tx(s, 'sale', '2026-12-10', 'manual', [['1930', 1710], ['3010', -1368], ['2611', -342]])
+  tx(s, 'expense', '2026-12-11', 'manual', [['4010', 1410], ['1930', -1410]])
+  s.periods.push({ id: 'p', user_id: s.user_id, period_start: '2026-01-01', period_end: '2026-12-31', source: 'sololedger', status: 'open' })
+  fact(s, 'coverage', { from: '2026-12-10', noEarlierObligations: true })
+  tax(s, 6200)
+
+  const assessment = assess(s)
+  assert.equal(assessment.result.bankOre, 30000)
+  assert.equal(assessment.result.vatOre, 34200)
+  assert.equal(assessment.result.taxAccountOre, 6200)
+  assert.equal(assessment.result.recommendedOre, 0)
+  assert.equal(assessment.result.reserveOre, 34200)
+})
+
 test('R1: standalone 2650 liability must block an unexplained recommendation', () => {
   const s = emptyWithdrawal()
   tx(s, 'capital', '2026-01-01', 'manual', [['1930', 100000], ['2018', -100000]])
