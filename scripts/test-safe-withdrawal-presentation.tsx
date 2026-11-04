@@ -27,7 +27,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='synthetic-offline-key'
 const { WithdrawalCardContent } = await import('../src/components/WithdrawalCard')
 const seed=saleWithdrawal(),assessment=buildWithdrawalAssessment(seed)
 for (const state of ['loading','error','incomplete'] as const) {
-  const model={data:state==='incomplete'?{snapshot:seed,assessment:{...assessment,result:result(100000,['Kontroll krävs'])}}:null,loading:state==='loading',error:state==='error'?'Syntetiskt läsfel':null,saving:false,reload:async()=>{},save:async()=>{}}
+  const model={data:state==='incomplete'?{snapshot:seed,assessment:{...assessment,result:result(100000,['Kontroll krävs'])}}:null,loading:state==='loading',error:state==='error'?'Syntetiskt läsfel':null,saving:false,reload:async()=>undefined,save:async()=>undefined}
   const card=renderToStaticMarkup(<WithdrawalCardContent model={model} asOf={seed.as_of} />)
   assert.match(card,/<h3[^>]*>Säkert uttag<\/h3>/)
   assert.doesNotMatch(card,/bg-emerald-50|text-emerald-950|class="text-2xl/)

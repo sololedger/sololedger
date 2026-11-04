@@ -26,10 +26,13 @@ export function withdrawalControlRows(a:WithdrawalAssessment,s:WithdrawalSnapsho
   return {task,label:withdrawalTaskLabels[task],group:required.has(task)?'required' as const:reusable?'valid' as const:'optional' as const,observed: facts.map(f=>f.observed_on??s.revision?.as_of_date).filter(Boolean).join(', '),saved:facts.length>0}
  })
 }
+export function withdrawalMissingIncomeYear(a: WithdrawalAssessment) {
+ return a.taxYears.findLast(year=>!a.facts.some(fact=>fact.key===`income:${year}`))
+}
 export function withdrawalNextTask(a:WithdrawalAssessment,s:WithdrawalSnapshot):WithdrawalTask {
  if(a.result.issues[0])return withdrawalIssueTask(a.result.issues[0])
  if(a.result.status!=='estimated')return 'buffer'
  if(a.checkedAt!==s.as_of)return 'tax_account'
  if(withdrawalControlRows(a,s,true).find(r=>r.task==='bank')?.group!=='valid')return 'bank'
- return a.taxYears.length?'income':'buffer'
+ return withdrawalMissingIncomeYear(a)!==undefined?'income':'buffer'
 }

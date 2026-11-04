@@ -2,10 +2,16 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import type { useWithdrawal } from '@/hooks/useWithdrawal'
 import { toOre } from '@/lib/withdrawalModel'
-import { stableWithdrawalValue, withdrawalAnnualRate, type WithdrawalFact } from '@/lib/withdrawalAssessment'
-import { withdrawalControlRows, withdrawalHelpIds, withdrawalNextTask, withdrawalTaskLabels, type WithdrawalTask } from '@/lib/withdrawalPresentation'
+import { withdrawalAnnualRate, type WithdrawalFact } from '@/lib/withdrawalAssessment'
+import { withdrawalControlRows, withdrawalHelpIds, withdrawalIssueTask, withdrawalMissingIncomeYear, withdrawalNextTask, withdrawalTaskLabels, type WithdrawalTask } from '@/lib/withdrawalPresentation'
 import { findHelpArticle } from '@/lib/helpContent'
 import WithdrawalSummary, { withdrawalMoney } from './WithdrawalSummary'
+import WithdrawalBufferFields, { withdrawalBufferValue } from './WithdrawalBufferFields'
+import WithdrawalCoverageFields, { withdrawalCoverageValue } from './WithdrawalCoverageFields'
+import WithdrawalBankFields, { withdrawalBankValue } from './WithdrawalBankFields'
+import WithdrawalOtherFields, { withdrawalOtherValue } from './WithdrawalOtherFields'
+import WithdrawalTaxAccountFields, { withdrawalTaxAccountValue } from './WithdrawalTaxAccountFields'
+import WithdrawalIncomeFields, { incomeTaxAccountReady, withdrawalIncomeValue } from './WithdrawalIncomeFields'
 
 type Draft={amount:string;sign:string;rate:string;debited:string;pending:string;incomeMode:string;confirmed:boolean;available:string;signature:string;revision:string|null;dirty:boolean}
 const inputClass='mt-2 block min-h-12 w-full min-w-0 rounded-xl border border-slate-400 bg-white px-3 py-2 text-base'
@@ -13,13 +19,17 @@ const primary='min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibol
 const secondary='min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700'
 const moneyText=(v:unknown)=>typeof v==='number'?String(v/100):''
 
-export function WithdrawalCardContent({model,asOf,onOpenVat,onOpenNe,annualRateInCard=false}:{model:ReturnType<typeof useWithdrawal>;asOf:string;onOpenVat?:()=>void;onOpenNe?:()=>void;annualRateInCard?:boolean}){
+export function WithdrawalCardContent({model,asOf,onOpenVat,onOpenNe,annualRateInCard=false,onOpenPage,controlsOnly=false,initialTask}:{model:ReturnType<typeof useWithdrawal>;asOf:string;onOpenVat?:()=>void;onOpenNe?:()=>void;annualRateInCard?:boolean;onOpenPage?:()=>void;controlsOnly?:boolean;initialTask?:WithdrawalTask}){
  const [open,setOpen]=useState(false),[task,setTask]=useState<WithdrawalTask|null>(null),[year,setYear]=useState(asOf.slice(0,4))
  const [drafts,setDrafts]=useState<Record<string,Draft>>({}),[notice,setNotice]=useState(''),[help,setHelp]=useState<string|null>(null)
+ const [uncertainKey,setUncertainKey]=useState<string|null>(null)
  const button=useRef<HTMLButtonElement>(null),dialog=useRef<HTMLDialogElement>(null),heading=useRef<HTMLHeadingElement>(null),error=useRef<HTMLParagraphElement>(null)
  const id=useId(),loaded=model.data,available=!!loaded&&!model.loading&&!model.error
  const key=task==='income'||task==='rate'?`${task}:${year}`:task??'',draft=drafts[key]
  const rows=loaded?withdrawalControlRows(loaded.assessment,loaded.snapshot,annualRateInCard):[]
+ const nextTask=loaded?withdrawalNextTask(loaded.assessment,loaded.snapshot):'buffer'
+ const nextYear=loaded?.assessment.result.issues[0]?.match(/\b(19|20)\d{2}\b/)?.[0] ??
+  String((loaded&&nextTask==='income'?withdrawalMissingIncomeYear(loaded.assessment):undefined)??loaded?.assessment.taxYears.at(-1)??year)
  function fresh(next:WithdrawalTask,y:string):Draft{
   const f=loaded?.assessment.facts.find(f=>f.key===(next==='income'||next==='rate'?`${next}:${y}`:next))?.value
   const a=f?.saldoOre??f?.amountOre??f?.finalOre
@@ -48,28 +58,27 @@ export function WithdrawalCardContent({model,asOf,onOpenVat,onOpenNe,annualRateI
  async function submit(event:FormEvent){
   event.preventDefault();if(!loaded||!draft||!task)return
   try{
-   if(draft.signature!==loaded.snapshot.signature||draft.revision!==(loaded.snapshot.revision?.id??null))throw new Error('Underlaget har ändrats medan panelen var öppen. Kontrollera aktuellt underlag och börja om med just denna uppgift.')
-   const a=loaded.assessment,{amount,sign,rate,debited,pending,incomeMode,confirmed}=draft
+   if(uncertainKey===key||draft.signature!==loaded.snapshot.signature||draft.revision!==(loaded.snapshot.revision?.id??null))throw new Error('Underlaget har ändrats medan panelen var öppen. Kontrollera aktuellt underlag och börja om med just denna uppgift.')
+   const a=loaded.assessment,{amount,rate,confirmed}=draft
    let factKey:string=task,value:Record<string,unknown>
-   const money=(text:string)=>{if(!(task==='bank'?/^-?\d+(?:[.,]\d{1,2})?$/:/^\d+(?:[.,]\d{1,2})?$/).test(text.trim()))throw new Error('Belopp saknas eller är ogiltigt. Tomt är okänt, inte 0. Ange ett kontrollerat belopp eller pausa.');return toOre(text.trim().replace(',','.'))}
-   if(task==='coverage'){if(!confirmed)throw new Error('Bekräfta bara om underlaget verkligen omfattar tidigare åtaganden. Om du är osäker, kontrollera dem först.');value={from:a.firstDate,noEarlierObligations:true}}
-   else if(task==='tax_account'){
-    if(draft.available!=='yes'||!['surplus','deficit'].includes(sign))throw new Error('Läs först saldot och välj över- eller underskott. Du kan pausa utan att ange något belopp.')
-    if(!confirmed)throw new Error('Kontrollera först att registrerade skattehändelser finns med i saldot.')
-    value={date:asOf,saldoOre:money(amount)*(sign==='deficit'?-1:1),basis:a.financialBasis}
-   }else if(task==='income'||task==='rate'){
-    if(task==='income'&&!a.facts.some(f=>f.key==='tax_account'))throw new Error('Kontrollera först skattekontots saldo. Sedan kan beslutet stämmas av utan dubbelräkning.')
+   if(task==='coverage')value=withdrawalCoverageValue(confirmed,a.firstDate)
+   else if(task==='tax_account')value=withdrawalTaxAccountValue(draft,asOf,a.financialBasis)
+   else if(task==='income'||task==='rate'){
     const n=Number(year);if(!Number.isInteger(n)||n<1900||n>Number(asOf.slice(0,4)))throw new Error('Ange ett giltigt inkomstår.')
-    if(task==='income'&&!['estimate','final'].includes(incomeMode))throw new Error('Välj ett styrkt underlag eller pausa. Inget beslut får inte bli en nolluppgift.')
     const percentage=annualRateInCard?withdrawalAnnualRate(a.facts,n):Number(rate)
     if(!Number.isInteger(percentage)||percentage<25||percentage>55)throw new Error('Ange en uppskattning mellan 25 och 55 %.')
-    factKey=`${task}:${n}`;value=task==='rate'?{rate:percentage}:{rate:percentage,debitedOre:money(debited),pendingOre:money(pending),finalOre:incomeMode==='final'?money(amount):null,basis:a.incomeBases[n]??'{}',taxBasis:stableWithdrawalValue(a.facts.find(f=>f.key==='tax_account')?.value)}
-   }else if(task==='bank')value={date:asOf,amountOre:money(amount),bookOre:a.result.bankOre,signature:loaded.snapshot.signature}
+    factKey=`${task}:${n}`;value=task==='rate'?{rate:percentage}:withdrawalIncomeValue(draft,n,Number(asOf.slice(0,4)),percentage,a)
+   }else if(task==='bank')value=withdrawalBankValue(amount,asOf,a.result.bankOre,loaded.snapshot.signature)
    else if(task==='review')throw new Error('Bokföringsunderlaget kan inte rättas med en kontrolluppgift.')
-   else value={amountOre:money(amount),...(task==='other'?{basis:a.otherBasis}:{})}
+   else value=task==='buffer'?withdrawalBufferValue(amount):withdrawalOtherValue(amount,a.otherBasis)
    const rateKey=`rate:${Number(year)}`
    const facts:WithdrawalFact[]=task==='income'&&!annualRateInCard?[...a.facts.filter(f=>f.key!==factKey&&f.key!==rateKey),{key:factKey,value},{key:rateKey,value:{rate:value.rate}}]:[...a.facts.filter(f=>f.key!==factKey),{key:factKey,value}]
-   await model.save(facts)
+   const outcome = await model.save(facts)
+   if(outcome==='uncertain'){
+    setUncertainKey(key)
+    throw new Error('Det gick inte att avgöra om uppgiften sparades. Läs in aktuella uppgifter innan du försöker igen.')
+   }
+   if(!outcome)return
    setDrafts(old=>{const next={...old};delete next[key];return next});setTask(null);setNotice('');close()
   }catch(e){setNotice(e instanceof Error?e.message:'Uppgiften kunde inte sparas.')}
  }
@@ -77,11 +86,17 @@ export function WithdrawalCardContent({model,asOf,onOpenVat,onOpenNe,annualRateI
  const tone=available&&loaded?.assessment.result.status==='calculated'&&loaded.assessment.result.recommendedOre!==null?'border-emerald-600 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg':model.error||estimated||loaded?.assessment.result.status==='incomplete'?'border-amber-300 bg-slate-50 text-slate-950':'border-slate-200 bg-slate-50 text-slate-950'
  const loadStatus=model.loading?<p role="status">Laddar uttagsunderlag…</p>:model.error?<div role="alert"><p className="font-semibold">Uttagsunderlaget kunde inte hämtas</p><p>{model.error}</p><button type="button" className="min-h-11 underline" onClick={()=>void model.reload()}>Försök igen</button></div>:null
  const helpLink=(t:WithdrawalTask)=><a href={`?help=${withdrawalHelpIds[t]}`} onClick={e=>{if(e.button===0&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();setHelp(withdrawalHelpIds[t]);setNotice('')}}} className="inline-block min-h-11 py-3 text-sm font-semibold text-emerald-800 underline">Läs mer i Hjälp & FAQ · {withdrawalTaskLabels[t]}</a>
- const moneyField=(label:string,field:'amount'|'debited'|'pending',zero=false)=><div><label className="block text-sm font-semibold">{label}<input className={inputClass} inputMode="decimal" value={draft?.[field]??''} onChange={e=>update({[field]:e.target.value})}/></label>{zero&&<button type="button" className="min-h-11 py-2 text-left text-xs font-medium text-emerald-800 underline" onClick={()=>update({[field]:'0'})}>Jag har kontrollerat att just detta belopp är 0 kr · {label}</button>}</div>
- const incomeMissingTax=task==='income'&&!loaded?.assessment.facts.some(f=>f.key==='tax_account')
- return <section aria-label="Uttagsutrymme" className={`relative flex min-w-0 w-full flex-col justify-between rounded-[1.75rem] border p-5 sm:p-6 ${tone}`}>
-  {available&&loaded?<WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt}/>:<><h3 className="font-bold">Säkert uttag</h3>{!open&&loadStatus}</>}
-  <button ref={button} type="button" disabled={!available} onClick={()=>{setTask(null);setHelp(null);setNotice('');setOpen(true)}} aria-haspopup="dialog" aria-expanded={open} aria-controls={id} className="mt-1 min-h-11 text-left text-xs font-bold underline before:absolute before:inset-0 before:rounded-[1.75rem] disabled:before:pointer-events-none disabled:opacity-50">Visa beräkning och underlag</button>
+ const incomeMissingTax=task==='income'&&(!loaded||!incomeTaxAccountReady(loaded.assessment))
+ function openControls() {
+  const issue = controlsOnly ? loaded?.assessment.result.issues.find(message => !initialTask || withdrawalIssueTask(message) === initialTask) : undefined
+  const initial = initialTask ?? (issue ? withdrawalIssueTask(issue) : null)
+  if (initial) choose(initial, issue?.match(/\b(19|20)\d{2}\b/)?.[0] ?? String(loaded?.assessment.taxYears.at(-1) ?? year))
+  else {setTask(null);setHelp(null);setNotice('')}
+  setOpen(true)
+ }
+ return <section aria-label={controlsOnly?'Kontrollpanel':'Uttagsutrymme'} className={controlsOnly?undefined:`relative flex min-w-0 w-full flex-col justify-between rounded-[1.75rem] border p-5 sm:p-6 ${tone}`}>
+  {!controlsOnly&&(available&&loaded?<WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt}/>:<><h3 className="font-bold">Säkert uttag</h3>{!open&&loadStatus}</>)}
+  {onOpenPage ? <button type="button" onClick={onOpenPage} className="mt-1 min-h-11 text-left text-xs font-bold underline">Öppna Säkert uttag</button> : <button ref={button} type="button" disabled={!available} onClick={openControls} aria-haspopup="dialog" aria-expanded={open} aria-controls={open?id:undefined} className={controlsOnly?primary:'mt-1 min-h-11 text-left text-xs font-bold underline before:absolute before:inset-0 before:rounded-[1.75rem] disabled:before:pointer-events-none disabled:opacity-50'}>{controlsOnly?'Öppna kontrollpanelen':'Visa beräkning och underlag'}</button>}
   {open&&<dialog ref={dialog} id={id} aria-labelledby={id+'-title'} onKeyDown={containFocus} onCancel={e=>{e.preventDefault();close()}} onClose={close} className="m-auto w-[calc(100%-1rem)] max-w-[740px] max-h-[calc(100dvh-1rem)] overflow-hidden rounded-3xl bg-white p-0 text-slate-950 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm sm:w-[calc(100%-2.5rem)] sm:max-h-[88dvh]">
    <div className="flex max-h-[calc(100dvh-1rem)] flex-col sm:max-h-[88dvh]">
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3"><h2 ref={heading} id={id+'-title'} tabIndex={-1} className="text-lg font-bold">Säkert uttag<span className="sr-only"> · beräkning och underlag</span></h2><button type="button" aria-label="Stäng underlaget" className={secondary+' shrink-0 whitespace-nowrap'} onClick={close}>Stäng ×</button></div>
@@ -96,18 +111,19 @@ export function WithdrawalCardContent({model,asOf,onOpenVat,onOpenNe,annualRateI
        <ControlHint task={task} asOf={asOf} firstDate={loaded.assessment.firstDate}/>{helpLink(task)}
        {task==='review'?<div className="space-y-3"><p>En bokföringskonflikt kan inte rättas med ett annat rådgivningsbelopp. Använd ordinarie rapport eller rättelseväg.</p><IssueList issues={loaded.assessment.result.issues}/>{onOpenVat&&<button type="button" className={secondary} onClick={()=>{close();onOpenVat()}}>Öppna momsrapporten</button>}{onOpenNe&&<button type="button" className={secondary} onClick={()=>{close();onOpenNe()}}>Öppna NE-underlaget</button>}</div>:<form onSubmit={e=>void submit(e)} className="mt-4 space-y-4">
         {(task==='income'||task==='rate')&&<><label className="block font-semibold">Inkomstår<input className={inputClass} type="number" min="1900" max={asOf.slice(0,4)} value={year} onChange={e=>choose(task,e.target.value)}/></label><p>År med skatteunderlag: {loaded.assessment.taxYears.join(', ')||'inga registrerade'}. Varje år har sin egen uppgift.</p>{annualRateInCard?<p>Årsprocent {year}: {withdrawalAnnualRate(loaded.assessment.facts,Number(year))} %. Ändras i dashboardens skattekort.</p>:<label className="block font-semibold">Uppskattad sammanlagd procent<input className={inputClass} type="number" min="25" max="55" value={draft.rate} onChange={e=>update({rate:e.target.value})}/></label>}</>}
-        {task==='coverage'&&<label className="flex gap-3"><input type="checkbox" checked={draft.confirmed} onChange={e=>update({confirmed:e.target.checked})}/>Underlaget omfattar tidigare åtaganden; inga ytterligare äldre belopp saknas.</label>}
-        {task==='tax_account'&&<><label className="block font-semibold">Har du det faktiska saldot för kontrolldatumet?<select aria-label="Har du det faktiska saldot för kontrolldatumet?" className={inputClass} value={draft.available} onChange={e=>update({available:e.target.value})}><option value="">Välj vad du vet</option><option value="yes">Ja, jag har läst saldot</option><option value="later">Nej, jag har inte uppgiften nu</option></select></label>{draft.available==='later'&&<p role="status">Pausa och återvänd när du har uppgiften. Ingen nolla registreras och kontrollen blir inte klar.</p>}{draft.available==='yes'&&<><label className="block font-semibold">Saldot är<select aria-label="Saldot är" className={inputClass} value={draft.sign} onChange={e=>update({sign:e.target.value})}><option value="">Välj efter skattekontot</option><option value="surplus">Ett överskott (eller saldo 0 kr)</option><option value="deficit">Ett underskott</option></select></label>{moneyField('Skattekontots saldo i kronor','amount')}<p>Registrerade avräkningar: {loaded.snapshot.events.length}. Registrerade överföringar: {loaded.snapshot.movements.length}. Jämför händelserna i detaljerna med kontohistoriken.</p><label className="flex gap-3"><input type="checkbox" checked={draft.confirmed} onChange={e=>update({confirmed:e.target.checked})}/>Registrerade händelser fram till datumet ingår i saldot och inget behöver utredas.</label><p className="text-slate-600">Kryssrutan ersätter inte saldot. Ange bara 0 när det kontrollerade saldot faktiskt är 0.</p></>}</>}
-        {task==='income'&&<><label className="block font-semibold">Vilket underlag har du för året?<select aria-label="Vilket underlag har du för året?" className={inputClass} value={draft.incomeMode} onChange={e=>update({incomeMode:e.target.value})}><option value="">Välj underlag</option><option value="estimate">Uppskattning och preliminärskattebeslut</option><option value="final" disabled={Number(year)>=Number(asOf.slice(0,4))}>Slutskattebesked för avslutat år</option><option value="unknown">Jag saknar underlaget eller är osäker</option></select></label>{incomeMissingTax&&<div className="rounded-xl border border-amber-300 bg-amber-50 p-4"><p>Kontrollera först skattekontots saldo. Utkastet kan förberedas men skatteuppgiften får inte sparas utan avstämning.</p><button type="button" className={secondary} onClick={()=>choose('tax_account')}>Öppna skattekontokontrollen</button></div>}{draft.incomeMode==='unknown'&&<p>Pausa utan att ändra sparade uppgifter. Okänt underlag fylls inte i som 0 och tar inte bort någon spärr.</p>}{['estimate','final'].includes(draft.incomeMode)&&<><p className="rounded-xl bg-slate-50 p-4">Jämför beslut och kontohistorik. Debiterad skatt är inte en bankinbetalning. Om personliga skatter, olika år eller andra inkomster blandas: pausa och ta hjälp med avstämningen.</p><p className="text-slate-600">Exempel: tio debiteringar à 1 000 kr ingår redan i saldot och två beslutade debiteringar ingår ännu inte. Ange då 10 000 kr respektive 2 000 kr, endast om det stämmer med ditt underlag.</p>{moneyField('Preliminärskatt som redan debiterats och ingår i avstämningen','debited',true)}{moneyField('Beslutad preliminärskatt som ännu inte ingår i saldot','pending',true)}{draft.incomeMode==='final'&&<><p className="rounded-xl bg-slate-50 p-4">Slutbeskedet kräver dessutom ett styrkt ytterligare netto utanför saldot. Exempel: 3 000 kr som ännu inte ingår anges som 3 000; om allt redan ingår anges uttryckligen 0. Kopiera inte total slutlig skatt. Preliminäruppgifterna bevaras separat.</p>{moneyField('Ytterligare nettobelopp enligt beskedet som ännu inte ingår i skattekontosaldot (0 om allt ingår)','amount',true)}<p>Förväntad återbetalning kan inte anges som ett negativt netto. Är sambandet oklart: pausa.</p></>}</>}</>}
-        {task==='bank'&&moneyField(`Disponibelt saldo på företagskonto 1930 per ${asOf}`,'amount')}{task==='other'&&moneyField('Total av andra återstående betalningar, inklusive redan bokförda skulder','amount',true)}{task==='buffer'&&moneyField('Extra buffert i kronor','amount',true)}
+        {task==='coverage'&&<WithdrawalCoverageFields confirmed={draft.confirmed} onChange={confirmed=>update({confirmed})}/>}
+        {task==='tax_account'&&<WithdrawalTaxAccountFields input={draft} update={update} snapshot={loaded.snapshot} />}
+        {task==='income'&&<WithdrawalIncomeFields input={draft} update={update} finalAllowed={Number(year)<Number(asOf.slice(0,4))} taxReady={!incomeMissingTax} onOpenTax={()=>choose('tax_account')} />}
+        {task==='bank'&&<WithdrawalBankFields amount={draft.amount} onChange={amount=>update({amount})} label={`Disponibelt saldo på företagskonto 1930 per ${asOf}`} />}{task==='other'&&<WithdrawalOtherFields amount={draft.amount} onChange={amount=>update({amount})}/>}
+        {task==='buffer'&&<WithdrawalBufferFields amount={draft.amount} onChange={amount=>update({amount})}/>}
         {notice&&<p ref={error} tabIndex={-1} role="alert" className="rounded-xl bg-red-50 p-3 text-red-800">{notice}</p>}
         <div className="flex flex-wrap gap-3"><button className={primary} disabled={model.saving||(task==='tax_account'&&draft.available!=='yes')||(task==='income'&&(incomeMissingTax||!['estimate','final'].includes(draft.incomeMode)))}>{model.saving?'Sparar…':'Spara kontrollen'}</button><button type="button" className={secondary} onClick={overview}>Pausa och återgå till översikten</button></div>
-        {(draft.signature!==loaded.snapshot.signature||draft.revision!==(loaded.snapshot.revision?.id??null))&&<button type="button" className="min-h-11 text-emerald-800 underline" onClick={()=>{setDrafts(old=>({...old,[key]:fresh(task,year)}));setNotice('Utkastet för denna kontroll har ersatts med aktuella uppgifter. Kontrollera dem på nytt.')}}>Börja om med aktuell uppgift</button>}
+        {(uncertainKey===key||draft.signature!==loaded.snapshot.signature||draft.revision!==(loaded.snapshot.revision?.id??null))&&<button type="button" className="min-h-11 text-emerald-800 underline" onClick={()=>{setDrafts(old=>({...old,[key]:fresh(task,year)}));if(uncertainKey===key)setUncertainKey(null);setNotice('Utkastet för denna kontroll har ersatts med aktuella uppgifter. Kontrollera dem på nytt.')}}>Börja om med aktuell uppgift</button>}
         <p className="text-xs text-slate-600">Uppgiften sparas daterat för din firma. En ändring skapar en ny version. Paus och hjälp sparar ingenting.</p>
        </form>}
       </>:<>
        <WithdrawalSummary compact result={loaded.assessment.result} checkedAt={loaded.assessment.checkedAt}/>
-       <div className="my-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><h3 className="font-semibold">Nästa steg</h3><p className="my-3">{loaded.assessment.result.issues[0]??(estimated?`Beloppet är en uppskattning. Nästa komplettering: ${withdrawalTaskLabels[withdrawalNextTask(loaded.assessment,loaded.snapshot)]}.`:'Ta hänsyn till framtida utgifter. Komplettera extra buffert om du behöver det.')}</p><button type="button" className={primary} onClick={()=>choose(withdrawalNextTask(loaded.assessment,loaded.snapshot),loaded.assessment.result.issues[0]?.match(/\b(19|20)\d{2}\b/)?.[0]??String(loaded.assessment.taxYears.at(-1)??year))}>{loaded.assessment.result.issues.length?'Öppna rekommenderad kontroll':'Välj en komplettering'}</button></div>
+       <div className="my-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><h3 className="font-semibold">Nästa steg</h3><p className="my-3">{loaded.assessment.result.issues[0]??(estimated&&nextTask!=='buffer'?`Beloppet är en uppskattning. Nästa komplettering: ${withdrawalTaskLabels[nextTask]}.`:'Ta hänsyn till framtida utgifter. Komplettera extra buffert om du behöver det.')}</p><button type="button" className={primary} onClick={()=>choose(nextTask,nextYear)}>{loaded.assessment.result.issues.length?'Öppna rekommenderad kontroll':'Välj en komplettering'}</button></div>
        <p className="mb-5 text-xs text-slate-600">Beloppet är ingen garanti för faktisk skatt eller bankbehållning. Framtida utgifter utöver reserverna ingår inte.</p>
        {notice&&<p ref={error} tabIndex={-1} role="status" className="my-4 rounded-xl bg-slate-100 p-3">{notice}</p>}
        <h3 className="text-base font-semibold">Välj den uppgift du vill kontrollera</h3><p className="my-2 text-slate-600">Öppna en uppgift direkt. Du behöver inte gå igenom alla i ordning. SoloLedger granskar bokföringsunderlag; du kontrollerar uppgifterna hos banken och Skatteverket.</p>

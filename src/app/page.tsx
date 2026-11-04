@@ -1132,6 +1132,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
               ? 'Fakturor'
             : activeTab === 'leverantorsskulder' ? 'Bokslutsskulder'
             : activeTab === 'arsavslut' ? 'Årsavslut'
+            : activeTab === 'sakert-uttag' ? 'Säkert uttag'
             : activeTab === 'inventarier'
               ? 'Inventarier'
             : activeTab === 'faq'
@@ -1168,7 +1169,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
     </div>
 
     <div role="group" aria-label="Ekonomikontroller" className="flex flex-wrap items-center gap-2.5 xl:justify-end">
-      {!['profil', 'faq', 'kontoplan', 'moms'].includes(activeTab) && (
+      {!['profil', 'faq', 'kontoplan', 'moms', 'sakert-uttag'].includes(activeTab) && (
         <div className="h-10 flex items-center gap-2 bg-white px-3 rounded-xl border border-gray-200 shadow-sm">
           <span className="text-[10px] font-black uppercase text-gray-400 italic">
             År
@@ -1229,20 +1230,23 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
         <div className="mb-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={returnToYearEndGuide} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Tillbaka till årsavslutet {yearEndReturn.scope.year}</button></div>
       )}
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut', 'ne'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
-      {activeTab === 'dashboard' ? (
-        <>
+      {(activeTab === 'dashboard' || activeTab === 'sakert-uttag') && (
           <DashboardOverview
             owner={user.id} taxControlTarget={taxControlTarget} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
             resultClosingReview={neData?.resultClosingReview}
             momsBreakdown={momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }}
             onOpenVat={() => setActiveTab('moms')} onOpenNe={() => setActiveTab('ne')}
+            onOpenWithdrawal={() => setActiveTab('sakert-uttag')}
+            onBackFromWithdrawal={activeTab === 'sakert-uttag' ? () => setActiveTab('dashboard') : undefined}
             selectedYear={selectedYear}
             transactions={transactions}
             journalMap={journalMap}
             setActiveModal={setActiveModal}
             activeModal={activeModal}
           />
-
+      )}
+      {activeTab === 'sakert-uttag' ? null : activeTab === 'dashboard' ? (
+        <>
           {isYearLocked && (
             <div className="flex items-center gap-3 bg-amber-50 border-2 border-amber-300 rounded-[2rem] px-6 py-4 mb-4 shadow-sm animate-in fade-in duration-200">
               <span className="text-xl">🔒</span>

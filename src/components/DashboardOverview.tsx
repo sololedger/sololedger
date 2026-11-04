@@ -9,12 +9,15 @@ import { calculateDashboard, type DashboardBalances } from '@/lib/calculations'
 import type { MomsBreakdown } from '@/lib/accountingService'
 import type { ResultClosingReview } from '@/lib/resultClosingReview'
 import ResultClosingNotice from './ResultClosingNotice'
+import WithdrawalPage from './WithdrawalPage'
 
 type Props = Omit<OverviewCardsProps, 'data' | 'taxRate' | 'withdrawal'> & {
   taxControlTarget: HTMLElement | null
   resultClosingReview?: ResultClosingReview
   owner: string; refreshKey: unknown; balances: DashboardBalances; bankSaldo: number; momsBreakdown: MomsBreakdown
   onOpenVat?: () => void; onOpenNe?: () => void
+  onOpenWithdrawal?: () => void
+  onBackFromWithdrawal?: () => void
 }
 
 export default function DashboardOverview(props: Props) {
@@ -22,11 +25,12 @@ export default function DashboardOverview(props: Props) {
   return <DashboardSession key={`${props.owner}:${asOf}`} {...props} asOf={asOf} />
 }
 
-function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, taxControlTarget, resultClosingReview, asOf, ...cards }: Props & { asOf: string }) {
+function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, onOpenWithdrawal, onBackFromWithdrawal, taxControlTarget, resultClosingReview, asOf, ...cards }: Props & { asOf: string }) {
   // One read/save lifecycle for both cards: conflicts and failed reads mask both.
   const model = useWithdrawal(owner, asOf, refreshKey)
   const loaded = model.data
   const [notice, setNotice] = useState<{ year: number; text: string } | null>(null)
+  if (onBackFromWithdrawal) return <WithdrawalPage model={model} asOf={asOf} onBack={onBackFromWithdrawal} onOpenVat={onOpenVat} onOpenNe={onOpenNe} />
   const rate = loaded ? withdrawalAnnualRate(loaded.assessment.facts, cards.selectedYear) : null
   const data = calculateDashboard(balances, rate ?? 0, momsBreakdown, resultClosingReview)
   data.bankSaldo = bankSaldo
@@ -39,7 +43,7 @@ function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdow
       model={model} year={cards.selectedYear} asOf={asOf} rate={rate} final={final} persisted={persisted}
       notice={notice?.year === cards.selectedYear ? notice.text : ''} onNotice={text => setNotice({ year: cards.selectedYear, text })} /> : <p className="text-xs text-slate-600">Årsprocenten visas när uttagsunderlaget har laddats.</p>, taxControlTarget)}
     <OverviewCards {...cards} data={data} taxRate={rate}
-    withdrawal={<WithdrawalCardContent model={model} asOf={asOf} annualRateInCard onOpenVat={onOpenVat} onOpenNe={onOpenNe} />} />
+    withdrawal={<WithdrawalCardContent model={model} asOf={asOf} annualRateInCard onOpenVat={onOpenVat} onOpenNe={onOpenNe} onOpenPage={onOpenWithdrawal} />} />
   </>
 }
 

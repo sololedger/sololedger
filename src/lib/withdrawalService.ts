@@ -30,10 +30,13 @@ export async function saveWithdrawal(owner: string, snapshot: WithdrawalSnapshot
   // Validate the same prospective assessment the caller will see. Critical
   // accounting conflicts are not erased by saving advisory information.
   buildWithdrawalAssessment({ ...snapshot, revision: { id: '', user_id: owner, as_of_date: snapshot.as_of, recorded_at: '', facts } })
-  const { error } = await rpc('save_withdrawal_assessment', {
+  const response = await Promise.resolve(rpc('save_withdrawal_assessment', {
     p_as_of: snapshot.as_of, p_previous: snapshot.revision?.id ?? null,
     p_signature: snapshot.signature, p_facts: facts.map(({ key, value }) => ({ key, value })),
-  })
+  })).catch(() => null)
+  if (!response) return 'uncertain' as const
+  const { error, status } = response
   if (error?.code === '40001') throw new WithdrawalConflictError()
+  if (error && (status === 0 || status >= 500 || (!error.code && !status))) return 'uncertain' as const
   if (error) throw new Error('Uppgifterna kunde inte sparas. Försök igen.')
 }

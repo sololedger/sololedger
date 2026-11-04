@@ -276,6 +276,6 @@ export function buildWithdrawalAssessment(s: WithdrawalSnapshot) {
   if (bank && bank.amountOre !== bank.bookOre) issues.push('Bankens kontrollerade saldo avviker från bokföringen. Stäm av banken igen.')
   const result = calculateWithdrawal({ asOf: s.as_of, bankOre, bankQuality: bank && bank.signature === s.signature && bank.date === s.as_of ? 'checked' : 'estimated', taxQuality: checkedAt === s.as_of ? 'checked' : 'estimated', taxAccountOre, parts, bufferOre, issues })
   return { result, taxYears, taxRates, facts: [...facts].map(([key, value]) => ({ ...s.revision?.facts.find(f => f.key === key), key, value })), checkedAt,
-    otherBasis, incomeBases: Object.fromEntries([...years].map(([year, b]) => [year, stableWithdrawalValue(Object.fromEntries(Object.entries(b).filter(([a]) => /^[3-8]/.test(a))))])),
+    knownOther, otherBasis, incomeBases: Object.fromEntries([...years].map(([year, b]) => [year, stableWithdrawalValue(Object.fromEntries(Object.entries(b).filter(([a]) => /^[3-8]/.test(a))))])),
     firstDate, financialBasis: withdrawalFinancialBasis(s, s.as_of) }
 }
