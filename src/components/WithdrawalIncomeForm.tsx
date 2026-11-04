@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { useWithdrawal } from '@/hooks/useWithdrawal'
 import { withdrawalAnnualRate } from '@/lib/withdrawalAssessment'
 import { withdrawalIssueTask } from '@/lib/withdrawalPresentation'
@@ -7,14 +6,14 @@ import WithdrawalIncomeFields, { incomeTaxAccountReady, withdrawalIncomeValue, t
 
 const moneyText = (ore: unknown) => typeof ore === 'number' ? String(ore / 100) : ''
 
-export default function WithdrawalIncomeForm({ model, asOf, firstIssue, onStart, onOpenTax }: {
+export default function WithdrawalIncomeForm({ model, asOf, yearText, onYearChange, onStart, onOpenTax }: {
   model: ReturnType<typeof useWithdrawal>
   asOf: string
-  firstIssue?: string
+  yearText: string
+  onYearChange: (year: string) => void
   onStart: () => void
   onOpenTax: () => void
 }) {
-  const [yearText, setYearText] = useState(() => firstIssue?.match(/\b(19|20)\d{2}\b/)?.[0] ?? asOf.slice(0, 4))
   const year = Number(yearText)
   const currentYear = Number(asOf.slice(0, 4))
   const validYear = Number.isInteger(year) && year >= 1900 && year <= currentYear
@@ -47,7 +46,7 @@ export default function WithdrawalIncomeForm({ model, asOf, firstIssue, onStart,
         target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-semibold text-emerald-800 underline">Hitta beslutet hos Skatteverket ↗</a>
     </div>
     <label className="block text-sm font-semibold">Inkomstår
-      <input type="number" min="1900" max={currentYear} value={yearText} disabled={model.saving} onChange={event => setYearText(event.target.value)}
+      <input type="number" min="1900" max={currentYear} value={yearText} disabled={model.saving} onChange={event => onYearChange(event.target.value)}
         className="mt-2 block min-h-12 w-full max-w-40 rounded-xl border border-slate-400 px-3 py-2 text-base" />
     </label>
     <p className="text-xs text-slate-600">Varje år sparas separat. Osparade ändringar försvinner när du byter år.</p>

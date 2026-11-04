@@ -1,5 +1,6 @@
 import type { useWithdrawal } from '@/hooks/useWithdrawal'
 import { toOre } from '@/lib/withdrawalModel'
+import { withdrawalTaxAccountNote } from '@/lib/withdrawalPresentation'
 import WithdrawalControlForm from './WithdrawalControlForm'
 import WithdrawalTaxAccountFields, { withdrawalTaxAccountValue, type TaxAccountInput } from './WithdrawalTaxAccountFields'
 import { withdrawalMoney } from './WithdrawalSummary'
@@ -40,7 +41,7 @@ export default function WithdrawalTaxAccountForm({ model, asOf, onStart }: {
       <div><dt className="inline font-bold">Saldo 0 kr. </dt><dd className="inline">Ange 0 när det är det faktiska saldot för datumet.</dd></div>
       </dl>
     </details>
-    {typeof savedAmount === 'number' && typeof savedDate === 'string' && <p className="text-sm text-slate-700">Senast sparade saldo: <strong>{withdrawalMoney(savedAmount)}</strong> den {savedDate}.{!current && ' Kontrollera saldot igen för aktuellt datum och underlag.'}</p>}
+    {loaded && typeof savedAmount === 'number' && typeof savedDate === 'string' && <p className="text-sm text-slate-700">Senast sparade saldo: <strong>{withdrawalMoney(savedAmount)}</strong>. {withdrawalTaxAccountNote(loaded.assessment)}</p>}
     {snapshot && <details className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">
       <summary className="min-h-11 cursor-pointer py-3 font-semibold">Händelser i SoloLedger</summary>
       {snapshot.events.length + snapshot.movements.length === 0 && <p className="pb-2">Inga registrerade avräkningar eller överföringar.</p>}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {buildWithdrawalAssessment as assess} from '../src/lib/withdrawalAssessment.ts'
-import {withdrawalControlRows,withdrawalIssueTask,withdrawalHelpIds,withdrawalMissingIncomeYear,withdrawalNextTask} from '../src/lib/withdrawalPresentation.ts'
+import {withdrawalControlRows,withdrawalGuidance,withdrawalIssueTask,withdrawalHelpIds,withdrawalMissingIncomeYear,withdrawalNextTask} from '../src/lib/withdrawalPresentation.ts'
 import {saleWithdrawal,sealWithdrawal,checkWithdrawalTax as tax,addWithdrawalFact as fact,addWithdrawalTx as tx} from '../tests/fixtures/withdrawalFixtures.ts'
 const s=saleWithdrawal(),a=assess(s),before=JSON.stringify([s,a])
 let rows=withdrawalControlRows(a,s,true)
@@ -13,10 +13,26 @@ tax(s,0)
 assert.equal(withdrawalNextTask(assess(s),s),'bank')
 fact(s,'bank',{date:s.as_of,amountOre:12500000,bookOre:12500000,signature:s.signature})
 assert.equal(withdrawalNextTask(assess(s),s),'income','do not ask to repeat already-current bank/tax controls when only income tax is estimated')
+assert.equal(withdrawalGuidance(assess(s),s).incomeYear,2026)
+const olderTax = tax(structuredClone(s), 0, '2027-01-19')
+const olderAssessment = assess(olderTax)
+const olderBefore = structuredClone(olderAssessment.result)
+const olderRow = withdrawalControlRows(olderAssessment,olderTax,true).find(r=>r.task==='tax_account')!
+assert.equal(olderRow.group,'optional')
+assert.equal(olderRow.saved,true)
+assert.match(olderRow.detail,/Kontrollerat 2027-01-19/)
+assert.equal(withdrawalGuidance(olderAssessment,olderTax).message,olderRow.detail)
+assert.equal(olderAssessment.result.recommendedOre,assess(s).result.recommendedOre)
+assert.deepEqual(olderAssessment.result,olderBefore)
 const annual=structuredClone(s)
 fact(annual,'income:2026',{rate:30,debitedOre:0,pendingOre:0,finalOre:null,basis:'{}',taxBasis:'{}'})
 assert.equal(withdrawalNextTask(assess(annual),annual),'buffer','a saved zero preliminary decision is not a missing decision')
 assert.equal(withdrawalMissingIncomeYear({...assess(annual),taxYears:[2025,2026]}),2025,'suggest the missing older year when the newer decision is already saved')
+const partialIncome = {...assess(annual),taxYears:[2025,2026]}
+const incomeRow = withdrawalControlRows(partialIncome,annual,true).find(r=>r.task==='income')!
+assert.equal(incomeRow.group,'optional')
+assert.equal(incomeRow.saved,true)
+assert.match(incomeRow.detail,/Saknar uppgift för 2025/)
 assert.equal(withdrawalIssueTask('Unknown future accounting problem'),'review')
 tx(s,'payment','2027-01-01','manual',[['1930',-1000],['2012',1000]]);sealWithdrawal(s)
 rows=withdrawalControlRows(assess(s),s,true)

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { useWithdrawal } from '@/hooks/useWithdrawal'
 import { findHelpArticle } from '@/lib/helpContent'
-import { withdrawalControlRows, withdrawalHelpIds, withdrawalIssueTask, withdrawalNextTask, withdrawalTaskLabels, type WithdrawalTask } from '@/lib/withdrawalPresentation'
+import { withdrawalControlRows, withdrawalGuidance, withdrawalHelpIds, withdrawalIssueTask, withdrawalTaskLabels, type WithdrawalTask } from '@/lib/withdrawalPresentation'
 import { WithdrawalCardContent } from './WithdrawalPanel'
 import WithdrawalBufferForm from './WithdrawalBufferForm'
 import WithdrawalCoverageForm from './WithdrawalCoverageForm'
@@ -43,6 +43,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
   const heading = useRef<HTMLHeadingElement>(null)
   const guide = useRef<HTMLElement>(null)
   const [selected, setSelected] = useState<WithdrawalTask | null>(null)
+  const [incomeYearText, setIncomeYearText] = useState<string | null>(null)
   useEffect(() => { heading.current?.focus() }, [])
 
   const loaded = model.data
@@ -63,18 +64,17 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
   const help = active ? findHelpArticle(withdrawalHelpIds[active.task]) : null
   const blocked = result?.status === 'incomplete' || result?.recommendedOre === null
 
-  const suggested = loaded && result?.status === 'estimated' ? withdrawalNextTask(loaded.assessment, loaded.snapshot) : null
-  const next = firstRequired ?? (suggested === 'buffer' ? null : suggested)
-  const explanation = blocked ? 'En uppgift behöver kontrolleras innan vi kan visa ett uttagsbelopp.'
-    : suggested === 'bank' ? 'Beloppet bygger på bokföringen. Saldot i banken behöver jämföras.'
-    : suggested === 'tax_account' ? 'Skattekontots saldo har inte kontrollerats för dagens datum.'
-    : result?.status === 'estimated' ? 'Den slutliga skatten är fortfarande en uppskattning.' : null
+  const guidance = loaded ? withdrawalGuidance(loaded.assessment, loaded.snapshot) : null
+  const next = guidance && guidance.task !== 'buffer' ? guidance.task : null
+  const targetIncomeYear = guidance?.incomeYear ?? rows.find(row => row.task === 'income')?.incomeYear
   const nextLabel = next === 'bank' ? 'Kontrollera bankens saldo'
     : next === 'tax_account' ? 'Kontrollera skattekontots saldo'
+    : next === 'income' && guidance?.incomeYear ? `Öppna skattebeslut för ${guidance.incomeYear}`
     : next ? `Öppna: ${withdrawalTaskLabels[next]}` : null
 
   function selectControl(task: WithdrawalTask, focusGuide = false) {
     setSelected(task)
+    if (task === 'income') setIncomeYearText(null)
     if (focusGuide || window.matchMedia('(max-width: 1023px)').matches) guide.current?.focus()
   }
 
@@ -103,7 +103,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
             <span className="mt-3 inline-block rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-emerald-900">{result.status === 'estimated' ? 'Uppskattat' : 'Beräknat'}</span>
           </>}
         </div>
-        {explanation && <p className="mt-3 text-sm text-slate-700">{explanation}</p>}
+        {guidance?.message && <p className="mt-3 text-sm text-slate-700">{guidance.message}</p>}
         {!blocked && result.rawOre !== null && result.rawOre < 0 && <p className="mt-3 text-sm font-semibold text-slate-800">Det saknas {withdrawalMoney(-result.rawOre)} för de visade betalningarna.</p>}
         {next && <button type="button" onClick={() => selectControl(next, true)}
           className="mt-2 min-h-11 text-left text-sm font-semibold text-emerald-800 underline underline-offset-4">{nextLabel} ↓</button>}
@@ -139,7 +139,8 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
         <p className="mt-1 text-sm text-slate-600">Välj en uppgift för att se hur du gör.</p>
         <ul className="mt-3 space-y-1">
           {rows.map(row => {
-            const status = statuses[row.group === 'optional' && row.saved ? 'stale' : row.group]
+            const olderTax = row.task === 'tax_account' && row.group === 'optional' && row.saved
+            const status = statuses[row.group === 'optional' && row.saved && !olderTax ? 'stale' : row.group]
             const bank = row.task === 'bank' ? savedBank : undefined
             const savedMismatch = bank && bank.amountOre !== bank.bookOre
             const previousMatch = bank && row.group === 'optional' && typeof bank.amountOre === 'number' && typeof bank.date === 'string' && bank.amountOre === bank.bookOre
@@ -149,7 +150,14 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
             const statusLabel = savedMismatch ? 'Sparad avvikelse'
               : changedBasis ? 'Ändrat underlag'
               : previousMatch ? 'Tidigare matchning'
+              : olderTax ? 'Äldre kontroll'
+              : row.task === 'income' && row.group === 'optional' && row.detail ? 'Komplettera per år'
+              : row.task === 'other' && row.group === 'optional' && !row.saved ? 'Frivillig'
               : row.task === 'buffer' && row.group === 'optional' ? 'Frivillig' : status.label
+            const detail = row.detail || (row.task === 'other' && result && (row.group !== 'required' || row.saved)
+              ? `${row.group === 'required' ? 'Sparad totalsumma' : 'Andra betalningar i beräkningen'}: ${withdrawalMoney(result.otherOre)}.`
+              : row.task === 'buffer' && result
+                ? `Buffert i beräkningen: ${withdrawalMoney(result.bufferOre)}.` : '')
             const isActive = row.task === active?.task
             return <li key={row.task}>
               <button type="button" aria-pressed={isActive} aria-controls="withdrawal-guide" onClick={() => selectControl(row.task)}
@@ -161,6 +169,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
                 </span>
                 <span className={'max-w-28 rounded-full px-2 py-1 text-center text-[11px] leading-tight font-semibold ' + status.tone}>{statusLabel}</span>
               </button>
+              {detail && <p className="px-3 pb-2 text-xs text-slate-600">{detail}</p>}
             </li>
           })}
         </ul>
@@ -183,7 +192,12 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
         {showBank && <WithdrawalBankForm model={model} onStart={() => setSelected('bank')} />}
         {showOther && <WithdrawalOtherForm model={model} onStart={() => setSelected('other')} />}
         {showTaxAccount && <WithdrawalTaxAccountForm model={model} asOf={asOf} onStart={() => setSelected('tax_account')} />}
-        {showIncome && <WithdrawalIncomeForm model={model} asOf={asOf} firstIssue={activeIssue} onStart={() => setSelected('income')} onOpenTax={() => selectControl('tax_account')} />}
+        {showIncome && <WithdrawalIncomeForm model={model} asOf={asOf}
+          yearText={incomeYearText ?? String(targetIncomeYear ?? asOf.slice(0, 4))} onYearChange={setIncomeYearText}
+          onStart={() => {
+            setSelected('income')
+            setIncomeYearText(incomeYearText ?? String(targetIncomeYear ?? asOf.slice(0, 4)))
+          }} onOpenTax={() => selectControl('tax_account')} />}
         <div hidden={showInline}>
           <WithdrawalCardContent model={model} asOf={asOf} annualRateInCard controlsOnly initialTask={active?.task} onOpenVat={onOpenVat} onOpenNe={onOpenNe} />
         </div>
