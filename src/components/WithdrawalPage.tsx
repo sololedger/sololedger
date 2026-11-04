@@ -50,6 +50,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
   const issue = result?.issues[0]
   const firstRequired = issue ? withdrawalIssueTask(issue) : null
   const rows = loaded ? withdrawalControlRows(loaded.assessment, loaded.snapshot, true) : []
+  const savedBank = loaded?.assessment.facts.find(fact => fact.key === 'bank')?.value
   const active = rows.find(row => row.task === selected) ?? rows.find(row => row.task === firstRequired)
   const showBuffer = selected === 'buffer'
   const showCoverage = selected === 'coverage' || active?.task === 'coverage'
@@ -139,13 +140,25 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
         <ul className="mt-3 space-y-1">
           {rows.map(row => {
             const status = statuses[row.group === 'optional' && row.saved ? 'stale' : row.group]
-            const statusLabel = row.task === 'buffer' && row.group === 'optional' ? 'Frivillig' : status.label
+            const bank = row.task === 'bank' ? savedBank : undefined
+            const savedMismatch = bank && bank.amountOre !== bank.bookOre
+            const previousMatch = bank && row.group === 'optional' && typeof bank.amountOre === 'number' && typeof bank.date === 'string' && bank.amountOre === bank.bookOre
+              ? { amount: bank.amountOre, date: bank.date } : null
+            // Across dates the signature also changes when the underlying entries are identical.
+            const changedBasis = previousMatch && (previousMatch.date === loaded.snapshot.as_of || previousMatch.amount !== result?.bankOre)
+            const statusLabel = savedMismatch ? 'Sparad avvikelse'
+              : changedBasis ? 'Ändrat underlag'
+              : previousMatch ? 'Tidigare matchning'
+              : row.task === 'buffer' && row.group === 'optional' ? 'Frivillig' : status.label
             const isActive = row.task === active?.task
             return <li key={row.task}>
               <button type="button" aria-pressed={isActive} aria-controls="withdrawal-guide" onClick={() => selectControl(row.task)}
                 className={'flex min-h-12 w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-sm transition-colors ' + (isActive ? 'border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200' : 'border-transparent hover:bg-slate-50')}>
-                <span aria-hidden="true" className={'grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ' + status.tone}>{status.icon}</span>
-                <span className="min-w-0 flex-1 font-semibold text-slate-900">{row.label}</span>
+                {!previousMatch && <span aria-hidden="true" className={'grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ' + status.tone}>{status.icon}</span>}
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold text-slate-900">{row.label}</span>
+                  {previousMatch && <span className="mt-1 block text-xs text-slate-600">Matchade {previousMatch.date} · {withdrawalMoney(previousMatch.amount)}. Kontrollera bankens disponibla saldo före ett nytt uttag.</span>}
+                </span>
                 <span className={'max-w-28 rounded-full px-2 py-1 text-center text-[11px] leading-tight font-semibold ' + status.tone}>{statusLabel}</span>
               </button>
             </li>

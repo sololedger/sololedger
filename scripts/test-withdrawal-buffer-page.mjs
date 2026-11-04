@@ -395,6 +395,7 @@ try {
   await expect(reserve(bankMobile)).toHaveText(/Kan inte beräknas/)
   await expect(reserve(bankMobile)).not.toContainText(/\d+ kr/)
   assert.equal(bankFact().amountOre, 28000)
+  await expect(bankMobile.getByRole('button', { name: /Bankens saldo/ })).toContainText('Sparad avvikelse')
 
   await bankAmount(bankMobile).fill('-38,50')
   const changedBank = snapshots.get(bankOwner)
@@ -431,6 +432,45 @@ try {
   await bankMobile.getByRole('button', { name: /Bankens saldo/ }).click()
   await expect(bankAmount(bankMobile)).toHaveValue('')
   console.log('PASS KAN-133 bank: match, mismatch block, negative match, empty, duplicate submit, two tabs, stale signature, write rejection, failed reload, owner and date changes')
+
+  const rolloverOwner = 'synthetic-bank-rollover'
+  const rollover = seed(rolloverOwner, date)
+  addWithdrawalTx(rollover, 'adjustment', date, 'manual', [['1930', -221.5], ['2018', 221.5]])
+  sealWithdrawal(rollover)
+  addWithdrawalFact(rollover, 'bank', { date, amountOre: 7850, bookOre: 7850, signature: rollover.signature })
+  snapshots.set(rolloverOwner, rollover)
+  const rolloverPage = await open(390, /Bankens saldo/, rolloverOwner)
+  const bankRow = rolloverPage.getByRole('button', { name: /Bankens saldo/ })
+  const withdrawalAmount = reserve(rolloverPage).getByText('78 kr', { exact: true })
+  await expect(bankRow).toContainText('Sparad')
+  await expect(withdrawalAmount).toBeVisible()
+
+  const nextDate = '2026-11-05'
+  snapshots.set(rolloverOwner, sealWithdrawal({ ...structuredClone(rollover), as_of: nextDate }))
+  await rolloverPage.clock.setFixedTime(new Date(nextDate + 'T12:00:00Z'))
+  await rolloverPage.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(bankRow).toContainText('Tidigare matchning')
+  await expect(bankRow).toContainText(/Matchade 2026-11-04 · 78,5 kr/)
+  await expect(bankRow).toContainText('Kontrollera bankens disponibla saldo före ett nytt uttag.')
+  await expect(withdrawalAmount).toBeVisible()
+  await bankRow.click()
+  await expect(bankAmount(rolloverPage)).toHaveValue('')
+  await bankAmount(rolloverPage).fill('78,50')
+  await save(rolloverPage).click()
+  await expect(bankRow).toContainText('Sparad')
+  await expect(bankRow).not.toContainText('Tidigare matchning')
+  await expect(withdrawalAmount).toBeVisible()
+
+  const changedBasis = snapshots.get(rolloverOwner)
+  addWithdrawalTx(changedBasis, 'deposit', nextDate, 'manual', [['1930', 10], ['2018', -10]])
+  addWithdrawalTx(changedBasis, 'withdrawal', nextDate, 'manual', [['1930', -10], ['2018', 10]])
+  sealWithdrawal(changedBasis)
+  await rolloverPage.evaluate(() => window.refreshWithdrawal())
+  await expect(bankRow).toContainText('Ändrat underlag')
+  await expect(bankRow).toContainText(/Matchade 2026-11-05 · 78,5 kr/)
+  await expect(withdrawalAmount).toBeVisible()
+  assert(await rolloverPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  console.log('PASS bank guidance: date rollover, fresh check, changed signature with unchanged net balance, saved mismatch still blocks')
 
   const otherOwner = 'synthetic-other'
   const withDebt = seed(otherOwner, date)
