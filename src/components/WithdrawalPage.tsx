@@ -176,6 +176,6 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
         </div>
       </section>
     </div>
-    {historySession !== null && <WithdrawalHistory key={historySession} owner={owner} sequence={historySession} revisionId={loaded?.snapshot.revision?.id} />}
+    <WithdrawalHistory key={owner} owner={owner} sequence={historySession} revisionId={loaded?.snapshot.revision?.id} />
   </section>
 }

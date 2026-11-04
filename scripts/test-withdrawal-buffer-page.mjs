@@ -34,6 +34,7 @@ const bundle = await build({
       const [refresh, setRefresh] = useState(0)
       const [sequence, setSequence] = useState(() => historySession(owner))
       window.refreshHistorySession = () => setSequence(historySession(owner))
+      window.pauseHistorySession = () => { beginProfileContext(owner); setSequence(null) }
       window.bufferOwner = owner
       window.setBufferOwner = next => { setSequence(historySession(next)); setOwner(next) }
       window.refreshWithdrawal = () => setRefresh(previous => previous + 1)
@@ -830,10 +831,12 @@ async function verifyHistory() {
   await other.click()
   await started
   await historyPage.evaluate(() => window.refreshHistorySession())
-  await expect(versions()).toHaveCount(0)
   release()
   await expect(history.getByText('Sparade uppgifter i version 11')).toHaveCount(0)
+  await expect(history).toHaveAttribute('open', '')
+  await expect(versions()).toHaveCount(10)
   mode = 'empty'
+  await openHistory()
   await openHistory()
   await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toBeVisible()
   await openHistory()
@@ -854,11 +857,31 @@ async function verifyHistory() {
   await expect(versions()).toHaveCount(10)
   await historyPage.getByRole('button', { name: /^Extra buffert/ }).click()
   await amount(historyPage).fill('10')
+  await historyPage.evaluate(() => window.pauseHistorySession())
+  await expect(versions()).toHaveCount(0)
+  await historyPage.evaluate(() => window.refreshHistorySession())
+  await expect(history).toHaveAttribute('open', '')
+  await expect(versions()).toHaveCount(10)
   rows.unshift({ ...rows[0], id: 'revision-14', revision_no: 14 })
+  await expect(history.getByRole('button', { name: /^Version 14 Avser/ })).toHaveCount(0)
   await save(historyPage).click()
   await expect(historyPage.getByText('Sparat · beräkningen är uppdaterad.')).toBeVisible()
   await expect(versions().first()).toHaveText(/Version 14/)
   await expect(history.getByRole('button', { name: /^Version 14 Avser/ })).toHaveCount(1)
+  await expect(history.getByRole('button', { name: /^Version 13 Avser/ })).toHaveCount(1)
+  await amount(historyPage).fill('15')
+  mode = 'failure'
+  await save(historyPage).click()
+  await expect(historyPage.getByText('Sparat · beräkningen är uppdaterad.')).toBeVisible()
+  await expect(history.getByRole('alert')).toHaveText('Historiken kunde inte hämtas.')
+  await expect(versions()).toHaveCount(0)
+  rows.unshift({ ...rows[0], id: 'revision-15', revision_no: 15 })
+  mode = 'normal'
+  await history.getByRole('button', { name: 'Försök igen' }).click()
+  await expect(versions().first()).toHaveText(/Version 15/)
+  await expect(history.getByRole('button', { name: /^Version 15 Avser/ })).toHaveCount(1)
+  await expect(history.getByRole('button', { name: /^Version 14 Avser/ })).toHaveCount(1)
+  await expect(history.getByRole('button', { name: /^Version 13 Avser/ })).toHaveCount(1)
   await expect(history).toHaveAttribute('open', '')
   console.log('PASS KAN-133 history: refresh after save, lazy GET, ordering, cursor, older facts, unchanged calculation, empty, errors, neutral detail, overlapping requests, session and owner resets, 390px')
 }

@@ -139,14 +139,19 @@ function HistoryList({ owner, sequence }: Session) {
   </div>
 }
 
-export default function WithdrawalHistory({ owner, sequence, revisionId }: Session & { revisionId?: string }) {
+export default function WithdrawalHistory({ owner, sequence, revisionId }: {
+  owner: string
+  sequence: number | null
+  revisionId?: string
+}) {
   const [open, setOpen] = useState(false)
   const [confirmedRevision, setConfirmedRevision] = useState(revisionId)
   // The model temporarily hides its snapshot during reload. Only a confirmed revision resets pagination.
   if (revisionId !== undefined && revisionId !== confirmedRevision) setConfirmedRevision(revisionId)
-  return <details onToggle={event => setOpen(event.currentTarget.open)}
+  // Keep the disclosure open for this owner while discarding reads from the old session.
+  return <details hidden={sequence === null} onToggle={event => setOpen(event.currentTarget.open)}
     className="min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm">
     <summary className="min-h-12 cursor-pointer px-4 py-4 text-lg font-bold text-slate-950 sm:px-6">Tidigare kontroller</summary>
-    {open && <HistoryList key={confirmedRevision} owner={owner} sequence={sequence} />}
+    {open && sequence !== null && <HistoryList key={`${sequence}:${confirmedRevision ?? ''}`} owner={owner} sequence={sequence} />}
   </details>
 }
