@@ -24,8 +24,8 @@ export default function WithdrawalTaxAccountFields({ input, update, snapshot }: 
       <select aria-label="Har du det faktiska saldot för kontrolldatumet?" className={fieldClass} value={input.available}
         onChange={event => update({ available: event.target.value, confirmed: false })}>
         <option value="">Välj vad du vet</option>
-        <option value="yes">Ja, jag har läst saldot</option>
-        <option value="later">Nej, jag har inte uppgiften nu</option>
+        <option value="yes">Ja</option>
+        <option value="later">Nej, inte ännu</option>
       </select>
     </label>
     {input.available === 'later' && <p role="status">Pausa och återvänd när du har uppgiften. Ingen nolla registreras och kontrollen blir inte klar.</p>}
@@ -33,8 +33,8 @@ export default function WithdrawalTaxAccountFields({ input, update, snapshot }: 
       <label className="block font-semibold">Saldot är
         <select aria-label="Saldot är" className={fieldClass} value={input.sign} onChange={event => update({ sign: event.target.value })}>
           <option value="">Välj efter skattekontot</option>
-          <option value="surplus">Ett överskott (eller saldo 0 kr)</option>
-          <option value="deficit">Ett underskott</option>
+          <option value="surplus">Plus eller 0 kr</option>
+          <option value="deficit">Minus</option>
         </select>
       </label>
       <label className="block font-semibold">Skattekontots saldo i kronor

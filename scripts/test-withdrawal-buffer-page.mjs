@@ -22,17 +22,25 @@ const bundle = await build({
     import {createRoot} from 'react-dom/client'
     import DashboardOverview from './src/components/DashboardOverview'
     import Layout from './src/components/Layout'
+    import {beginProfileContext, acceptProfileContext} from './src/lib/profileContext'
+    function historySession(owner) {
+      const ticket = beginProfileContext(owner)
+      acceptProfileContext(ticket, owner)
+      return ticket.sequence
+    }
     function App() {
       const [owner, setOwner] = useState(window.initialWithdrawalOwner ?? 'synthetic-a')
       const [tab, setTab] = useState('dashboard')
       const [refresh, setRefresh] = useState(0)
+      const [sequence, setSequence] = useState(() => historySession(owner))
+      window.refreshHistorySession = () => setSequence(historySession(owner))
       window.bufferOwner = owner
-      window.setBufferOwner = setOwner
+      window.setBufferOwner = next => { setSequence(historySession(next)); setOwner(next) }
       window.refreshWithdrawal = () => setRefresh(previous => previous + 1)
       return <Layout activeTab={tab} setActiveTab={setTab} onLogout={()=>{}} isAdmin={false}>
         <main className="mx-auto max-w-6xl px-4 pb-8">
           <h1 className="mb-4 text-2xl font-bold">{tab === 'sakert-uttag' ? 'Säkert uttag' : 'Ekonomiöversikt'}</h1>
-          <DashboardOverview owner={owner} refreshKey={refresh} taxControlTarget={null} balances={{}}
+          <DashboardOverview owner={owner} historySession={sequence} refreshKey={refresh} taxControlTarget={null} balances={{}}
             bankSaldo={300} momsBreakdown={{utgaendeMoms:0,ingaendeMoms:0,momsNetto:0}}
             selectedYear={2026} transactions={[]} journalMap={{}} setActiveModal={()=>{}} activeModal={null}
             onOpenWithdrawal={()=>setTab('sakert-uttag')}
@@ -43,11 +51,12 @@ const bundle = await build({
     createRoot(document.getElementById('root')).render(<App/>)
   ` },
   bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: 'tsconfig.json',
+  define: { 'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify('https://synthetic.invalid'), 'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify('synthetic-public') },
   plugins: [{ name: 'synthetic-profile-rpc', setup(builder) {
     builder.onResolve({ filter: /profileWriteGuard$|withdrawalSupplierProof$/ }, args => ({ path: args.path, namespace: 'synthetic' }))
     builder.onLoad({ filter: /.*/, namespace: 'synthetic' }, args => ({
       contents: args.path.endsWith('profileWriteGuard')
-        ? 'export async function verifiedProfileRpc(){ const userId=window.bufferOwner; return {userId,rpc:(name,args)=>window.bufferRpc(userId,name,args)} }'
+        ? 'export async function verifyProfileWrite(){ return "synthetic-history" } export async function verifiedProfileRpc(){ const userId=window.bufferOwner; return {userId,rpc:(name,args)=>window.bufferRpc(userId,name,args)} }'
         : 'export async function loadWithdrawalSupplierProof(){throw Error("No supplier fixtures in this test")}',
     }))
   } }],
@@ -108,6 +117,10 @@ async function open(width, task = /Extra buffert/, userId = owner) {
   await page.setViewportSize({ width, height: 920 })
   page.on('pageerror', error => { throw error })
   await page.route('**/*', route => route.abort())
+  if (userId === 'synthetic-history-owner') {
+    await page.route('https://synthetic.invalid/', route => route.fulfill({ contentType: 'text/html', body: '<html></html>' }))
+    await page.goto('https://synthetic.invalid/')
+  }
   await page.clock.setFixedTime(new Date(date + 'T12:00:00Z'))
   await page.setContent('<html lang="sv"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div></html>')
   await page.evaluate(id => { window.initialWithdrawalOwner = id }, userId)
@@ -125,8 +138,23 @@ const retry = page => page.getByRole('button', { name: 'Försök igen' })
 const capture = process.argv.includes('--screenshots')
 
 try {
-  const desktop = await open(1440)
+  await verifyHistory()
+  const desktop = await open(1440, null)
   const mobile = await open(390)
+  await expect(desktop.getByText(/Äldre sparade uppgifter finns under Tidigare kontroller/)).toBeVisible()
+  await desktop.getByRole('button', { name: 'Öppna kontrollpanelen' }).click()
+  await expect(desktop.getByRole('dialog')).toBeVisible()
+  await desktop.keyboard.press('Escape')
+  await expect(desktop.getByRole('dialog')).toHaveCount(0)
+  const bankNext = desktop.getByRole('button', { name: /Kontrollera bankens saldo/ })
+  await expect(bankNext).toBeVisible()
+  await bankNext.press('Enter')
+  await expect(desktop.locator('#withdrawal-guide')).toBeFocused()
+  await desktop.getByRole('button', { name: /Till ekonomöversikten/ }).press('Enter')
+  const withdrawalEntry = desktop.getByRole('button', { name: 'Öppna Säkert uttag' })
+  await expect(withdrawalEntry).toBeFocused()
+  await withdrawalEntry.press('Enter')
+  await desktop.getByRole('button', { name: /Extra buffert Frivillig/ }).click()
   for (const page of [desktop, mobile]) {
     await expect(amount(page)).toHaveValue('')
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -197,13 +225,13 @@ try {
 
   await amount(mobile).fill('74')
   await mobile.evaluate(() => window.setBufferOwner('synthetic-b'))
-  await mobile.getByRole('button', { name: /Extra buffert/ }).click()
+  await mobile.getByRole('button', { name: /^Extra buffert/ }).click()
   await expect(amount(mobile)).toHaveValue('')
   await amount(mobile).fill('86')
   await mobile.clock.setFixedTime(new Date('2026-11-05T12:00:00Z'))
   await mobile.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(mobile.getByText(/Underlag per 2026-11-05/)).toBeVisible()
-  await mobile.getByRole('button', { name: /Extra buffert/ }).click()
+  await mobile.getByRole('button', { name: /^Extra buffert/ }).click()
   await expect(amount(mobile)).toHaveValue('')
 
   await amount(mobile).fill('31')
@@ -211,7 +239,7 @@ try {
   await save(mobile).click()
   await lateWriteStarted
   await mobile.evaluate(() => window.setBufferOwner('synthetic-c'))
-  await mobile.getByRole('button', { name: /Extra buffert/ }).click()
+  await mobile.getByRole('button', { name: /^Extra buffert/ }).click()
   await expect(amount(mobile)).toHaveValue('')
   releaseWrite()
   await expect.poll(() => snapshots.get('synthetic-b').revision.facts.find(fact => fact.key === 'buffer')?.value.amountOre).toBe(3100)
@@ -234,6 +262,7 @@ try {
     await expect(coverage(page)).toContainText('Lämna rutan tom')
     await expect(confirm(page)).not.toBeChecked()
     await expect(reserve(page)).toHaveText(/Kan inte beräknas/)
+    await expect(page.getByRole('button', { name: /Öppna: Tidigare åtaganden/ })).toBeVisible()
     await expect(reserve(page)).not.toContainText(/\d+ kr/)
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     if (capture) await page.screenshot({ path: `coverage/kan133/ataganden-sparrat-${width}.png`, fullPage: true })
@@ -520,7 +549,7 @@ try {
   await expect(tax(taxMobile)).toContainText('Ingen nolla registreras')
   await expect(save(taxMobile)).toBeDisabled()
   await tax(taxMobile).locator('form').evaluate(form => form.requestSubmit())
-  await taxMobile.getByRole('button', { name: /Extra buffert/ }).click()
+  await taxMobile.getByRole('button', { name: /^Extra buffert/ }).click()
   await taxMobile.getByRole('button', { name: /Skattekontots saldo/ }).click()
   assert.equal(saves, beforeTax)
   assert.equal(taxFact(), undefined)
@@ -652,7 +681,7 @@ try {
   await save(incomeMobile).click()
   await expect(income(incomeMobile).getByRole('alert')).toContainText('Tomt är okänt')
   assert.equal(saves, beforeIncome)
-  await zeroIncome(incomeMobile, /0 kr · Preliminärskatt som redan debiterats/)
+  await zeroIncome(incomeMobile, /0 kr · Preliminärskatt som redan ingår/)
   await save(incomeMobile).click()
   await expect(income(incomeMobile).getByRole('alert')).toContainText('Tomt är okänt')
   assert.equal(saves, beforeIncome)
@@ -664,6 +693,7 @@ try {
   assert.equal(incomeFact(2026), undefined)
   await save(incomeMobile).click()
   await expect(income(incomeMobile)).toContainText('Preliminärbeslut 2026 sparat – slutlig skatt uppskattas.')
+  await expect(incomeMobile.getByRole('button', { name: /Öppna: Skattebeslut per år/ })).toHaveCount(0)
   await expect(income(incomeMobile)).toContainText(savedMessage)
   await expect(incomeMobile.getByRole('button', { name: /Skattebeslut per år/ })).toContainText('Sparad')
   assert.deepEqual([incomeFact(2026).debitedOre, incomeFact(2026).pendingOre, incomeFact(2026).finalOre], [0, 0, null])
@@ -674,19 +704,19 @@ try {
   await expect(income(incomeDesktop)).toContainText('Preliminärbeslut 2026 sparat')
   await incomeYear(incomeDesktop).fill('2025')
   await incomeMode(incomeDesktop).selectOption('estimate')
-  await zeroIncome(incomeDesktop, /0 kr · Preliminärskatt som redan debiterats/)
+  await zeroIncome(incomeDesktop, /0 kr · Preliminärskatt som redan ingår/)
   await zeroIncome(incomeDesktop, /0 kr · Beslutad preliminärskatt/)
   await incomeYear(incomeMobile).fill('2025')
   await incomeMode(incomeMobile).selectOption('final')
-  await zeroIncome(incomeMobile, /0 kr · Preliminärskatt som redan debiterats/)
+  await zeroIncome(incomeMobile, /0 kr · Preliminärskatt som redan ingår/)
   await zeroIncome(incomeMobile, /0 kr · Beslutad preliminärskatt/)
   const beforeFinal = saves
   await save(incomeMobile).click()
   await expect(income(incomeMobile).getByRole('alert')).toContainText('Tomt är okänt')
   assert.equal(saves, beforeFinal)
-  await zeroIncome(incomeMobile, /0 kr · Ytterligare nettobelopp/)
-  await expect(income(incomeMobile).getByLabel(/Ytterligare nettobelopp/)).toHaveValue('0')
-  await income(incomeMobile).getByLabel(/Ytterligare nettobelopp/).fill('20')
+  await zeroIncome(incomeMobile, /0 kr · Kvar att betala enligt slutskattebeskedet/)
+  await expect(income(incomeMobile).getByLabel(/Kvar att betala enligt slutskattebeskedet/)).toHaveValue('0')
+  await income(incomeMobile).getByLabel(/Kvar att betala enligt slutskattebeskedet/).fill('20')
   failAfterWrite.add(incomeMobile)
   await save(incomeMobile).click()
   await expect(income(incomeMobile)).toContainText('Skatteuppgiften sparades. Beräkningen kunde inte läsas in.')
@@ -712,6 +742,111 @@ try {
   await expect(income(incomeMobile)).toContainText('Skattekontoavstämningen behöver ses över')
   await expect(save(incomeMobile)).toBeDisabled()
   console.log('PASS KAN-133 annual decisions: explicit zero, distinct years, final decision and current-year guard, missing and stale tax checks, changed final basis, empty, conflict, rejected save and failed reload')
+
+
 } finally {
   await browser.close()
+}
+
+async function verifyHistory() {
+  const historyPage = await open(390, null, 'synthetic-history-owner')
+  const history = historyPage.locator('details').filter({ has: historyPage.getByText('Tidigare kontroller', { exact: true }) })
+  const openHistory = () => history.getByText('Tidigare kontroller', { exact: true }).click()
+  const rows = Array.from({ length: 12 }, (_, i) => ({
+    id: 'revision-' + (i + 1), revision_no: i + 1, as_of_date: '2026-11-02',
+    recorded_at: '2026-11-03T12:00:00Z', schema_version: 1,
+  })).reverse()
+  let historyReads = 0
+  let mode = 'failure'
+  let delayed
+  let release
+  await historyPage.route('https://synthetic.invalid/rest/v1/**', async route => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const query = url.searchParams
+    assert.equal(request.method(), 'GET')
+    assert.equal(request.headers().authorization, 'Bearer synthetic-history')
+    historyReads++
+    const id = query.get('id') ?? query.get('revision_id')
+    const facts = url.pathname.endsWith('_facts')
+    const before = query.get('revision_no')
+    const queryOwner = query.get('user_id')
+    if ((mode === 'delay' && id === 'eq.revision-11') || (mode === 'delay-list' && !id)) {
+      delayed()
+      await new Promise(resolve => { release = resolve })
+    }
+    if (mode === 'failure' || (mode === 'forbidden' && id)) {
+      return route.fulfill({ status: mode === 'failure' ? 400 : 403, json: { message: 'synthetic error' } })
+    }
+    if (!id) {
+      assert.equal(query.get('order'), 'revision_no.desc')
+      assert.equal(query.get('limit'), '11')
+    }
+    const data = mode === 'empty' || queryOwner !== 'eq.synthetic-history-owner' ? [] : facts
+      ? [{ fact_key: 'buffer', payload: { amountOre: id === 'eq.revision-1' ? 12300 : 500 }, observed_on: '2026-11-02', source_kind: 'user_statement' }]
+      : rows.filter(row => id ? 'eq.' + row.id === id && mode !== 'missing' : !before || row.revision_no < Number(before.slice(3))).slice(0, 11)
+    await route.fulfill({ json: data }).catch(() => {})
+  })
+  const originalAmount = await reserve(historyPage).textContent()
+  assert.equal(historyReads, 0)
+  await openHistory()
+  await expect(history.getByRole('alert')).toHaveText('Historiken kunde inte hämtas.')
+  await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toHaveCount(0)
+  mode = 'normal'
+  await history.getByRole('button', { name: 'Försök igen' }).click()
+  const versions = () => history.getByRole('button', { name: /^Version / })
+  await expect(versions()).toHaveCount(10)
+  rows.unshift({ ...rows[0], id: 'revision-13', revision_no: 13 })
+  await history.getByRole('button', { name: 'Visa fler versioner' }).click()
+  await expect(versions()).toHaveCount(12)
+  assert.deepEqual(await versions().evaluateAll(items => items.map(item => item.firstElementChild.textContent)),
+    Array.from({ length: 12 }, (_, i) => 'Version ' + (12 - i)))
+  const older = history.getByRole('button', { name: /^Version 1 ·|^Version 1 Avser/ })
+  const other = history.getByRole('button', { name: /^Version 11 Avser/ })
+  await older.click()
+  await expect(history.getByText('123 kr', { exact: true })).toBeVisible()
+  assert.equal(await reserve(historyPage).textContent(), originalAmount)
+  assert(await historyPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  if (capture) {
+    await mkdir('coverage/kan133', { recursive: true })
+    await history.getByText('Sparade uppgifter i version 1').scrollIntoViewIfNeeded()
+    await historyPage.screenshot({ path: 'coverage/kan133/tidigare-kontroller-390.png' })
+  }
+  for (const unavailable of ['missing', 'forbidden']) {
+    await older.click()
+    mode = unavailable
+    await older.click()
+    await expect(history.getByRole('alert')).toHaveText('Den sparade versionen kunde inte visas.')
+  }
+  mode = 'delay'
+  let started = new Promise(resolve => { delayed = resolve })
+  await other.click()
+  await started
+  await older.click()
+  await expect(history.getByText('123 kr', { exact: true })).toBeVisible()
+  release()
+  await expect(history.getByText('Sparade uppgifter i version 11')).toHaveCount(0)
+  started = new Promise(resolve => { delayed = resolve })
+  await other.click()
+  await started
+  await historyPage.evaluate(() => window.refreshHistorySession())
+  await expect(versions()).toHaveCount(0)
+  release()
+  await expect(history.getByText('Sparade uppgifter i version 11')).toHaveCount(0)
+  mode = 'empty'
+  await openHistory()
+  await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toBeVisible()
+  await openHistory()
+  mode = 'delay-list'
+  started = new Promise(resolve => { delayed = resolve })
+  await openHistory()
+  await started
+  await historyPage.evaluate(() => window.setBufferOwner('synthetic-b'))
+  await expect(versions()).toHaveCount(0)
+  release()
+  mode = 'normal'
+  await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toHaveCount(0)
+  await openHistory()
+  await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toBeVisible()
+  console.log('PASS KAN-133 history: lazy GET, ordering, cursor, older facts, unchanged calculation, empty, errors, neutral detail, overlapping requests, session and owner resets, 390px')
 }

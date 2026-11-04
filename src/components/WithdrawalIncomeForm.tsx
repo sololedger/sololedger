@@ -37,9 +37,12 @@ export default function WithdrawalIncomeForm({ model, asOf, firstIssue, onStart,
 
   return <>
     <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
-      <p><strong>Preliminärskattebeslutet</strong> visar vad Skatteverket beslutat att du ska betala i förväg. SoloLedger kan använda beslutet och ändå behöva uppskatta den slutliga skatten.</p>
-      <p><strong>Slutskattebeskedet</strong> visar den slutliga skatten efter deklarationen. För ett avslutat år behöver SoloLedger veta hur mycket som återstår utanför det saldo du har kontrollerat.</p>
-      <p>Hitta preliminärbeslutet på Mina sidor eller i e-tjänsten Preliminär inkomstdeklaration. Använd Skattekonto för att se vad som redan har debiterats.</p>
+      <p>Välj år och jämför skattebeslutet med det som redan finns på skattekontot.</p>
+      <details>
+        <summary className="min-h-11 cursor-pointer py-3 font-semibold">Vilket beslut ska jag använda?</summary>
+        <p className="pb-2">Preliminärskatt betalas i förväg. Även med beslutet är den slutliga skatten en uppskattning. Slutskattebeskedet visar skatten efter deklarationen och gäller ett avslutat år.</p>
+        <p>Du hittar preliminärbeslutet på Mina sidor eller i e-tjänsten Preliminär inkomstdeklaration.</p>
+      </details>
       <a href="https://www.skatteverket.se/foretag/skatterochavdrag/skattekontobetalaochfatillbaka/debiteradpreliminarskatt.4.233f91f71260075abe8800010616.html"
         target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-semibold text-emerald-800 underline">Hitta beslutet hos Skatteverket ↗</a>
     </div>

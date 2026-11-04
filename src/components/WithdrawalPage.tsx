@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { useWithdrawal } from '@/hooks/useWithdrawal'
 import { findHelpArticle } from '@/lib/helpContent'
-import { withdrawalControlRows, withdrawalHelpIds, withdrawalIssueTask, type WithdrawalTask } from '@/lib/withdrawalPresentation'
+import { withdrawalControlRows, withdrawalHelpIds, withdrawalIssueTask, withdrawalNextTask, withdrawalTaskLabels, type WithdrawalTask } from '@/lib/withdrawalPresentation'
 import { WithdrawalCardContent } from './WithdrawalPanel'
 import WithdrawalBufferForm from './WithdrawalBufferForm'
 import WithdrawalCoverageForm from './WithdrawalCoverageForm'
@@ -11,9 +11,12 @@ import WithdrawalBankForm from './WithdrawalBankForm'
 import WithdrawalOtherForm from './WithdrawalOtherForm'
 import WithdrawalTaxAccountForm from './WithdrawalTaxAccountForm'
 import WithdrawalIncomeForm from './WithdrawalIncomeForm'
+import WithdrawalHistory from './WithdrawalHistory'
 import { withdrawalDisplayAmount, withdrawalMoney } from './WithdrawalSummary'
 
 type Props = {
+  owner: string
+  historySession: number | null
   model: ReturnType<typeof useWithdrawal>
   asOf: string
   onBack: () => void
@@ -26,17 +29,17 @@ const statuses = {
   required: { label: 'Åtgärd krävs', icon: '!', tone: 'bg-amber-100 text-amber-900' },
   valid: { label: 'Sparad', icon: '✓', tone: 'bg-emerald-100 text-emerald-900' },
   stale: { label: 'Behöver ses över', icon: '↻', tone: 'bg-amber-100 text-amber-900' },
-  optional: { label: 'Valfri nu', icon: '○', tone: 'bg-slate-100 text-slate-700' },
+  optional: { label: 'Ej kontrollerad', icon: '○', tone: 'bg-slate-100 text-slate-700' },
 }
 
 function AmountRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-baseline justify-between gap-3 py-2.5">
-    <dt className="text-slate-600">{label}</dt>
-    <dd className="min-w-0 text-right font-semibold break-words tabular-nums text-slate-950">{value}</dd>
+  return <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2.5">
+    <dt className="min-w-0 flex-[1_0_9rem] text-slate-600">{label}</dt>
+    <dd className="ml-auto text-right font-semibold whitespace-nowrap tabular-nums text-slate-950">{value}</dd>
   </div>
 }
 
-export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenNe }: Props) {
+export default function WithdrawalPage({ owner, historySession, model, asOf, onBack, onOpenVat, onOpenNe }: Props) {
   const heading = useRef<HTMLHeadingElement>(null)
   const guide = useRef<HTMLElement>(null)
   const [selected, setSelected] = useState<WithdrawalTask | null>(null)
@@ -59,9 +62,19 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
   const help = active ? findHelpArticle(withdrawalHelpIds[active.task]) : null
   const blocked = result?.status === 'incomplete' || result?.recommendedOre === null
 
-  function selectControl(task: WithdrawalTask) {
+  const suggested = loaded && result?.status === 'estimated' ? withdrawalNextTask(loaded.assessment, loaded.snapshot) : null
+  const next = firstRequired ?? (suggested === 'buffer' ? null : suggested)
+  const explanation = blocked ? 'En uppgift behöver kontrolleras innan vi kan visa ett uttagsbelopp.'
+    : suggested === 'bank' ? 'Beloppet bygger på bokföringen. Saldot i banken behöver jämföras.'
+    : suggested === 'tax_account' ? 'Skattekontots saldo har inte kontrollerats för dagens datum.'
+    : result?.status === 'estimated' ? 'Den slutliga skatten är fortfarande en uppskattning.' : null
+  const nextLabel = next === 'bank' ? 'Kontrollera bankens saldo'
+    : next === 'tax_account' ? 'Kontrollera skattekontots saldo'
+    : next ? `Öppna: ${withdrawalTaskLabels[next]}` : null
+
+  function selectControl(task: WithdrawalTask, focusGuide = false) {
     setSelected(task)
-    if (window.matchMedia('(max-width: 1023px)').matches) guide.current?.focus()
+    if (focusGuide || window.matchMedia('(max-width: 1023px)').matches) guide.current?.focus()
   }
 
   return <section aria-labelledby="withdrawal-page-title" className="mx-auto min-w-0 max-w-6xl space-y-5 pb-8">
@@ -89,10 +102,10 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
             <span className="mt-3 inline-block rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-emerald-900">{result.status === 'estimated' ? 'Uppskattat' : 'Beräknat'}</span>
           </>}
         </div>
-        {blocked ? <p className="mt-3 text-sm text-slate-700">Kontrollera underlaget innan du tar ställning till ett uttag.</p>
-          : result.rawOre !== null && result.rawOre < 0 && <p className="mt-3 text-sm font-semibold text-slate-800">Det saknas {withdrawalMoney(-result.rawOre)} för de visade betalningarna.</p>}
-        {firstRequired && <button type="button" onClick={() => { setSelected(firstRequired); guide.current?.focus() }}
-          className="mt-2 min-h-11 text-sm font-semibold text-emerald-800 underline underline-offset-4">Gå till första kontrollen ↓</button>}
+        {explanation && <p className="mt-3 text-sm text-slate-700">{explanation}</p>}
+        {!blocked && result.rawOre !== null && result.rawOre < 0 && <p className="mt-3 text-sm font-semibold text-slate-800">Det saknas {withdrawalMoney(-result.rawOre)} för de visade betalningarna.</p>}
+        {next && <button type="button" onClick={() => selectControl(next, true)}
+          className="mt-2 min-h-11 text-left text-sm font-semibold text-emerald-800 underline underline-offset-4">{nextLabel} ↓</button>}
         <p className="mt-3 text-xs leading-relaxed text-slate-600">Underlag per {result.asOf}. Framtida utgifter utöver visade reserver ingår inte.</p>
       </div>
       <div className="p-5 sm:p-7">
@@ -106,7 +119,7 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
         </dl>
         {result.taxAccountOre !== null && result.taxAccountOre > 0 && <p className="mt-2 text-xs leading-relaxed text-slate-600">Överskottet på skattekontot, {withdrawalMoney(result.taxAccountOre)}, minskar inte reserven. Pengarna kan behövas till andra skatter eller betalas ut.</p>}
         <details className="mt-3 border-t border-slate-200 pt-2 text-sm">
-          <summary className="cursor-pointer py-2 font-semibold text-emerald-800">Visa beräkningsdetaljer</summary>
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold text-emerald-800">Visa beräkningsdetaljer</summary>
           <dl className="divide-y divide-slate-100">
             <AmountRow label="Moms före avräkning" value={withdrawalMoney(result.vatOre)} />
             <AmountRow label="Skatt och egenavgifter före avräkning" value={withdrawalMoney(result.incomeTaxOre)} />
@@ -126,13 +139,14 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
         <ul className="mt-3 space-y-1">
           {rows.map(row => {
             const status = statuses[row.group === 'optional' && row.saved ? 'stale' : row.group]
+            const statusLabel = row.task === 'buffer' && row.group === 'optional' ? 'Frivillig' : status.label
             const isActive = row.task === active?.task
             return <li key={row.task}>
               <button type="button" aria-pressed={isActive} aria-controls="withdrawal-guide" onClick={() => selectControl(row.task)}
                 className={'flex min-h-12 w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-sm transition-colors ' + (isActive ? 'border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200' : 'border-transparent hover:bg-slate-50')}>
                 <span aria-hidden="true" className={'grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ' + status.tone}>{status.icon}</span>
                 <span className="min-w-0 flex-1 font-semibold text-slate-900">{row.label}</span>
-                <span className={'max-w-28 rounded-full px-2 py-1 text-center text-[11px] leading-tight font-semibold ' + status.tone}>{status.label}</span>
+                <span className={'max-w-28 rounded-full px-2 py-1 text-center text-[11px] leading-tight font-semibold ' + status.tone}>{statusLabel}</span>
               </button>
             </li>
           })}
@@ -143,7 +157,7 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Kontrollguide</p>
           <h3 id="withdrawal-guide-title" className="mt-1 text-xl font-bold tracking-tight text-slate-950">{active?.label ?? (showBuffer ? 'Extra buffert' : showCoverage ? 'Tidigare åtaganden' : showBank ? 'Bankens saldo' : showOther ? 'Andra återstående betalningar' : showTaxAccount ? 'Skattekontots saldo' : showIncome ? 'Skattebeslut per år' : 'Öppna en kontroll')}</h3>
-          {!showBank && !showOther && !showTaxAccount && !showIncome && <p className="mt-2 text-sm leading-relaxed text-slate-600">{help?.answer ?? 'Välj en uppgift i listan eller öppna panelen för att se dina sparade kontroller.'}</p>}
+          {!showBank && !showOther && !showTaxAccount && !showIncome && <p className="mt-2 text-sm leading-relaxed text-slate-600">{help?.answer ?? 'Välj en kontroll i listan. Äldre sparade uppgifter finns under Tidigare kontroller längst ned.'}</p>}
         </div>
         {activeIssue && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-950">{activeIssue}</p>}
         {!showCoverage && !showBank && !showOther && !showTaxAccount && !showIncome && help?.steps?.[0] && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -162,5 +176,6 @@ export default function WithdrawalPage({ model, asOf, onBack, onOpenVat, onOpenN
         </div>
       </section>
     </div>
+    {historySession !== null && <WithdrawalHistory key={historySession} owner={owner} sequence={historySession} />}
   </section>
 }

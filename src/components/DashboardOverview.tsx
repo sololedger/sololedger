@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import OverviewCards, { type OverviewCardsProps } from './OverviewCards'
 import { WithdrawalCardContent, useWithdrawalDate } from './WithdrawalCard'
@@ -16,6 +16,7 @@ type Props = Omit<OverviewCardsProps, 'data' | 'taxRate' | 'withdrawal'> & {
   resultClosingReview?: ResultClosingReview
   owner: string; refreshKey: unknown; balances: DashboardBalances; bankSaldo: number; momsBreakdown: MomsBreakdown
   onOpenVat?: () => void; onOpenNe?: () => void
+  historySession?: number | null
   onOpenWithdrawal?: () => void
   onBackFromWithdrawal?: () => void
 }
@@ -25,12 +26,18 @@ export default function DashboardOverview(props: Props) {
   return <DashboardSession key={`${props.owner}:${asOf}`} {...props} asOf={asOf} />
 }
 
-function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, onOpenWithdrawal, onBackFromWithdrawal, taxControlTarget, resultClosingReview, asOf, ...cards }: Props & { asOf: string }) {
+function DashboardSession({ owner, historySession = null, refreshKey, balances, bankSaldo, momsBreakdown, onOpenVat, onOpenNe, onOpenWithdrawal, onBackFromWithdrawal, taxControlTarget, resultClosingReview, asOf, ...cards }: Props & { asOf: string }) {
   // One read/save lifecycle for both cards: conflicts and failed reads mask both.
   const model = useWithdrawal(owner, asOf, refreshKey)
   const loaded = model.data
   const [notice, setNotice] = useState<{ year: number; text: string } | null>(null)
-  if (onBackFromWithdrawal) return <WithdrawalPage model={model} asOf={asOf} onBack={onBackFromWithdrawal} onOpenVat={onOpenVat} onOpenNe={onOpenNe} />
+  const restoreFocus = useRef(false)
+  const focusWithdrawalEntry = useCallback((button: HTMLButtonElement | null) => {
+    if (!button || !restoreFocus.current) return
+    restoreFocus.current = false
+    button.focus()
+  }, [])
+  if (onBackFromWithdrawal) return <WithdrawalPage owner={owner} historySession={historySession} model={model} asOf={asOf} onBack={() => { restoreFocus.current = true; onBackFromWithdrawal() }} onOpenVat={onOpenVat} onOpenNe={onOpenNe} />
   const rate = loaded ? withdrawalAnnualRate(loaded.assessment.facts, cards.selectedYear) : null
   const data = calculateDashboard(balances, rate ?? 0, momsBreakdown, resultClosingReview)
   data.bankSaldo = bankSaldo
@@ -43,7 +50,7 @@ function DashboardSession({ owner, refreshKey, balances, bankSaldo, momsBreakdow
       model={model} year={cards.selectedYear} asOf={asOf} rate={rate} final={final} persisted={persisted}
       notice={notice?.year === cards.selectedYear ? notice.text : ''} onNotice={text => setNotice({ year: cards.selectedYear, text })} /> : <p className="text-xs text-slate-600">Årsprocenten visas när uttagsunderlaget har laddats.</p>, taxControlTarget)}
     <OverviewCards {...cards} data={data} taxRate={rate}
-    withdrawal={<WithdrawalCardContent model={model} asOf={asOf} annualRateInCard onOpenVat={onOpenVat} onOpenNe={onOpenNe} onOpenPage={onOpenWithdrawal} />} />
+    withdrawal={<WithdrawalCardContent model={model} asOf={asOf} annualRateInCard onOpenVat={onOpenVat} onOpenNe={onOpenNe} onOpenPage={onOpenWithdrawal} pageButtonRef={focusWithdrawalEntry} />} />
   </>
 }
 

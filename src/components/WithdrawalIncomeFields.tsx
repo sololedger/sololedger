@@ -33,7 +33,7 @@ function IncomeAmountField({ label, amount, onChange }: { label: string; amount:
       <input className={fieldClass} inputMode="decimal" value={amount} onChange={event => onChange(event.target.value)} />
     </label>
     <button type="button" className="min-h-11 py-2 text-left text-xs font-medium text-emerald-800 underline"
-      onClick={() => onChange('0')}>Jag har kontrollerat att just detta belopp är 0 kr · {label}</button>
+      onClick={() => onChange('0')}>Bekräfta 0 kr<span className="sr-only"> · {label}</span></button>
   </div>
 }
 
@@ -49,9 +49,9 @@ export default function WithdrawalIncomeFields({ input, update, finalAllowed, ta
       <select aria-label="Vilket underlag har du för året?" className={fieldClass} value={input.incomeMode}
         onChange={event => update({ incomeMode: event.target.value })}>
         <option value="">Välj underlag</option>
-        <option value="estimate">Uppskattning och preliminärskattebeslut</option>
-        <option value="final" disabled={!finalAllowed}>Slutskattebesked för avslutat år</option>
-        <option value="unknown">Jag saknar underlaget eller är osäker</option>
+        <option value="estimate">Preliminärskatt</option>
+        <option value="final" disabled={!finalAllowed}>Slutskattebesked</option>
+        <option value="unknown">Vet inte ännu</option>
       </select>
     </label>
     {!taxReady && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
@@ -60,13 +60,16 @@ export default function WithdrawalIncomeFields({ input, update, finalAllowed, ta
     </div>}
     {input.incomeMode === 'unknown' && <p>Pausa utan att ändra sparade uppgifter. Okänt underlag fylls inte i som 0 och tar inte bort någon spärr.</p>}
     {['estimate', 'final'].includes(input.incomeMode) && <>
-      <p className="rounded-xl bg-slate-50 p-4">Jämför beslutet med kontohistoriken. En debitering är skatt som Skatteverket har bokfört på skattekontot. Om personliga skatter, olika år eller andra inkomster blandas, pausa och ta hjälp med avstämningen.</p>
-      <p className="text-slate-600">Exempel: tio debiteringar à 1 000 kr ingår redan i saldot och två beslutade debiteringar ingår ännu inte. Ange då 10 000 kr respektive 2 000 kr, endast om det stämmer med ditt underlag.</p>
-      <IncomeAmountField label="Preliminärskatt som redan debiterats och ingår i avstämningen" amount={input.debited} onChange={debited => update({ debited })} />
-      <IncomeAmountField label="Beslutad preliminärskatt som ännu inte ingår i saldot" amount={input.pending} onChange={pending => update({ pending })} />
+      <p>Jämför med kontohistoriken. Pausa och ta hjälp om beloppen för olika år, privata skatter eller andra inkomster blandas ihop.</p>
+      <details className="rounded-xl bg-slate-50 px-3">
+        <summary className="min-h-11 cursor-pointer py-3 font-semibold">Exempel på vad som ingår i saldot</summary>
+        <p className="pb-3">Om Skatteverket redan har dragit 10 000 kr och ytterligare 2 000 kr ska dras senare, fyller du i 10 000 kr i första fältet och 2 000 kr i det andra. Använd dina egna belopp.</p>
+      </details>
+      <IncomeAmountField label="Preliminärskatt som redan ingår i saldot" amount={input.debited} onChange={debited => update({ debited })} />
+      <IncomeAmountField label="Beslutad preliminärskatt utanför saldot" amount={input.pending} onChange={pending => update({ pending })} />
       {input.incomeMode === 'final' && <>
-        <p className="rounded-xl bg-slate-50 p-4">Ange det ytterligare nettobeloppet som behöver betalas utöver det som redan ingår i saldot. Om hela beloppet redan ingår, ange uttryckligen 0 kr. Preliminäruppgifterna sparas separat.</p>
-        <IncomeAmountField label="Ytterligare nettobelopp enligt beskedet som ännu inte ingår i skattekontosaldot (0 om allt ingår)" amount={input.amount} onChange={amount => update({ amount })} />
+        <p className="rounded-xl bg-slate-50 p-4">Ange det extra belopp som ska betalas enligt beskedet och ännu inte ingår i skattekontosaldot. Bekräfta 0 kr om allt redan ingår.</p>
+        <IncomeAmountField label="Kvar att betala enligt slutskattebeskedet" amount={input.amount} onChange={amount => update({ amount })} />
         <p>Förväntad återbetalning kan inte anges som ett negativt netto. Är sambandet oklart kan du pausa.</p>
       </>}
     </>}

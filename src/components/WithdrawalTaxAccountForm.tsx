@@ -24,7 +24,7 @@ export default function WithdrawalTaxAccountForm({ model, asOf, onStart }: {
 
   return <>
     <div className="space-y-2 text-sm leading-relaxed text-slate-700">
-      <p>Öppna e-tjänsten Skattekonto. Läs <strong>Aktuellt saldo</strong> och jämför de bokförda transaktionerna med händelserna i SoloLedger till och med <strong>{asOf}</strong>.</p>
+      <p>Läs <strong>Aktuellt saldo</strong> på Skattekonto för <strong>{asOf}</strong>. Jämför kontohistoriken med händelserna i SoloLedger fram till det datumet.</p>
       <a href="https://www.skatteverket.se/foretag/etjansterochblanketter/allaetjanster/tjanster/skattekonto.106.76a43be412206334b89800031508.html"
         target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-semibold text-emerald-800 underline underline-offset-4">Öppna Skattekonto hos Skatteverket ↗</a>
     </div>
@@ -32,14 +32,17 @@ export default function WithdrawalTaxAccountForm({ model, asOf, onStart }: {
       <figcaption className="text-xs font-semibold text-emerald-900">Skattekonto · syntetiskt exempel</figcaption>
       <div className="mt-2 flex justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-emerald-950"><span>Aktuellt saldo</span><span>+62,00 kr</span></div>
     </figure>
-    <dl className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+    <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700">
+      <summary className="min-h-11 cursor-pointer py-3 font-semibold">Så påverkar saldot uttagsbeloppet</summary>
+      <dl className="space-y-2 pb-4 leading-relaxed">
       <div><dt className="inline font-bold">Överskott (+). </dt><dd className="inline">Pengarna kan behövas till andra skatter eller betalas ut. Överskottet minskar därför inte reserven för moms och skatt.</dd></div>
       <div><dt className="inline font-bold">Underskott (−). </dt><dd className="inline">Det finns pengar att betala in. Underskottet ökar reserven.</dd></div>
       <div><dt className="inline font-bold">Saldo 0 kr. </dt><dd className="inline">Ange 0 när det är det faktiska saldot för datumet.</dd></div>
-    </dl>
+      </dl>
+    </details>
     {typeof savedAmount === 'number' && typeof savedDate === 'string' && <p className="text-sm text-slate-700">Senast sparade saldo: <strong>{withdrawalMoney(savedAmount)}</strong> den {savedDate}.{!current && ' Kontrollera saldot igen för aktuellt datum och underlag.'}</p>}
     {snapshot && <details className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">
-      <summary className="cursor-pointer py-2 font-semibold">Händelser i SoloLedger</summary>
+      <summary className="min-h-11 cursor-pointer py-3 font-semibold">Händelser i SoloLedger</summary>
       {snapshot.events.length + snapshot.movements.length === 0 && <p className="pb-2">Inga registrerade avräkningar eller överföringar.</p>}
       {snapshot.events.length + snapshot.movements.length > 0 && <ul className="space-y-1 pb-2">
         {snapshot.events.map(event => <li key={event.id}>{event.event_date} · {event.event_kind === 'vat_debit' ? 'Moms dragen' : 'Moms krediterad'} · {withdrawalMoney(toOre(event.amount))}</li>)}

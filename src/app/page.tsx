@@ -1232,7 +1232,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       <AccountingDataBoundary required={!['kontoplan', 'fakturor', 'leverantorsskulder', 'inventarier', 'moms', 'faq', 'profil', 'admin', 'arsavslut', 'ne'].includes(activeTab)} ready={accountingDataReady} error={accountingDataError} year={selectedYear} onRetry={retryAccountingData}>
       {(activeTab === 'dashboard' || activeTab === 'sakert-uttag') && (
           <DashboardOverview
-            owner={user.id} taxControlTarget={taxControlTarget} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
+            owner={user.id} historySession={profileContextReady ? profileContextKey : null} taxControlTarget={taxControlTarget} refreshKey={transactions} balances={balances} bankSaldo={getBankSaldo(balanceSheetBalances)}
             resultClosingReview={neData?.resultClosingReview}
             momsBreakdown={momsBreakdown ?? { utgaendeMoms: 0, ingaendeMoms: 0, momsNetto: 0 }}
             onOpenVat={() => setActiveTab('moms')} onOpenNe={() => setActiveTab('ne')}
