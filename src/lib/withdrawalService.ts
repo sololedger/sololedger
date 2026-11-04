@@ -36,7 +36,7 @@ export async function saveWithdrawal(owner: string, snapshot: WithdrawalSnapshot
   })).catch(() => null)
   if (!response) return 'uncertain' as const
   const { error, status } = response
-  if (error?.code === '40001') throw new WithdrawalConflictError()
+  if (error?.code === 'PT409' || error?.code === '40001') throw new WithdrawalConflictError()
   if (error && (status === 0 || status >= 500 || (!error.code && !status))) return 'uncertain' as const
   if (error) throw new Error('Uppgifterna kunde inte sparas. Försök igen.')
 }

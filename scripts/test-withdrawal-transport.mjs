@@ -28,9 +28,14 @@ await service.saveWithdrawal('synthetic-a',good,[])
 assert.equal(calls.at(-1).name,'save_withdrawal_assessment')
 assert.equal(calls.at(-1).args.p_previous,null)
 assert.equal(calls.at(-1).args.p_signature,good.signature)
-response={data:null,error:{code:'40001'}}
-await assert.rejects(service.saveWithdrawal('synthetic-a',good,[]),service.WithdrawalConflictError)
-assert.equal(calls.at(-1).name,'save_withdrawal_assessment','conflict never triggers unversioned fallback')
+for (const [code, status] of [['PT409', 409], ['40001', 500]]) {
+  response = { data: null, error: { code }, status }
+  const before = calls.length
+  await assert.rejects(service.saveWithdrawal('synthetic-a', good, []), service.WithdrawalConflictError)
+  assert.equal(calls.length, before + 1, 'conflict never triggers a second write')
+}
+response = { data: null, error: { message: 'Gateway Timeout' }, status: 504 }
+assert.equal(await service.saveWithdrawal('synthetic-a', good, []), 'uncertain')
 response={data:null,error:{code:'503',message:'Temporary'}}
 await assert.rejects(service.saveWithdrawal('synthetic-a',good,[]),e=>e instanceof Error && !(e instanceof service.WithdrawalConflictError))
 console.log('PASS KAN-97 actual transport: protocol/owner/date, missing RPC fail closed, owner-checked save and revision/signature')

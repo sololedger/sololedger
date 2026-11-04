@@ -96,7 +96,7 @@ await context.exposeBinding('bufferRpc', async ({ page }, userId, name, args) =>
     writing = undefined
   }
   const head = snapshots.get(userId)
-  if (head.revision?.id !== args.p_previous || head.signature !== args.p_signature) return { error: { code: '40001' }, status: 400 }
+  if (head.revision?.id !== args.p_previous || head.signature !== args.p_signature) return { error: { code: 'PT409' }, status: 409 }
   if (rejectWrite) {
     rejectWrite = false
     return { error: { code: 'P0001' }, status: 400 }
