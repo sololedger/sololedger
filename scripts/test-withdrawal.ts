@@ -14,6 +14,32 @@ for (const c of cases) {
   eq(r.recommendedOre,c.recommended===null?null:c.recommended*100,c.id+' recommendation')
 }
 for (const bad of [NaN, Infinity, null, '', undefined]) { assert.throws(()=>toOre(bad)); count++ }
+const decision = emptyWithdrawal('2026-11-04')
+tx(decision, 'kan133-sale', decision.as_of, 'manual', [['1930', 1250], ['3010', -1000], ['2611', -250]])
+decision.periods.push({ id: 'kan133-vat', user_id: decision.user_id, period_start: '2026-01-01', period_end: '2026-12-31', source: 'sololedger', status: 'open' })
+fact(decision, 'coverage', { from: decision.as_of, noEarlierObligations: true })
+tax(decision, 0)
+const decisionResult = () => buildWithdrawalAssessment(sealWithdrawal(decision)).result
+const setDecision = (debitedOre: number, pendingOre: number) => fact(decision, 'income:2026', {
+  rate: 45, debitedOre, pendingOre, finalOre: null, basis: stableWithdrawalValue({ '3010': -1000 }),
+  taxBasis: stableWithdrawalValue(decision.revision!.facts.find(f => f.key === 'tax_account')!.value),
+})
+eq(decisionResult().recommendedOre, 55000, 'KAN-133 baseline: 1250 minus 250 VAT and 450 estimated tax')
+setDecision(0, 20000)
+eq([decisionResult().incomeTaxOre, decisionResult().recommendedOre], [45000, 55000], 'KAN-133 decided 200 replaces part of estimate, no double count')
+setDecision(0, 50000)
+eq([decisionResult().incomeTaxOre, decisionResult().recommendedOre], [50000, 50000], 'KAN-133 higher decision raises reserve only to the decided amount')
+setDecision(10000, 20000)
+eq([decisionResult().incomeTaxOre, decisionResult().recommendedOre], [35000, 65000], 'KAN-133 already debited 100 is deducted once')
+tax(decision, -10000)
+setDecision(10000, 20000)
+eq([decisionResult().reserveOre, decisionResult().recommendedOre], [70000, 55000], 'KAN-133 debited tax still owed on the tax account is counted once as deficit')
+tax(decision, 0)
+setDecision(0, 20000)
+fact(decision, 'other', { amountOre: 10000, basis: buildWithdrawalAssessment(decision).otherBasis })
+fact(decision, 'buffer', { amountOre: 15000 })
+eq(decisionResult().recommendedOre, 30000, 'KAN-133 full acceptance scenario')
+
 const s = saleWithdrawal()
 const evaluate = () => buildWithdrawalAssessment(sealWithdrawal(s))
 eq(evaluate().result.recommendedOre,7000000,'manual year 2 without new questions; covered stored baseline')

@@ -37,7 +37,7 @@ export default function WithdrawalIncomeForm({ model, asOf, firstIssue, onStart,
 
   return <>
     <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
-      <p>Välj år och jämför skattebeslutet med det som redan finns på skattekontot.</p>
+      <p>Välj inkomståret som står på beslutet. Öppna beslutet på Mina sidor och kontohistoriken i tjänsten Skattekonto. Då kan du skilja skatt som redan dragits från det som ska dras senare.</p>
       <details>
         <summary className="min-h-11 cursor-pointer py-3 font-semibold">Vilket beslut ska jag använda?</summary>
         <p className="pb-2">Preliminärskatt betalas i förväg. Även med beslutet är den slutliga skatten en uppskattning. Slutskattebeskedet visar skatten efter deklarationen och gäller ett avslutat år.</p>

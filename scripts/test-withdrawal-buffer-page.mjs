@@ -138,7 +138,6 @@ const retry = page => page.getByRole('button', { name: 'Försök igen' })
 const capture = process.argv.includes('--screenshots')
 
 try {
-  await verifyHistory()
   const desktop = await open(1440, null)
   const mobile = await open(390)
   await expect(desktop.getByText(/Äldre sparade uppgifter finns under Tidigare kontroller/)).toBeVisible()
@@ -188,7 +187,7 @@ try {
   await mobile.getByRole('button', { name: 'Börja om med aktuell uppgift' }).click()
   await expect(amount(mobile)).toHaveValue('25.5')
 
-  await mobile.getByRole('button', { name: /kontrollerat att just detta belopp är 0 kr/ }).click()
+  await mobile.getByRole('button', { name: 'Ingen extra buffert (0 kr)' }).click()
   await save(mobile).click()
   await expect(mobile.getByText('Sparat · beräkningen är uppdaterad.')).toBeVisible()
   await expect(reserve(mobile)).toContainText('300 kr')
@@ -617,7 +616,7 @@ try {
   await taxNegativeMobile.evaluate(() => window.refreshWithdrawal())
   await expect(tax(taxNegativeMobile)).toContainText('Skattehändelser i den tidigare avstämningen har ändrats')
   await expect(reserve(taxNegativeMobile)).toHaveText(/Kan inte beräknas/)
-  await tax(taxNegativeMobile).getByText('Händelser i SoloLedger', { exact: true }).click()
+  await tax(taxNegativeMobile).locator('summary').filter({ hasText: 'Händelser i SoloLedger' }).click()
   await expect(tax(taxNegativeMobile).getByText(/Moms dragen · 342 kr/)).toBeVisible()
   await enterTax(taxNegativeMobile, 'deficit', '280')
   await save(taxNegativeMobile).click()
@@ -744,6 +743,7 @@ try {
   console.log('PASS KAN-133 annual decisions: explicit zero, distinct years, final decision and current-year guard, missing and stale tax checks, changed final basis, empty, conflict, rejected save and failed reload')
 
 
+  await verifyHistory()
 } finally {
   await browser.close()
 }
@@ -848,5 +848,17 @@ async function verifyHistory() {
   await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toHaveCount(0)
   await openHistory()
   await expect(history.getByText('Det finns inga sparade kontrollversioner.')).toBeVisible()
-  console.log('PASS KAN-133 history: lazy GET, ordering, cursor, older facts, unchanged calculation, empty, errors, neutral detail, overlapping requests, session and owner resets, 390px')
+  await historyPage.evaluate(() => window.setBufferOwner('synthetic-history-owner'))
+  mode = 'normal'
+  await openHistory()
+  await expect(versions()).toHaveCount(10)
+  await historyPage.getByRole('button', { name: /^Extra buffert/ }).click()
+  await amount(historyPage).fill('10')
+  rows.unshift({ ...rows[0], id: 'revision-14', revision_no: 14 })
+  await save(historyPage).click()
+  await expect(historyPage.getByText('Sparat · beräkningen är uppdaterad.')).toBeVisible()
+  await expect(versions().first()).toHaveText(/Version 14/)
+  await expect(history.getByRole('button', { name: /^Version 14 Avser/ })).toHaveCount(1)
+  await expect(history).toHaveAttribute('open', '')
+  console.log('PASS KAN-133 history: refresh after save, lazy GET, ordering, cursor, older facts, unchanged calculation, empty, errors, neutral detail, overlapping requests, session and owner resets, 390px')
 }

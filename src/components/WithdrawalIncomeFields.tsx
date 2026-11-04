@@ -54,18 +54,21 @@ export default function WithdrawalIncomeFields({ input, update, finalAllowed, ta
         <option value="unknown">Vet inte ännu</option>
       </select>
     </label>
+    {!finalAllowed && <p className="text-slate-600">I SoloLedger kan du ange slutskattebesked för ett avslutat år. För det pågående året kan du använda beslutet om preliminärskatt.</p>}
     {!taxReady && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
       <p>Kontrollera först skattekontots saldo. Utkastet kan förberedas men skatteuppgiften får inte sparas utan avstämning.</p>
       <button type="button" className="min-h-11 text-left font-semibold text-emerald-800 underline" onClick={onOpenTax}>Öppna skattekontokontrollen</button>
     </div>}
-    {input.incomeMode === 'unknown' && <p>Pausa utan att ändra sparade uppgifter. Okänt underlag fylls inte i som 0 och tar inte bort någon spärr.</p>}
+    {input.incomeMode === 'unknown' && <p>Det går inte att spara utan underlaget. Dina tidigare uppgifter finns kvar. Hämta beslutet på Mina sidor hos Skatteverket och öppna kontohistoriken i Skattekonto. Återkom när du vet vilka belopp som redan dragits och vilka som återstår. Ange bara 0 kr om du har kontrollerat att beloppet är noll.</p>}
     {['estimate', 'final'].includes(input.incomeMode) && <>
-      <p>Jämför med kontohistoriken. Pausa och ta hjälp om beloppen för olika år, privata skatter eller andra inkomster blandas ihop.</p>
+      <p>Välj samma år i beslutet och när du går igenom kontohistoriken. SoloLedger skiljer på skatt som redan har dragits och skatt som företaget fortfarande behöver täcka. Pausa och ta hjälp om du inte kan skilja beloppen åt.</p>
       <details className="rounded-xl bg-slate-50 px-3">
         <summary className="min-h-11 cursor-pointer py-3 font-semibold">Exempel på vad som ingår i saldot</summary>
         <p className="pb-3">Om Skatteverket redan har dragit 10 000 kr och ytterligare 2 000 kr ska dras senare, fyller du i 10 000 kr i första fältet och 2 000 kr i det andra. Använd dina egna belopp.</p>
       </details>
+      <p className="text-slate-600">Summera preliminärskatten för året som Skatteverket redan har dragit fram till saldodatumet. Leta efter debiteringar av preliminärskatt i kontohistoriken. Hoppa över insättningar från banken.</p>
       <IncomeAmountField label="Preliminärskatt som redan ingår i saldot" amount={input.debited} onChange={debited => update({ debited })} />
+      <p className="text-slate-600">Läs beslutet för samma år. Summera de beslutade belopp som ännu inte har dragits på saldodatumet. Ta bara med det som återstår.</p>
       <IncomeAmountField label="Beslutad preliminärskatt utanför saldot" amount={input.pending} onChange={pending => update({ pending })} />
       {input.incomeMode === 'final' && <>
         <p className="rounded-xl bg-slate-50 p-4">Ange det extra belopp som ska betalas enligt beskedet och ännu inte ingår i skattekontosaldot. Bekräfta 0 kr om allt redan ingår.</p>

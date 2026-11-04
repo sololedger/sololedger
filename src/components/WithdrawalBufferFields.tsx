@@ -18,6 +18,6 @@ export default function WithdrawalBufferFields({ amount, onChange }: { amount: s
         inputMode="decimal" value={amount} onChange={event => onChange(event.target.value)} />
     </label>
     <button type="button" className="min-h-11 py-2 text-left text-xs font-medium text-emerald-800 underline"
-      onClick={() => onChange('0')}>Jag har kontrollerat att just detta belopp är 0 kr · Extra buffert i kronor</button>
+      onClick={() => onChange('0')}>Ingen extra buffert (0 kr)</button>
   </div>
 }

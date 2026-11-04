@@ -24,14 +24,14 @@ export default function WithdrawalTaxAccountForm({ model, asOf, onStart }: {
 
   return <>
     <div className="space-y-2 text-sm leading-relaxed text-slate-700">
-      <p>Läs <strong>Aktuellt saldo</strong> på Skattekonto för <strong>{asOf}</strong>. Jämför kontohistoriken med händelserna i SoloLedger fram till det datumet.</p>
+      <p>Logga in i Skatteverkets tjänst Skattekonto. Läs saldot för <strong>{asOf}</strong>, alltså hur mycket som finns kvar eller saknas på skattekontot den dagen. SoloLedger behöver saldot för att se om mer pengar behöver finnas kvar för skatt och moms.</p>
       <a href="https://www.skatteverket.se/foretag/etjansterochblanketter/allaetjanster/tjanster/skattekonto.106.76a43be412206334b89800031508.html"
         target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-semibold text-emerald-800 underline underline-offset-4">Öppna Skattekonto hos Skatteverket ↗</a>
     </div>
-    <figure className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-      <figcaption className="text-xs font-semibold text-emerald-900">Skattekonto · syntetiskt exempel</figcaption>
-      <div className="mt-2 flex justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-emerald-950"><span>Aktuellt saldo</span><span>+62,00 kr</span></div>
-    </figure>
+    <div className="space-y-2 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+      <p><strong>Inbetalning:</strong> Du flyttar pengar från banken till skattekontot. <strong>Debitering:</strong> Skatteverket drar en skatt eller avgift från skattekontot. En inbetalning visar därför inte vilken skatt som har dragits.</p>
+      <p>Öppna kontohistoriken hos Skatteverket och listan <strong>Händelser i SoloLedger</strong> nedan. Jämför datum och belopp för de poster SoloLedger visar. Om en post saknas eller du är osäker på om den ingår i saldot, vänta med att bekräfta.</p>
+    </div>
     <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700">
       <summary className="min-h-11 cursor-pointer py-3 font-semibold">Så påverkar saldot uttagsbeloppet</summary>
       <dl className="space-y-2 pb-4 leading-relaxed">

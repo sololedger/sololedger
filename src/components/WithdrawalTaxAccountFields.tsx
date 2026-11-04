@@ -40,7 +40,7 @@ export default function WithdrawalTaxAccountFields({ input, update, snapshot }: 
       <label className="block font-semibold">Skattekontots saldo i kronor
         <input className={fieldClass} inputMode="decimal" value={input.amount} onChange={event => update({ amount: event.target.value })} />
       </label>
-      {snapshot && <p className="text-slate-700">Registrerade avräkningar: {snapshot.events.length}. Registrerade överföringar: {snapshot.movements.length}. Jämför händelserna i detaljerna med kontohistoriken.</p>}
+      {snapshot && <p className="text-slate-700">Registrerade avräkningar: {snapshot.events.length}. Registrerade överföringar: {snapshot.movements.length}. Jämför de registrerade händelserna med listan i Skattekonto.</p>}
       <label className="flex gap-3">
         <input type="checkbox" className="mt-1 size-4 shrink-0 accent-emerald-700" checked={input.confirmed}
           onChange={event => update({ confirmed: event.target.checked })} />
