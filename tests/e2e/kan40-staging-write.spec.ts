@@ -170,7 +170,8 @@ async function expectCheckCreditCategoryOption(page: Page) {
 }
 
 async function verifyNeB13(page: Page, expectedB13: number) {
-  await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+  await page.getByRole('button', { name: 'Mer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'NE-bilaga', exact: true }).click()
   await selectAccountingYear(page, testYear)
   await expect(neB13Amount(page, expectedB13)).toBeVisible({ timeout: 20_000 })
 }

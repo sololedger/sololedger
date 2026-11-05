@@ -175,21 +175,24 @@ async function verifyYearCloseBlockedInUi(
   visibleWarning: RegExp,
   visibleReason: RegExp
 ) {
-  await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+  await page.getByRole('button', { name: 'Mer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'NE-bilaga', exact: true }).click()
   await expect(page.getByText(visibleWarning).first()).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText(visibleReason)).toBeVisible()
   await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeDisabled()
 }
 
 async function verifyYearCloseAvailable(page: Page) {
-  await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+  await page.getByRole('button', { name: 'Mer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'NE-bilaga', exact: true }).click()
   await expect(page.getByText(/BALANSRÄKNINGEN BALANSERAR/i)).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText(/NEGATIVT SALDO I KASSA\/BANK/i)).toHaveCount(0)
   await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeEnabled()
 }
 
 async function verifyNeBalanced(page: Page) {
-  await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+  await page.getByRole('button', { name: 'Mer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'NE-bilaga', exact: true }).click()
   await expect(page.getByText(/BALANSRÄKNINGEN BALANSERAR/i)).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText(/NEGATIVT SALDO I KASSA\/BANK/i)).toHaveCount(0)
 }

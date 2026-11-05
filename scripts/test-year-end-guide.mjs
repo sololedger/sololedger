@@ -88,7 +88,7 @@ try {
   const yearEndBack=page.getByRole('button',{name:'Tillbaka till årsavslutet 2026',exact:true})
   const neBack=page.getByRole('button',{name:'Tillbaka till NE-guiden',exact:true})
   async function visitYearEndFromNE(){
-   await navigate('NE-Bilaga')
+   await navigate('NE-bilaga')
    const neGuide=page.locator('#ne-guide')
    if(await neGuide.getAttribute('open')===null)await neGuide.locator(':scope > summary').click()
    await neGuide.getByRole('button',{name:'1 Gör bokslutet klart',exact:true}).click()
@@ -116,7 +116,7 @@ try {
   await page.getByRole('button',{name:'Öppna betalningskonton i Profil',exact:true}).click()
   await expect(yearEndBack).toBeVisible();await yearEndBack.click()
   await expect(guide.locator('article[data-check-key="inventory"] h3')).toBeVisible()
-  for(const destination of ['Inventarier','Bokföring','NE-Bilaga','Hjälp & FAQ','Årsavslut']){
+  for(const destination of ['Inventarier','Bokföring','NE-bilaga','Hjälp & FAQ','Årsavslut']){
    await navigate('Årsavslut');await open('inventory')
    await guide.getByRole('button',{name:'Öppna Inventarier',exact:true}).click()
    await expect(yearEndBack).toBeVisible()

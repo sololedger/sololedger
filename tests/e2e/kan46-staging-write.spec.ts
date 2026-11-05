@@ -69,7 +69,8 @@ test.describe('KAN-46 staging write acceptance', () => {
     await expect(invoiceCard).toContainText('3 750 kr')
     await expect(invoiceCard).toContainText(/behöver kundfordran vid bokslut/i)
 
-    await page.getByRole('button', { name: 'NE-Bilaga' }).click()
+    await page.getByRole('button', { name: 'Mer', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'NE-bilaga', exact: true }).click()
     await expect(page.getByRole('button', { name: `Lås räkenskapsår ${year}` })).toBeDisabled()
 
     await page.getByRole('button', { name: 'Fakturor' }).click()
