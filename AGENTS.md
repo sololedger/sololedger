@@ -111,9 +111,11 @@ Routine Staging push:
    changes/commits will publish. Ensure `audit-packages/` and local env/auth
    files are not included.
 2. Push only `staging`, never `main`.
-3. Check Vercel once for the right branch/commit and report commit plus
-   deployment status if quickly available. Do not repeat Vercel env review,
-   URL fetches, or long polling when configuration is unchanged.
+3. Check Vercel for the approved branch and exact commit. Once that Git Preview
+   is READY, run the [Staging alias helper](docs/STAGING-ALIAS.md) with the
+   approved deployment ID and full commit before acceptance at the fixed
+   Staging address. Report the deployment, commit and alias verification
+   result. If verification fails, stop the Staging release verification.
 
 Standing Staging alias authorization (Pontus approved 2026-10-22):
 
