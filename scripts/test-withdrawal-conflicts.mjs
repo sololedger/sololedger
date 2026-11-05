@@ -31,7 +31,7 @@ try {
     } }
   })
   await page.addScriptTag({ content: bundle.outputFiles[0].text })
-  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).first().waitFor()
+  await page.getByText('Uppskattat',{exact:true}).first().waitFor()
   await page.getByRole('button', { name: 'Visa beräkning och underlag' }).click()
   await page.getByLabel('Vad vill du kontrollera?').selectOption('buffer')
   await page.getByRole('textbox').fill('100')
@@ -44,7 +44,7 @@ try {
     s.revision.facts.find(f => f.key.startsWith('rate:')).value.rate = 55
     window.withdrawalConflictReads[0]({ data: s, error: null })
   })
-  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).first().waitFor()
+  await page.getByText('Uppskattat',{exact:true}).first().waitFor()
   assert.equal((await page.locator('section > div .text-2xl').innerText()).replace(/\s/g, ''), '45000kr', 'R3: another tab changed the tax estimate')
   await page.getByText('Underlaget har ändrats. Aktuella uppgifter laddas om;', { exact: false }).waitFor()
   await page.evaluate(() => { window.withdrawalConflictCode = '503' })
@@ -63,7 +63,7 @@ try {
   await page.getByRole('button', { name: 'Försök igen' }).click()
   await page.waitForFunction(() => window.withdrawalConflictReads.length === 3)
   await page.evaluate(() => window.withdrawalConflictReads[2]({ data: structuredClone(window.withdrawalConflictSeed), error: null }))
-  await page.getByText('Uppskattat uttagsutrymme',{exact:true}).first().waitFor()
+  await page.getByText('Uppskattat',{exact:true}).first().waitFor()
   // Both annual forms prefill and persist the same active year rate.
   await page.getByLabel('Vad vill du kontrollera?').selectOption('rate')
   const priorYear = await page.evaluate(() => String(Number(window.withdrawalConflictSeed.as_of.slice(0, 4)) - 1))
@@ -85,7 +85,7 @@ try {
     await page.evaluate(kind => { window.withdrawalReviewCase(kind); window.withdrawalConflictControls.refresh() }, kind)
     await page.waitForFunction(n => window.withdrawalConflictReads.length === n, index + 1)
     await page.evaluate(index => window.withdrawalConflictReads[index]({ data: structuredClone(window.withdrawalConflictSeed), error: null }), index)
-    await page.getByText('Kan inte beräknas – kontroll krävs', {exact:true}).first().waitFor()
+    await page.getByText('Kan inte beräknas', {exact:true}).first().waitFor()
     await page.getByRole('button', { name: 'Visa beräkning och underlag' }).click()
     await page.getByRole('button', { name: 'Öppna rekommenderad kontroll' }).click()
     await expect(page.getByLabel('Vad vill du kontrollera?')).toHaveValue(next)

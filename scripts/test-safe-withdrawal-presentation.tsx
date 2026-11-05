@@ -18,6 +18,23 @@ const inconsistent = renderToStaticMarkup(<WithdrawalSummary result={{...result(
 assert.doesNotMatch(inconsistent,/class="text-2xl/,'even a contradictory blocked result must never render a recommendation')
 const ordinary=renderToStaticMarkup(<WithdrawalSummary result={result(100000)} checkedAt="2026-10-19" />)
 assert.match(ordinary,/Uppskattat uttagsutrymme/);assert.match(ordinary,/700 kr/)
+const estimatedResult = result(100000)
+const calculatedResult = calculateWithdrawal({
+  asOf: estimatedResult.asOf, bankOre: 100000, taxAccountOre: 0, bufferOre: 0,
+  bankQuality: 'checked', taxQuality: 'checked', issues: [],
+  parts: [{ key: 'tax', kind: 'final', ore: 30000, quality: 'checked' }],
+})
+assert.equal(estimatedResult.recommendedOre, calculatedResult.recommendedOre)
+for (const [summary, status] of [[estimatedResult, 'Uppskattat'], [calculatedResult, 'Beräknat']] as const) {
+  const compact = renderToStaticMarkup(<WithdrawalSummary compact result={summary} checkedAt="2026-10-18" />)
+  assert.match(compact, new RegExp(`>${status}<`))
+  assert.match(compact, /700 kr/)
+  assert.doesNotMatch(compact, /2026-10-|Skattekonto/)
+}
+const blockedCompact = renderToStaticMarkup(<WithdrawalSummary compact result={{...result(100000,['Äldre skatt okänd']),recommendedOre:999999}} checkedAt="2026-10-18" />)
+assert.match(blockedCompact, /Kan inte beräknas/)
+assert.match(blockedCompact, /En kontroll krävs/)
+assert.doesNotMatch(blockedCompact, /\d+ kr|Äldre skatt okänd|2026-10-/)
 const data=calculateDashboard({'1930':9999999},30,{utgaendeMoms:0,ingaendeMoms:0,momsNetto:0})
 const missing=renderToStaticMarkup(<OverviewCards data={data} taxRate={30} selectedYear={2026} transactions={[]} journalMap={{}} setActiveModal={()=>{}} activeModal={null} />)
 assert.match(missing,/Ladda uttagsunderlaget/);assert.doesNotMatch(missing,/Säkert uttag/)

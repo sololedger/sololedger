@@ -20,7 +20,7 @@ const olderBefore = structuredClone(olderAssessment.result)
 const olderRow = withdrawalControlRows(olderAssessment,olderTax,true).find(r=>r.task==='tax_account')!
 assert.equal(olderRow.group,'optional')
 assert.equal(olderRow.saved,true)
-assert.match(olderRow.detail,/Kontrollerat 2027-01-19/)
+assert.match(olderRow.detail,/Senast kontrollerat 2027-01-19/)
 assert.equal(withdrawalGuidance(olderAssessment,olderTax).message,olderRow.detail)
 assert.equal(olderAssessment.result.recommendedOre,assess(s).result.recommendedOre)
 assert.deepEqual(olderAssessment.result,olderBefore)

@@ -68,7 +68,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
   const next = guidance && guidance.task !== 'buffer' ? guidance.task : null
   const targetIncomeYear = guidance?.incomeYear ?? rows.find(row => row.task === 'income')?.incomeYear
   const nextLabel = next === 'bank' ? 'Kontrollera bankens saldo'
-    : next === 'tax_account' ? 'Kontrollera skattekontots saldo'
+    : next === 'tax_account' ? (!blocked && loaded?.assessment.checkedAt ? 'Uppdatera skattekontots saldo' : 'Kontrollera skattekontots saldo')
     : next === 'income' && guidance?.incomeYear ? `Öppna skattebeslut för ${guidance.incomeYear}`
     : next ? `Öppna: ${withdrawalTaskLabels[next]}` : null
 
@@ -150,7 +150,7 @@ export default function WithdrawalPage({ owner, historySession, model, asOf, onB
             const statusLabel = savedMismatch ? 'Sparad avvikelse'
               : changedBasis ? 'Ändrat underlag'
               : previousMatch ? 'Tidigare matchning'
-              : olderTax ? 'Äldre kontroll'
+              : row.task === 'tax_account' && (olderTax || row.group === 'valid') ? 'Kontrollerat'
               : row.task === 'income' && row.group === 'optional' && row.detail ? 'Komplettera per år'
               : row.task === 'other' && row.group === 'optional' && !row.saved ? 'Frivillig'
               : row.task === 'buffer' && row.group === 'optional' ? 'Frivillig' : status.label

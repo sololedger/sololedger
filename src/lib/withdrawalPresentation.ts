@@ -34,10 +34,10 @@ export function withdrawalControlRows(a:WithdrawalAssessment,s:WithdrawalSnapsho
 }
 export function withdrawalTaxAccountNote(a: WithdrawalAssessment) {
  if (!a.checkedAt) return 'Skattekontot har inte kontrollerats för dagens datum.'
- const saved = `Kontrollerat ${a.checkedAt}.`
+ const saved = `Senast kontrollerat ${a.checkedAt}.`
  if (a.result.issues.some(issue => withdrawalIssueTask(issue) === 'tax_account')) return `${saved} Saldot behöver stämmas av igen.`
  if (a.checkedAt === a.result.asOf) return saved
- return `${saved} Det äldre saldot används som underlag för en uppskattning. Kontrollera dagens saldo inför ett nytt uttag.`
+ return `${saved} Uppskattningen utgår från den senaste kontrollen.`
 }
 function issueYear(issue: string) {
  const year = issue.match(/\b(?:19|20)\d{2}\b/)?.[0]
