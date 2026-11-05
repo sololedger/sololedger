@@ -1,6 +1,7 @@
 // Public, versioned guidance only. Never put customer examples or credentials here.
 import { withdrawalHelpArticles } from './withdrawalHelp'
 export const helpTopics = [
+  { id: 'first-tax', label: 'Skatt första året' },
   { id: 'start', label: 'Kom igång & profil' },
   { id: 'book', label: 'Bokföring & underlag' },
   { id: 'invoice', label: 'Fakturor & inventarier' },
@@ -14,6 +15,7 @@ export const helpDestinations = {
   dashboard: 'Bokföring', profil: 'Profil', kontoplan: 'Kontoplan',
   fakturor: 'Fakturor', leverantorsskulder: 'Bokslutsskulder',
   inventarier: 'Inventarier', moms: 'Moms', arsavslut: 'Årsavslut', ne: 'NE-Bilaga',
+  'sakert-uttag': 'Säkert uttag',
 } as const
 export type HelpDestination = keyof typeof helpDestinations
 export type HelpMedia =
@@ -24,6 +26,7 @@ export type HelpArticle = {
   applies?: string; paragraphs?: string[]; steps?: string[]; warning?: string
   keywords: string[]; destinations?: HelpDestination[]
   sources?: { label: string; href: string }[]; reviewed: string; media?: HelpMedia
+  answerHeading?: string; stepsHeading?: string
 }
 const sources = {
   ne: { label: 'Skatteverket: skattemässiga justeringar', href: 'https://www.skatteverket.se/foretag/inkomstdeklaration/deklareraenskildnaringsverksamhet/fyllainebilagan/skattemassigajusteringar.4.361dc8c15312eff6fd2c7d1.html' },
@@ -32,11 +35,38 @@ const sources = {
   exempt: { label: 'Skatteverket: undantag från momsplikt', href: 'https://www.skatteverket.se/momsbefrielse' },
   k1: { label: 'Bokföringsnämnden: förenklat årsbokslut (PDF)', href: 'https://www.bfn.se/wp-content/uploads/vl06-1-k1enskilda-kons2025.pdf' },
   archive: { label: 'Bokföringsnämnden: arkivering', href: 'https://www.bfn.se/fragor-och-svar/arkivering/' },
+  preliminary: { label: 'Skatteverket om preliminärskatt och ändrat beslut', href: 'https://www.skatteverket.se/foretag/skatterochavdrag/skattekontobetalaochfatillbaka/preliminarskattforforetagochforeningar' },
+  taxAccount: { label: 'Skatteverket om saldo, historik och betalning', href: 'https://www.skatteverket.se/foretag/skatterochavdrag/skattekontobetalaochfatillbaka/' },
+  finalTax: { label: 'Skatteverket om kvarskatt, förfallodag och OCR', href: 'https://www.skatteverket.se/privat/deklaration/betalakvarskatt' },
+  contributions: { label: 'Skatteverket om egenavgifter', href: 'https://www.skatteverket.se/egenavgifter' },
+  vat: { label: 'Skatteverket om när du deklarerar och betalar moms', href: 'https://www.skatteverket.se/foretag/moms/deklareramoms/narskajagdeklareramoms.html' },
 }
 const reviewed = '2026-10-27'
 
 // IDs are public permalinks: retain the ID or add an alias when renaming.
 export const helpArticles: HelpArticle[] = [
+  {
+    id: 'skatt-forsta-aret', topic: 'first-tax', title: 'Skatt första året',
+    answerHeading: 'Förstå vad som hänt',
+    answer: 'Tänk dig att Skatteverket beslutar att du ska betala 1 500 kr i preliminärskatt varje månad. Det är skatt i förväg. Första året bygger beslutet bland annat på hur mycket du tror att firman kommer att gå med vinst. Egenavgifter är sociala avgifter som du själv betalar på firmans överskott, till exempel för pension och sjukförsäkring. De räknas med i preliminärskatten.',
+    paragraphs: [
+      'Öppna Mina sidor hos Skatteverket och leta efter beslutet om debiterad preliminärskatt. Läs belopp och betalningsdatum i beslutet. I e-tjänsten Skattekonto ser du saldo, kontohistorik och ditt OCR-nummer, alltså referensen du anger vid bankbetalningen.',
+      'Du skickar 1 500 kr från banken. När pengarna kommer fram syns en insättning på skattekontot. När Skatteverket drar 1 500 kr för månadens skatt syns en egen rad i historiken. Det är det som kallas debitering. Pengar som kommer in kan också täcka andra poster på samma konto. Läs därför raderna i historiken och jämför dem med beslutet.',
+      'Efter deklarationen räknar Skatteverket fram din slutliga skatt. Om du behöver betala mer kallas det kvarskatt. Belopp och förfallodag står i slutskattebeskedet. Moms gäller firmans köp och försäljning och har en egen deklaration och egna datum, även om den syns på samma skattekonto.',
+      'Ser vinsten ut att bli högre eller lägre än du trodde? Lämna nya uppgifter i Skatteverkets e-tjänst Preliminär inkomstdeklaration. Följ det gällande beslutet tills du får ett nytt.',
+    ],
+    stepsHeading: 'Gör så här i SoloLedger',
+    steps: [
+      'Betalade du de 1 500 kronorna med firmans pengar? Jämför bankraden med skattekontots historik. Om underlagen visar att betalningen gäller din egen skatt, öppna Bokföring. Välj Skatter & avgifter – eget uttag under Övrigt. I äldre kontoplaner kan kategorin heta Skatter & avgifter (eget uttag). Ange bankbetalningens datum, 1 500 kr och en beskrivning, till exempel Preliminärskatt november. Kontrollera att momsen är 0. Bokför bankbetalningen en gång. Skatteverkets debitering är ingen ny betalning från banken.',
+      'Betalade du med egna privata pengar? Då behövs ingen bokning i firman för din egen skatt. Om du först förde över pengar från firman till ditt privatkonto hör den överföringen till egna uttag. Den privata betalningen bokförs inte en gång till.',
+      'Öppna Säkert uttag och jämför bankens saldo och skattekontots historik med de sparade kontrollerna. Om betalningen är ny kan skattekontoavstämningen behöva uppdateras när den syns hos Skatteverket. Om 1 500 kr bara syns som en insättning ska du vänta med att ange det som dragen preliminärskatt. Kontrollera sedan skattebeslutet för rätt år om appen ber om det.',
+    ],
+    warning: 'Om samma betalning kan omfatta både moms och egen skatt, eller om en rad är oklar, jämför bankunderlaget med beslutet och kontohistoriken. Fråga Skatteverket om posten eller ta hjälp av en redovisningskunnig före bokföring. Pausa kontrollen i Säkert uttag om du saknar underlag.',
+    keywords: ['första året', 'preliminärskatt', 'F-skatt', 'kvarskatt', 'egenavgifter', 'skattekonto', 'OCR', 'privatkonto', 'betalningsdatum'],
+    destinations: ['dashboard', 'moms', 'sakert-uttag'],
+    sources: [sources.preliminary, sources.taxAccount, sources.finalTax, sources.contributions, sources.vat, sources.k1],
+    reviewed: '2026-11-05',
+  },
   ...withdrawalHelpArticles,
   {
     id: 'kom-igang', topic: 'start', title: 'Var börjar jag i SoloLedger?',
@@ -190,8 +220,8 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'sakert-uttag', topic: 'withdrawal', title: 'Vad betyder beloppet i Säkert uttag?',
     answer: 'Beloppet bygger på tillgängligt underlag och kan vara uppskattat. Läs statusen och kvarstående kontroller i kortet.',
-    paragraphs: ['Granska bank, kvarstående moms och årsvisa skatteuppskattningar samt de sparade kontroller som kortet visar. Ett banksaldo är inte samma sak som pengar som kan tas ut.', 'En uppskattning kan i vissa fall visas utan skattekontokontroll, men ingen skattekontokredit tillgodoräknas då. Det är inte bevis för att det faktiska saldot är 0 eller att ett uttag är säkert. Andra underlag kräver kontroll och visar inget uttagsbelopp.', 'Välj och återöppna en enskild kontroll i panelen. Paus och hjälp markerar inte kontrollen som klar; tidigare sparade uppgifter ändras först genom en ny sparning. Kontextuell hjälp öppnas i samma panel med möjlighet att återvända till kontrollen.', 'Beloppet är ingen garanti för faktisk skatt eller framtida utgifter. Utred saknade uppgifter före ett uttag.'],
-    keywords: ['uttagsutrymme', 'ta ut', 'pengar', 'reserv', 'skatteuppskattning'], destinations: ['dashboard'], reviewed,
+    paragraphs: ['Granska bank, kvarstående moms och årsvisa skatteuppskattningar samt de sparade kontrollerna på sidan Säkert uttag. Ett banksaldo är inte samma sak som pengar som kan tas ut.', 'En uppskattning kan i vissa fall visas utan skattekontokontroll, men ingen skattekontokredit tillgodoräknas då. Det är inte bevis för att det faktiska saldot är 0 eller att ett uttag är säkert. Andra underlag kräver kontroll och visar inget uttagsbelopp.', 'Öppna den kontroll du vill läsa eller uppdatera. Du kan pausa eller läsa hjälpen och återvända till kontrollen. Dina tidigare uppgifter ändras först när du sparar nya.', 'Beloppet är ingen garanti för faktisk skatt eller framtida utgifter. Utred saknade uppgifter före ett uttag.'],
+    keywords: ['uttagsutrymme', 'ta ut', 'pengar', 'reserv', 'skatteuppskattning'], destinations: ['sakert-uttag'], reviewed: '2026-11-05',
   },
 ]
 

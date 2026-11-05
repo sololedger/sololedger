@@ -90,9 +90,11 @@ export default function FAQ({ reading, onReadingChange, unknownId, focusRevision
         }} className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <summary className="min-h-14 cursor-pointer px-4 py-5 text-base font-semibold leading-relaxed sm:px-5">{article.title}</summary>
           <div className="space-y-4 border-t border-slate-200 px-4 py-5 text-base leading-relaxed sm:px-5">
+            {article.answerHeading && <h3 className="font-semibold">{article.answerHeading}</h3>}
             <p>{article.answer}</p>
             {article.applies && <p className="text-sm text-slate-600">{article.applies}</p>}
             {article.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+            {article.stepsHeading && <h3 className="font-semibold">{article.stepsHeading}</h3>}
             {article.steps && <ol className="list-decimal space-y-3 pl-6">{article.steps.map(step => <li key={step} className="pl-1">{step}</li>)}</ol>}
             {article.warning && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Kontrollera: </strong>{article.warning}</p>}
             <div className="flex flex-wrap gap-3">{article.destinations?.map(destination => <button key={destination} type="button" onClick={() => { onReadingChange(previous => ({ ...previous, anchor: article.id })); onNavigate(destination) }} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Öppna {helpDestinations[destination]}</button>)}</div>
