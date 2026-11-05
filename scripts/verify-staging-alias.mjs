@@ -10,6 +10,7 @@ const STAGING_ALIAS = 'sololedger-git-staging-sololedger1.vercel.app';
 const PRODUCTION_ALIAS = 'sololedger.vercel.app';
 const STAGING_DB = 'fzxqiqenqjzhlyxxpvhg.supabase.co';
 const PRODUCTION_DB = 'wbaxmuvudpnkvuliicuy.supabase.co';
+const ALIAS_LIMIT = 100;
 const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -25,7 +26,10 @@ function checkStagingDeployment(deployment, id) {
     && deployment.gitSource.repoId === REPO_ID && deployment.gitSource.ref === 'staging',
   'Deploymenten kommer inte från rätt GitHub-repo och staging-gren.');
   requireCheck((deployment.target === null || deployment.target === 'preview')
-    && deployment.customEnvironmentId == null, 'Deploymenten är inte vanlig Preview.');
+    && deployment.customEnvironmentId == null && deployment.customEnvironment == null
+    && deployment.oidcTokenClaims?.environment === 'preview'
+    && deployment.oidcTokenClaims.owner === TEAM && deployment.oidcTokenClaims.project === 'sololedger',
+  'Deploymentens miljö kunde inte verifieras som vanlig Preview.');
 }
 
 async function verifyClient(host, readPage) {
@@ -36,8 +40,11 @@ async function verifyClient(host, readPage) {
   requireCheck(assets.length > 0 && assets.every(path => !path.split('/').includes('..')),
     'Kunde inte identifiera levererad JavaScript.');
   const files = await Promise.all(assets.map(path => readPage(host, path)));
-  requireCheck(files.some(file => file.includes(STAGING_DB))
-    && files.every(file => file.trim() && !file.includes(PRODUCTION_DB)),
+  const supabaseUrls = files.flatMap(file => [...file.matchAll(/https?:\/\/[a-z0-9.:%@-]+/gi)]
+    .map(match => match[0]).filter(url => /\.supabase\.co\b/i.test(url)));
+  requireCheck(supabaseUrls.length > 0
+    && files.every(file => file.trim() && !file.toLowerCase().includes(PRODUCTION_DB))
+    && supabaseUrls.every(url => url === `https://${STAGING_DB}`),
   'Staging-databasen kunde inte verifieras i levererad JavaScript.');
   return { assets, files };
 }
@@ -52,6 +59,9 @@ export async function verifyStagingAlias({ id, sha }, { api, assign, readPage })
   checkStagingDeployment(approved, id);
   requireCheck(approved.readyState === 'READY', 'Godkänd deployment är inte READY.');
   requireCheck(approved.gitSource.sha === sha, 'Deploymentens commit matchar inte godkännandet.');
+  requireCheck(Array.isArray(approved.env) && [
+    'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
+  ].every(key => approved.env.includes(key)), 'Deploymentens Supabase-variabler kunde inte verifieras.');
   requireCheck(/^sololedger-[a-z0-9]{9}-sololedger1\.vercel\.app$/.test(approved.url),
     'Deploymentens unika Preview-adress kunde inte verifieras.');
 
@@ -69,9 +79,11 @@ export async function verifyStagingAlias({ id, sha }, { api, assign, readPage })
 
   const client = await verifyClient(approved.url, readPage);
   async function readAliases() {
-    const result = await api(`/v4/aliases?teamId=${TEAM_ID}&projectId=${PROJECT_ID}&limit=100`);
+    const result = await api(`/v4/aliases?teamId=${TEAM_ID}&projectId=${PROJECT_ID}&limit=${ALIAS_LIMIT}`);
     requireCheck(Array.isArray(result?.aliases) && result.pagination?.next === null
-      && result.aliases.every(row => typeof row.alias === 'string'
+      && result.pagination.count === result.aliases.length && result.aliases.length < ALIAS_LIMIT,
+    'Projektets aliaslista är ofullständig eller når gränsen på 100 poster.');
+    requireCheck(result.aliases.every(row => typeof row?.alias === 'string'
         && DEPLOYMENT_ID.test(row.deploymentId))
       && new Set(result.aliases.map(row => row.alias)).size === result.aliases.length,
     'Projektets aliaslista kunde inte verifieras.');

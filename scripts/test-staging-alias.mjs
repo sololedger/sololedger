@@ -16,11 +16,14 @@ const deployment = {
   id, projectId, name: 'sololedger', team: { id: teamId, slug: 'sololedger1' },
   source: 'git', target: null, readyState: 'READY', url: host,
   gitSource: { type: 'github', repoId, ref: 'staging', sha },
+  oidcTokenClaims: { environment: 'preview', owner: 'sololedger1', project: 'sololedger' },
+  env: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
 };
 
 function fixture({ current = older, build = {}, configUrl = db, js = db,
   failWrite = false, wrongReadback = false, productionChanges = false,
-  sharedDeployment = false, otherClient = false, race = false } = {}) {
+  sharedDeployment = false, otherClient = false, race = false,
+  extraAliases = 0, pagination = {} } = {}) {
   const writes = [];
   let aliasReads = 0;
   const client = {
@@ -45,8 +48,10 @@ function fixture({ current = older, build = {}, configUrl = db, js = db,
             aliases: [
               { alias: staging, deploymentId: current },
               { alias: production, deploymentId: sharedDeployment ? current : productionTarget },
+              ...Array.from({ length: extraAliases }, (_, index) =>
+                ({ alias: `branch-${index}.vercel.app`, deploymentId: older })),
             ],
-            pagination: { next: null },
+            pagination: { count: 2 + extraAliases, next: null, ...pagination },
           };
         case `/v4/aliases/${staging}`:
           return { alias: staging, projectId, deploymentId: current, redirect: null };
@@ -81,6 +86,12 @@ test('Äldre alias kopplas om en gång till exakt godkänd Preview', async () =>
   assert.deepEqual(f.writes, [host]);
 });
 
+test('En verifierat komplett lista med 99 alias går igenom', async () => {
+  const f = fixture({ current: id, extraAliases: 97 });
+  assert.equal((await f.run()).changed, false);
+  assert.deepEqual(f.writes, []);
+});
+
 for (const [name, options, error] of [
   ['Fel branch', { build: { gitSource: { ...deployment.gitSource, ref: 'main' } } }, /staging-gren/],
   ['Fel projekt', { build: { projectId: 'prj_Wrong' } }, /projekt/],
@@ -89,9 +100,20 @@ for (const [name, options, error] of [
   ['Fel commit', { build: { gitSource: { ...deployment.gitSource, sha: 'b'.repeat(40) } } }, /commit/],
   ['Production-deployment', { build: { target: 'production' } }, /vanlig Preview/],
   ['Okänd miljö', { build: { target: undefined } }, /vanlig Preview/],
+  ['Custom Environment som objekt', { build: { customEnvironment: { id: 'env_Custom' } } }, /vanlig Preview/],
+  ['Custom Environment som ID', { build: { customEnvironmentId: 'env_Custom' } }, /vanlig Preview/],
+  ['Preview-target med Production-klassning', { build: { oidcTokenClaims: { ...deployment.oidcTokenClaims, environment: 'production' } } }, /vanlig Preview/],
+  ['Deploymentens miljöklassning saknas', { build: { oidcTokenClaims: undefined } }, /vanlig Preview/],
+  ['Deploymentens Supabase-variabler saknas', { build: { env: [] } }, /Supabase-variabler/],
   ['Production-URL i Preview-konfiguration', { configUrl: 'https://wbaxmuvudpnkvuliicuy.supabase.co' }, /Preview-konfigurationen/],
   ['Staging saknas i klienten', { js: 'no-db' }, /levererad JavaScript/],
   ['Production finns också i klienten', { js: db + ' https://wbaxmuvudpnkvuliicuy.supabase.co' }, /levererad JavaScript/],
+  ['En annan Supabase-miljö finns också i klienten', { js: db + ' https://other.supabase.co' }, /levererad JavaScript/],
+  ['Stagingnamnet är del av en annan domän', { js: db + '.example.org' }, /levererad JavaScript/],
+  ['Aliaslistan har en nästa sida', { pagination: { next: 123 } }, /aliaslista är ofullständig/],
+  ['Aliaslistan saknar slutmarkering', { pagination: { next: undefined } }, /aliaslista är ofullständig/],
+  ['Aliaslistan har avvikande antal', { pagination: { count: 3 } }, /aliaslista är ofullständig/],
+  ['Aliaslistan når 100 poster trots null-markör', { extraAliases: 98 }, /gränsen på 100/],
   ['Production och Staging delar deployment', { sharedDeployment: true }, /separata deployments/],
   ['Kopplingen ändras före skrivning', { race: true }, /ändrades under kontrollen/],
 ]) {

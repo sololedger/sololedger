@@ -24,6 +24,13 @@ Båda fallen verifierar samma JavaScript som i det godkända bygget och rätt
 publik Staging-databas. Kontrollresultatet visar gammal och verifierad
 deployment, commit och Production-deployment.
 
+Vercel måste klassificera själva deploymenten som vanlig Preview i dess
+OIDC-metadata. Hjälparen kontrollerar att deploymenten har de förväntade
+Supabase-variablerna och att den byggda klienten har rätt Supabase-adress.
+Servernycklarnas värden kan inte verifieras med dessa kontroller. En aliaslista
+med nästa sida, saknad eller motstridig sidinformation, eller 100 poster
+stoppar körningen.
+
 Vid fel, avbryt releaseverifieringen. Om felet kom under omkoppling eller
 efterkontroll kan Vercel redan ha tagit emot ändringen. Läs då först av den
 faktiska kopplingen innan ett nytt försök övervägs. Vercels aliaskommando kan
