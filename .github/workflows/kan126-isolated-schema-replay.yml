@@ -1,0 +1,62 @@
+name: KAN-126 isolated SoloLedger schema replay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-schema-replay:
+    if: >-
+      github.repository == 'sololedger/sololedger' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.repository.private == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out app repository without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.15.0'
+      - name: Confirm local-only migration inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)"
+          test "$count" -ge 76
+          test -f supabase/migrations/20260925000000_pre_kan17_cli_baseline.sql
+          echo "KAN126_MIGRATION_INPUTS_OK count=$count"
+      - name: Initialize disposable local Supabase configuration
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.119.0 init --force
+          test -f supabase/config.toml
+          echo 'KAN126_LOCAL_CONFIG_OK'
+      - name: Replay real migrations into isolated Docker Supabase
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.119.0 start
+          npx --yes supabase@2.119.0 db reset --local --yes
+          echo 'KAN126_SOLOLEDGER_SCHEMA_REPLAY_PASS'
+      - name: Stop disposable Supabase services
+        if: always()
+        shell: bash
+        run: npx --yes supabase@2.119.0 stop --no-backup || true
