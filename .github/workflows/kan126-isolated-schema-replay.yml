@@ -187,7 +187,7 @@ jobs:
           if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.SERVICE_ROLE_KEY||!vars.ANON_KEY)throw Error('KAN126_LOCAL_AUTH_CONFIG_INVALID');
           const users=[];
           for(const tenant of ['a','b']){
-            const email='kan126-'+tenant+'@example.invalid';
+            const email='kan126-storage-auth-'+tenant+'@example.invalid';
             const password=crypto.randomBytes(24).toString('hex');
             const create=await fetch(vars.API_URL+'/auth/v1/admin/users',{method:'POST',headers:{apikey:vars.SERVICE_ROLE_KEY,Authorization:'Bearer '+vars.SERVICE_ROLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,email_confirm:true})});
             if(!create.ok)throw Error('KAN126_LOCAL_AUTH_CREATE_FAILED_'+create.status);
