@@ -153,6 +153,31 @@ jobs:
           $kan126$;
           SQL
           echo 'KAN126_REAL_SCHEMA_RESTORE_PASS'
+      - name: Compare original and restored schema security objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
+          test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
+          db="${dbs[0]}"
+          for metric in public_tables public_rls_tables public_policies public_foreign_keys public_triggers public_functions; do
+            case "$metric" in
+              public_tables) sql="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p')" ;;
+              public_rls_tables) sql="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relrowsecurity" ;;
+              public_policies) sql="SELECT count(*) FROM pg_policies WHERE schemaname='public'" ;;
+              public_foreign_keys) sql="SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE n.nspname='public' AND c.contype='f'" ;;
+              public_triggers) sql="SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal AND t.tgenabled <> 'D'" ;;
+              public_functions) sql="SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'" ;;
+            esac
+            source_count="$(docker exec "$db" psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d postgres -c "$sql" | tr -d '[:space:]')"
+            restored_count="$(docker exec "$db" psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d kan126_restore -c "$sql" | tr -d '[:space:]')"
+            if [[ "$source_count" != "$restored_count" ]]; then
+              echo "KAN126_RESTORE_PARITY_FAIL metric=$metric source=$source_count restored=$restored_count"
+              exit 1
+            fi
+            echo "KAN126_RESTORE_PARITY_OK metric=$metric count=$restored_count"
+          done
+          echo 'KAN126_REAL_SCHEMA_RESTORE_PARITY_PASS'
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
