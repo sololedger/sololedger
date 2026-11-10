@@ -318,6 +318,79 @@ jobs:
             echo "KAN126_STORAGE_METADATA_PARITY_OK db=$database objects=2"
           done
           echo 'KAN126_STORAGE_METADATA_RESTORE_PASS'
+      - name: Restore actual Storage API file bytes from encrypted synthetic backup into separate private bucket
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          chmod 700 "$tmp"
+          mkdir -p "$tmp/source/a" "$tmp/source/b" "$tmp/restored"
+          export KAN126_STORAGE_TMP="$tmp"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-local-status.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);if(!m)return [];
+            return [m[1],m[2].trim().replace(/^"|"$/g,'')];
+          }).filter(x=>x.length===2));
+          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.SERVICE_ROLE_KEY)throw Error('KAN126_LOCAL_API_INVALID');
+          const headers={apikey:vars.SERVICE_ROLE_KEY,Authorization:'Bearer '+vars.SERVICE_ROLE_KEY};
+          const root=process.env.KAN126_STORAGE_TMP;
+          const manifest={};
+          for(const object of ['a/invoice.txt','b/receipt.txt']){
+            const r=await fetch(vars.API_URL+'/storage/v1/object/authenticated/kan126-private-fixtures/'+object,{headers});
+            if(!r.ok)throw Error('KAN126_STORAGE_SOURCE_DOWNLOAD_FAILED');
+            const bytes=Buffer.from(await r.arrayBuffer());
+            if(!bytes.length)throw Error('KAN126_STORAGE_SOURCE_EMPTY');
+            fs.writeFileSync(path.join(root,'source',object),bytes);
+            manifest[object]=crypto.createHash('sha256').update(bytes).digest('hex');
+          }
+          fs.writeFileSync(path.join(root,'manifest.json'),JSON.stringify(manifest));
+          console.log('KAN126_STORAGE_API_BYTES_EXPORTED files=2');
+          JS
+          tar -C "$tmp/source" -cf "$tmp/objects.tar" a b
+          age-keygen -o "$tmp/key.txt" 2>/dev/null
+          chmod 600 "$tmp/key.txt"
+          recipient="$(age-keygen -y "$tmp/key.txt")"
+          age -r "$recipient" -o "$tmp/objects.tar.age" "$tmp/objects.tar"
+          age -d -i "$tmp/key.txt" -o "$tmp/recovered.tar" "$tmp/objects.tar.age"
+          tar -C "$tmp/restored" -xf "$tmp/recovered.tar"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          const root=process.env.KAN126_STORAGE_TMP;
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-local-status.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);if(!m)return [];
+            return [m[1],m[2].trim().replace(/^"|"$/g,'')];
+          }).filter(x=>x.length===2));
+          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.SERVICE_ROLE_KEY)throw Error('KAN126_LOCAL_API_INVALID');
+          const headers={apikey:vars.SERVICE_ROLE_KEY,Authorization:'Bearer '+vars.SERVICE_ROLE_KEY};
+          const bucket='kan126-private-restored';
+          const create=await fetch(vars.API_URL+'/storage/v1/bucket',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:false})});
+          if(!create.ok)throw Error('KAN126_RESTORED_BUCKET_CREATE_FAILED');
+          const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
+          for(const [object,expected] of Object.entries(manifest)){
+            const bytes=fs.readFileSync(path.join(root,'restored',object));
+            if(crypto.createHash('sha256').update(bytes).digest('hex')!==expected)throw Error('KAN126_DECRYPTED_STORAGE_HASH_MISMATCH');
+            const upload=await fetch(vars.API_URL+'/storage/v1/object/'+bucket+'/'+object,{method:'POST',headers:{...headers,'Content-Type':'application/octet-stream'},body:bytes});
+            if(!upload.ok)throw Error('KAN126_RESTORED_STORAGE_UPLOAD_FAILED');
+            const download=await fetch(vars.API_URL+'/storage/v1/object/authenticated/'+bucket+'/'+object,{headers});
+            if(!download.ok)throw Error('KAN126_RESTORED_STORAGE_DOWNLOAD_FAILED');
+            const recovered=Buffer.from(await download.arrayBuffer());
+            if(crypto.createHash('sha256').update(recovered).digest('hex')!==expected)throw Error('KAN126_RESTORED_STORAGE_HASH_MISMATCH');
+            const publicRead=await fetch(vars.API_URL+'/storage/v1/object/public/'+bucket+'/'+object);
+            if(publicRead.ok)throw Error('KAN126_RESTORED_STORAGE_PUBLIC_ACCESS');
+          }
+          console.log('KAN126_STORAGE_API_ENCRYPTED_BYTES_RESTORED_PASS files=2');
+          JS
       - name: Compare original and restored schema security objects
         shell: bash
         run: |
