@@ -168,6 +168,43 @@ jobs:
           }
           console.log('KAN126_LOCAL_STORAGE_API_PRIVATE_FILES_PASS files=2');
           JS
+      - name: Verify authenticated synthetic users cannot read private Storage fixtures
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-local-status.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);if(!m)return [];
+            return [m[1],m[2].trim().replace(/^"|"$/g,'')];
+          }).filter(x=>x.length===2));
+          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.SERVICE_ROLE_KEY||!vars.ANON_KEY)throw Error('KAN126_LOCAL_AUTH_CONFIG_INVALID');
+          const users=[];
+          for(const tenant of ['a','b']){
+            const email='kan126-'+tenant+'@example.invalid';
+            const password=crypto.randomBytes(24).toString('hex');
+            const create=await fetch(vars.API_URL+'/auth/v1/admin/users',{method:'POST',headers:{apikey:vars.SERVICE_ROLE_KEY,Authorization:'Bearer '+vars.SERVICE_ROLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,email_confirm:true})});
+            if(!create.ok)throw Error('KAN126_LOCAL_AUTH_CREATE_FAILED_'+create.status);
+            const login=await fetch(vars.API_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:vars.ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+            if(!login.ok)throw Error('KAN126_LOCAL_AUTH_LOGIN_FAILED_'+login.status);
+            const token=(await login.json()).access_token;
+            if(!token)throw Error('KAN126_LOCAL_AUTH_TOKEN_MISSING');
+            users.push({tenant,token});
+          }
+          for(const user of users){
+            for(const object of ['a/invoice.txt','b/receipt.txt']){
+              const response=await fetch(vars.API_URL+'/storage/v1/object/authenticated/kan126-private-fixtures/'+object,{headers:{apikey:vars.ANON_KEY,Authorization:'Bearer '+user.token}});
+              if(response.ok)throw Error('KAN126_STORAGE_UNEXPECTED_AUTH_READ tenant='+user.tenant+' object='+object);
+            }
+          }
+          console.log('KAN126_STORAGE_AUTHENTICATED_DEFAULT_DENY_PASS users=2 objects=2');
+          JS
       - name: Capture and validate custom-format backup of real local SoloLedger schema
         shell: bash
         run: |
