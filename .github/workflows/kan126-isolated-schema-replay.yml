@@ -115,7 +115,8 @@ jobs:
           trap 'rm -f "$dump" "$toc"' EXIT
           docker exec "$db" pg_dump -U postgres -d postgres -Fc > "$dump"
           test -s "$dump" || { echo 'KAN126_LOCAL_DUMP_EMPTY'; exit 1; }
-          pg_restore --list "$dump" > "$toc"
+          docker cp "$dump" "$db:/tmp/kan126-local-schema.dump"
+          docker exec "$db" pg_restore --list /tmp/kan126-local-schema.dump > "$toc"
           grep -q 'TABLE public profiles' "$toc" || { echo 'KAN126_LOCAL_DUMP_PROFILES_MISSING'; exit 1; }
           grep -q 'TABLE public accounts' "$toc" || { echo 'KAN126_LOCAL_DUMP_ACCOUNTS_MISSING'; exit 1; }
           grep -q 'POLICY public' "$toc" || { echo 'KAN126_LOCAL_DUMP_POLICIES_MISSING'; exit 1; }
