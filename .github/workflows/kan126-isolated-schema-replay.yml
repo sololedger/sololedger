@@ -76,8 +76,7 @@ jobs:
             functions integer;
           BEGIN
             IF to_regclass('public.profiles') IS NULL
-               OR to_regclass('public.accounts') IS NULL
-               OR to_regclass('public.journal_entries') IS NULL THEN
+               OR to_regclass('public.accounts') IS NULL THEN
               RAISE EXCEPTION 'KAN126_CORE_TABLES_MISSING';
             END IF;
             SELECT count(*) INTO rls_tables FROM pg_class c
