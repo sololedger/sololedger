@@ -179,6 +179,43 @@ jobs:
           fi
           docker cp "$temp/decrypted.dump" "$db:/tmp/kan126-local-schema.dump"
           echo 'KAN126_REAL_SCHEMA_AGE_ROUNDTRIP_PASS'
+      - name: Encrypt and restore two-tenant synthetic Storage file bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v age
+          command -v age-keygen
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          chmod 700 "$temp"
+          mkdir -p "$temp/source/tenant-a" "$temp/source/tenant-b" "$temp/recovered"
+          printf 'KAN126 tenant A synthetic invoice attachment\\n' > "$temp/source/tenant-a/invoice.txt"
+          printf 'KAN126 tenant B synthetic receipt attachment\\n' > "$temp/source/tenant-b/receipt.txt"
+          (cd "$temp/source" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$temp/manifest.sha256"
+          tar -C "$temp/source" -cf "$temp/storage.tar" tenant-a tenant-b
+          age-keygen -o "$temp/identity.txt" 2>/dev/null
+          chmod 600 "$temp/identity.txt"
+          recipient="$(age-keygen -y "$temp/identity.txt")"
+          age -r "$recipient" -o "$temp/storage.tar.age" "$temp/storage.tar"
+          test -s "$temp/storage.tar.age"
+          if cmp -s "$temp/storage.tar" "$temp/storage.tar.age"; then
+            echo 'KAN126_STORAGE_CIPHERTEXT_EQUALS_PLAINTEXT'
+            exit 1
+          fi
+          age -d -i "$temp/identity.txt" -o "$temp/recovered.tar" "$temp/storage.tar.age"
+          tar -C "$temp/recovered" -xf "$temp/recovered.tar"
+          (cd "$temp/recovered" && sha256sum -c "$temp/manifest.sha256" --status) || {
+            echo 'KAN126_STORAGE_HASH_MISMATCH'
+            exit 1
+          }
+          test "$(find "$temp/recovered" -type f | wc -l)" -eq 2
+          cp "$temp/storage.tar.age" "$temp/tampered.age"
+          printf '\\000' | dd of="$temp/tampered.age" bs=1 seek=90 count=1 conv=notrunc status=none
+          if age -d -i "$temp/identity.txt" -o "$temp/tampered.tar" "$temp/tampered.age" >/dev/null 2>&1; then
+            echo 'KAN126_STORAGE_TAMPER_NOT_REJECTED'
+            exit 1
+          fi
+          echo 'KAN126_SYNTHETIC_STORAGE_ENCRYPTED_RESTORE_PASS files=2'
       - name: Restore real local backup into separate disposable database
         shell: bash
         run: |
