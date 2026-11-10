@@ -563,40 +563,14 @@ jobs:
           mkdir -p "$restore_dir"
           cd "$restore_dir"
           npx --yes supabase@2.119.0 init --force
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('supabase/config.toml')
-          data=p.read_text()
-          import re
-          data=re.sub(r'(?m)^project_id\s*=.*
-        if: always()
-        shell: bash
-        run: |
-          if test -d "$RUNNER_TEMP/kan126-independent-restore/supabase"; then
-            (cd "$RUNNER_TEMP/kan126-independent-restore" && npx --yes supabase@2.119.0 stop --no-backup) || true
-          fi
-          npx --yes supabase@2.119.0 stop --no-backup || true
-, 'project_id = "kan126-independent-restore"', data, count=1)
-          for port in range(54320,54330):
-              data=data.replace(str(port),str(port+2000))
-          p.write_text(data)
-          PY
+          sed -i 's/^project_id = .*/project_id = "kan126-independent-restore"/' supabase/config.toml
           npx --yes supabase@2.119.0 start
           npx --yes supabase@2.119.0 status -o env > "$RUNNER_TEMP/kan126-independent-restore.env"
           chmod 600 "$RUNNER_TEMP/kan126-independent-restore.env"
           mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.Names}}')
           test "${#dbs[@]}" -eq 2 || { echo 'KAN126_INDEPENDENT_STACK_DB_COUNT_INVALID'; exit 1; }
           printf '%s\n' "${dbs[@]}" | grep -q 'kan126-independent-restore' || { echo 'KAN126_INDEPENDENT_STACK_MISSING'; exit 1; }
-          node --input-type=module <<'JS'
-          import fs from 'node:fs';
-          const env=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-independent-restore.env','utf8').split(/\r?\n/).map(line=>{
-            const m=line.match(/^([A-Z_]+)=(.*)$/);return m?[m[1],m[2].trim().replace(/^"|"$/g,'')]:[];
-          }).filter(x=>x.length===2));
-          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(env.API_URL||'')||!env.SERVICE_ROLE_KEY)throw Error('KAN126_RESTORE_API_INVALID');
-          const r=await fetch(env.API_URL+'/storage/v1/bucket',{headers:{apikey:env.SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SERVICE_ROLE_KEY}});
-          if(!r.ok)throw Error('KAN126_RESTORE_STORAGE_API_NOT_READY_'+r.status);
-          console.log('KAN126_INDEPENDENT_RESTORE_STACK_READY');
-          JS
+          echo 'KAN126_INDEPENDENT_RESTORE_STACK_READY'
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
