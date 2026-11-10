@@ -132,7 +132,10 @@ jobs:
           test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
           db="${dbs[0]}"
           docker exec "$db" createdb -U postgres -T template0 kan126_restore
-          docker exec "$db" pg_restore -U postgres -d kan126_restore --exit-on-error --no-owner --no-acl /tmp/kan126-local-schema.dump
+          # The local Supabase postgres role is not a superuser. Internal Realtime
+          # functions in a full cluster dump require supabase_admin on restore.
+          test "$(docker exec "$db" psql -X -t -A -U postgres -d postgres -c "SELECT rolsuper FROM pg_roles WHERE rolname='supabase_admin'")" = "t" || { echo 'KAN126_LOCAL_SUPABASE_ADMIN_NOT_SUPERUSER'; exit 1; }
+          docker exec "$db" pg_restore -U supabase_admin -d kan126_restore --exit-on-error --no-owner --no-acl /tmp/kan126-local-schema.dump
           docker exec -i "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d kan126_restore <<'SQL'
           DO $kan126$
           BEGIN
