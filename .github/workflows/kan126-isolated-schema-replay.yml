@@ -291,6 +291,33 @@ jobs:
           $kan126$;
           SQL
           echo 'KAN126_REAL_SCHEMA_RESTORE_PASS'
+      - name: Verify restored Storage metadata matches API-uploaded objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
+          test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
+          db="${dbs[0]}"
+          for database in postgres kan126_restore; do
+            result="$(docker exec "$db" psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d "$database" -c "
+              SELECT string_agg(name, ',' ORDER BY name)
+              FROM storage.objects
+              WHERE bucket_id='kan126-private-fixtures'
+            " | tr -d '[:space:]')"
+            test "$result" = 'a/invoice.txt,b/receipt.txt' || {
+              echo "KAN126_STORAGE_METADATA_MISMATCH db=$database"
+              exit 1
+            }
+            private="$(docker exec "$db" psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d "$database" -c "
+              SELECT public FROM storage.buckets WHERE id='kan126-private-fixtures'
+            " | tr -d '[:space:]')"
+            test "$private" = 'f' || {
+              echo "KAN126_STORAGE_BUCKET_NOT_PRIVATE db=$database"
+              exit 1
+            }
+            echo "KAN126_STORAGE_METADATA_PARITY_OK db=$database objects=2"
+          done
+          echo 'KAN126_STORAGE_METADATA_RESTORE_PASS'
       - name: Compare original and restored schema security objects
         shell: bash
         run: |
