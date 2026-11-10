@@ -564,6 +564,8 @@ jobs:
           cd "$restore_dir"
           npx --yes supabase@2.119.0 init --force
           sed -i 's/^project_id = .*/project_id = "kan126-independent-restore"/' supabase/config.toml
+          sed -i -E 's/543([0-9]{2})/563\1/g' supabase/config.toml
+          if grep -Eq '5432[0-9]' supabase/config.toml; then echo 'KAN126_RESTORE_PORT_REMAP_FAILED'; exit 1; fi
           npx --yes supabase@2.119.0 start
           npx --yes supabase@2.119.0 status -o env > "$RUNNER_TEMP/kan126-independent-restore.env"
           chmod 600 "$RUNNER_TEMP/kan126-independent-restore.env"
@@ -574,4 +576,8 @@ jobs:
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
-        run: npx --yes supabase@2.119.0 stop --no-backup || true
+        run: |
+          if test -d "$RUNNER_TEMP/kan126-independent-restore/supabase"; then
+            (cd "$RUNNER_TEMP/kan126-independent-restore" && npx --yes supabase@2.119.0 stop --no-backup) || true
+          fi
+          npx --yes supabase@2.119.0 stop --no-backup || true
