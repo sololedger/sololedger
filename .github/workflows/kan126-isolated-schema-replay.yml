@@ -124,6 +124,50 @@ jobs:
             ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '22222222-2222-4222-8222-222222222222', '2026-01-16', 'KAN126 synthetic B', 250.00, 'income');
           SQL
           echo 'KAN126_TWO_TENANT_SEED_PASS'
+      - name: Verify real local Supabase Storage API with synthetic private files
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.119.0 status -o env > "$RUNNER_TEMP/kan126-local-status.env"
+          chmod 600 "$RUNNER_TEMP/kan126-local-status.env"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const lines = fs.readFileSync(process.env.RUNNER_TEMP + '/kan126-local-status.env', 'utf8');
+          const vars = Object.fromEntries(lines.split(/\r?\n/).map(line => {
+            const match = line.match(/^([A-Z_]+)=(.*)$/);
+            if (!match) return [];
+            let value = match[2].trim();
+            if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1,-1);
+            return [match[1],value];
+          }).filter(pair => pair.length === 2));
+          const base = vars.API_URL;
+          const key = vars.SERVICE_ROLE_KEY;
+          if (!base?.startsWith('http://127.0.0.1:') && !base?.startsWith('http://localhost:')) throw Error('KAN126_LOCAL_API_URL_INVALID');
+          if (!key) throw Error('KAN126_LOCAL_SERVICE_KEY_MISSING');
+          const bucket='kan126-private-fixtures';
+          const auth = {apikey:key,Authorization:'Bearer '+key};
+          async function request(path,options={}) {
+            const response=await fetch(base+path,{...options,headers:{...auth,...options.headers}});
+            if (!response.ok) throw Error('KAN126_STORAGE_API_HTTP_'+response.status+' '+path);
+            return response;
+          }
+          await request('/storage/v1/bucket',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:false})});
+          for (const [tenant,name,body] of [['a','invoice.txt','KAN126 synthetic tenant A invoice'],['b','receipt.txt','KAN126 synthetic tenant B receipt']]) {
+            const object=tenant+'/'+name;
+            await request('/storage/v1/object/'+bucket+'/'+object,{method:'POST',headers:{'Content-Type':'text/plain'},body});
+            const downloaded=await (await request('/storage/v1/object/authenticated/'+bucket+'/'+object)).text();
+            if (crypto.createHash('sha256').update(downloaded).digest('hex') !== crypto.createHash('sha256').update(body).digest('hex')) throw Error('KAN126_STORAGE_API_CONTENT_MISMATCH');
+            const anonymous=await fetch(base+'/storage/v1/object/public/'+bucket+'/'+object);
+            if (anonymous.ok) throw Error('KAN126_PRIVATE_STORAGE_PUBLIC_READ_ALLOWED');
+          }
+          console.log('KAN126_LOCAL_STORAGE_API_PRIVATE_FILES_PASS files=2');
+          JS
       - name: Capture and validate custom-format backup of real local SoloLedger schema
         shell: bash
         run: |
