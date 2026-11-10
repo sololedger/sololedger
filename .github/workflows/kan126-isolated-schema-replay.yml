@@ -577,16 +577,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t source < <(docker ps --filter 'name=^/supabase_db_' --format '{{.Names}}' | grep -v 'kan126-independent-restore')
-          mapfile -t target < <(docker ps --filter 'name=^/supabase_db_kan126-independent-restore
-        if: always()
-        shell: bash
-        run: |
-          if test -d "$RUNNER_TEMP/kan126-independent-restore/supabase"; then
-            (cd "$RUNNER_TEMP/kan126-independent-restore" && npx --yes supabase@2.119.0 stop --no-backup) || true
-          fi
-          npx --yes supabase@2.119.0 stop --no-backup || true
- --format '{{.Names}}')
+          mapfile -t source < <(docker ps --format '{{.Names}}' | grep '^supabase_db_' | grep -v 'kan126-independent-restore')
+          mapfile -t target < <(docker ps --format '{{.Names}}' | grep '^supabase_db_kan126-independent-restore')
           test "${#source[@]}" -eq 1 && test "${#target[@]}" -eq 1 || { echo 'KAN126_INDEPENDENT_DB_IDENTIFICATION_FAILED'; exit 1; }
           temp="$(mktemp -d)"
           trap 'rm -rf "$temp"' EXIT
