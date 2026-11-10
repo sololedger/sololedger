@@ -674,6 +674,83 @@ jobs:
           console.log('KAN126_INDEPENDENT_ENCRYPTED_STORAGE_RESTORE_PASS files=2');
           JS
 
+
+      - name: Verify independent restore authenticated Storage access isolation
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-independent-restore.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);
+            return m?[m[1],m[2].trim().replace(/^"|"$/g,'')]:[];
+          }).filter(x=>x.length===2));
+          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.SERVICE_ROLE_KEY||!vars.ANON_KEY)throw Error('KAN126_INDEPENDENT_AUTH_CONFIG_INVALID');
+          const users=[];
+          for(const tenant of ['a','b']){
+            const email='kan126-independent-'+tenant+'@example.invalid';
+            const password=crypto.randomBytes(24).toString('hex');
+            const create=await fetch(vars.API_URL+'/auth/v1/admin/users',{method:'POST',headers:{apikey:vars.SERVICE_ROLE_KEY,Authorization:'Bearer '+vars.SERVICE_ROLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,email_confirm:true})});
+            if(!create.ok)throw Error('KAN126_INDEPENDENT_AUTH_CREATE_FAILED_'+create.status);
+            const login=await fetch(vars.API_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:vars.ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+            if(!login.ok)throw Error('KAN126_INDEPENDENT_AUTH_LOGIN_FAILED_'+login.status);
+            const token=(await login.json()).access_token;
+            if(!token)throw Error('KAN126_INDEPENDENT_AUTH_TOKEN_MISSING');
+            users.push({tenant,token});
+          }
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/kan126-independent-auth-users.json',JSON.stringify(users),{mode:0o600});
+          JS
+          db="$(docker ps --format '{{.Names}}' | grep '^supabase_db_kan126-independent-restore        if: always()
+        shell: bash
+        run: |
+          if test -d "$RUNNER_TEMP/kan126-independent-restore/supabase"; then
+            (cd "$RUNNER_TEMP/kan126-independent-restore" && npx --yes supabase@2.119.0 stop --no-backup) || true
+          fi
+          npx --yes supabase@2.119.0 stop --no-backup || true
+)"
+          test -n "$db"
+          docker exec -i "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+          CREATE POLICY kan126_independent_private_read ON storage.objects
+          FOR SELECT TO authenticated
+          USING (
+            bucket_id = 'kan126-independent-private'
+            AND (
+              (name LIKE 'a/%' AND auth.jwt()->>'email' = 'kan126-independent-a@example.invalid')
+              OR
+              (name LIKE 'b/%' AND auth.jwt()->>'email' = 'kan126-independent-b@example.invalid')
+            )
+          );
+          SQL
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-independent-restore.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);
+            return m?[m[1],m[2].trim().replace(/^"|"$/g,'')]:[];
+          }).filter(x=>x.length===2));
+          const users=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-independent-auth-users.json','utf8'));
+          const expected={'a/invoice.txt':'KAN126 synthetic tenant A invoice','b/receipt.txt':'KAN126 synthetic tenant B receipt'};
+          for(const user of users){
+            for(const [object,body] of Object.entries(expected)){
+              const r=await fetch(vars.API_URL+'/storage/v1/object/authenticated/kan126-independent-private/'+object,{headers:{apikey:vars.ANON_KEY,Authorization:'Bearer '+user.token}});
+              if(object.startsWith(user.tenant+'/')){
+                if(!r.ok)throw Error('KAN126_INDEPENDENT_OWN_READ_DENIED_'+r.status);
+                const bytes=Buffer.from(await r.arrayBuffer());
+                if(crypto.createHash('sha256').update(bytes).digest('hex')!==crypto.createHash('sha256').update(body).digest('hex'))throw Error('KAN126_INDEPENDENT_OWN_HASH_MISMATCH');
+              }else if(r.ok){
+                throw Error('KAN126_INDEPENDENT_CROSS_TENANT_READ_ALLOWED');
+              }
+            }
+          }
+          console.log('KAN126_INDEPENDENT_STORAGE_TENANT_ISOLATION_PASS users=2 files=2');
+          JS
+
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
