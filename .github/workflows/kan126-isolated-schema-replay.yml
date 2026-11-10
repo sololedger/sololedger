@@ -12,7 +12,7 @@ jobs:
       github.repository == 'sololedger/sololedger' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&
-      github.event.repository.private == true
+      github.repository_id == '1244768485'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
