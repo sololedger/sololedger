@@ -203,6 +203,9 @@ jobs:
               if(response.ok)throw Error('KAN126_STORAGE_UNEXPECTED_AUTH_READ tenant='+user.tenant+' object='+object);
             }
           }
+          const tokenPath=process.env.RUNNER_TEMP+'/kan126-storage-user-tokens.json';
+          fs.writeFileSync(tokenPath,JSON.stringify(users),{mode:0o600});
+          fs.chmodSync(tokenPath,0o600);
           console.log('KAN126_STORAGE_AUTHENTICATED_DEFAULT_DENY_PASS users=2 objects=2');
           JS
       - name: Capture and validate custom-format backup of real local SoloLedger schema
@@ -439,6 +442,56 @@ jobs:
           }
           console.log('KAN126_STORAGE_ANON_DENIAL_PASS objects=2 buckets=2');
           console.log('KAN126_STORAGE_API_ENCRYPTED_BYTES_RESTORED_PASS files=2');
+          JS
+      - name: Verify own-file access and cross-tenant denial under isolated Storage policy
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
+          test "${#dbs[@]}" -eq 1
+          docker exec -i "${dbs[0]}" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+          CREATE POLICY kan126_local_fixture_read ON storage.objects
+          FOR SELECT TO authenticated
+          USING (
+            bucket_id IN ('kan126-private-fixtures','kan126-private-restored')
+            AND (
+              (name LIKE 'a/%' AND auth.jwt()->>'email' = 'kan126-storage-auth-a@example.invalid')
+              OR
+              (name LIKE 'b/%' AND auth.jwt()->>'email' = 'kan126-storage-auth-b@example.invalid')
+            )
+          );
+          SQL
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const vars=Object.fromEntries(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-local-status.env','utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);if(!m)return [];
+            return [m[1],m[2].trim().replace(/^"|"$/g,'')];
+          }).filter(x=>x.length===2));
+          if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(vars.API_URL||'')||!vars.ANON_KEY)throw Error('KAN126_LOCAL_STORAGE_AUTH_CONFIG_INVALID');
+          const users=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/kan126-storage-user-tokens.json','utf8'));
+          if(users.length!==2)throw Error('KAN126_LOCAL_STORAGE_USERS_MISSING');
+          const expected={'a/invoice.txt':'KAN126 synthetic tenant A invoice','b/receipt.txt':'KAN126 synthetic tenant B receipt'};
+          for(const bucket of ['kan126-private-fixtures','kan126-private-restored']){
+            for(const user of users){
+              for(const [object,body] of Object.entries(expected)){
+                const response=await fetch(vars.API_URL+'/storage/v1/object/authenticated/'+bucket+'/'+object,{headers:{apikey:vars.ANON_KEY,Authorization:'Bearer '+user.token}});
+                if(object.startsWith(user.tenant+'/')){
+                  if(!response.ok)throw Error('KAN126_STORAGE_OWN_READ_DENIED tenant='+user.tenant+' bucket='+bucket+' status='+response.status);
+                  const actual=Buffer.from(await response.arrayBuffer());
+                  if(crypto.createHash('sha256').update(actual).digest('hex')!==crypto.createHash('sha256').update(body).digest('hex'))throw Error('KAN126_STORAGE_OWN_READ_HASH_MISMATCH');
+                }else if(response.ok){
+                  throw Error('KAN126_STORAGE_CROSS_TENANT_READ_ALLOWED tenant='+user.tenant+' bucket='+bucket);
+                }
+              }
+            }
+          }
+          console.log('KAN126_STORAGE_AUTHENTICATED_TENANT_ISOLATION_PASS users=2 buckets=2');
           JS
       - name: Compare original and restored schema security objects
         shell: bash
