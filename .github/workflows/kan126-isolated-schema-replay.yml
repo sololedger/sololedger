@@ -599,6 +599,81 @@ jobs:
             test "$expected" = "$actual" || { echo 'KAN126_INDEPENDENT_RESTORE_PARITY_FAILED'; exit 1; }
           done
           echo 'KAN126_INDEPENDENT_ENCRYPTED_DATABASE_RESTORE_PASS'
+
+      - name: Restore encrypted synthetic Storage objects through independent Storage API
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ''
+          SUPABASE_DB_PASSWORD: ''
+          DATABASE_URL: ''
+          DIRECT_URL: ''
+        run: |
+          set -euo pipefail
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          chmod 700 "$temp"
+          export KAN126_STORAGE_TRANSFER_DIR="$temp"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const readEnv=(file)=>Object.fromEntries(fs.readFileSync(file,'utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);
+            return m?[m[1],m[2].trim().replace(/^"|"$/g,'')]:[];
+          }).filter(x=>x.length===2));
+          const root=process.env.RUNNER_TEMP;
+          const src=readEnv(root+'/kan126-local-status.env');
+          const dst=readEnv(root+'/kan126-independent-restore.env');
+          for(const env of [src,dst]){
+            if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(env.API_URL||'')||!env.SERVICE_ROLE_KEY||!env.ANON_KEY)throw Error('KAN126_INDEPENDENT_STORAGE_LOCAL_CONFIG_INVALID');
+          }
+          if(src.API_URL===dst.API_URL)throw Error('KAN126_INDEPENDENT_STORAGE_SAME_ENDPOINT');
+          const headers={apikey:src.SERVICE_ROLE_KEY,Authorization:'Bearer '+src.SERVICE_ROLE_KEY};
+          const payload={};
+          for(const object of ['a/invoice.txt','b/receipt.txt']){
+            const r=await fetch(src.API_URL+'/storage/v1/object/authenticated/kan126-private-fixtures/'+object,{headers});
+            if(!r.ok)throw Error('KAN126_INDEPENDENT_STORAGE_SOURCE_DOWNLOAD_FAILED_'+r.status);
+            payload[object]=Buffer.from(await r.arrayBuffer()).toString('base64');
+          }
+          fs.writeFileSync(process.env.KAN126_STORAGE_TRANSFER_DIR+'/objects.json',JSON.stringify(payload),{mode:0o600});
+          JS
+          age-keygen -o "$temp/key.txt" 2>/dev/null
+          chmod 600 "$temp/key.txt"
+          recipient="$(age-keygen -y "$temp/key.txt")"
+          age -r "$recipient" -o "$temp/objects.age" "$temp/objects.json"
+          rm "$temp/objects.json"
+          age -d -i "$temp/key.txt" -o "$temp/recovered.json" "$temp/objects.age"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const readEnv=(file)=>Object.fromEntries(fs.readFileSync(file,'utf8').split(/\r?\n/).map(line=>{
+            const m=line.match(/^([A-Z_]+)=(.*)$/);
+            return m?[m[1],m[2].trim().replace(/^"|"$/g,'')]:[];
+          }).filter(x=>x.length===2));
+          const dst=readEnv(process.env.RUNNER_TEMP+'/kan126-independent-restore.env');
+          const data=JSON.parse(fs.readFileSync(process.env.KAN126_STORAGE_TRANSFER_DIR+'/recovered.json','utf8'));
+          const bucket='kan126-independent-private';
+          const headers={apikey:dst.SERVICE_ROLE_KEY,Authorization:'Bearer '+dst.SERVICE_ROLE_KEY};
+          const create=await fetch(dst.API_URL+'/storage/v1/bucket',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({id:bucket,name:bucket,public:false})});
+          if(!create.ok)throw Error('KAN126_INDEPENDENT_STORAGE_BUCKET_CREATE_FAILED_'+create.status);
+          for(const [object,base64] of Object.entries(data)){
+            const bytes=Buffer.from(base64,'base64');
+            if(!bytes.length)throw Error('KAN126_INDEPENDENT_STORAGE_EMPTY_OBJECT');
+            const upload=await fetch(dst.API_URL+'/storage/v1/object/'+bucket+'/'+object,{method:'POST',headers:{...headers,'Content-Type':'application/octet-stream'},body:bytes});
+            if(!upload.ok)throw Error('KAN126_INDEPENDENT_STORAGE_UPLOAD_FAILED_'+upload.status);
+            const download=await fetch(dst.API_URL+'/storage/v1/object/authenticated/'+bucket+'/'+object,{headers});
+            if(!download.ok)throw Error('KAN126_INDEPENDENT_STORAGE_DOWNLOAD_FAILED_'+download.status);
+            const restored=Buffer.from(await download.arrayBuffer());
+            if(crypto.createHash('sha256').update(bytes).digest('hex')!==crypto.createHash('sha256').update(restored).digest('hex'))throw Error('KAN126_INDEPENDENT_STORAGE_HASH_MISMATCH');
+            for(const mode of ['public','authenticated']){
+              const url=dst.API_URL+'/storage/v1/object/'+mode+'/'+bucket+'/'+object;
+              const denied=await fetch(url,mode==='authenticated'?{headers:{apikey:dst.ANON_KEY,Authorization:'Bearer '+dst.ANON_KEY}}:{});
+              if(denied.ok)throw Error('KAN126_INDEPENDENT_STORAGE_UNAUTHORIZED_READ_ALLOWED');
+            }
+          }
+          if(Object.keys(data).length!==2)throw Error('KAN126_INDEPENDENT_STORAGE_OBJECT_COUNT_MISMATCH');
+          console.log('KAN126_INDEPENDENT_ENCRYPTED_STORAGE_RESTORE_PASS files=2');
+          JS
+
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
