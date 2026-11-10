@@ -131,7 +131,6 @@ jobs:
           mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
           test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
           db="${dbs[0]}"
-          docker exec "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres -c "SELECT 1 FROM pg_database WHERE datname = 'kan126_restore'" | grep -q 1 && { echo 'KAN126_RESTORE_DB_ALREADY_EXISTS'; exit 1; } || true
           docker exec "$db" createdb -U postgres -T template0 kan126_restore
           docker exec "$db" pg_restore -U postgres -d kan126_restore --exit-on-error --no-owner --no-acl /tmp/kan126-local-schema.dump
           docker exec -i "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d kan126_restore <<'SQL'
