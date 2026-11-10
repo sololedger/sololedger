@@ -389,6 +389,18 @@ jobs:
             const publicRead=await fetch(vars.API_URL+'/storage/v1/object/public/'+bucket+'/'+object);
             if(publicRead.ok)throw Error('KAN126_RESTORED_STORAGE_PUBLIC_ACCESS');
           }
+          const anonKey=vars.ANON_KEY;
+          if(!anonKey)throw Error('KAN126_LOCAL_ANON_KEY_MISSING');
+          for(const object of Object.keys(manifest)){
+            for(const target of ['kan126-private-fixtures',bucket]){
+              const url=vars.API_URL+'/storage/v1/object/authenticated/'+target+'/'+object;
+              const anon=await fetch(url,{headers:{apikey:anonKey,Authorization:'Bearer '+anonKey}});
+              if(anon.ok)throw Error('KAN126_STORAGE_ANON_READ_ALLOWED');
+              const unauthenticated=await fetch(url);
+              if(unauthenticated.ok)throw Error('KAN126_STORAGE_UNAUTHENTICATED_READ_ALLOWED');
+            }
+          }
+          console.log('KAN126_STORAGE_ANON_DENIAL_PASS objects=2 buckets=2');
           console.log('KAN126_STORAGE_API_ENCRYPTED_BYTES_RESTORED_PASS files=2');
           JS
       - name: Compare original and restored schema security objects
