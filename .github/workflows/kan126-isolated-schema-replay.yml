@@ -573,6 +573,40 @@ jobs:
           test "${#dbs[@]}" -eq 2 || { echo 'KAN126_INDEPENDENT_STACK_DB_COUNT_INVALID'; exit 1; }
           printf '%s\n' "${dbs[@]}" | grep -q 'kan126-independent-restore' || { echo 'KAN126_INDEPENDENT_STACK_MISSING'; exit 1; }
           echo 'KAN126_INDEPENDENT_RESTORE_STACK_READY'
+      - name: Restore encrypted source database backup into independent Supabase PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t source < <(docker ps --filter 'name=^/supabase_db_' --format '{{.Names}}' | grep -v 'kan126-independent-restore')
+          mapfile -t target < <(docker ps --filter 'name=^/supabase_db_kan126-independent-restore
+        if: always()
+        shell: bash
+        run: |
+          if test -d "$RUNNER_TEMP/kan126-independent-restore/supabase"; then
+            (cd "$RUNNER_TEMP/kan126-independent-restore" && npx --yes supabase@2.119.0 stop --no-backup) || true
+          fi
+          npx --yes supabase@2.119.0 stop --no-backup || true
+ --format '{{.Names}}')
+          test "${#source[@]}" -eq 1 && test "${#target[@]}" -eq 1 || { echo 'KAN126_INDEPENDENT_DB_IDENTIFICATION_FAILED'; exit 1; }
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          chmod 700 "$temp"
+          docker cp "${source[0]}:/tmp/kan126-local-schema.dump" "$temp/source.dump"
+          age-keygen -o "$temp/key.txt" 2>/dev/null
+          chmod 600 "$temp/key.txt"
+          recipient="$(age-keygen -y "$temp/key.txt")"
+          age -r "$recipient" -o "$temp/backup.dump.age" "$temp/source.dump"
+          rm "$temp/source.dump"
+          age -d -i "$temp/key.txt" -o "$temp/recovered.dump" "$temp/backup.dump.age"
+          docker cp "$temp/recovered.dump" "${target[0]}:/tmp/kan126-independent.dump"
+          docker exec "${target[0]}" createdb -U postgres -T template0 kan126_independent_restore
+          docker exec "${target[0]}" pg_restore -U supabase_admin -d kan126_independent_restore --exit-on-error --no-owner /tmp/kan126-independent.dump
+          for metric in "SELECT count(*) FROM public.accounts" "SELECT count(*) FROM public.transactions" "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p')" "SELECT count(*) FROM pg_policies WHERE schemaname='public'"; do
+            expected="$(docker exec "${source[0]}" psql -X -q -t -A -U postgres -d postgres -c "$metric" | tr -d '[:space:]')"
+            actual="$(docker exec "${target[0]}" psql -X -q -t -A -U postgres -d kan126_independent_restore -c "$metric" | tr -d '[:space:]')"
+            test "$expected" = "$actual" || { echo 'KAN126_INDEPENDENT_RESTORE_PARITY_FAILED'; exit 1; }
+          done
+          echo 'KAN126_INDEPENDENT_ENCRYPTED_DATABASE_RESTORE_PASS'
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
