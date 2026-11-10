@@ -103,6 +103,30 @@ jobs:
           $kan126$;
           SQL
           echo "KAN126_REAL_SCHEMA_INTEGRITY_PASS migrations=$actual"
+      - name: Capture and validate custom-format backup of real local SoloLedger schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
+          test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
+          db="${dbs[0]}"
+          dump="$(mktemp)"
+          toc="$(mktemp)"
+          trap 'rm -f "$dump" "$toc"' EXIT
+          docker exec "$db" pg_dump -U postgres -d postgres -Fc > "$dump"
+          test -s "$dump" || { echo 'KAN126_LOCAL_DUMP_EMPTY'; exit 1; }
+          pg_restore --list "$dump" > "$toc"
+          grep -q 'TABLE public profiles' "$toc" || { echo 'KAN126_LOCAL_DUMP_PROFILES_MISSING'; exit 1; }
+          grep -q 'TABLE public accounts' "$toc" || { echo 'KAN126_LOCAL_DUMP_ACCOUNTS_MISSING'; exit 1; }
+          grep -q 'POLICY public' "$toc" || { echo 'KAN126_LOCAL_DUMP_POLICIES_MISSING'; exit 1; }
+          grep -q 'TRIGGER public' "$toc" || { echo 'KAN126_LOCAL_DUMP_TRIGGERS_MISSING'; exit 1; }
+          grep -q 'FK CONSTRAINT public' "$toc" || { echo 'KAN126_LOCAL_DUMP_FKS_MISSING'; exit 1; }
+          sha256sum "$dump" | cut -d' ' -f1 | grep -Eq '^[a-f0-9]{64}
+        if: always()
+        shell: bash
+        run: npx --yes supabase@2.119.0 stop --no-backup || true
+
+          echo 'KAN126_REAL_SCHEMA_CUSTOM_DUMP_PASS'
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
