@@ -56,6 +56,54 @@ jobs:
           npx --yes supabase@2.119.0 start
           npx --yes supabase@2.119.0 db reset --local --yes
           echo 'KAN126_SOLOLEDGER_SCHEMA_REPLAY_PASS'
+      - name: Verify restored SoloLedger schema, RLS and integrity contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dbs < <(docker ps --filter 'name=^/supabase_db_' --format '{{.ID}}')
+          test "${#dbs[@]}" -eq 1 || { echo 'KAN126_LOCAL_DB_NOT_UNIQUE'; exit 1; }
+          db="${dbs[0]}"
+          expected="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+          actual="$(docker exec "$db" psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d postgres -c 'SELECT count(*) FROM supabase_migrations.schema_migrations' | tr -d '[:space:]')"
+          test "$actual" = "$expected" || { echo 'KAN126_MIGRATION_LEDGER_MISMATCH'; exit 1; }
+          docker exec -i "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+          DO $kan126$
+          DECLARE
+            rls_tables integer;
+            policies integer;
+            fks integer;
+            triggers integer;
+            functions integer;
+          BEGIN
+            IF to_regclass('public.profiles') IS NULL
+               OR to_regclass('public.accounts') IS NULL
+               OR to_regclass('public.journal_entries') IS NULL THEN
+              RAISE EXCEPTION 'KAN126_CORE_TABLES_MISSING';
+            END IF;
+            SELECT count(*) INTO rls_tables FROM pg_class c
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+              WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND c.relrowsecurity;
+            SELECT count(*) INTO policies FROM pg_policies WHERE schemaname = 'public';
+            SELECT count(*) INTO fks FROM pg_constraint c
+              JOIN pg_namespace n ON n.oid = c.connamespace
+              WHERE n.nspname = 'public' AND c.contype = 'f';
+            SELECT count(*) INTO triggers FROM pg_trigger t
+              JOIN pg_class c ON c.oid = t.tgrelid
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+              WHERE n.nspname = 'public' AND NOT t.tgisinternal AND t.tgenabled <> 'D';
+            SELECT count(*) INTO functions FROM pg_proc p
+              JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public';
+            IF rls_tables = 0 OR policies = 0 OR fks = 0 OR triggers = 0 OR functions = 0 THEN
+              RAISE EXCEPTION 'KAN126_SCHEMA_SECURITY_OBJECTS_MISSING';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint
+              WHERE conrelid = 'public.profiles'::regclass AND contype = 'f') THEN
+              RAISE EXCEPTION 'KAN126_PROFILE_FOREIGN_KEY_MISSING';
+            END IF;
+          END
+          $kan126$;
+          SQL
+          echo "KAN126_REAL_SCHEMA_INTEGRITY_PASS migrations=$actual"
       - name: Stop disposable Supabase services
         if: always()
         shell: bash
