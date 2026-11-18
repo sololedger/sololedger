@@ -218,8 +218,8 @@ try {
    ['Porto för brev', makeCategory('porto', 'Porto', '6250', 25), /porto eller en posttjänst/],
    ['Tågbiljett till kunden', makeCategory('resor', 'Resor i verksamheten', '5800', 6), /utan att det är pendling/],
    ['Försäkring för kamerautrustning', makeCategory('foretagsforsakring', 'Företagsförsäkring', '6310', 0), /försäkringen tecknad för verksamheten/],
-   ['Mobilabonnemang för företaget', makeCategory('mobiltelefoni', 'Mobiltelefoni', '6212', 25), /själva telefonitjänsten eller mobilabonnemanget/],
-   ['Webbuppkoppling för studion', makeCategory('internet', 'Internet & datakommunikation', '6230', 25), /internetanslutning eller datakommunikation/],
+   ['Abonnemang för telefon', makeCategory('mobiltelefoni', 'Mobiltelefoni', '6212', 25), /själva telefonitjänsten eller mobilabonnemanget/],
+   ['Abonnemang för internet', makeCategory('internet', 'Internet & datakommunikation', '6230', 25), /internetanslutning eller datakommunikation/],
    ['Bankens kontoavgift', makeCategory('bankavgift', 'Bankavgifter', '6570', 0), /banken eller en betaltjänst/],
   ]
   const categories = [
@@ -341,7 +341,7 @@ try {
   await expect(deduction).toHaveValue('profile_default')
 
   for (const [description, id, name, account] of [
-   ['programvarulicens för konsultarbete', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
+   ['abonnemang på Lightroom', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
    ['virke till ett kundjobb', 'varor_material', 'Varor & material för försäljning', '4010'],
    ['hårfärg till salongen', 'varor_material', 'Varor & material för försäljning', '4010'],
    ['köpte en kurs i fotografering', 'kurser', 'Kurser & fortbildning', '6991'],
@@ -363,14 +363,14 @@ try {
   await expect(guide.getByRole('status')).toContainText('Förtydliga vad du köpte')
   await cancel()
   const beforePartial = await readFormFields()
-  for (const description of ['Lightroom, monteringsarbete', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router']) {
+  for (const description of ['Lightroom, monteringsarbete', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning']) {
    await domestic(description)
    await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
    assert.deepEqual(await readFormFields(), beforePartial, 'Partial match leaves the booking form untouched')
    await cancel()
   }
-  for (const description of ['kurs och frakt till kund', 'mobilabonnemang och bredband', 'Meta Ads och extern retusch']) {
+  for (const description of ['kurs och frakt till kund', 'mobilabonnemang och bredband', 'Meta Ads och extern retusch', 'Abonnemang för mobil och Lightroom']) {
    await domestic(description)
    await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
@@ -379,6 +379,10 @@ try {
   await domestic('frakt eller porto')
   await expect(guide.getByRole('status')).toContainText('varufrakt eller brevporto')
   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
+  await cancel()
+
+  await domestic('Abonnemang för mobil')
+  await expect(heading).toHaveText(/själva telefonitjänsten eller mobilabonnemanget/)
   await cancel()
 
   for (const [description, row, purpose] of expandedTopics) {

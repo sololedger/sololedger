@@ -21,7 +21,13 @@ const topics = [
   },
   {
     id: 'programvaror',
-    words: ['adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop', 'photoshop', 'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram', 'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring'],
+    words: [
+      'adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop', 'photoshop',
+      'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram',
+      'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring',
+      'programvaruabonnemang', 'programvaruprenumeration', 'abonnemang för programvara', 'prenumeration på programvara',
+      'abonnemang på lightroom', 'prenumeration på lightroom',
+    ],
     question: 'Gäller betalningen en programvara, en programvarulicens eller en prenumeration på ett digitalt verktyg?',
     clarify: 'Kontrollera om fakturan gäller en programvara, en annan prenumeration eller en köpt IT-tjänst som support eller tekniskt arbete.',
   },
@@ -93,13 +99,20 @@ const topics = [
   },
   {
     id: 'mobiltelefoni',
-    words: ['mobilabonnemanget', 'telefonabonnemang', 'mobilfaktura', 'telefonitjänst', 'mobilräkning'],
+    words: [
+      'mobilabonnemanget', 'telefonabonnemang', 'mobilfaktura', 'telefonitjänst', 'mobilräkning',
+      'abonnemang för mobil', 'abonnemang för telefon', 'abonnemang för mobiltelefon',
+    ],
     question: 'Gäller kostnaden själva telefonitjänsten eller mobilabonnemanget för verksamheten?',
     clarify: 'Kontrollera om fakturan gäller abonnemanget, själva telefonen eller en kombination av båda.',
   },
   {
     id: 'internet',
-    words: ['webbuppkoppling', 'internetuppkoppling', 'internetabonnemang', 'bredbandsabonnemang', 'bredbandsabonnemanget', 'bredbandet', 'internetanslutning'],
+    words: [
+      'webbuppkoppling', 'internetuppkoppling', 'internetabonnemang', 'bredbandsabonnemang', 'bredbandsabonnemanget',
+      'bredbandet', 'internetanslutning', 'abonnemang för bredband', 'abonnemang för internet',
+      'abonnemang på bredband', 'abonnemang på internet',
+    ],
     question: 'Gäller kostnaden en internetanslutning eller datakommunikation för verksamheten?',
     clarify: 'Kontrollera om kostnaden gäller uppkopplingen, utrustning eller en annan digital tjänst. En uppkoppling som också används privat behöver bedömas separat.',
   },
@@ -123,6 +136,7 @@ const uncertainContext = / (?:i|inom|om|för|till|på|och|samt|eller|plus|med|oc
 // These catalog keywords describe the context or a possible piece of equipment.
 const contextKeywords = new Set(['kunduppdrag', 'mobil', 'telefon', 'bank', 'betaltjänst'])
 const itServiceKeywords = (getBookingCategory('it_tjanster')?.keywords ?? []).map(normalize)
+const genericSubscriptionKeywords = new Set(['abonnemang', 'prenumeration'])
 
 export function analyzePurchaseDescription(query: string) {
   const normalized = ` ${normalize(query)} `
@@ -132,7 +146,7 @@ export function analyzePurchaseDescription(query: string) {
       const phrase = ` ${word} `
       const hits = []
       for (let start = normalized.indexOf(phrase); start !== -1; start = normalized.indexOf(phrase, start + 1)) {
-        hits.push({ topic, start, end: start + phrase.length })
+        hits.push({ topic, word, start, end: start + phrase.length })
       }
       return hits
     })
@@ -146,6 +160,11 @@ export function analyzePurchaseDescription(query: string) {
   ))
   const matches = topics.filter(topic => strongest.some(hit => hit.topic === topic))
   if (matches.length !== 1) return { matches, partial: false }
+  // A subscription identifies a payment arrangement, not what was purchased.
+  // A specific phrase may supersede it through the same containment rule above.
+  if (strongest.some(hit => genericSubscriptionKeywords.has(hit.word))) {
+    return { matches, partial: true }
+  }
   if (matches[0].id === 'programvaror' && itServiceKeywords.some(word => normalized.includes(` ${word} `))) {
     return { matches, partial: true }
   }
