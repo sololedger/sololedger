@@ -328,6 +328,7 @@ const pageTree = ts.createSourceFile('page.tsx', normalizationSource, ts.ScriptT
 const formTree = ts.createSourceFile('TransactionForm.tsx', transactionFormSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 let normalization: ts.CallExpression | undefined
 let categoryChange: ts.Expression | undefined
+let selectCategory: ts.FunctionDeclaration | undefined
 let vatChange: ts.Expression | undefined
 let editableAmounts: ts.IfStatement | undefined
 function findNormalization(node: ts.Node) {
@@ -338,6 +339,7 @@ function findNormalization(node: ts.Node) {
   ts.forEachChild(node, findNormalization)
 }
 function findFormHandlers(node: ts.Node) {
+  if (ts.isFunctionDeclaration(node) && node.name?.text === 'selectCategory') selectCategory = node
   if (ts.isJsxOpeningElement(node) && node.tagName.getText(formTree) === 'select') {
     const attrs = node.attributes.properties.filter(ts.isJsxAttribute)
     const label = attrs.find(attr => attr.name.getText(formTree) === 'aria-label')?.initializer
@@ -351,7 +353,7 @@ function findFormHandlers(node: ts.Node) {
   ts.forEachChild(node, findFormHandlers)
 }
 findNormalization(pageTree); findFormHandlers(formTree)
-assert(normalization && categoryChange && vatChange && editableAmounts, 'Actual form effect, handlers and saved-amount guard exist')
+assert(normalization && categoryChange && selectCategory && vatChange && editableAmounts, 'Actual form effect, handlers and saved-amount guard exist')
 const accounts = [
   { id: 'cost25', debit_account: '6110', credit_account: '1930', default_vat_rate: 25 },
   { id: 'cost12', debit_account: '6212', credit_account: '1930', default_vat_rate: 12 },
@@ -371,6 +373,7 @@ vm.createContext(context)
 const operations = vm.runInContext(ts.transpileModule(`
   const normalize = ${normalization.arguments[0].getText(pageTree)};
   const dependencies = () => ${normalization.arguments[1].getText(pageTree)};
+  ${selectCategory.getText(formTree)}
   const category = ${categoryChange.getText(formTree)};
   const vat = ${vatChange.getText(formTree)};
   ({normalize, dependencies, category, vat})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context) as {

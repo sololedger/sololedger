@@ -30,13 +30,22 @@ export const closeYear=async year=>{const calls=JSON.parse(localStorage.getItem(
 }
 // Preserve the existing accounting fixture; add the state setter exercised by year closure.
 mock.useAccountingData=mock.useAccountingData.replace('refreshData:async()=>{},',"setIsYearLocked:locked=>localStorage.setItem('yearCloseUiLocked',String(locked)),refreshData:async()=>{},")
+// Optional fixture for KAN-9. Other booking tests keep their existing data.
+mock.useAccountingData = mock.useAccountingData.replace(
+  "kontoplan:[{id:'expense'",
+  "kontoplan:JSON.parse(localStorage.getItem('testGuideCategories')) ?? [{id:'expense'",
+)
+mock.useAuth = mock.useAuth.replace(
+  ",id:localStorage.getItem('testAuthOwner')",
+  ",vat_status:localStorage.getItem('testGuideVatStatus') ?? 'registered',id:localStorage.getItem('testAuthOwner')",
+)
 const bundle=await build({stdin:{contents:"import React from 'react';import{createRoot}from'react-dom/client';import Home from './src/app/page';createRoot(document.getElementById('root')).render(<Home/>);",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'synthetic-boundaries',setup(b){
  b.onResolve({filter:/.*/},args=>{
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
   if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','NESectionNavigation','SubscriptionGuard','SupplierYearEndPanel'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
- b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button><button onClick={()=>p.setActiveTab('leverantorsskulder')}>Test Bokslutsskulder</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
+ b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main data-active-tab={p.activeTab}><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button><button onClick={()=>p.setActiveTab('leverantorsskulder')}>Test Bokslutsskulder</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})
 const css=(await postcss([tailwind({base:process.cwd()})]).process(await readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css
 const browser=await chromium.launch({headless:true})
@@ -150,7 +159,7 @@ try {
   const resume=page.getByRole('button',{name:'Återuppta samma försök',exact:true})
   await expect(resume).toBeEnabled()
   await expect(page.getByRole('button',{name:'Registrera och bokför bokslutsskulden',exact:true})).toBeDisabled()
-  await resume.click();await expect(page.getByRole('status')).toContainText('VER-10')
+  await resume.click();await expect(page.getByRole('status').filter({ hasText: 'VER-10' })).toBeVisible()
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('supplierReplay')).request_key),'frozen')
   await expect(page.locator('main')).not.toContainText(/987\s654\s321|123\s456\s789/)
   await context.close();console.log('PASS KAN98 actual Home '+width+': supplier retry visible despite global accounting read error; new booking blocked; exact saved request')
@@ -187,6 +196,163 @@ try {
   await page.screenshot({path:'coverage/kan113-local/ui/'+width+'-'+(midnight?'after':'before')+'.png',fullPage:true})
   assert.deepEqual(errors,[]);await context.close()
   console.log('PASS KAN113 actual Home/NE '+width+' Stockholm midnight '+(midnight?'after: previous year enabled, readable server rejection':'before: current/future disabled, previous year locks')+'; browser timezone Honolulu')
+ }
+ // KAN-9 uses the real form, but intercepted local-origin data and transport only.
+ for (const width of [1280, 390]) {
+  const context = await browser.newContext({ viewport: { width, height: 920 }, hasTouch: width < 500 })
+  const url = 'http://127.0.0.1:47880/kan9'
+  await context.route('**/*', route => route.request().url() === url
+   ? route.fulfill({ contentType: 'text/html', body: '<meta charset="utf-8"><style>' + css + '</style><div id="root"></div><script>' + bundle.outputFiles[0].text + '</script>' })
+   : route.abort())
+  const page = await context.newPage()
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  const makeCategory = (id, name, account, rate) => ({
+   id, name, debit_account: account, credit_account: '1930', default_vat_rate: rate, hidden_from_new_booking: false,
+  })
+  const courses = makeCategory('kurser', 'Kurser & fortbildning', '6991', 0)
+  const categories = [
+   courses,
+   makeCategory('prenumerationer', 'Prenumerationer & programvaror', '5420', '25'),
+   makeCategory('varor_material', 'Varor & material för försäljning', '4010', 25),
+   makeCategory('eget_uttag', 'Eget uttag', '2013', 0),
+  ]
+  await context.addInitScript(rows => {
+   if (!localStorage.getItem('testGuideCategories')) localStorage.setItem('testGuideCategories', JSON.stringify(rows))
+  }, categories)
+  await page.goto(url)
+  const category = page.getByRole('combobox', { name: 'Kategori', exact: true })
+  const summary = page.getByText('Hjälp mig välja kategori', { exact: true })
+  const guide = page.locator('details').filter({ has: summary })
+  const query = guide.getByRole('textbox', { name: 'Vad har du köpt eller betalat?' })
+  const start = async (description, use = 'business') => {
+   if (!(await query.isVisible())) await summary.click()
+   await query.fill(description)
+   await guide.getByRole('combobox', { name: 'Vad ska köpet användas till?' }).selectOption(use)
+  }
+  const domestic = async description => {
+   await start(description)
+   await guide.getByRole('combobox', { name: /säljaren finns i Sverige/ }).selectOption('yes')
+  }
+  const answerPurpose = choice => guide.getByRole('combobox').nth(2).selectOption(choice)
+  const answerPayment = choice => guide.getByRole('combobox', { name: /Drogs pengarna direkt/ }).selectOption(choice)
+  const choose = name => guide.getByRole('button', { name: 'Välj ' + name, exact: true })
+  await expect(query).toBeHidden()
+
+  const form = page.locator('form').filter({ has: category })
+  const vatRate = form.locator('select').filter({ has: page.getByRole('option', { name: '12%', exact: true }) })
+  await category.selectOption('prenumerationer')
+  await vatRate.selectOption('12')
+  await form.locator('input[type="text"][required]:not([aria-label])').fill('Min påbörjade bokning')
+  await form.locator('input[type="number"][step="0.01"]').first().fill('864')
+  const readFormFields = () => form.locator('input, select, textarea').evaluateAll(fields => fields.map(field => [
+   field.value, field instanceof HTMLInputElement ? field.checked : null,
+  ]))
+  const beforeGuide = await readFormFields()
+  await domestic('kurs')
+  await answerPurpose('yes')
+  await answerPayment('yes')
+  await expect(choose(courses.name)).toBeVisible()
+  assert(await guide.evaluate(element => element.scrollWidth <= element.clientWidth))
+  if (width < 500) await summary.tap()
+  else await summary.press('Enter')
+  await expect(query).toBeHidden()
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Closing the guide preserves the booking form')
+
+  await domestic('programvarulicens')
+  await answerPurpose('yes')
+  await answerPayment('unknown')
+  await expect(choose('Prenumerationer & programvaror')).toHaveCount(0)
+  await answerPayment('no')
+  await expect(guide.getByRole('status')).toContainText('privat utlägg')
+  await expect(choose('Prenumerationer & programvaror')).toHaveCount(0)
+  await answerPayment('yes')
+  await choose('Prenumerationer & programvaror').click()
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Confirming the current category preserves manually selected VAT')
+
+  for (const [description, id, name, account] of [
+   ['programvarulicens för konsultarbete', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
+   ['virke till ett kundjobb', 'varor_material', 'Varor & material för försäljning', '4010'],
+   ['hårfärg till salongen', 'varor_material', 'Varor & material för försäljning', '4010'],
+   ['fotokurs i ljussättning', 'kurser', 'Kurser & fortbildning', '6991'],
+  ]) {
+   await category.selectOption('eget_uttag')
+   await domestic(description)
+   await expect(choose(name)).toHaveCount(0)
+   await answerPurpose('yes')
+   await expect(choose(name)).toHaveCount(0)
+   await answerPayment('yes')
+   await expect(guide).toContainText('konto ' + account)
+   await query.press('Enter')
+   await expect(category).toHaveValue('eget_uttag')
+   await choose(name).click()
+   await expect(category).toHaveValue(id)
+   await expect(category).toBeFocused()
+   await expect(query).toBeHidden()
+  }
+  await domestic('okänt xyz')
+  await expect(guide.getByRole('status')).toContainText('Förtydliga vad du köpte')
+  await domestic('kurs och virke')
+  await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
+  await start('kamera', 'mixed')
+  await expect(guide.getByRole('status')).toContainText('hur köpet ska användas privat och i verksamheten')
+  await expect(guide.getByRole('button')).toHaveCount(0)
+  await domestic('frisörkurs')
+  await expect(guide.getByRole('combobox').nth(2)).toHaveAccessibleName(/utan att du startar eller utökar/)
+  await answerPurpose('no')
+  await expect(choose(courses.name)).toHaveCount(0)
+  await answerPurpose('unknown')
+  await expect(guide.getByRole('status')).toContainText('vad kursen ska användas till')
+  await expect(choose(courses.name)).toHaveCount(0)
+  await start('privat lunch', 'private')
+  const payment = guide.getByRole('combobox', { name: /Drogs pengarna direkt/ })
+  await payment.selectOption('unknown')
+  await expect(choose('Eget uttag')).toHaveCount(0)
+  await payment.selectOption('yes')
+  await expect(guide).toContainText('konto 2013')
+  await choose('Eget uttag').click()
+  await expect(category).toHaveValue('eget_uttag')
+
+  await page.evaluate(() => localStorage.setItem('testGuideVatStatus', 'not_registered'))
+  await page.reload()
+  await expect(page.getByText(/I det vanliga bokföringsformuläret används då 0 % moms/)).toContainText('Utlandsinköp')
+  await start('Adobe Creative Cloud')
+  const seller = guide.getByRole('combobox', { name: /säljaren finns i Sverige/ })
+  await seller.selectOption('unknown')
+  await expect(guide.getByRole('status')).toContainText('vem som faktiskt sålde')
+  await expect(guide.getByRole('button')).toHaveCount(0)
+  await seller.selectOption('no')
+  await guide.getByRole('button', { name: 'Öppna Utlandsinköp' }).click()
+  const country = page.locator('select').filter({ has: page.locator('option[value="IE"]') })
+  await expect(country).toBeFocused()
+  await expect(country).toHaveValue('unknown')
+  await expect(category).toHaveCount(0)
+  await page.getByText('Utlandsinköp', { exact: true }).click()
+
+  for (const unavailable of [
+   { ...courses, hidden_from_new_booking: true },
+   { ...courses, debit_account: '6992' },
+   { ...courses, name: 'Egen ändrad kategori' },
+   { ...courses, default_vat_rate: 25 },
+   null,
+  ]) {
+   await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), [
+    ...categories.slice(1), ...(unavailable ? [unavailable] : []),
+   ])
+   await page.reload()
+   await domestic('kurs')
+   await answerPurpose('yes')
+   await expect(guide.getByRole('status')).toContainText('En matchande standardkategori är inte tillgänglig')
+   await expect(guide.getByRole('button')).toHaveCount(0)
+  }
+  await domestic('borrmaskin')
+  await answerPurpose('yes')
+  await guide.getByRole('button', { name: 'Gå till Inventarier' }).click()
+  await expect(page.locator('main')).toHaveAttribute('data-active-tab', 'inventarier')
+  assert.equal(await page.evaluate(() => localStorage.getItem('testCalls')), null)
+  assert.deepEqual(errors, [])
+  await context.close()
+  console.log('PASS KAN-9 actual booking form ' + width + ': categories, uncertainty, visibility, foreign purchase and equipment handoff')
  }
 }finally{await browser.close()}
 await writeFile('test-results/kan80/browser-result.json',JSON.stringify({result:'PASS',viewports:[1280,390],accountingLoadError:true,ownerIsolation:true,surface:'actual Home and TransactionForm',transport:'synthetic offline only'},null,2))
