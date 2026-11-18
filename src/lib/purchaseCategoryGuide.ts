@@ -23,7 +23,7 @@ const topics = [
     id: 'programvaror',
     words: ['adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop', 'photoshop', 'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram', 'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring'],
     question: 'Gäller betalningen en programvara, en programvarulicens eller en prenumeration på ett digitalt verktyg?',
-    clarify: 'Kontrollera om fakturan gäller en programvara, en annan prenumeration eller arbete som någon gjort åt dig.',
+    clarify: 'Kontrollera om fakturan gäller en programvara, en annan prenumeration eller en köpt IT-tjänst som support eller tekniskt arbete.',
   },
   {
     id: 'varor_material',
@@ -55,6 +55,60 @@ const topics = [
     question: 'Har du köpt utrustningen för att använda den i verksamheten, utan att hyra den eller sälja den vidare?',
     clarify: 'Kontrollera om det gäller köp av utrustning till verksamheten, hyra eller en vara för vidareförsäljning.',
   },
+  {
+    id: 'reklam',
+    words: ['annonser', 'annonsen', 'annonser på meta', 'annons på meta', 'annonser på google', 'annons på google', 'meta annonser', 'meta annons', 'meta annonsering', 'google annonser', 'reklamkampanj'],
+    question: 'Gäller kostnaden annonser eller reklam för att marknadsföra den egna verksamheten?',
+    clarify: 'Kontrollera om du har köpt annonsutrymme eller reklam för verksamheten. Andra marknadsföringskostnader kan behöva bedömas separat.',
+  },
+  {
+    id: 'kopta_tjanster_kunduppdrag',
+    words: ['extern retusch', 'extern retuschör', 'retusch', 'retuschör', 'extern bildretusch', 'extern videoredigering', 'hjälp med retusch'],
+    question: 'Har du köpt en tjänst som är en direkt del av det du levererar i ett specifikt kunduppdrag?',
+    clarify: 'Kontrollera om tjänsten utfördes för kundens uppdrag eller var ett allmänt stöd till ditt eget företag.',
+  },
+  {
+    id: 'frakt',
+    words: ['fraktkostnad', 'frakten', 'budfrakt', 'fotoboksfrakt', 'fotoboksleverans', 'fotoboksleveranser', 'frakt av fotobok', 'frakt av fotoböcker', 'leverans av fotoböcker'],
+    question: 'Gäller kostnaden frakt eller transport av själva varan, och är den skild från varans pris och från brevporto?',
+    clarify: 'Kontrollera om avgiften gäller varufrakt, brevporto eller själva varan som levereras.',
+  },
+  {
+    id: 'porto',
+    words: ['brevporto', 'frimärken', 'portot', 'brevutskick', 'portokostnad', 'postporto', 'porto för brev'],
+    question: 'Gäller kostnaden porto eller en posttjänst, till exempel frimärken för brev?',
+    clarify: 'Kontrollera vilken avgift som står på underlaget. Om det gäller transport av varor behöver du skilja den från brevporto.',
+  },
+  {
+    id: 'resor',
+    words: ['tågbiljett', 'taxiresa', 'bussbiljett', 'flygbiljett', 'tåget', 'taxin', 'resa till kunduppdrag', 'tåg till kunduppdrag'],
+    question: 'Gäller kostnaden en resa i företagets arbete, till exempel till en kund, utan att det är pendling eller resa med egen bil?',
+    clarify: 'Kontrollera resans syfte. Resor mellan bostaden och verksamhetslokalen och resor med egen bil behöver bedömas separat.',
+  },
+  {
+    id: 'foretagsforsakring',
+    words: ['företagsförsäkringen', 'försäkringspremie', 'ansvarsförsäkringen', 'utrustningsförsäkring', 'försäkring för kamerautrustning'],
+    question: 'Är försäkringen tecknad för verksamheten, till exempel för firmans utrustning eller ansvar?',
+    clarify: 'Kontrollera försäkringsbrevet och vad försäkringen täcker. Om den gäller privat eller blandad användning behöver du kontrollera kostnaden separat.',
+  },
+  {
+    id: 'mobiltelefoni',
+    words: ['mobilabonnemanget', 'telefonabonnemang', 'mobilfaktura', 'telefonitjänst', 'mobilräkning'],
+    question: 'Gäller kostnaden själva telefonitjänsten eller mobilabonnemanget för verksamheten?',
+    clarify: 'Kontrollera om fakturan gäller abonnemanget, själva telefonen eller en kombination av båda.',
+  },
+  {
+    id: 'internet',
+    words: ['webbuppkoppling', 'internetuppkoppling', 'internetabonnemang', 'bredbandsabonnemang', 'bredbandsabonnemanget', 'bredbandet', 'internetanslutning'],
+    question: 'Gäller kostnaden en internetanslutning eller datakommunikation för verksamheten?',
+    clarify: 'Kontrollera om kostnaden gäller uppkopplingen, utrustning eller en annan digital tjänst. En uppkoppling som också används privat behöver bedömas separat.',
+  },
+  {
+    id: 'bankavgift',
+    words: ['bankavgiften', 'kontoavgift', 'bankens kontoavgift', 'betalningsavgift', 'transaktionsavgift', 'avgift för betaltjänst', 'avgift från banken'],
+    question: 'Är det en avgift som banken eller en betaltjänst tar ut för en tjänst som hör till verksamheten?',
+    clarify: 'Kontrollera specifikationen. Ränta, amortering och det underliggande inköpet är andra typer av betalningar.',
+  },
 ] as const
 
 function normalize(text: string) {
@@ -66,11 +120,14 @@ const itemQualifiers = /^(?:(?:en|ett|min|mitt|ny|nytt|nya|begagnad|begagnat)(?:
 const simpleContext = /^(?:i|inom|om|för|till|på)(?: (?:en|ett|min|mitt|den|det|ny|nytt|nya|digital|digitalt|digitala|egen|eget|egna))* \p{L}[\p{L}\p{N}]*$/u
 const separateItems = /[;,/&+\r\n]|[.!?]\s*[\p{L}\p{N}]|\s[-–—]\s/u
 const uncertainContext = / (?:i|inom|om|för|till|på|och|samt|eller|plus|med|också|dessutom|inklusive|inkl|köpte|köpt|betalade|betalat|beställde|beställt|förutom|inte|ingen|inget|utan)(?: |$)/u
+// These catalog keywords describe the context or a possible piece of equipment.
+const contextKeywords = new Set(['kunduppdrag', 'mobil', 'telefon', 'bank', 'betaltjänst'])
+const itServiceKeywords = (getBookingCategory('it_tjanster')?.keywords ?? []).map(normalize)
 
 export function analyzePurchaseDescription(query: string) {
   const normalized = ` ${normalize(query)} `
   const hits = topics.flatMap(topic => {
-    const keywords = getBookingCategory(topic.id)?.keywords ?? []
+    const keywords = getBookingCategory(topic.id)?.keywords?.filter(word => !contextKeywords.has(word)) ?? []
     return [...new Set([...topic.words, ...keywords].map(normalize))].flatMap(word => {
       const phrase = ` ${word} `
       const hits = []
@@ -89,6 +146,9 @@ export function analyzePurchaseDescription(query: string) {
   ))
   const matches = topics.filter(topic => strongest.some(hit => hit.topic === topic))
   if (matches.length !== 1) return { matches, partial: false }
+  if (matches[0].id === 'programvaror' && itServiceKeywords.some(word => normalized.includes(` ${word} `))) {
+    return { matches, partial: true }
+  }
 
   // An identified word only supports a recommendation if the surrounding text
   // reads as purchase wording, context, or a recognized equipment accessory.
@@ -127,8 +187,12 @@ export function findGuideCategory(
   const preset = guidance && bookingCategoryToAccountPreset(guidance)
   if (!preset) return null
 
-  const legacyId = topicId === 'programvaror' ? 'prenumerationer' : topicId
-  const legacy = ACCOUNT_PRESETS.find(item => item.id === legacyId)
+  const legacyId = topicId === 'programvaror' ? 'prenumerationer'
+    : topicId === 'foretagsforsakring' ? 'forsakring' : topicId
+  const legacy = ACCOUNT_PRESETS.find(item =>
+    item.id === legacyId && item.debit_account === preset.debit_account &&
+    item.credit_account === preset.credit_account && item.default_vat_rate === preset.default_vat_rate
+  )
   for (const expected of [preset, legacy]) {
     if (!expected || newBookingCategoryError(categories, expected.id, ready)) continue
     const category = categories.find(item => item.id === expected.id)

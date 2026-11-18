@@ -108,16 +108,20 @@ export default function PurchaseCategoryGuide({
   const unavailable = ready
     ? 'En matchande standardkategori är inte tillgänglig för ny bokföring. Kontrollera kategorin och dess inställningar i Kontoplan.'
     : 'Kontoplanen är inte färdigladdad. Läs in den igen innan du väljer kategori.'
+  const shippingOrPostage = matches.length === 2 &&
+    matches.some(match => match.id === 'frakt') && matches.some(match => match.id === 'porto')
   const messages: Record<Result, string> = {
     mixed: 'Ta reda på hur köpet ska användas privat och i verksamheten innan du väljer kategori.',
     'use-unknown': 'Kontrollera om köpet hör till verksamheten, är privat eller används till båda.',
     'seller-unknown': 'Kontrollera på underlaget vem som faktiskt sålde varan eller tjänsten och vilket land säljaren finns i.',
     foreign: 'Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.',
-    clarify: matches.length > 1
-      ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
-      : partial
-        ? 'Bara en del av beskrivningen matchar. Förtydliga vad du köpte eller beskriv ett inköp i taget.'
-        : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
+    clarify: shippingOrPostage
+      ? 'Kontrollera om avgiften gäller varufrakt eller brevporto. Om båda ingår, beskriv ett inköp i taget.'
+      : matches.length > 1
+        ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
+        : partial
+          ? 'Bara en del av beskrivningen matchar. Förtydliga vad du köpte eller beskriv ett inköp i taget.'
+          : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
     'purpose-uncertain': topic?.clarify ?? '',
     equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
     'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',
@@ -157,7 +161,7 @@ export default function PurchaseCategoryGuide({
                 maxLength={160}
                 onChange={event => setQuery(event.target.value)}
                 className="mt-1 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
-                placeholder="Till exempel kamerahus, Lightroom eller virke"
+                placeholder="Till exempel Meta-annonser, extern retusch eller frakt"
               />
             </label>
             <button type="submit" className={actionClass} disabled={!query.trim()}>Fortsätt</button>

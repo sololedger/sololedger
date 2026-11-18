@@ -6,7 +6,7 @@ import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi
 import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
 import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
-import { analyzePurchaseDescription } from '../src/lib/purchaseCategoryGuide.ts'
+import { analyzePurchaseDescription, findGuideCategory } from '../src/lib/purchaseCategoryGuide.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -38,26 +38,88 @@ for (const [query, ids, partial = false] of [
   ['Papper för fotoutskrift', 'varor_material'],
   ['Betalade hyran för studion', 'lokalhyra'],
   ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster', true],
-  ['Kurs och frakt till kund', 'kurser', true],
+  ['Kurs och frakt till kund', 'kurser,frakt'],
   ['kurs och virke', 'kurser,varor_material'],
   ['Lightroom, monteringsarbete', 'programvaror', true],
-  ['frakt Lightroom', 'programvaror', true],
+  ['frakt Lightroom', 'programvaror,frakt'],
   ['kurs i fotografering och montering', 'kurser', true],
-  ['kurs i fotografering frakt', 'kurser', true],
-  ['kurs i fotografering frakt till kund', 'kurser', true],
+  ['kurs i fotografering frakt', 'kurser,frakt'],
+  ['kurs i fotografering frakt till kund', 'kurser,frakt'],
   ['kurs. Montering separat', 'kurser', true],
   ['kamerahus med okänt tillbehör', 'inventarier', true],
   ['Fotokursen och Lightroom', 'kurser,programvaror'],
   ['Program för bokföring och hjälp med bokslutet', 'programvaror,redovisningstjanster'],
   ['Skrivarpapper och fotopappret', 'varor_material,kontorsmaterial'],
   ['Hyra kamera', 'lokalhyra,inventarier'],
-  ['Apparat, frakt och Google Ads', ''],
+  ['Apparat, frakt och Google Ads', 'reklam,frakt'],
+  ['Köpte annonser på Meta', 'reklam'],
+  ['Meta-annonser', 'reklam'],
+  ['Annonser på Google', 'reklam'],
+  ['Betalade för extern retusch i ett kunduppdrag', 'kopta_tjanster_kunduppdrag'],
+  ['Tåg till ett kunduppdrag', 'resor'],
+  ['Kunduppdrag', ''],
+  ['Frakt av fotoböcker till kund', 'frakt'],
+  ['Porto för brev', 'porto'],
+  ['frakt eller porto', 'frakt,porto'],
+  ['Fotoböcker med frakt', 'frakt', true],
+  ['Försäkring för kamerautrustning', 'foretagsforsakring'],
+  ['Mobilabonnemang för företaget', 'mobiltelefoni'],
+  ['Köpte en mobiltelefon', ''],
+  ['Betalade bredbandsabonnemanget', 'internet'],
+  ['Webbuppkoppling för studion', 'internet'],
+  ['Mobilabonnemang och bredband', 'mobiltelefoni,internet'],
+  ['Bankens kontoavgift', 'bankavgift'],
+  ['Överföring från bank', ''],
+  ['Bankavgift plus ränta', 'bankavgift', true],
+  ['Tågbiljett och logi', 'resor', true],
+  ['Företagsförsäkring och logi', 'foretagsforsakring', true],
+  ['Porto och logi', 'porto', true],
+  ['Meta-annonser och logi', 'reklam', true],
+  ['Extern retusch och monteringsarbete', 'kopta_tjanster_kunduppdrag', true],
+  ['Mobilabonnemang med telefon', 'mobiltelefoni', true],
+  ['Webbuppkoppling med router', 'internet', true],
+  ['IT-support för Lightroom', 'programvaror', true],
+  ['Programvara för drift', 'programvaror', true],
+  ['IT-support för företaget', ''],
   ['…', ''],
 ] as const) {
   const result = analyzePurchaseDescription(query)
   assert(result.matches.map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
   assert(result.partial === partial, `Unexpected partial-match result for "${query}"`)
 }
+
+const standardRows = [
+  ['reklam', 'Reklam & annonsering', '5910', 25],
+  ['kopta_tjanster_kunduppdrag', 'Köpta tjänster för kunduppdrag', '4600', 25],
+  ['frakt', 'Frakt & varutransporter', '5710', 25],
+  ['porto', 'Porto', '6250', 25],
+  ['resor', 'Resor i verksamheten', '5800', 6],
+  ['foretagsforsakring', 'Företagsförsäkring', '6310', 0],
+  ['mobiltelefoni', 'Mobiltelefoni', '6212', 25],
+  ['internet', 'Internet & datakommunikation', '6230', 25],
+  ['bankavgift', 'Bankavgifter', '6570', 0],
+] as const
+for (const [id, name, debit_account, default_vat_rate] of standardRows) {
+  const row = { id, name, debit_account, default_vat_rate, credit_account: '1930', hidden_from_new_booking: false }
+  assert(findGuideCategory(id, [row], true)?.account === debit_account, `${id} must resolve to its catalog account`)
+  assert(!findGuideCategory(id, [row], false), `${id} must wait for the chart of accounts`)
+  assert(!findGuideCategory(id, [], true), `${id} must not be offered when missing`)
+  for (const changes of [
+    { hidden_from_new_booking: true }, { name: 'Eget namn' },
+    { debit_account: '6990' }, { credit_account: '1920' }, { default_vat_rate: 12 },
+  ]) {
+    assert(!findGuideCategory(id, [{ ...row, ...changes }], true), `${id} must not be offered after ${JSON.stringify(changes)}`)
+  }
+}
+const legacyAdvertising = {
+  id: 'reklam', name: 'Reklam & Annonsering', debit_account: '5900', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}
+assert(!findGuideCategory('reklam', [legacyAdvertising], true), 'The old advertising preset on 5900 must not substitute for 5910')
+assert(findGuideCategory('foretagsforsakring', [{
+  id: 'forsakring', name: 'Företagsförsäkring', debit_account: '6310', credit_account: '1930',
+  default_vat_rate: 0, hidden_from_new_booking: false,
+}], true)?.category.id === 'forsakring', 'The unchanged legacy insurance preset on 6310 remains usable')
 
 assert(
   transactionFormSource.includes(
