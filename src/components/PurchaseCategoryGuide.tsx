@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { findGuideCategory, findPurchaseTopics, type GuideCategory } from '@/lib/purchaseCategoryGuide'
+import { analyzePurchaseDescription, findGuideCategory, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
 type Step = 'search' | 'use' | 'seller' | 'purpose' | 'payment' | 'result'
 type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' | 'clarify' |
@@ -32,8 +32,8 @@ export default function PurchaseCategoryGuide({
   const [history, setHistory] = useState<{ stage: Stage; answer?: string }[]>([])
   const stage: Stage = history.at(-1)?.stage ?? { step: 'search' }
   const { step } = stage
-  const matches = findPurchaseTopics(query)
-  const topic = matches.length === 1 ? matches[0] : null
+  const { matches, partial } = analyzePurchaseDescription(query)
+  const topic = matches.length === 1 && !partial ? matches[0] : null
   const topicSelection = topic && findGuideCategory(topic.id, categories, ready)
   const result = stage.step === 'result' ? stage.result : null
   const selection = result === 'withdrawal'
@@ -115,7 +115,9 @@ export default function PurchaseCategoryGuide({
     foreign: 'Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.',
     clarify: matches.length > 1
       ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
-      : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
+      : partial
+        ? 'Bara en del av beskrivningen matchar. Förtydliga vad du köpte eller beskriv ett inköp i taget.'
+        : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
     'purpose-uncertain': topic?.clarify ?? '',
     equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
     'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',

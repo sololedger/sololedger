@@ -271,6 +271,12 @@ try {
   await expect(confirmVat(courses.name)).toBeVisible()
   await expect(guide).toContainText('Moms på fakturan ändras från 12 % till 0 %.')
   assert.deepEqual(await readFormFields(), beforeGuide, 'Preview does not apply the proposed VAT change')
+  await back()
+  await expect(heading).toHaveText(/Drogs pengarna direkt/)
+  await expect(confirmVat(courses.name)).toHaveCount(0)
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Back from VAT confirmation preserves every form field')
+  await answerPayment('Ja')
+  await expect(confirmVat(courses.name)).toBeVisible()
   assert(await guide.evaluate(element => element.scrollWidth <= element.clientWidth))
   if (width < 500) await answer('Avbryt guiden').tap()
   else await heading.press('Escape')
@@ -303,11 +309,30 @@ try {
   await expect(category).toHaveValue('kurser')
   await expect(vatRate).toHaveValue('0')
 
+  await category.selectOption('prenumerationer')
+  await expect(vatRate).toHaveValue('25')
+  const deduction = form.getByLabel('Detta köp')
+  await deduction.selectOption('none')
+  const beforeDeductionOnly = await readFormFields()
+  await domestic('virke till ett kundjobb')
+  await answerPurpose('Ja')
+  await answerPayment('Ja')
+  await expect(guide).toContainText('Det manuella valet av momsavdrag återställs')
+  await expect(guide).not.toContainText('Moms på fakturan ändras från')
+  await expect(choose('Varor & material för försäljning')).toHaveCount(0)
+  const confirmDeduction = confirmVat('Varor & material för försäljning')
+  await expect(confirmDeduction).toBeVisible()
+  assert.deepEqual(await readFormFields(), beforeDeductionOnly)
+  await confirmDeduction.click()
+  await expect(category).toHaveValue('varor_material')
+  await expect(vatRate).toHaveValue('25')
+  await expect(deduction).toHaveValue('profile_default')
+
   for (const [description, id, name, account] of [
    ['programvarulicens för konsultarbete', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
    ['virke till ett kundjobb', 'varor_material', 'Varor & material för försäljning', '4010'],
    ['hårfärg till salongen', 'varor_material', 'Varor & material för försäljning', '4010'],
-   ['fotokurs i ljussättning', 'kurser', 'Kurser & fortbildning', '6991'],
+   ['köpte en kurs i fotografering', 'kurser', 'Kurser & fortbildning', '6991'],
   ]) {
    await category.selectOption('eget_uttag')
    await domestic(description)
@@ -325,6 +350,14 @@ try {
   await domestic('okänt xyz')
   await expect(guide.getByRole('status')).toContainText('Förtydliga vad du köpte')
   await cancel()
+  const beforePartial = await readFormFields()
+  for (const description of ['kurs och frakt till kund', 'Lightroom, monteringsarbete']) {
+   await domestic(description)
+   await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
+   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
+   assert.deepEqual(await readFormFields(), beforePartial, 'Partial match leaves the booking form untouched')
+   await cancel()
+  }
   await domestic('kurs och virke')
   await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
   await expect(choose(courses.name)).toHaveCount(0)
@@ -399,7 +432,7 @@ try {
   await answerPurpose('Nej')
   await expect(answer('Gå till Inventarier')).toHaveCount(0)
   await cancel()
-  await domestic('kamerahuset och objektivet')
+  await domestic('köpte ett kamerahus med objektiv')
   await answerPurpose('Ja')
   await guide.getByRole('button', { name: 'Gå till Inventarier' }).click()
   await expect(page.locator('main')).toHaveAttribute('data-active-tab', 'inventarier')

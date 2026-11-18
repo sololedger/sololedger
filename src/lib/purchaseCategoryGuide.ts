@@ -21,7 +21,7 @@ const topics = [
   },
   {
     id: 'programvaror',
-    words: ['creative cloud', 'adobe cc', 'lightroom', 'photoshop', 'capture one', 'davinci resolve', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram', 'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring'],
+    words: ['adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop', 'photoshop', 'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram', 'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring'],
     question: 'Gäller betalningen en programvara, en programvarulicens eller en prenumeration på ett digitalt verktyg?',
     clarify: 'Kontrollera om fakturan gäller en programvara, en annan prenumeration eller arbete som någon gjort åt dig.',
   },
@@ -61,7 +61,13 @@ function normalize(text: string) {
   return text.normalize('NFC').toLocaleLowerCase('sv-SE').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 }
 
-export function findPurchaseTopics(query: string) {
+const purchasePrefix = /^(?:(?:jag|vi) )?(?:(?:har )?(?:köpte(?: in)?|köpt(?: in)?|betalade(?: för)?|betalat(?: för)?|hyrde|förnyade|beställde|inköp av|köp av) )?/
+const itemQualifiers = /^(?:(?:en|ett|min|mitt|ny|nytt|nya|begagnad|begagnat)(?: |$))*$/
+const simpleContext = /^(?:i|inom|om|för|till|på)(?: (?:en|ett|min|mitt|den|det|ny|nytt|nya|digital|digitalt|digitala|egen|eget|egna))* \p{L}[\p{L}\p{N}]*$/u
+const separateItems = /[;,/&+\r\n]|[.!?]\s*[\p{L}\p{N}]|\s[-–—]\s/u
+const uncertainContext = / (?:i|inom|om|för|till|på|och|samt|eller|plus|med|också|dessutom|inklusive|inkl|köpte|köpt|betalade|betalat|beställde|beställt|förutom|inte|ingen|inget|utan)(?: |$)/u
+
+export function analyzePurchaseDescription(query: string) {
   const normalized = ` ${normalize(query)} `
   const hits = topics.flatMap(topic => {
     const keywords = getBookingCategory(topic.id)?.keywords ?? []
@@ -81,7 +87,35 @@ export function findPurchaseTopics(query: string) {
     other.start <= hit.start && other.end >= hit.end &&
     other.end - other.start > hit.end - hit.start
   ))
-  return topics.filter(topic => strongest.some(hit => hit.topic === topic))
+  const matches = topics.filter(topic => strongest.some(hit => hit.topic === topic))
+  if (matches.length !== 1) return { matches, partial: false }
+
+  // An identified word only supports a recommendation if the surrounding text
+  // reads as purchase wording, context, or a recognized equipment accessory.
+  const [first, ...remaining] = strongest.sort((a, b) => a.start - b.start || b.end - a.end)
+  const prefix = normalized.slice(0, first.start).trim()
+  const prefixWords = prefix ? `${prefix} ` : ''
+  if (separateItems.test(query) || !itemQualifiers.test(prefixWords.replace(purchasePrefix, ''))) {
+    return { matches, partial: true }
+  }
+
+  let end = first.end
+  for (const hit of remaining) {
+    // Match spans include the boundary spaces, so a shared boundary is
+    // adjacency. Overlapping words belong to the same recognized phrase.
+    if (hit.start >= end - 1) {
+      const gap = normalized.slice(end, hit.start).trim()
+      if (first.topic.id !== 'inventarier' || !/^med(?: |$)/.test(gap) ||
+        !itemQualifiers.test(gap.slice(3).trim())) {
+        return { matches, partial: true }
+      }
+    }
+    end = Math.max(end, hit.end)
+  }
+
+  const context = normalized.slice(end).trim()
+  const partial = Boolean(context && (!simpleContext.test(context) || uncertainContext.test(context)))
+  return { matches, partial }
 }
 
 export function findGuideCategory(

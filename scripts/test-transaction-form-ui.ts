@@ -6,7 +6,7 @@ import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi
 import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
 import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
-import { findPurchaseTopics } from '../src/lib/purchaseCategoryGuide.ts'
+import { analyzePurchaseDescription } from '../src/lib/purchaseCategoryGuide.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -24,22 +24,39 @@ const transactionFormSource = readSource(
 )
 const appPageSource = readSource('src/app/page.tsx', 'utf8')
 
-for (const [query, ids] of [
-  ['Jag köpte kamerahuset med ett objektiv och SD‑kort', 'inventarier'],
-  ['Kameran behöver ett minneskort', 'inventarier'],
+for (const [query, ids, partial = false] of [
+  ['Jag köpte kamerahuset med ett objektiv och SD‑kort', 'inventarier', true],
+  ['Kameran behöver ett minneskort', 'inventarier', true],
+  ['Köpte ett kamerahus med objektiv', 'inventarier'],
+  ['Jag köpte ett nytt kamerahus med ett objektiv', 'inventarier'],
+  ['Köpte en kurs i fotografering', 'kurser'],
+  ['Köpte en kurs i digital fotografering', 'kurser'],
+  ['Adobe Creative Cloud', 'programvaror'],
+  ['Adobe Lightroom', 'programvaror'],
   ['Jag förnyade Lightroom', 'programvaror'],
   ['Program för bokföring', 'programvaror'],
   ['Papper för fotoutskrift', 'varor_material'],
   ['Betalade hyran för studion', 'lokalhyra'],
-  ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster'],
+  ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster', true],
+  ['Kurs och frakt till kund', 'kurser', true],
+  ['kurs och virke', 'kurser,varor_material'],
+  ['Lightroom, monteringsarbete', 'programvaror', true],
+  ['frakt Lightroom', 'programvaror', true],
+  ['kurs i fotografering och montering', 'kurser', true],
+  ['kurs i fotografering frakt', 'kurser', true],
+  ['kurs i fotografering frakt till kund', 'kurser', true],
+  ['kurs. Montering separat', 'kurser', true],
+  ['kamerahus med okänt tillbehör', 'inventarier', true],
   ['Fotokursen och Lightroom', 'kurser,programvaror'],
   ['Program för bokföring och hjälp med bokslutet', 'programvaror,redovisningstjanster'],
   ['Skrivarpapper och fotopappret', 'varor_material,kontorsmaterial'],
   ['Hyra kamera', 'lokalhyra,inventarier'],
   ['Apparat, frakt och Google Ads', ''],
   ['…', ''],
-]) {
-  assert(findPurchaseTopics(query).map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
+] as const) {
+  const result = analyzePurchaseDescription(query)
+  assert(result.matches.map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
+  assert(result.partial === partial, `Unexpected partial-match result for "${query}"`)
 }
 
 assert(
