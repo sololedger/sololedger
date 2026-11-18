@@ -1,5 +1,6 @@
 'use client'
 import { parseStandardBookingAmount } from '@/lib/standardBookingAmount'
+import { formatLocalDateOnly } from '@/lib/vatLifecycleUi'
 import { yearCloseDateBlockReason } from '@/lib/yearCloseDate'
 import { readStandardBookingAttempt, saveStandardBookingAttempt, clearStandardBookingAttempt, StandardBookingSubmissionError, type StandardBookingAttempt, type StandardBookingReceipt } from '@/lib/standardBookingAttempt'
 
@@ -291,15 +292,11 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
 
   // Sätter datum-defaultvärden efter hydration
   useEffect(() => {
-    const today = new Date()
-    setSelectedYear(today.getFullYear())
-    setFormData(prev => ({
-      ...prev,
-      date: today.toISOString().split('T')[0]
-    }))
-    const next = new Date()
-    next.setFullYear(next.getFullYear() + 1, 0, 1)
-    setPeriodMonth(next.toISOString().slice(0, 7))
+    const today = formatLocalDateOnly(new Date())
+    const year = Number(today.slice(0, 4))
+    setSelectedYear(year)
+    setFormData(prev => ({ ...prev, date: today }))
+    setPeriodMonth(`${year + 1}-01`)
   }, [])
 
   const years = [selectedYear - 1, selectedYear, selectedYear + 1]
@@ -556,7 +553,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       setLastSubmitted(null)
       setFormData(prev => ({
         ...prev,
-        date: new Date().toISOString().split('T')[0],
+        date: formatLocalDateOnly(new Date()),
         description: '',
         amount: '',
         type: '',
@@ -612,7 +609,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       notice += ' Bokningskvittot kunde inte avslutas lokalt. Återuppta samma försök efter omladdning.'
     }
     setLastSubmitted({ type: attempt.payload.type, amount: String(attempt.payload.amount), vatRate: attempt.payload.vat_rate })
-    setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0], description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
+    setFormData(prev => ({ ...prev, date: formatLocalDateOnly(new Date()), description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
     setPeriodisera(false)
     setRetainedBookingAttachment(null)
     uploadedOrdinaryFile.current = null
@@ -734,7 +731,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
       await updateTransaction(editingId, updatePayload)
       setEditingId(null); setEditingBooked(false)
       setLastSubmitted({ type: formData.type, amount: formData.amount, vatRate: formData.vatRate })
-      setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0], description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
+      setFormData(prev => ({ ...prev, date: formatLocalDateOnly(new Date()), description: '', amount: '', type: '', vatRate: 0, inputVatDeduction: 'profile_default', file: null }))
       setPeriodisera(false)
       try { await refreshData(); await refreshFreeUsageCount() }
       catch { alert('Ändringen är sparad. Uppdatera sidan för att läsa aktuella siffror.') }
