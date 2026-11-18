@@ -78,3 +78,59 @@ console.log('PASS actual page ordinary/periodized: lost response, full reload, i
  unblock();await running;assert.equal(a.calls.filter(x=>x[0]==='rpc').length,1)
 }
 console.log('PASS actual page: confirmed rejection/corrected retry/attachment reuse, storage failure before RPC, clear failure after success, corrupt storage and concurrent tab lock')
+
+function pageAt(timeZone, instant) {
+ process.env.TZ = timeZone
+ const a = page()
+ a.c.Date = class extends Date {
+  constructor() { super(instant) }
+ }
+ a.c.setSelectedYear = year => { a.c.selectedYear = year }
+ a.c.initializeBookingDates()
+ return a
+}
+
+const originalTimeZone = process.env.TZ
+try {
+ const cases = [
+  ['Europe/Stockholm', '2026-12-31T22:59:59.999Z', '2026-12-31'],
+  ['Europe/Stockholm', '2026-12-31T23:00:00.000Z', '2027-01-01'],
+  ['Europe/Stockholm', '2026-12-31T23:30:00.000Z', '2027-01-01'],
+  ['Europe/Stockholm', '2027-01-01T00:00:00.000Z', '2027-01-01'],
+  ['Europe/Stockholm', '2027-06-30T21:59:59.999Z', '2027-06-30'],
+  ['Europe/Stockholm', '2027-06-30T22:00:00.000Z', '2027-07-01'],
+  ['UTC', '2026-12-31T23:30:00.000Z', '2026-12-31'],
+  ['America/New_York', '2027-01-01T00:30:00.000Z', '2026-12-31'],
+ ]
+ for (const [timeZone, instant, expectedDate] of cases) {
+  const { c } = pageAt(timeZone, instant)
+  const label = `${timeZone} ${instant}`
+  const expectedYear = Number(expectedDate.slice(0, 4))
+  assert.equal(c.formData.date, expectedDate, label)
+  assert.equal(c.selectedYear, expectedYear, label)
+  assert.equal(c.periodMonth, `${expectedYear + 1}-01`, label)
+ }
+
+ const manual = pageAt('Europe/Stockholm', '2026-12-31T23:30:00.000Z')
+ manual.c.formData.date = '2026-12-31'
+ manual.c.periodisera = true
+ manual.c.periodMonth = '2027-02'
+ const checkedYears = []
+ manual.c.isYearClosed = async year => { checkedYears.push(year); return true }
+ await manual.submit()
+ assert.deepEqual(checkedYears, [2026])
+ assert.equal(manual.calls.length, 0, 'a locked booking date must stop before upload or RPC')
+ assert.equal(manual.c.formData.date, '2026-12-31')
+ assert.equal(manual.c.periodMonth, '2027-02')
+
+ manual.c.isYearClosed = async () => false
+ await manual.submit()
+ const request = manual.calls.find(([kind]) => kind === 'rpc')[1]
+ assert.equal(request.payload.date, '2026-12-31')
+ assert.equal(request.payload.future_date, '2027-02-01')
+ assert.equal(manual.c.formData.date, '2027-01-01', 'successful booking resets to the local date')
+} finally {
+ if (originalTimeZone === undefined) delete process.env.TZ
+ else process.env.TZ = originalTimeZone
+}
+console.log('PASS actual page: local date and year defaults, January period, Swedish midnight and summer time, manual dates and existing locked-year check')

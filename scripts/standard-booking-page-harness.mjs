@@ -5,16 +5,31 @@ import ts from 'typescript'
 import * as attempts from '../src/lib/standardBookingAttempt.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
 import { newBookingCategoryError } from '../src/lib/bookingCategoryVisibility.ts'
+import { formatLocalDateOnly } from '../src/lib/vatLifecycleUi.ts'
 const source=readFileSync('src/app/page.tsx','utf8')
 const tree=ts.createSourceFile('page.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX)
 const names=['handleAddTransaction','runStandardBooking','finishStandardBooking']
 const nodes=[]
-function visit(node){if(ts.isFunctionDeclaration(node)&&names.includes(node.name?.text))nodes.push(node.getText(tree));ts.forEachChild(node,visit)}
+const dateInitializers = []
+function visit(node) {
+ if (ts.isFunctionDeclaration(node) && names.includes(node.name?.text)) nodes.push(node.getText(tree))
+ if (ts.isCallExpression(node) && node.expression.getText(tree) === 'useEffect') {
+  const [callback, dependencies] = node.arguments
+  if (callback?.getText(tree).includes('setPeriodMonth(') && callback.getText(tree).includes('setSelectedYear(')) {
+   if (!dependencies || !ts.isArrayLiteralExpression(dependencies) || dependencies.elements.length) {
+    throw Error('Booking date defaults must only run on mount')
+   }
+   dateInitializers.push(callback.getText(tree))
+  }
+ }
+ ts.forEachChild(node, visit)
+}
 visit(tree)
 if(nodes.length!==names.length)throw Error('Actual page handlers missing')
-const code=ts.transpileModule(nodes.join('\n'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText
+if (dateInitializers.length !== 1) throw Error('Actual page date initializer missing or ambiguous')
+const code=ts.transpileModule([...nodes, `function initializeBookingDates() { (${dateInitializers[0]})() }`].join('\n'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText
 export function bindPageHandlers(context) {
- Object.assign(context,attempts,{parseStandardBookingAmount,newBookingCategoryError})
+ Object.assign(context,attempts,{parseStandardBookingAmount,newBookingCategoryError,formatLocalDateOnly})
  vm.createContext(context)
  vm.runInContext(code,context)
  return context
