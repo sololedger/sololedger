@@ -6,6 +6,7 @@ import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi
 import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
 import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
+import { findPurchaseTopics } from '../src/lib/purchaseCategoryGuide.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -22,6 +23,24 @@ const transactionFormSource = readSource(
   'utf8'
 )
 const appPageSource = readSource('src/app/page.tsx', 'utf8')
+
+for (const [query, ids] of [
+  ['Jag köpte kamerahuset med ett objektiv och SD‑kort', 'inventarier'],
+  ['Kameran behöver ett minneskort', 'inventarier'],
+  ['Jag förnyade Lightroom', 'programvaror'],
+  ['Program för bokföring', 'programvaror'],
+  ['Papper för fotoutskrift', 'varor_material'],
+  ['Betalade hyran för studion', 'lokalhyra'],
+  ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster'],
+  ['Fotokursen och Lightroom', 'kurser,programvaror'],
+  ['Program för bokföring och hjälp med bokslutet', 'programvaror,redovisningstjanster'],
+  ['Skrivarpapper och fotopappret', 'varor_material,kontorsmaterial'],
+  ['Hyra kamera', 'lokalhyra,inventarier'],
+  ['Apparat, frakt och Google Ads', ''],
+  ['…', ''],
+]) {
+  assert(findPurchaseTopics(query).map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
+}
 
 assert(
   transactionFormSource.includes(
@@ -330,6 +349,7 @@ let normalization: ts.CallExpression | undefined
 let categoryChange: ts.Expression | undefined
 let selectCategory: ts.FunctionDeclaration | undefined
 let vatChange: ts.Expression | undefined
+let categoryVatRate: ts.FunctionDeclaration | undefined
 let editableAmounts: ts.IfStatement | undefined
 function findNormalization(node: ts.Node) {
   if (ts.isCallExpression(node) && node.expression.getText(pageTree) === 'useEffect' &&
@@ -340,6 +360,7 @@ function findNormalization(node: ts.Node) {
 }
 function findFormHandlers(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name?.text === 'selectCategory') selectCategory = node
+  if (ts.isFunctionDeclaration(node) && node.name?.text === 'categoryVatRate') categoryVatRate = node
   if (ts.isJsxOpeningElement(node) && node.tagName.getText(formTree) === 'select') {
     const attrs = node.attributes.properties.filter(ts.isJsxAttribute)
     const label = attrs.find(attr => attr.name.getText(formTree) === 'aria-label')?.initializer
@@ -373,6 +394,7 @@ vm.createContext(context)
 const operations = vm.runInContext(ts.transpileModule(`
   const normalize = ${normalization.arguments[0].getText(pageTree)};
   const dependencies = () => ${normalization.arguments[1].getText(pageTree)};
+  ${categoryVatRate?.getText(formTree) ?? ''}
   ${selectCategory.getText(formTree)}
   const category = ${categoryChange.getText(formTree)};
   const vat = ${vatChange.getText(formTree)};

@@ -1,173 +1,219 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { findGuideCategory, findPurchaseTopics, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
-type PurchaseUse = '' | 'business' | 'private' | 'mixed' | 'unknown'
-type PurchaseContext = '' | 'yes' | 'no' | 'unknown'
+type Step = 'search' | 'use' | 'seller' | 'purpose' | 'payment' | 'result'
+type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' | 'clarify' |
+  'purpose-uncertain' | 'equipment' | 'private-payment-uncertain' | 'payment-uncertain' |
+  'unavailable' | 'category' | 'withdrawal'
+type Stage =
+  | { step: Exclude<Step, 'result'>; privatePurchase?: boolean }
+  | { step: 'result'; result: Result }
 
 interface Props {
   categories: readonly GuideCategory[]
   ready: boolean
+  getVatChange: (id: string) => string | null
   onChooseCategory: (id: string) => void
   onOpenForeignPurchase: () => void
   onOpenFixedAssets: () => void
 }
 
-const fieldClass = 'mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900'
-const actionClass = 'mt-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800'
+const answerClass = 'min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left font-medium hover:border-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
+const actionClass = 'min-h-11 rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
 
 export default function PurchaseCategoryGuide({
-  categories, ready, onChooseCategory, onOpenForeignPurchase, onOpenFixedAssets,
+  categories, ready, getVatChange, onChooseCategory, onOpenForeignPurchase, onOpenFixedAssets,
 }: Props) {
   const details = useRef<HTMLDetailsElement>(null)
+  const summary = useRef<HTMLElement>(null)
+  const search = useRef<HTMLInputElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const [query, setQuery] = useState('')
-  const [use, setUse] = useState<PurchaseUse>('')
-  const [context, setContext] = useState<PurchaseContext>('')
-  const [purpose, setPurpose] = useState<PurchaseContext>('')
-  const [bankPayment, setBankPayment] = useState<PurchaseContext>('')
+  const [history, setHistory] = useState<{ stage: Stage; answer?: string }[]>([])
+  const stage: Stage = history.at(-1)?.stage ?? { step: 'search' }
+  const { step } = stage
   const matches = findPurchaseTopics(query)
   const topic = matches.length === 1 ? matches[0] : null
-  const bankQuestion = 'Drogs pengarna direkt från företagets bankkonto?'
-  const question = use === 'private'
-    ? bankQuestion
-    : 'Visar fakturan eller kvittot att säljaren finns i Sverige?'
-  const foreign = use === 'business' && context === 'no'
-  const domestic = use === 'business' && context === 'yes'
-  const privateWithdrawal = use === 'private' && context === 'yes'
-  const confirmedTopic = domestic && purpose === 'yes' ? topic : null
-  const equipment = confirmedTopic?.id === 'inventarier'
-  const categoryId = privateWithdrawal ? 'eget_uttag' : equipment ? null : confirmedTopic?.id
-  const selection = categoryId ? findGuideCategory(categoryId, categories, ready) : null
+  const topicSelection = topic && findGuideCategory(topic.id, categories, ready)
+  const result = stage.step === 'result' ? stage.result : null
+  const selection = result === 'withdrawal'
+    ? findGuideCategory('eget_uttag', categories, ready)
+    : result === 'category' ? topicSelection : null
+  const vatChange = selection && getVatChange(selection.category.id)
 
-  function updatePurpose(value: PurchaseContext) {
-    setPurpose(value)
-    setBankPayment('')
+  useEffect(() => {
+    if (!details.current?.open) return
+    if (step === 'search') search.current?.focus()
+    else heading.current?.focus()
+  }, [step])
+
+  function advance(next: Stage, answer?: string) {
+    setHistory(previous => [...previous, { stage: next, answer }])
   }
 
-  function updateQuery(value: string) {
-    setQuery(value)
-    setUse('')
-    setContext('')
-    updatePurpose('')
+  function finish(result: Result, answer: string) {
+    advance({ step: 'result', result }, answer)
+  }
+
+  function reset() {
+    setQuery('')
+    setHistory([])
+  }
+
+  function close(restoreFocus = true) {
+    if (details.current) details.current.open = false
+    reset()
+    if (restoreFocus) summary.current?.focus()
+  }
+
+  const bankQuestion = 'Drogs pengarna direkt från företagets bankkonto?'
+  let question = ''
+  let answers: { label: string; choose: () => void }[] = []
+  if (step === 'use') {
+    question = 'Vad ska köpet användas till?'
+    answers = [
+      { label: 'Enbart i verksamheten', choose: () => advance({ step: 'seller' }, 'Verksamheten') },
+      { label: 'Enbart privat', choose: () => advance({ step: 'payment', privatePurchase: true }, 'Privat') },
+      { label: 'Både privat och i verksamheten', choose: () => finish('mixed', 'Blandad användning') },
+      { label: 'Jag vet inte', choose: () => finish('use-unknown', 'Okänd användning') },
+    ]
+  } else if (step === 'seller') {
+    question = 'Visar fakturan eller kvittot att säljaren finns i Sverige?'
+    answers = [
+      { label: 'Ja, i Sverige', choose: () => topic ? advance({ step: 'purpose' }, 'Svensk säljare') : finish('clarify', 'Svensk säljare') },
+      { label: 'Nej, utomlands', choose: () => finish('foreign', 'Utländsk säljare') },
+      { label: 'Jag vet inte', choose: () => finish('seller-unknown', 'Okänd säljare') },
+    ]
+  } else if (step === 'purpose' && topic) {
+    question = topic.question
+    answers = [
+      { label: 'Ja', choose: () => {
+        if (topic.id === 'inventarier') finish('equipment', 'Köpt för verksamheten')
+        else if (topicSelection) advance({ step: 'payment' }, 'Ändamål bekräftat')
+        else finish('unavailable', 'Ändamål bekräftat')
+      } },
+      { label: 'Nej', choose: () => finish('purpose-uncertain', 'Annat ändamål') },
+      { label: 'Jag vet inte', choose: () => finish('purpose-uncertain', 'Okänt ändamål') },
+    ]
+  } else if (stage.step === 'payment') {
+    const privatePurchase = stage.privatePurchase
+    question = bankQuestion
+    answers = [
+      { label: 'Ja', choose: () => finish(privatePurchase ? 'withdrawal' : 'category', 'Företagets bankkonto') },
+      { label: 'Nej', choose: () => finish(privatePurchase ? 'private-payment-uncertain' : 'payment-uncertain', 'Annan betalning') },
+      { label: 'Jag vet inte', choose: () => finish(privatePurchase ? 'private-payment-uncertain' : 'payment-uncertain', 'Okänd betalning') },
+    ]
+  }
+
+  const unavailable = ready
+    ? 'En matchande standardkategori är inte tillgänglig för ny bokföring. Kontrollera kategorin och dess inställningar i Kontoplan.'
+    : 'Kontoplanen är inte färdigladdad. Läs in den igen innan du väljer kategori.'
+  const messages: Record<Result, string> = {
+    mixed: 'Ta reda på hur köpet ska användas privat och i verksamheten innan du väljer kategori.',
+    'use-unknown': 'Kontrollera om köpet hör till verksamheten, är privat eller används till båda.',
+    'seller-unknown': 'Kontrollera på underlaget vem som faktiskt sålde varan eller tjänsten och vilket land säljaren finns i.',
+    foreign: 'Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.',
+    clarify: matches.length > 1
+      ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
+      : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
+    'purpose-uncertain': topic?.clarify ?? '',
+    equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
+    'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',
+    'payment-uncertain': 'Kontrollera hur köpet betalades. Om du betalade med privata pengar behöver betalningen hanteras som ett privat utlägg för verksamheten.',
+    unavailable,
+    category: selection?.guidance.categoryGuidance.summary ?? unavailable,
+    withdrawal: selection?.guidance.categoryGuidance.summary ?? unavailable,
   }
 
   return (
-    <details ref={details} className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4">
-      <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-gray-900">
+    <details ref={details} className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4"
+      onToggle={event => {
+        if (event.currentTarget.open) search.current?.focus()
+        else reset()
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && details.current?.open) {
+          event.preventDefault()
+          close()
+        }
+      }}>
+      <summary ref={summary} className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-gray-900">
         Hjälp mig välja kategori
       </summary>
       <div className="max-w-xl space-y-3 pb-4 text-sm text-gray-800">
-        <label className="block font-medium">
-          Vad har du köpt eller betalat?
-          <input
-            type="text"
-            value={query}
-            maxLength={160}
-            onChange={event => updateQuery(event.target.value)}
-            className={fieldClass}
-            placeholder="Till exempel kurs, virke eller programvara"
-          />
-        </label>
-        {query.trim() && (
-          <label className="block font-medium">
-            Vad ska köpet användas till?
-            <select className={fieldClass} value={use} onChange={event => {
-              setUse(event.target.value as PurchaseUse)
-              setContext('')
-              updatePurpose('')
-            }}>
-              <option value="">Välj</option>
-              <option value="business">Enbart i verksamheten</option>
-              <option value="private">Enbart privat</option>
-              <option value="mixed">Både privat och i verksamheten</option>
-              <option value="unknown">Jag vet inte</option>
-            </select>
-          </label>
+        {step === 'search' ? (
+          <form className="space-y-3" onSubmit={event => {
+            event.preventDefault()
+            if (query.trim()) advance({ step: 'use' })
+          }}>
+            <label className="block font-medium">
+              Vad har du köpt eller betalat?
+              <input
+                ref={search}
+                type="text"
+                value={query}
+                maxLength={160}
+                onChange={event => setQuery(event.target.value)}
+                className="mt-1 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+                placeholder="Till exempel kamerahus, Lightroom eller virke"
+              />
+            </label>
+            <button type="submit" className={actionClass} disabled={!query.trim()}>Fortsätt</button>
+          </form>
+        ) : (
+          <>
+            <p className="break-words text-xs text-gray-600" aria-label="Dina svar">
+              {query}{history.map(entry => entry.answer && ` · ${entry.answer}`)}
+            </p>
+            <h3 ref={heading} tabIndex={-1} className="font-semibold">
+              {question || (selection ? 'Förslag på kategori' : 'Så går du vidare')}
+            </h3>
+            {answers.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {answers.map(answer => (
+                  <button key={answer.label} type="button" className={answerClass} onClick={answer.choose}>
+                    {answer.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {result && <p role="status">{messages[result]}</p>}
+            {result === 'clarify' && (
+              <button type="button" className={answerClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
+            )}
+            {result === 'foreign' && (
+              <button type="button" className={actionClass} onClick={() => {
+                close(false)
+                onOpenForeignPurchase()
+              }}>Öppna Utlandsinköp</button>
+            )}
+            {result === 'equipment' && (
+              <button type="button" className={actionClass} onClick={() => {
+                close(false)
+                onOpenFixedAssets()
+              }}>Gå till Inventarier</button>
+            )}
+            {selection && (
+              <div className="space-y-2 rounded-lg border border-emerald-200 bg-white p-3">
+                <p className="font-semibold">{selection.category.name} · konto {selection.account}</p>
+                <p>{result === 'withdrawal'
+                  ? 'Moms: inget momsavdrag för det privata köpet.'
+                  : 'Kontrollera moms och avdragsrätt separat mot underlaget.'}</p>
+                {vatChange && <p className="font-medium text-amber-900">{vatChange}</p>}
+                <button type="button" className={actionClass} onClick={() => {
+                  close(false)
+                  onChooseCategory(selection.category.id)
+                }}>{vatChange ? 'Bekräfta momsändring och välj' : 'Välj'} {selection.category.name}</button>
+              </div>
+            )}
+          </>
         )}
-        {(use === 'mixed' || use === 'unknown') && (
-          <p role="status">Ta reda på hur köpet ska användas privat och i verksamheten innan du väljer kategori.</p>
-        )}
-        {(use === 'business' || use === 'private') && (
-          <label className="block font-medium">
-            {question}
-            <select className={fieldClass} value={context} onChange={event => {
-              setContext(event.target.value as PurchaseContext)
-              updatePurpose('')
-            }}>
-              <option value="">Välj</option>
-              <option value="yes">Ja</option>
-              <option value="no">{use === 'business' ? 'Nej, säljaren finns utomlands' : 'Nej'}</option>
-              <option value="unknown">Jag vet inte</option>
-            </select>
-          </label>
-        )}
-        {use === 'private' && (context === 'no' || context === 'unknown') && (
-          <p role="status">Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.</p>
-        )}
-        {use === 'business' && context === 'unknown' && (
-          <p role="status">Kontrollera på underlaget vem som faktiskt sålde varan eller tjänsten och vilket land säljaren finns i. Fråga säljaren om uppgiften saknas.</p>
-        )}
-        {foreign && (
-          <div>
-            <p>Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.</p>
-            <button type="button" className={actionClass} onClick={onOpenForeignPurchase}>Öppna Utlandsinköp</button>
-          </div>
-        )}
-        {domestic && !topic && (
-          <p role="status">{matches.length > 1
-            ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
-            : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.'}</p>
-        )}
-        {domestic && topic && (
-          <label className="block font-medium">
-            {topic.question}
-            <select className={fieldClass} value={purpose} onChange={event => updatePurpose(event.target.value as PurchaseContext)}>
-              <option value="">Välj</option>
-              <option value="yes">Ja</option>
-              <option value="no">Nej</option>
-              <option value="unknown">Jag vet inte</option>
-            </select>
-          </label>
-        )}
-        {domestic && topic && (purpose === 'no' || purpose === 'unknown') && <p role="status">{topic.clarify}</p>}
-        {equipment && (
-          <div>
-            <p>I Inventarier bedöms om utrustningen ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som köpts för att användas tillsammans.</p>
-            <button type="button" className={actionClass} onClick={onOpenFixedAssets}>Gå till Inventarier</button>
-          </div>
-        )}
-        {categoryId && !selection && (
-          <p role="status">{ready
-            ? 'En matchande standardkategori är inte tillgänglig för ny bokföring. Kontrollera kategorin och dess inställningar i Kontoplan.'
-            : 'Kontoplanen är inte färdigladdad. Läs in den igen innan du väljer kategori.'}</p>
-        )}
-        {selection && !privateWithdrawal && (
-          <label className="block font-medium">
-            {bankQuestion}
-            <select className={fieldClass} value={bankPayment} onChange={event => setBankPayment(event.target.value as PurchaseContext)}>
-              <option value="">Välj</option>
-              <option value="yes">Ja</option>
-              <option value="no">Nej</option>
-              <option value="unknown">Jag vet inte</option>
-            </select>
-          </label>
-        )}
-        {selection && !privateWithdrawal && (bankPayment === 'no' || bankPayment === 'unknown') && (
-          <p role="status">Kontrollera hur köpet betalades. Om du betalade med privata pengar behöver betalningen hanteras som ett privat utlägg för verksamheten.</p>
-        )}
-        {selection && (privateWithdrawal || bankPayment === 'yes') && (
-          <div className="rounded-lg border border-emerald-200 bg-white p-3">
-            <p role="status">{selection.guidance.categoryGuidance.summary}</p>
-            <p className="mt-2 font-semibold">{selection.category.name} · konto {selection.account}</p>
-            {privateWithdrawal
-              ? <p className="mt-2">Moms: inget momsavdrag för det privata köpet.</p>
-              : <p className="mt-2">Kontrollera moms och avdragsrätt separat mot underlaget.</p>}
-            <button type="button" className={actionClass} onClick={() => {
-              if (details.current) details.current.open = false
-              updateQuery('')
-              onChooseCategory(selection.category.id)
-            }}>Välj {selection.category.name}</button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {step !== 'search' && (
+            <button type="button" className={answerClass} onClick={() => setHistory(previous => previous.slice(0, -1))}>Tillbaka</button>
+          )}
+          <button type="button" className={answerClass} onClick={() => close()}>Avbryt guiden</button>
+        </div>
       </div>
     </details>
   )

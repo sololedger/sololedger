@@ -513,22 +513,42 @@ export default function TransactionForm({
     }
   }
 
-  function selectCategory(id: string) {
+  function categoryVatRate(id: string) {
     const account = kontoplan.find(item => item.id === id)
-    const nextVatRate =
+    return (
       !id ||
       isOwnerDepositCategoryId(id) ||
       isNotVatRegistered ||
       (account && categoryUsesDomesticSalesVatPolicy(account) && ordinarySalesVatPolicy.vatRateLocked)
         ? 0
         : Number(account?.default_vat_rate) || 0
+    )
+  }
 
+  function selectCategory(id: string) {
     setFormData({
       ...formData,
       type: id,
-      vatRate: nextVatRate,
+      vatRate: categoryVatRate(id),
       inputVatDeduction: 'profile_default',
     })
+  }
+
+  function guideChangesCategoryFields(id: string) {
+    return id !== formData.type || (id === 'eget_uttag' && formData.vatRate !== 0)
+  }
+
+  function guideVatChange(id: string) {
+    if (!guideChangesCategoryFields(id)) return null
+    const nextRate = categoryVatRate(id)
+    const changes = []
+    if (nextRate !== formData.vatRate) {
+      changes.push(`Moms på fakturan ändras från ${formData.vatRate} % till ${nextRate} %.`)
+    }
+    if (formData.inputVatDeduction !== 'profile_default') {
+      changes.push('Det manuella valet av momsavdrag återställs till företagsprofilens standard.')
+    }
+    return changes.length ? changes.join(' ') : null
   }
 
   function handleFavoriteSelect(fav: Favorite) {
@@ -590,9 +610,10 @@ export default function TransactionForm({
         <PurchaseCategoryGuide
           categories={kontoplan}
           ready={kontoplanReady}
+          getVatChange={guideVatChange}
           onChooseCategory={id => {
             if (categoryError(id)) return
-            if (id !== formData.type) selectCategory(id)
+            if (guideChangesCategoryFields(id)) selectCategory(id)
             categorySelectRef.current?.focus()
           }}
           onOpenForeignPurchase={() => {
