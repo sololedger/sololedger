@@ -282,6 +282,21 @@ try {
    field.value, field instanceof HTMLInputElement ? field.checked : null,
   ]))
   const beforeGuide = await readFormFields()
+  await summary.press('Enter')
+  await query.fill('Minneskort till kameran')
+  const [helpSearchPage] = await Promise.all([
+   context.waitForEvent('page'),
+   guide.getByRole('link', {name:/^Sök bokföringshjälp/}).click(),
+  ])
+  const helpSearch = helpSearchPage.getByRole('searchbox', {name:'Sök bokföringshjälp'})
+  await helpSearch.fill('sätta in pengar')
+  const ownDeposit = helpSearchPage.locator('details[data-help-id="intakt-insattning"]')
+  await ownDeposit.locator('summary').click()
+  await expect(ownDeposit).toHaveAttribute('open', '')
+  await helpSearchPage.close()
+  await expect(query).toHaveValue('Minneskort till kameran')
+  await cancel()
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Searching help preserves the booking draft')
   const referralCases = [
    ['Betalat moms till Skatteverket', /fördes över från banken/, ['skattekonto', 'moms-redovisa-betala']],
    ['Förde över pengar till skattekontot', /Pengar till\/från skattekontot/, ['skattekonto']],

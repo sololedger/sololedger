@@ -4,6 +4,7 @@ import {
   getBookingCategory,
 } from './accountingKnowledge.ts'
 import { newBookingCategoryError, type BookingCategoryVisibility } from './bookingCategoryVisibility.ts'
+import { normalizeSwedishText as normalize } from './swedishSearch.ts'
 
 export interface GuideCategory extends BookingCategoryVisibility {
   name: string
@@ -131,10 +132,6 @@ const topics = [
     clarify: 'Kontrollera specifikationen. Ränta, amortering och det underliggande inköpet är andra typer av betalningar.',
   },
 ] as const
-
-function normalize(text: string) {
-  return text.normalize('NFC').toLocaleLowerCase('sv-SE').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
-}
 
 export function findPurchaseGuideReferral(query: string) {
   // Recognize complete descriptions of other bookkeeping events. A tax or

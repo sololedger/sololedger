@@ -193,6 +193,10 @@ export default function PurchaseCategoryGuide({
               />
             </label>
             <button type="submit" className={actionClass} disabled={!query.trim()}>Sök</button>
+            <a href="?help=" target="_blank" rel="noopener noreferrer"
+              className="ml-3 inline-flex min-h-11 items-center font-semibold text-emerald-800 underline">
+              Sök bokföringshjälp<span className="sr-only"> (öppnas i ny flik)</span>
+            </a>
           </form>
         ) : (
           <>

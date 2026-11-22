@@ -1,5 +1,8 @@
 // Public, versioned guidance only. Never put customer examples or credentials here.
 import { withdrawalHelpArticles } from './withdrawalHelp'
+import { containsSearchPhrase, normalizeHelpText } from './swedishSearch'
+
+export { normalizeHelpText } from './swedishSearch'
 export const helpTopics = [
   { id: 'first-tax', label: 'Skatt första året' },
   { id: 'start', label: 'Kom igång & profil' },
@@ -228,26 +231,86 @@ export const helpArticles: HelpArticle[] = [
 export function findHelpArticle(id: string | null) {
   return id ? helpArticles.find(article => article.id === id || article.aliases?.includes(id)) : undefined
 }
-export function normalizeHelpText(text: string): string {
-  return text.toLocaleLowerCase('sv-SE').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
 const synonymGroups = [
   ['momsfri', 'momsbefriad'], ['utlägg', 'privat betalning'],
   ['korrigera', 'rätta', 'rättelse'], ['årslås', 'låsa', 'låsning'],
   ['uttagsutrymme', 'säkert uttag'], ['nebilaga', 'ne-bilaga'],
+  ['periodisera', 'periodisering'], ['skattekonto', 'skattekontot'],
 ].map(group => group.map(normalizeHelpText))
 
+type HelpSearchContext = {
+  queries: string[]
+  articleIds: string[]
+  message?: string
+  destination?: HelpDestination
+  destinationDescription?: string
+}
+
+const helpSearchContexts: HelpSearchContext[] = [
+  { queries: ['egen insättning', 'egna insättningar'], articleIds: ['intakt-insattning'] },
+  {
+    queries: ['insättning', 'sätta in pengar'],
+    articleIds: ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
+    message: 'Gäller det egna pengar till företaget, en betalning från en kund eller ett företagsinköp som du betalat privat? Välj den fråga som beskriver din händelse.',
+  },
+  {
+    queries: ['moms'], articleIds: ['moms-redovisa-betala', 'skattekonto', 'momsprofil-eu'],
+    message: 'Vad behöver du hjälp med? Välj mellan momsrapport och deklaration, betalningar på skattekontot eller företagets momsinställningar.',
+    destination: 'moms', destinationDescription: 'Se momsperioder, rapporter och betalningshändelser.',
+  },
+  {
+    queries: ['betala moms', 'betala momsen', 'momsbetalning'],
+    articleIds: ['skattekonto', 'moms-redovisa-betala'],
+    message: 'Menar du en överföring från banken eller en momshändelse på skattekontot? Jämför händelserna i hjälpen nedan.',
+    destination: 'moms', destinationDescription: 'Se alternativen för banköverföring och avräkning på skattekontot.',
+  },
+  { queries: ['periodisera', 'periodisering'], articleIds: ['periodisering'] },
+]
+
+export function findHelpSearchContext(query: string) {
+  const normalized = normalizeHelpText(query)
+  return helpSearchContexts.find(context => context.queries.some(alias => normalizeHelpText(alias) === normalized))
+}
+
+const helpSearchIndex = helpArticles.map(article => ({
+  article,
+  title: normalizeHelpText(article.title),
+  keywords: [...article.keywords, ...(article.aliases ?? [])].map(normalizeHelpText),
+  text: [article.answer, article.applies, ...(article.paragraphs ?? []), ...(article.steps ?? []),
+    article.warning, ...(article.destinations?.map(d => helpDestinations[d]) ?? []),
+  ].flatMap(field => field ? [normalizeHelpText(field)] : []),
+}))
+
 export function searchHelp(query: string, topic: HelpTopic | 'all' = 'all'): HelpArticle[] {
-  const terms = normalizeHelpText(query.trim()).split(/\s+/).filter(Boolean)
-  return helpArticles.filter(article => {
-    if (topic !== 'all' && article.topic !== topic) return false
-    const haystack = normalizeHelpText([article.title, article.answer, article.applies,
-      ...(article.paragraphs ?? []), ...(article.steps ?? []), article.warning,
-      ...article.keywords, ...(article.destinations?.map(d => helpDestinations[d]) ?? []),
-    ].filter(Boolean).join(' '))
-    return terms.every(term => {
-      const alternatives = synonymGroups.find(group => group.includes(term)) ?? [term]
-      return alternatives.some(alternative => haystack.includes(alternative))
+  const normalized = normalizeHelpText(query)
+  const inTopic = (article: HelpArticle) => topic === 'all' || article.topic === topic
+  if (!query.trim()) return helpArticles.filter(inTopic)
+  if (!normalized) return []
+
+  const context = findHelpSearchContext(query)
+  if (context) {
+    return context.articleIds.flatMap(id => {
+      const article = findHelpArticle(id)
+      return article && inTopic(article) ? [article] : []
     })
-  })
+  }
+
+  const alternatives = (term: string) => synonymGroups.find(group => group.includes(term)) ?? [term]
+  const phrases = alternatives(normalized)
+  const terms = normalized.split(' ').map(alternatives)
+  return helpSearchIndex.flatMap(({ article, title, keywords, text }) => {
+    if (!inTopic(article)) return []
+    const metadata = [title, ...keywords]
+    const fields = [...metadata, ...text]
+    const has = (values: string[], variants: string[]) =>
+      variants.some(variant => values.some(value => containsSearchPhrase(value, variant)))
+    let rank = 0
+    if (title === normalized) rank = 7
+    else if (phrases.some(phrase => keywords.includes(phrase))) rank = 6
+    else if (has(metadata, phrases)) rank = 5
+    else if (terms.every(term => has(metadata, term))) rank = 4
+    else if (has(text, phrases)) rank = 3
+    else if (terms.every(term => has(fields, term))) rank = 2
+    return rank ? [{ article, rank }] : []
+  }).sort((a, b) => b.rank - a.rank).map(result => result.article)
 }
