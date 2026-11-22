@@ -41,7 +41,8 @@ export default function PurchaseCategoryGuide({
   const availability = topic && topic.id !== 'inventarier' ? getGuideCategoryAvailability(topic.id, categories, ready) : null
   const topicSelection = availability?.status === 'available' ? availability.selection : null
   const result = stage.step === 'result' ? stage.result : null
-  const selection = result === 'withdrawal'
+  const categoryConflict = availability?.status === 'conflict'
+  const selection = categoryConflict ? null : result === 'withdrawal'
     ? findGuideCategory('eget_uttag', categories, ready)
     : result === 'category' ? topicSelection : null
   const vatChange = selection && getVatChange(selection.category.id)
@@ -135,6 +136,7 @@ export default function PurchaseCategoryGuide({
     missing: 'Standardkategorin saknas i din kontoplan. Kontrollera om den finns som snabbförslag i Kontoplan.',
     hidden: 'Kategorin är dold för ny bokföring. Du kan granska synligheten i Kontoplan.',
     modified: 'Kategorin avviker från standardinställningarna för namn, konto eller moms. Granska den i Kontoplan.',
+    conflict: 'Både den aktuella och den äldre kategorin finns i Kontoplan, men guiden kunde inte verifiera dem som likvärdiga. Granska kategoriernas synlighet, namn, konton och moms där.',
     loading: 'Kontoplanen är inte färdigladdad. Vänta tills den har laddats innan du väljer kategori.',
     'visibility-unknown': 'Kategorins synlighet kunde inte kontrolleras. Läs in kontoplanen igen.',
   }
@@ -223,7 +225,7 @@ export default function PurchaseCategoryGuide({
                 ))}
               </div>
             )}
-            {result && <p role="status">{messages[result]}</p>}
+            {result && <p role="status">{categoryConflict ? availabilityMessages.conflict : messages[result]}</p>}
             {step === 'analysis' && referral && (
               <>
                 <p role="status">{referral.message}</p>
@@ -246,7 +248,7 @@ export default function PurchaseCategoryGuide({
                   ?? (equipmentCheck ? 'Det kan gälla utrustning. Guiden ställer en extra fråga innan den vägleder vidare.'
                     : 'Guiden känner igen inköpstypen. Svara på några frågor för att få vägledning.')
                   : clarification}</p>
-                {topic ? (
+                {topic && !categoryConflict ? (
                   <button type="button" className={actionClass} onClick={() => advance({ step: 'use' })}>Fortsätt till frågorna</button>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -270,7 +272,7 @@ export default function PurchaseCategoryGuide({
               <button type="button" className={answerClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
             )}
             {availabilityMessage && availability?.status !== 'loading' && !referral &&
-              (step === 'analysis' || result === 'unavailable') && (
+              (step === 'analysis' || result === 'unavailable' || categoryConflict) && (
               <button type="button" className={answerClass} onClick={onOpenChart}>Gå till Kontoplan</button>
             )}
             {result === 'foreign' && (

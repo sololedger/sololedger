@@ -228,17 +228,52 @@ const legacyElectricity = {
   id: 'el-lokal', name: 'El för verksamhetslokal', debit_account: '5020', credit_account: '1930',
   default_vat_rate: 25, hidden_from_new_booking: false,
 }
-assert(findGuideCategory('el_verksamhetslokal', [legacyElectricity], true)?.category.id === 'el-lokal', 'Standard legacy electricity category')
-assert(!findGuideCategory('el_verksamhetslokal', [{ ...legacyElectricity, hidden_from_new_booking: true }], true), 'Hidden legacy electricity category')
+const legacyInsurance = {
+  id: 'forsakring', name: 'Företagsförsäkring', debit_account: '6310', credit_account: '1930',
+  default_vat_rate: 0, hidden_from_new_booking: false,
+}
+const legacySoftware = {
+  id: 'prenumerationer', name: 'Prenumerationer & programvaror', debit_account: '5420', credit_account: '1930',
+  default_vat_rate: '25', hidden_from_new_booking: false,
+}
+for (const [id, name, older] of [
+  ['el_verksamhetslokal', 'El för verksamhetslokal', legacyElectricity],
+  ['foretagsforsakring', 'Företagsförsäkring', legacyInsurance],
+  ['programvaror', 'Programvaror & prenumerationer', legacySoftware],
+] as const) {
+  const current = { ...older, id, name, default_vat_rate: Number(older.default_vat_rate) }
+  assert(findGuideCategory(id, [current], true)?.category.id === id, `${id} must accept the current preset`)
+  assert(findGuideCategory(id, [older, current], true)?.category.id === id, `${id} must prefer the current preset when both verify`)
+  assert(findGuideCategory(id, [older], true)?.category.id === older.id, `${id} must still accept a verified older preset on its own`)
+  assert(getGuideCategoryAvailability(id, [], true).status === 'missing', `${id} must report a missing category`)
+  assert(!findGuideCategory(id, [older, current], false), `${id} must wait for the chart of accounts`)
+  for (const [changes, status] of [
+    [{ hidden_from_new_booking: true }, 'hidden'],
+    [{ hidden_from_new_booking: null }, 'visibility-unknown'],
+    [{ default_vat_rate: 12 }, 'modified'],
+    [{ name: 'Anpassad kategori' }, 'modified'],
+    [{ debit_account: '6990' }, 'modified'],
+    [{ credit_account: '1920' }, 'modified'],
+  ] as const) {
+    const alteredCurrent = { ...current, ...changes }
+    const alteredOlder = { ...older, ...changes }
+    assert(getGuideCategoryAvailability(id, [alteredCurrent], true).status === status, `Current ${id} must report ${status}`)
+    assert(getGuideCategoryAvailability(id, [alteredOlder], true).status === status, `Older ${id} must report ${status}`)
+    for (const rows of [[alteredCurrent, older], [current, alteredOlder]]) {
+      assert(getGuideCategoryAvailability(id, rows, true).status === 'conflict', `${id} must report conflict despite one verified row`)
+      assert(!findGuideCategory(id, rows, true), `${id} must not propose a category on conflict`)
+    }
+  }
+}
 const legacyAdvertising = {
   id: 'reklam', name: 'Reklam & Annonsering', debit_account: '5900', credit_account: '1930',
   default_vat_rate: 25, hidden_from_new_booking: false,
 }
 assert(!findGuideCategory('reklam', [legacyAdvertising], true), 'The old advertising preset on 5900 must not substitute for 5910')
-assert(findGuideCategory('foretagsforsakring', [{
-  id: 'forsakring', name: 'Företagsförsäkring', debit_account: '6310', credit_account: '1930',
-  default_vat_rate: 0, hidden_from_new_booking: false,
-}], true)?.category.id === 'forsakring', 'The unchanged legacy insurance preset on 6310 remains usable')
+assert(findGuideCategory('frakt', [{
+  id: 'frakt', name: 'Frakt & transporter', debit_account: '5710', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}], true)?.category.id === 'frakt', 'An equivalent older name for the same freight ID remains usable')
 
 assert(
   transactionFormSource.includes(

@@ -216,6 +216,7 @@ try {
   const courses = makeCategory('kurser', 'Kurser & fortbildning', '6991', 0)
   const rent = makeCategory('lokalhyra', 'Hyra för verksamhetslokal', '5010', 0)
   const office = makeCategory('kontorsmaterial', 'Kontorsmaterial', '6110', 25)
+  const currentElectricity = makeCategory('el_verksamhetslokal', 'El för verksamhetslokal', '5020', 25)
   const expandedTopics = [
    ['Köpte annonser på Meta', makeCategory('reklam', 'Reklam & annonsering', '5910', 25), /marknadsföra den egna verksamheten/],
    ['Extern retusch i ett kunduppdrag', makeCategory('kopta_tjanster_kunduppdrag', 'Köpta tjänster för kunduppdrag', '4600', 25), /direkt del av det du levererar/],
@@ -614,6 +615,39 @@ try {
   await confirmVat('Eget uttag').click()
   await expect(vatRate).toHaveValue('0')
 
+  const electricityDescription = 'Elräkning för lokalen'
+  for (const [description, overrides] of [
+   [electricityDescription, [{ ...currentElectricity, hidden_from_new_booking: true }]],
+   [electricityDescription, [{ ...currentElectricity, default_vat_rate: 12 }]],
+   [electricityDescription, [currentElectricity, { ...currentElectricity, id: 'el-lokal', default_vat_rate: 12 }]],
+   ['Adobe Lightroom', [{ ...makeCategory('programvaror', 'Programvaror & prenumerationer', '5420', 25), hidden_from_new_booking: true }]],
+   ['Företagsförsäkring', [makeCategory('forsakring', 'Företagsförsäkring', '6310', 12)]],
+  ]) {
+   const rows = [...categories.filter(row => !overrides.some(override => override.id === row.id)), ...overrides]
+   await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), rows)
+   await page.reload()
+   await category.selectOption('eget_uttag')
+   await vatRate.selectOption('25')
+   const beforeConflict = await readFormFields()
+   await lookUp(description)
+   await expect(guide.getByRole('status')).toContainText('Både den aktuella och den äldre kategorin')
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
+   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
+   await answer('Gå till Kontoplan').click()
+   await expect(page.locator('main')).toHaveAttribute('data-active-tab', 'kontoplan')
+   await page.getByRole('button', { name: 'Test Dashboard' }).click()
+   assert.deepEqual(await readFormFields(), beforeConflict, 'Resolving a category conflict in Kontoplan must preserve the original draft')
+  }
+  await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), [...categories, currentElectricity])
+  await page.reload()
+  await category.selectOption('eget_uttag')
+  await vatRate.selectOption('25')
+  await domestic(electricityDescription)
+  await answerPurpose('Ja')
+  await answerPayment('Ja')
+  await choose(currentElectricity.name).click()
+  await expect(category).toHaveValue(currentElectricity.id)
+  await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), categories)
   await page.evaluate(() => localStorage.setItem('testGuideVatStatus', 'not_registered'))
   await page.reload()
   await expect(page.getByText(/I det vanliga bokföringsformuläret används då 0 % moms/)).toContainText('Utlandsinköp')

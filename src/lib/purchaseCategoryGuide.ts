@@ -331,23 +331,31 @@ export function getGuideCategoryAvailability(
     item.id === legacyId && item.debit_account === preset.debit_account &&
     item.credit_account === preset.credit_account && item.default_vat_rate === preset.default_vat_rate
   )
-  for (const expected of [preset, legacy]) {
-    if (!expected || newBookingCategoryError(categories, expected.id, ready)) continue
-    const category = categories.find(item => item.id === expected.id)
-    const rate = category?.default_vat_rate
-    if (
-      category?.name === expected.name &&
+  function matchesPreset(category: GuideCategory, expected: typeof legacy) {
+    const rate = category.default_vat_rate
+    return expected !== undefined &&
+      category.id === expected.id &&
+      !newBookingCategoryError(categories, category.id, ready) &&
+      category.name === expected.name &&
       category.debit_account === expected.debit_account &&
       category.credit_account === expected.credit_account &&
       rate != null && String(rate).trim() !== '' && Number(rate) === expected.default_vat_rate
-    ) {
-      return { status: 'available', selection: { category, guidance, account: expected.debit_account } } as const
-    }
   }
 
-  const existing = categories.find(category => category.id === preset.id)
-    ?? categories.find(category => category.id === legacyId)
+  const current = categories.find(category => category.id === preset.id)
+  const older = legacyId !== preset.id ? categories.find(category => category.id === legacyId) : undefined
+  const existing = current ?? older
   if (!existing) return { status: 'missing' } as const
+
+  const verified = matchesPreset(existing, preset) || matchesPreset(existing, legacy)
+  // A distinct older ID is a fallback only when the current ID is absent.
+  // Both rows must verify against their equivalent presets to prefer the current one.
+  if (current && older && (!verified || !matchesPreset(older, legacy))) {
+    return { status: 'conflict' } as const
+  }
+  if (verified) {
+    return { status: 'available', selection: { category: existing, guidance, account: preset.debit_account } } as const
+  }
   if (existing.hidden_from_new_booking === true) return { status: 'hidden' } as const
   if (existing.hidden_from_new_booking !== false) return { status: 'visibility-unknown' } as const
   return { status: 'modified' } as const
