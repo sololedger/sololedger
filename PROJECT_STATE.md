@@ -1,5 +1,12 @@
 # SoloLedger Project State
 
+## KAN-9 – avslutat 2026-11-22
+
+- Jira KAN-9 är Done med resolution Done. Pontus godkände användartestet av de tre sista förbättringarna i Production.
+- GitHub `main` är verifierad på `c7abee2985a4eedd370cf3c85e2690ab2be175b5`. Production-deployment `dpl_6j3LZER7kw6bPjJgSYhFEozHwrNh` är READY på [Production](https://sololedger.vercel.app/) enligt det verifierade slutläget i avslutsbeslutet.
+- Staging-acceptansen gällde `70eaf7e0e45c03cc1ee48aa2a9700fefc6f61cc3`. Production publicerades från den isolerade KAN-9-commiten på dåvarande `main` (`8a8e037`).
+- Implementation, tester och releasehistorik finns i [PROJECT_ARCHIVE.md](PROJECT_ARCHIVE.md). Administrerbar FAQ och kunskapsbas hanteras separat i KAN-142.
+
 2026-10-26 – **KAN-117 P1 lokal rättning PASS för nytt Staging-test.**
 Publicerad Staging-version eacdc5b är fortsatt BLOCKED. Production inte godkänd.
 KAN-112/KAN-113 Production PASS och Done. KAN-117 separat aktivt uppdrag.

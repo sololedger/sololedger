@@ -6,6 +6,14 @@ Do not archive active work here prematurely. Current active work remains in `PRO
 
 ## Archived Workstreams
 
+## KAN-9 – inköpsguide och bokföringshjälp, avslutat 2026-11-22
+
+- **Levererat.** Inköpsguiden klassar vanliga svenska inköp med följdfrågor och kontroller av bland annat ändamål, betalningskälla, moms, utlandsinköp och kontoplan. Tvetydiga och sammansatta inköp kräver förtydligande. Vid konflikt mellan aktuell och äldre kategori stoppas förslaget och användaren hänvisas till Kontoplan. Bokföringshjälpen skiljer primära träffar från relaterade lästips.
+- **Sista förbättringarna.** Börja om nollställer endast guiden. ”Betala för utbildning” leder genom ordinarie frågor om bland annat fortbildning och moms. ”Egen insättning” leder till relevant FAQ i en ny flik med sökfrågan kvar när artikeln kan visas med det filtret. Bokföringsutkastet bevaras.
+- **Tester.** Lokala regressions-, bokförings-, moms-, formulär- och FAQ-tester passerade för Production-kandidaten, liksom riktade Chrome-tester på dator och mobil och TypeScript. ESLint visade inga nya anmärkningar jämfört med `main`. Pontus godkände de tre sista förbättringarna i både Staging och Production. Ingen ny testomgång kördes vid dokumentationsavslutet.
+- **Release och lärdom.** Godkänd Staging var `70eaf7e0e45c03cc1ee48aa2a9700fefc6f61cc3`. Eftersom grenarna hade olika historik stoppades direkt fast-forward från Staging. Den avgränsade KAN-9-diffen applicerades på ny arbetskopia baserad på `8a8e037b9b67f2ac175feef428b2f723ad5fa27e`. Samtliga 13 KAN-9-filer matchade Staging. KAN-126-arbetsflödet bevarades och KAN-137-fixen fanns redan på `main`. Publicerad Production-commit är `c7abee2985a4eedd370cf3c85e2690ab2be175b5`. Diffen innehöll inga migrationsfiler.
+- **Slutläge.** GitHub `main` och `staging` lästes av vid dokumentationsavslutet och matchade referenserna ovan. Enligt Pontus verifierade slutläge är Vercel Production `dpl_6j3LZER7kw6bPjJgSYhFEozHwrNh` READY på [Production](https://sololedger.vercel.app/) och Jira KAN-9 är Done med resolution Done. Vercel-anslutningen kunde inte återläsa deploymenten i dokumentationssessionen. Administrerbar FAQ och kunskapsbas hanteras separat i KAN-142.
+
 ### KAN-117 – ersatt lokal kandidat och identifierad korsårslucka (2026-10-26)
 
 - ac96638 hade gröna22 lokala kontrollgrupper men missade profilkonflikt mellan
