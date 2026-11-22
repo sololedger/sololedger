@@ -172,6 +172,7 @@ export function findPurchaseGuideReferral(query: string) {
 }
 
 const purchasePrefix = /^(?:(?:jag|vi) )?(?:(?:har )?(?:köpte(?: in)?|köpt(?: in)?|betalade(?: för)?|betalat(?: för)?|hyrde|förnyade|beställde|inköp av|köp av) )?/
+const paymentRequestPrefix = /^betala för /
 const itemQualifiers = /^(?:(?:en|ett|min|mitt|ny|nytt|nya|begagnad|begagnat)(?: |$))*$/
 const simpleContext = /^(?:i|inom|om|för|till|på)(?: (?:en|ett|min|mitt|den|det|ny|nytt|nya|digital|digitalt|digitala|egen|eget|egna))* \p{L}[\p{L}\p{N}]*$/u
 const separateItems = /[;,/&+\r\n]|[.!?]\s*[\p{L}\p{N}]|\s[-–—]\s/u
@@ -268,7 +269,12 @@ export function analyzePurchaseDescription(query: string): PurchaseDescription {
   const [first, ...remaining] = strongest.sort((a, b) => a.start - b.start || b.end - a.end)
   const prefix = normalized.slice(0, first.start).trim()
   const prefixWords = prefix ? `${prefix} ` : ''
-  if (separateItems.test(query) || !itemQualifiers.test(prefixWords.replace(purchasePrefix, ''))) {
+  const isPaymentRequest = paymentRequestPrefix.test(prefixWords)
+  const qualifiers = prefixWords.replace(isPaymentRequest ? paymentRequestPrefix : purchasePrefix, '')
+  // This prefix requires a single purchase match without trailing context.
+  // Extra words may describe another purchase or affect the booking checks.
+  if (separateItems.test(query) || !itemQualifiers.test(qualifiers) ||
+    (isPaymentRequest && (remaining.length > 0 || normalized.slice(first.end).trim()))) {
     return { matches, partial: true }
   }
 

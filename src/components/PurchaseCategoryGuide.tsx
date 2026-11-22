@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getBookingCategory } from '@/lib/accountingKnowledge'
-import { findHelpArticle } from '@/lib/helpContent'
+import { findHelpArticle, findHelpSearchContext } from '@/lib/helpContent'
+import { purchaseGuideHelpUrl } from '@/lib/helpNavigation'
 import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
 type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'equipment-check' | 'rent-vat' | 'payment' | 'result'
@@ -37,6 +38,8 @@ export default function PurchaseCategoryGuide({
   const { step } = stage
   const { matches, partial, equipmentCheck, spellingSuggestion } = analyzePurchaseDescription(query)
   const referral = findPurchaseGuideReferral(query)
+  const helpContext = !referral && matches.length === 0 ? findHelpSearchContext(query) : undefined
+  const helpArticleIds = referral ? [referral.articleId, referral.additionalArticleId] : helpContext?.articleIds
   const topic = matches.length === 1 && !partial ? matches[0] : null
   const availability = topic && topic.id !== 'inventarier' ? getGuideCategoryAvailability(topic.id, categories, ready) : null
   const topicSelection = availability?.status === 'available' ? availability.selection : null
@@ -151,7 +154,7 @@ export default function PurchaseCategoryGuide({
       : partial
         ? 'Bara en del av beskrivningen matchar. Beskriv ett inköp i taget, till exempel ”abonnemang på Lightroom”.'
         : 'Guiden hittade ingen inköpstyp. Prova vad som står på underlaget, till exempel ”stativ” eller ”kontorsmaterial”.'
-  const analysisHeading = referral ? 'Annat bokföringsärende'
+  const analysisHeading = helpArticleIds ? 'Annat bokföringsärende'
     : topic ? getBookingCategory(topic.id)?.name : 'Förtydliga vad du köpte'
   const messages: Record<Result, string> = {
     mixed: 'Ta reda på hur köpet ska användas privat och i verksamheten innan du väljer kategori.',
@@ -226,15 +229,15 @@ export default function PurchaseCategoryGuide({
               </div>
             )}
             {result && <p role="status">{categoryConflict ? availabilityMessages.conflict : messages[result]}</p>}
-            {step === 'analysis' && referral && (
+            {step === 'analysis' && helpArticleIds && (
               <>
-                <p role="status">{referral.message}</p>
+                <p role="status">Det här är ett bokföringsärende som hanteras i bokföringshjälpen. {referral?.message ?? helpContext?.message}</p>
                 <ul className="space-y-2">
-                  {[referral.articleId, referral.additionalArticleId].flatMap(id => {
+                  {helpArticleIds.flatMap(id => {
                     const article = findHelpArticle(id ?? null)
                     return article ? [<li key={article.id}>
                       <a className="inline-block min-h-11 py-2 font-semibold text-emerald-800 underline"
-                        href={`?help=${encodeURIComponent(article.id)}`} target="_blank" rel="noopener noreferrer">
+                        href={purchaseGuideHelpUrl(article.id, query)} target="_blank" rel="noopener noreferrer">
                         {article.title} (ny flik)
                       </a>
                     </li>] : []
@@ -242,7 +245,7 @@ export default function PurchaseCategoryGuide({
                 </ul>
               </>
             )}
-            {step === 'analysis' && !referral && (
+            {step === 'analysis' && !helpArticleIds && (
               <>
                 <p role="status">{topic ? availabilityMessage
                   ?? (equipmentCheck ? 'Det kan gälla utrustning. Guiden ställer en extra fråga innan den vägleder vidare.'
@@ -271,7 +274,7 @@ export default function PurchaseCategoryGuide({
             {result === 'equipment-uncertain' && (
               <button type="button" className={answerClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
             )}
-            {availabilityMessage && availability?.status !== 'loading' && !referral &&
+            {availabilityMessage && availability?.status !== 'loading' && !helpArticleIds &&
               (step === 'analysis' || result === 'unavailable' || categoryConflict) && (
               <button type="button" className={answerClass} onClick={onOpenChart}>Gå till Kontoplan</button>
             )}
@@ -306,8 +309,17 @@ export default function PurchaseCategoryGuide({
           {step !== 'search' && (
             <button type="button" className={answerClass} onClick={() => setHistory(previous => previous.slice(0, -1))}>Tillbaka</button>
           )}
+          {(step !== 'search' || query) && (
+            <button type="button" className={answerClass} onClick={() => {
+              reset()
+              search.current?.focus()
+            }}>Börja om</button>
+          )}
           <button type="button" className={answerClass} onClick={() => close()}>Avbryt guiden</button>
         </div>
+        {step !== 'search' && <p className="text-xs text-gray-600">
+          Tillbaka går ett steg. Börja om rensar sökningen och svaren. Avbryt guiden stänger den.
+        </p>}
       </div>
     </details>
   )

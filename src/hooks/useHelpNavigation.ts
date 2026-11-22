@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { findHelpArticle, searchHelp, type HelpDestination } from '@/lib/helpContent'
-import { emptyHelpReading, helpNavigationUrl, isHelpDestination } from '@/lib/helpNavigation'
+import { emptyHelpReading, helpNavigationUrl, isHelpDestination, readPurchaseGuideHelpQuery } from '@/lib/helpNavigation'
 
 export function useHelpNavigation(enabled: boolean, onTab: (tab: string) => void) {
   const [reading, setReading] = useState(emptyHelpReading)
@@ -18,11 +18,16 @@ export function useHelpNavigation(enabled: boolean, onTab: (tab: string) => void
       if (url.searchParams.has('help')) {
         const id = url.searchParams.get('help')
         const article = findHelpArticle(id)
+        const guideQuery = readPurchaseGuideHelpQuery(url)
+        if (guideQuery !== null) {
+          window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
+        }
         setUnknownId(Boolean(id && !article))
         setReading(previous => {
           if (!article) return emptyHelpReading()
-          const visible = searchHelp(previous.query, previous.topic).some(item => item.id === article.id)
-          return { ...(visible ? previous : emptyHelpReading()), open: [...new Set([...previous.open, article.id])], anchor: article.id }
+          const next = guideQuery !== null ? { ...emptyHelpReading(), query: guideQuery } : previous
+          const visible = searchHelp(next.query, next.topic).some(item => item.id === article.id)
+          return { ...(visible ? next : emptyHelpReading()), open: [...new Set([...next.open, article.id])], anchor: article.id }
         })
         setFocusRevision(previous => previous + 1)
         setReturnAvailable(false)

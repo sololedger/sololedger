@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { helpArticles, helpTopics, helpDestinations, findHelpArticle, findHelpSearchContext, searchHelp, searchHelpResults, normalizeHelpText } from '../src/lib/helpContent.ts'
-import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination } from '../src/lib/helpNavigation.ts'
+import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination, purchaseGuideHelpUrl, readPurchaseGuideHelpQuery } from '../src/lib/helpNavigation.ts'
 import { withdrawalHelpIds } from '../src/lib/withdrawalPresentation.ts'
 for (const id of Object.values(withdrawalHelpIds)) assert.ok(findHelpArticle(id), 'Every contextual withdrawal link resolves')
 
@@ -97,6 +97,13 @@ assert.equal(next.searchParams.get('code'), 'synthetic-code')
 assert.equal(next.hash, new URL(authUrl).hash)
 assert.equal(next.searchParams.get('help'), 'skattekonto')
 assert.equal(new URL(helpNavigationUrl(authUrl, null), 'https://example.test').searchParams.has('help'), false)
+const helpFromGuide = new URL(purchaseGuideHelpUrl('intakt-insattning', 'Egen insättning & uttag'), 'https://example.test')
+assert.equal(helpFromGuide.search, '?help=intakt-insattning')
+assert.equal(readPurchaseGuideHelpQuery(helpFromGuide), 'Egen insättning & uttag')
+assert.equal(helpQuestionUrl(helpFromGuide.href, 'intakt-insattning'), 'https://example.test/?help=intakt-insattning')
+assert.equal(readPurchaseGuideHelpQuery(new URL(authUrl)), null)
+assert.equal(readPurchaseGuideHelpQuery(new URL('https://example.test/?help=intakt-insattning#help-query=test&access_token=synthetic')), null)
+assert.equal(readPurchaseGuideHelpQuery(new URL('https://example.test/#help-query=syntetisk')), null)
 assert.equal(isHelpDestination('moms'), true)
 assert.equal(isHelpDestination('sakert-uttag'), true)
 for (const value of ['admin', 'constructor', '__proto__', 'https://example.test', null]) assert.equal(isHelpDestination(value), false)

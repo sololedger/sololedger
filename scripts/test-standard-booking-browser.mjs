@@ -288,6 +288,37 @@ try {
    field.value, field instanceof HTMLInputElement ? field.checked : null,
   ]))
   const beforeGuide = await readFormFields()
+  const restart = () => answer('Börja om').click()
+  await domestic('betala för utbildning')
+  await expect(heading).toHaveText(/fortbildning för verksamheten du redan bedriver/)
+  await answerPurpose('Ja')
+  await answerPayment('Ja')
+  await expect(confirmVat(courses.name)).toBeVisible()
+  await restart()
+  await expect(query).toHaveValue('')
+  await expect(query).toBeFocused()
+  await expect(answer('Tillbaka')).toHaveCount(0)
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Restart from a VAT confirmation preserves the booking draft')
+  await query.fill('utbildning')
+  await restart()
+  await expect(query).toHaveValue('')
+  await expect(query).toBeFocused()
+  await start('betala för utbildning', 'Både privat och i verksamheten')
+  await expect(guide.getByRole('status')).toContainText('privat och i verksamheten')
+  await restart()
+  await start('betala för utbildning')
+  await answer('Nej, utomlands').click()
+  await expect(answer('Öppna Utlandsinköp')).toBeVisible()
+  await expect(confirmVat(courses.name)).toHaveCount(0)
+  await restart()
+  for (const description of ['betala för utbildning och logi', 'betala för utbildning i Danmark']) {
+   await lookUp(description)
+   await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
+   await restart()
+  }
+  assert.deepEqual(await readFormFields(), beforeGuide, 'Every restart preserves the booking draft')
+  await cancel()
   await summary.press('Enter')
   await query.fill('Minneskort till kameran')
   const [helpSearchPage] = await Promise.all([
@@ -316,20 +347,26 @@ try {
    ['Betalat preliminärskatt', /skattebeslutet/, ['skatt-forsta-aret']],
    ['Eget uttag', /överföringar mellan dig och firman/, ['intakt-insattning']],
    ['Egen insättning', /överföringar mellan dig och firman/, ['intakt-insattning']],
+   ['Insättning från kund', /hanteras i bokföringshjälpen/, ['kundfakturor']],
    ['Privat betalt företagsinköp', /stöder privat betalning/, ['privat-betalning']],
   ]
   for (const [description, message, articleIds] of referralCases) {
    await lookUp(description)
    await expect(heading).toHaveText('Annat bokföringsärende')
+   await expect(guide.getByRole('status')).toContainText('hanteras i bokföringshjälpen')
    await expect(guide.getByRole('status')).toHaveText(message)
    await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
    await expect(guide.getByRole('link')).toHaveCount(articleIds.length)
    for (const id of articleIds) {
     const [helpPage] = await Promise.all([
      context.waitForEvent('page'),
-     guide.locator(`a[href="?help=${id}"]`).click(),
+     guide.locator(`a[href^="?help=${id}#"]`).click(),
     ])
     await expect(helpPage.getByRole('region', { name: 'Hjälp & FAQ' }).locator(`details[data-help-id="${id}"]`)).toHaveAttribute('open', '')
+    if (description === 'Egen insättning' || description === 'Insättning från kund') {
+     await expect(helpPage.getByRole('searchbox', { name: 'Sök bokföringshjälp' })).toHaveValue(description)
+    }
+    assert.equal(new URL(helpPage.url()).hash, '')
     await helpPage.close()
     assert.deepEqual(await readFormFields(), beforeGuide, 'Opening FAQ preserves the booking draft')
    }

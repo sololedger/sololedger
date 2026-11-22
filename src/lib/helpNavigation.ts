@@ -3,6 +3,18 @@ import { findHelpArticle, helpDestinations, type HelpDestination, type HelpTopic
 export type HelpReadingState = { query: string; topic: HelpTopic | 'all'; open: string[]; anchor: string | null }
 export const emptyHelpReading = (): HelpReadingState => ({ query: '', topic: 'all', open: [], anchor: null })
 
+const purchaseHelpQueryPrefix = '#help-query='
+
+export function purchaseGuideHelpUrl(id: string, query: string): string {
+  // Keep the draft query out of server requests. The help tab consumes the fragment.
+  return `?help=${encodeURIComponent(id)}${purchaseHelpQueryPrefix}${encodeURIComponent(query)}`
+}
+
+export function readPurchaseGuideHelpQuery(url: URL): string | null {
+  if (!url.searchParams.has('help') || !url.hash.startsWith(purchaseHelpQueryPrefix) || url.hash.includes('&')) return null
+  return (new URLSearchParams(url.hash.slice(1)).get('help-query') ?? '').slice(0, 160)
+}
+
 // Build shared links from scratch. Auth/query/hash data never enters a copied link.
 export function helpQuestionUrl(appUrl: string, id: string): string {
   const article = findHelpArticle(id)
