@@ -410,6 +410,20 @@ try {
   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
   await cancel()
   const beforePartial = await readFormFields()
+  for (const [description, message] of [
+   ['Lightroom abonnemang på Photoshop', 'Bara en del av beskrivningen matchar'],
+   ['Lightroom abonnemang för bredband', 'Flera typer av köp matchar'],
+  ]) {
+   await lookUp(description)
+   await expect(guide.getByRole('status')).toContainText(message)
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
+   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
+   await back()
+   await expect(query).toHaveValue(description)
+   assert.deepEqual(await readFormFields(), beforePartial, 'Back from ambiguous search preserves the form')
+   await cancel()
+   assert.deepEqual(await readFormFields(), beforePartial, 'Cancelling an ambiguous search preserves the form')
+  }
   for (const description of ['Lightroom, monteringsarbete', 'Adobe Lightroom abonnemang och montering', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning', 'Minneskort till kameran och frkat', 'Stativ och blixt och montering']) {
    await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')

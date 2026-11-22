@@ -270,17 +270,16 @@ export function analyzePurchaseDescription(query: string): PurchaseDescription {
   let end = first.end
   let hasEquipmentParts = false
   for (const hit of remaining) {
-    // Match spans include the boundary spaces, so a shared boundary is
-    // adjacency. Overlapping words belong to the same recognized phrase.
-    if (hit.start >= end - 1) {
-      const gap = normalized.slice(end, hit.start).trim()
-      if (first.topic.id !== 'inventarier' || !/^med(?: |$)/.test(gap) ||
-        !itemQualifiers.test(gap.slice(3).trim())) {
-        return { matches, partial: true }
-      }
-      hasEquipmentParts = true
+    // Contained hits have already been removed. A one-character overlap is
+    // the boundary space; any longer overlap leaves competing phrases.
+    if (hit.start < end - 1) return { matches, partial: true }
+    const gap = normalized.slice(end, hit.start).trim()
+    if (first.topic.id !== 'inventarier' || !/^med(?: |$)/.test(gap) ||
+      !itemQualifiers.test(gap.slice(3).trim())) {
+      return { matches, partial: true }
     }
-    end = Math.max(end, hit.end)
+    hasEquipmentParts = true
+    end = hit.end
   }
 
   const context = normalized.slice(end).trim()
