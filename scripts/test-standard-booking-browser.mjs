@@ -386,7 +386,7 @@ try {
   await expect(deduction).toHaveValue('profile_default')
 
   for (const [description, id, name, account] of [
-   ['abonnemang på Lightroom', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
+   ['Adobe Lightroom abonnemang', 'prenumerationer', 'Prenumerationer & programvaror', '5420'],
    ['virke till ett kundjobb', 'varor_material', 'Varor & material för försäljning', '4010'],
    ['hårfärg till salongen', 'varor_material', 'Varor & material för försäljning', '4010'],
    ['köpte en kurs i fotografering', 'kurser', 'Kurser & fortbildning', '6991'],
@@ -410,7 +410,7 @@ try {
   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
   await cancel()
   const beforePartial = await readFormFields()
-  for (const description of ['Lightroom, monteringsarbete', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning']) {
+  for (const description of ['Lightroom, monteringsarbete', 'Adobe Lightroom abonnemang och montering', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning', 'Minneskort till kameran och frkat', 'Stativ och blixt och montering']) {
    await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
    await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
@@ -428,6 +428,48 @@ try {
   await lookUp('frakt eller porto')
   await expect(guide.getByRole('status')).toContainText('varufrakt eller brevporto')
   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
+  await cancel()
+
+  const beforeSpelling = await readFormFields()
+  for (const [misspelling, corrected, title] of [
+   ['kontorsmatrial', 'kontorsmaterial', 'Kontorsmaterial'],
+   ['mineskort', 'minneskort', 'Inventarier'],
+  ]) {
+   await lookUp(misspelling)
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
+   await answer(`Menade du ${corrected}?`).click()
+   await expect(query).toHaveValue(corrected)
+   await expect(query).toBeFocused()
+   assert.deepEqual(await readFormFields(), beforeSpelling)
+   await query.press('Enter')
+   await expect(heading).toHaveText(title)
+   if (corrected === 'kontorsmaterial') await expect(guide.getByRole('status')).toContainText('saknas i din kontoplan')
+   await cancel()
+  }
+
+  for (const description of ['Minneskort till kameran', 'Batteri till kameran', 'Ny bildskärm till datorn', 'Fotobakgrund']) {
+   await domestic(description)
+   await answerPurpose('Ja')
+   await expect(heading).toHaveText('Ska föremålet användas flera gånger utan att förbrukas eller lämnas till kunden?')
+   await expect(answer('Gå till Inventarier')).toHaveCount(0)
+   await answer('Nej').click()
+   await expect(guide.getByRole('status')).toContainText('går åt, ingår i en kundleverans')
+   await expect(answer('Gå till Inventarier')).toHaveCount(0)
+   await back()
+   await answer('Ja').click()
+   await expect(answer('Gå till Inventarier')).toBeVisible()
+   await cancel()
+   assert.deepEqual(await readFormFields(), beforeSpelling, 'Equipment guidance preserves the form')
+  }
+  await domestic('Köpte ett stativ och en blixt')
+  await answerPurpose('Ja')
+  await expect(heading).toHaveText('Köptes delarna tillsammans för att användas som en utrustning?')
+  await answer('Jag vet inte').click()
+  await expect(guide.getByRole('status')).toContainText('beskriv ett i taget')
+  await expect(answer('Gå till Inventarier')).toHaveCount(0)
+  await back()
+  await answer('Ja').click()
+  await expect(answer('Gå till Inventarier')).toBeVisible()
   await cancel()
 
   await domestic('Abonnemang för mobil')
@@ -558,6 +600,8 @@ try {
   await cancel()
   await domestic('köpte ett kamerahus med objektiv')
   await answerPurpose('Ja')
+  await expect(heading).toHaveText('Köptes delarna tillsammans för att användas som en utrustning?')
+  await answer('Ja').click()
   await guide.getByRole('button', { name: 'Gå till Inventarier' }).click()
   await expect(page.locator('main')).toHaveAttribute('data-active-tab', 'inventarier')
   assert.equal(await page.evaluate(() => localStorage.getItem('testCalls')), null)

@@ -3,9 +3,9 @@ import { getBookingCategory } from '@/lib/accountingKnowledge'
 import { findHelpArticle } from '@/lib/helpContent'
 import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
-type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'payment' | 'result'
+type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'equipment-check' | 'payment' | 'result'
 type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' |
-  'purpose-uncertain' | 'equipment' | 'private-payment-uncertain' | 'payment-uncertain' |
+  'purpose-uncertain' | 'equipment-uncertain' | 'equipment' | 'private-payment-uncertain' | 'payment-uncertain' |
   'unavailable' | 'category' | 'withdrawal'
 type Stage =
   | { step: Exclude<Step, 'result'>; privatePurchase?: boolean }
@@ -35,7 +35,7 @@ export default function PurchaseCategoryGuide({
   const [history, setHistory] = useState<{ stage: Stage; answer?: string }[]>([])
   const stage: Stage = history.at(-1)?.stage ?? { step: 'search' }
   const { step } = stage
-  const { matches, partial } = analyzePurchaseDescription(query)
+  const { matches, partial, equipmentCheck, spellingSuggestion } = analyzePurchaseDescription(query)
   const referral = findPurchaseGuideReferral(query)
   const topic = matches.length === 1 && !partial ? matches[0] : null
   const availability = topic && topic.id !== 'inventarier' ? getGuideCategoryAvailability(topic.id, categories, ready) : null
@@ -72,6 +72,9 @@ export default function PurchaseCategoryGuide({
   }
 
   const bankQuestion = 'Drogs pengarna direkt från företagets bankkonto?'
+  const equipmentClarification = equipmentCheck === 'together'
+    ? 'Om det är separata köp, beskriv ett i taget. Kontrollera underlaget om du är osäker.'
+    : 'Kontrollera om det du köpte går åt, ingår i en kundleverans eller ska användas flera gånger. Guiden lämnar inget kategoriförslag här.'
   let question = ''
   let answers: { label: string; choose: () => void }[] = []
   if (step === 'use') {
@@ -93,12 +96,23 @@ export default function PurchaseCategoryGuide({
     question = topic.question
     answers = [
       { label: 'Ja', choose: () => {
-        if (topic.id === 'inventarier') finish('equipment', 'Köpt för verksamheten')
+        if (topic.id === 'inventarier' && equipmentCheck) advance({ step: 'equipment-check' }, 'Köpt för verksamheten')
+        else if (topic.id === 'inventarier') finish('equipment', 'Köpt för verksamheten')
         else if (topicSelection) advance({ step: 'payment' }, 'Ändamål bekräftat')
         else finish('unavailable', 'Ändamål bekräftat')
       } },
       { label: 'Nej', choose: () => finish('purpose-uncertain', 'Annat ändamål') },
       { label: 'Jag vet inte', choose: () => finish('purpose-uncertain', 'Okänt ändamål') },
+    ]
+  } else if (step === 'equipment-check') {
+    const together = equipmentCheck === 'together'
+    question = together
+      ? 'Köptes delarna tillsammans för att användas som en utrustning?'
+      : 'Ska föremålet användas flera gånger utan att förbrukas eller lämnas till kunden?'
+    answers = [
+      { label: 'Ja', choose: () => finish('equipment', together ? 'Delarna hör ihop' : 'Används flera gånger') },
+      { label: 'Nej', choose: () => finish('equipment-uncertain', together ? 'Separata inköp' : 'Används inte flera gånger') },
+      { label: 'Jag vet inte', choose: () => finish('equipment-uncertain', 'Behöver kontrolleras') },
     ]
   } else if (stage.step === 'payment') {
     const privatePurchase = stage.privatePurchase
@@ -136,6 +150,7 @@ export default function PurchaseCategoryGuide({
     'seller-unknown': 'Kontrollera på underlaget vem som faktiskt sålde varan eller tjänsten och vilket land säljaren finns i.',
     foreign: 'Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.',
     'purpose-uncertain': topic?.clarify ?? '',
+    'equipment-uncertain': equipmentClarification,
     equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
     'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',
     'payment-uncertain': 'Kontrollera hur köpet betalades. Om du betalade med privata pengar behöver betalningen hanteras som ett privat utlägg för verksamheten.',
@@ -216,14 +231,21 @@ export default function PurchaseCategoryGuide({
             {step === 'analysis' && !referral && (
               <>
                 <p role="status">{topic ? availabilityMessage
-                  ?? 'Guiden känner igen inköpstypen. Svara på några frågor för att få vägledning.'
+                  ?? (equipmentCheck ? 'Det kan gälla utrustning. Guiden ställer en extra fråga innan den vägleder vidare.'
+                    : 'Guiden känner igen inköpstypen. Svara på några frågor för att få vägledning.')
                   : clarification}</p>
                 {topic ? (
                   <button type="button" className={actionClass} onClick={() => advance({ step: 'use' })}>Fortsätt till frågorna</button>
                 ) : (
                   <div className="flex flex-wrap gap-2">
+                    {spellingSuggestion && (
+                      <button type="button" className={answerClass} onClick={() => {
+                        setQuery(spellingSuggestion)
+                        setHistory([])
+                      }}>Menade du {spellingSuggestion}?</button>
+                    )}
                     <button type="button" className={actionClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
-                    {matches.length === 0 && (
+                    {matches.length === 0 && !spellingSuggestion && (
                       <button type="button" className={answerClass} onClick={() => advance({ step: 'payment', privatePurchase: true }, 'Privat')}>
                         Det gäller ett helt privat köp
                       </button>
@@ -231,6 +253,9 @@ export default function PurchaseCategoryGuide({
                   </div>
                 )}
               </>
+            )}
+            {result === 'equipment-uncertain' && (
+              <button type="button" className={answerClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
             )}
             {availabilityMessage && availability?.status !== 'loading' && !referral &&
               (step === 'analysis' || result === 'unavailable') && (

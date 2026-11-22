@@ -12,6 +12,18 @@ export interface GuideCategory extends BookingCategoryVisibility {
   default_vat_rate?: number | string | null
 }
 
+const softwareProducts = [
+  'adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop',
+  'photoshop', 'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro',
+]
+const equipmentAccessories = ['batteri', 'batteriet', 'batterier', 'kamerabatteri', 'kamerabatteriet', 'minneskort', 'minneskortet', 'sd kort']
+const reusableOrConsumable = [...equipmentAccessories, 'fotobakgrund', 'fotobakgrunden', 'fotobakgrunder']
+const displays = ['bildskärm', 'bildskärmen', 'bildskärmar', 'datorskärm', 'datorskärmen', 'monitor', 'monitorn', 'monitorer']
+const equipmentHosts = ['kamera', 'kameran', 'kamerahus', 'kamerahuset', 'systemkamera', 'systemkameran',
+  'dator', 'datorn', 'borrmaskin', 'borrmaskinen']
+const equipmentItems = [...equipmentHosts, ...displays, 'objektiv', 'objektivet', 'kameraobjektiv', 'stativ', 'stativet',
+  'kamerastativ', 'blixt', 'blixten', 'blixtar', 'kamerablixt', 'studioblixt', 'studioblixten']
+
 const topics = [
   {
     id: 'kurser',
@@ -22,11 +34,9 @@ const topics = [
   {
     id: 'programvaror',
     words: [
-      'adobe creative cloud', 'creative cloud', 'adobe cc', 'adobe lightroom', 'lightroom', 'adobe photoshop', 'photoshop',
-      'capture one', 'davinci resolve', 'adobe premiere pro', 'premiere pro', 'bildredigeringsprogram', 'redigeringsprogram',
+      ...softwareProducts, 'bildredigeringsprogram', 'redigeringsprogram',
       'program', 'programvaran', 'programvarulicens', 'programlicens', 'bokföringsprogram', 'bokföringsprogrammet', 'program för bokföring',
-      'programvaruabonnemang', 'programvaruprenumeration', 'abonnemang för programvara', 'prenumeration på programvara',
-      'abonnemang på lightroom', 'prenumeration på lightroom',
+      'programvaruabonnemang', 'programvaruprenumeration',
     ],
     question: 'Gäller betalningen en programvara, en programvarulicens eller en prenumeration på ett digitalt verktyg?',
     clarify: 'Kontrollera om fakturan gäller en programvara, en annan prenumeration eller en köpt IT-tjänst som support eller tekniskt arbete.',
@@ -57,7 +67,7 @@ const topics = [
   },
   {
     id: 'inventarier',
-    words: ['kameran', 'kameror', 'kamerahus', 'kamerahuset', 'systemkamera', 'systemkameran', 'objektiv', 'objektivet', 'kameraobjektiv', 'stativ', 'stativet', 'kamerastativ', 'kamerablixt', 'studioblixt', 'minneskort', 'minneskortet', 'sd-kort', 'kamerabatteri', 'mikrofon', 'mikrofonen', 'borrmaskin', 'hårfön', 'sax', 'utrustning'],
+    words: [...equipmentItems, ...reusableOrConsumable, 'kameror', 'mikrofon', 'mikrofonen', 'hårfön', 'sax', 'utrustning'],
     question: 'Har du köpt utrustningen för att använda den i verksamheten, utan att hyra den eller sälja den vidare?',
     clarify: 'Kontrollera om det gäller köp av utrustning till verksamheten, hyra eller en vara för vidareförsäljning.',
   },
@@ -101,7 +111,6 @@ const topics = [
     id: 'mobiltelefoni',
     words: [
       'mobilabonnemanget', 'telefonabonnemang', 'mobilfaktura', 'telefonitjänst', 'mobilräkning',
-      'abonnemang för mobil', 'abonnemang för telefon', 'abonnemang för mobiltelefon',
     ],
     question: 'Gäller kostnaden själva telefonitjänsten eller mobilabonnemanget för verksamheten?',
     clarify: 'Kontrollera om fakturan gäller abonnemanget, själva telefonen eller en kombination av båda.',
@@ -110,8 +119,7 @@ const topics = [
     id: 'internet',
     words: [
       'webbuppkoppling', 'internetuppkoppling', 'internetabonnemang', 'bredbandsabonnemang', 'bredbandsabonnemanget',
-      'bredbandet', 'internetanslutning', 'abonnemang för bredband', 'abonnemang för internet',
-      'abonnemang på bredband', 'abonnemang på internet',
+      'bredbandet', 'internetanslutning',
     ],
     question: 'Gäller kostnaden en internetanslutning eller datakommunikation för verksamheten?',
     clarify: 'Kontrollera om kostnaden gäller uppkopplingen, utrustning eller en annan digital tjänst. En uppkoppling som också används privat behöver bedömas separat.',
@@ -162,20 +170,58 @@ const uncertainContext = / (?:i|inom|om|för|till|på|och|samt|eller|plus|med|oc
 const contextKeywords = new Set(['kunduppdrag', 'mobil', 'telefon', 'bank', 'betaltjänst'])
 const itServiceKeywords = (getBookingCategory('it_tjanster')?.keywords ?? []).map(normalize)
 const genericSubscriptionKeywords = new Set(['abonnemang', 'prenumeration'])
+const subscriptionSubjects: Partial<Record<string, string[]>> = {
+  programvaror: [...softwareProducts, 'programvara', 'mjukvara', 'bildredigeringsprogram', 'bokföringsprogram'],
+  mobiltelefoni: ['mobil', 'telefon', 'mobiltelefon'],
+  internet: ['bredband', 'internet', 'webbuppkoppling'],
+}
 
-export function analyzePurchaseDescription(query: string) {
+function subscriptionPhrases(subject: string) {
+  return [...genericSubscriptionKeywords].flatMap(word => [
+    `${subject} ${word}`, `${word} på ${subject}`, `${word} för ${subject}`,
+  ])
+}
+
+const searchTopics = topics.map(topic => {
+  const keywords = getBookingCategory(topic.id)?.keywords?.filter(word => !contextKeywords.has(word)) ?? []
+  const subscriptions = (subscriptionSubjects[topic.id] ?? []).flatMap(subscriptionPhrases)
+  return { topic, words: [...new Set([...topic.words, ...keywords, ...subscriptions].map(normalize))] }
+})
+
+const spellingTerms = ['kontorsmaterial', 'minneskort', 'bildskärm', 'fotobakgrund', 'mobilabonnemang']
+
+function suggestSpelling(word: string) {
+  // Suggest only for a standalone word with one unambiguous single-letter edit.
+  if (!/^\p{L}{8,}$/u.test(word)) return null
+  const candidates = spellingTerms.filter(term => {
+    const [shorter, longer] = word.length <= term.length ? [word, term] : [term, word]
+    if (longer.length - shorter.length > 1 || shorter === longer) return false
+    let index = 0
+    while (index < shorter.length && shorter[index] === longer[index]) index++
+    return shorter.slice(index + (shorter.length === longer.length ? 1 : 0)) === longer.slice(index + 1)
+  })
+  return candidates.length === 1 ? candidates[0] : null
+}
+
+type PurchaseDescription = {
+  matches: (typeof topics)[number][]
+  partial: boolean
+  equipmentCheck?: 'reuse' | 'together'
+  spellingSuggestion?: string | null
+}
+
+export function analyzePurchaseDescription(query: string): PurchaseDescription {
   const normalized = ` ${normalize(query)} `
-  const hits = topics.flatMap(topic => {
-    const keywords = getBookingCategory(topic.id)?.keywords?.filter(word => !contextKeywords.has(word)) ?? []
-    return [...new Set([...topic.words, ...keywords].map(normalize))].flatMap(word => {
+  const hits = searchTopics.flatMap(({ topic, words }) =>
+    words.flatMap(word => {
       const phrase = ` ${word} `
       const hits = []
       for (let start = normalized.indexOf(phrase); start !== -1; start = normalized.indexOf(phrase, start + 1)) {
         hits.push({ topic, word, start, end: start + phrase.length })
       }
       return hits
-    })
-  })
+    }),
+  )
 
   // A phrase can explain a shorter hit inside it. Separate hits may describe
   // separate purchases and must remain visible as an ambiguity.
@@ -184,6 +230,9 @@ export function analyzePurchaseDescription(query: string) {
     other.end - other.start > hit.end - hit.start
   ))
   const matches = topics.filter(topic => strongest.some(hit => hit.topic === topic))
+  if (!matches.length) {
+    return { matches, partial: false, spellingSuggestion: suggestSpelling(query.trim().normalize('NFC').toLocaleLowerCase('sv-SE')) }
+  }
   if (matches.length !== 1) return { matches, partial: false }
   // A subscription identifies a payment arrangement, not what was purchased.
   // A specific phrase may supersede it through the same containment rule above.
@@ -203,7 +252,23 @@ export function analyzePurchaseDescription(query: string) {
     return { matches, partial: true }
   }
 
+  const [second] = remaining
+  if (first.topic.id === 'inventarier' && remaining.length === 1 && !normalized.slice(second.end).trim()) {
+    const connector = normalized.slice(first.end, second.start).trim()
+    const [relation, ...qualifiers] = connector.split(' ')
+    if (itemQualifiers.test(qualifiers.join(' '))) {
+      const accessory = reusableOrConsumable.includes(first.word) || displays.includes(first.word)
+      if (relation === 'till' && accessory && equipmentHosts.includes(second.word)) {
+        return { matches, partial: false, equipmentCheck: 'reuse' }
+      }
+      if (relation === 'och' && equipmentItems.includes(first.word) && equipmentItems.includes(second.word)) {
+        return { matches, partial: false, equipmentCheck: 'together' }
+      }
+    }
+  }
+
   let end = first.end
+  let hasEquipmentParts = false
   for (const hit of remaining) {
     // Match spans include the boundary spaces, so a shared boundary is
     // adjacency. Overlapping words belong to the same recognized phrase.
@@ -213,12 +278,17 @@ export function analyzePurchaseDescription(query: string) {
         !itemQualifiers.test(gap.slice(3).trim())) {
         return { matches, partial: true }
       }
+      hasEquipmentParts = true
     }
     end = Math.max(end, hit.end)
   }
 
   const context = normalized.slice(end).trim()
   const partial = Boolean(context && (!simpleContext.test(context) || uncertainContext.test(context)))
+  if (!partial && hasEquipmentParts) return { matches, partial: false, equipmentCheck: 'together' }
+  if (!partial && strongest.some(hit => reusableOrConsumable.includes(hit.word))) {
+    return { matches, partial: false, equipmentCheck: 'reuse' }
+  }
   return { matches, partial }
 }
 

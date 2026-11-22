@@ -24,15 +24,36 @@ const transactionFormSource = readSource(
 )
 const appPageSource = readSource('src/app/page.tsx', 'utf8')
 
-for (const [query, ids, partial = false] of [
+for (const [query, ids, partial = false, equipmentCheck = undefined] of [
   ['Jag köpte kamerahuset med ett objektiv och SD‑kort', 'inventarier', true],
   ['Kameran behöver ett minneskort', 'inventarier', true],
-  ['Köpte ett kamerahus med objektiv', 'inventarier'],
-  ['Jag köpte ett nytt kamerahus med ett objektiv', 'inventarier'],
+  ['Köpte ett kamerahus med objektiv', 'inventarier', false, 'together'],
+  ['Jag köpte ett nytt kamerahus med ett objektiv', 'inventarier', false, 'together'],
+  ['Minneskort till kameran', 'inventarier', false, 'reuse'],
+  ['Batteri till kameran', 'inventarier', false, 'reuse'],
+  ['Nytt batteri till borrmaskinen', 'inventarier', false, 'reuse'],
+  ['Ny bildskärm till datorn', 'inventarier', false, 'reuse'],
+  ['Monitorn', 'inventarier'],
+  ['Fotobakgrund', 'inventarier', false, 'reuse'],
+  ['Fotobakgrunden och logi', 'inventarier', true],
+  ['Fotobakgrund som förbrukas', 'inventarier', true],
+  ['Minneskort till kameran och montering', 'inventarier', true],
+  ['Batteri och servicekostnad till kameran', 'inventarier', true],
+  ['Bildskärm eller dator', 'inventarier', true],
+  ['Köpte ett stativ och en blixt', 'inventarier', false, 'together'],
+  ['Stativ och blixt och montering', 'inventarier', true],
+  ['Stativ och frakt', 'inventarier,frakt'],
   ['Köpte en kurs i fotografering', 'kurser'],
   ['Köpte en kurs i digital fotografering', 'kurser'],
   ['Adobe Creative Cloud', 'programvaror'],
   ['Adobe Lightroom', 'programvaror'],
+  ['Adobe Lightroom abonnemang', 'programvaror'],
+  ['Abonnemang på Adobe Lightroom', 'programvaror'],
+  ['Capture One prenumeration', 'programvaror'],
+  ['Prenumeration på Capture One', 'programvaror'],
+  ['Adobe Lightroom abonnemang med IT-support', 'programvaror', true],
+  ['Adobe Lightroom abonnemang och montering', 'programvaror', true],
+  ['Internet abonnemang och Lightroom', 'programvaror,internet'],
   ['Jag förnyade Lightroom', 'programvaror'],
   ['Program för bokföring', 'programvaror'],
   ['Papper för fotoutskrift', 'varor_material'],
@@ -107,6 +128,16 @@ for (const [query, ids, partial = false] of [
   const result = analyzePurchaseDescription(query)
   assert(result.matches.map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
   assert(result.partial === partial, `Unexpected partial-match result for "${query}"`)
+  assert(result.equipmentCheck === equipmentCheck, `Unexpected equipment question for "${query}"`)
+}
+
+for (const [query, expected] of [
+  ['kontorsmatrial', 'kontorsmaterial'], ['mineskort', 'minneskort'],
+  ['kontorsmatrial och logi', null], ['mineskort till kameran', null], ['mneskrt', null],
+] as const) {
+  const result = analyzePurchaseDescription(query)
+  assert((result.spellingSuggestion ?? null) === expected, `Unexpected spelling suggestion for "${query}"`)
+  if (expected) assert(result.matches.length === 0, 'A spelling suggestion cannot create a category match')
 }
 
 for (const [query, expected] of [
