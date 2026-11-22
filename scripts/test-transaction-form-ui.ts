@@ -6,7 +6,7 @@ import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi
 import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
 import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
-import { analyzePurchaseDescription, findGuideCategory } from '../src/lib/purchaseCategoryGuide.ts'
+import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability } from '../src/lib/purchaseCategoryGuide.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -108,6 +108,31 @@ for (const [query, ids, partial = false] of [
   assert(result.matches.map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
   assert(result.partial === partial, `Unexpected partial-match result for "${query}"`)
 }
+
+for (const [query, expected] of [
+  ['Momsbetalning', 'skattekonto'],
+  ['Moms har debiterats på skattekontot', 'skattekonto'],
+  ['Överfört från företagskontot till skattekontot', 'skattekonto'],
+  ['Förde över pengar till skattekontot', 'skattekonto'],
+  ['F-skatt', 'skatt-forsta-aret'],
+  ['Eget uttag', 'intakt-insattning'],
+  ['Egen insättning', 'intakt-insattning'],
+  ['Inköp för firman betalt privat', 'privat-betalning'],
+] as const) {
+  const referral = findPurchaseGuideReferral(query)
+  assert(referral?.articleId === expected, `Unexpected help referral for "${query}"`)
+}
+for (const query of ['Kurs om moms', 'Eget uttag och kurs', 'Batteri till kameran', 'Skatteverket har inte dragit moms']) {
+  assert(!findPurchaseGuideReferral(query), `Uncertain or mixed search must not redirect: "${query}"`)
+}
+
+const office = { id: 'kontorsmaterial', name: 'Kontorsmaterial', debit_account: '6110', credit_account: '1930', default_vat_rate: 25, hidden_from_new_booking: false }
+assert(getGuideCategoryAvailability(office.id, [], true).status === 'missing', 'Missing office supplies')
+assert(getGuideCategoryAvailability(office.id, [office], false).status === 'loading', 'Unavailable chart')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, hidden_from_new_booking: true }], true).status === 'hidden', 'Hidden office supplies')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, hidden_from_new_booking: null }], true).status === 'visibility-unknown', 'Unknown visibility')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, default_vat_rate: 12 }], true).status === 'modified', 'Modified office supplies')
+assert(getGuideCategoryAvailability(office.id, [office], true).status === 'available', 'Visible standard office supplies')
 
 const standardRows = [
   ['reklam', 'Reklam & annonsering', '5910', 25],

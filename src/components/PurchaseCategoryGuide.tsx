@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { analyzePurchaseDescription, findGuideCategory, type GuideCategory } from '@/lib/purchaseCategoryGuide'
+import { getBookingCategory } from '@/lib/accountingKnowledge'
+import { findHelpArticle } from '@/lib/helpContent'
+import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
-type Step = 'search' | 'use' | 'seller' | 'purpose' | 'payment' | 'result'
-type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' | 'clarify' |
+type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'payment' | 'result'
+type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' |
   'purpose-uncertain' | 'equipment' | 'private-payment-uncertain' | 'payment-uncertain' |
   'unavailable' | 'category' | 'withdrawal'
 type Stage =
@@ -16,13 +18,14 @@ interface Props {
   onChooseCategory: (id: string) => void
   onOpenForeignPurchase: () => void
   onOpenFixedAssets: () => void
+  onOpenChart: () => void
 }
 
 const answerClass = 'min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left font-medium hover:border-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
 const actionClass = 'min-h-11 rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700'
 
 export default function PurchaseCategoryGuide({
-  categories, ready, getVatChange, onChooseCategory, onOpenForeignPurchase, onOpenFixedAssets,
+  categories, ready, getVatChange, onChooseCategory, onOpenForeignPurchase, onOpenFixedAssets, onOpenChart,
 }: Props) {
   const details = useRef<HTMLDetailsElement>(null)
   const summary = useRef<HTMLElement>(null)
@@ -33,8 +36,10 @@ export default function PurchaseCategoryGuide({
   const stage: Stage = history.at(-1)?.stage ?? { step: 'search' }
   const { step } = stage
   const { matches, partial } = analyzePurchaseDescription(query)
+  const referral = findPurchaseGuideReferral(query)
   const topic = matches.length === 1 && !partial ? matches[0] : null
-  const topicSelection = topic && findGuideCategory(topic.id, categories, ready)
+  const availability = topic && topic.id !== 'inventarier' ? getGuideCategoryAvailability(topic.id, categories, ready) : null
+  const topicSelection = availability?.status === 'available' ? availability.selection : null
   const result = stage.step === 'result' ? stage.result : null
   const selection = result === 'withdrawal'
     ? findGuideCategory('eget_uttag', categories, ready)
@@ -80,7 +85,7 @@ export default function PurchaseCategoryGuide({
   } else if (step === 'seller') {
     question = 'Visar fakturan eller kvittot att säljaren finns i Sverige?'
     answers = [
-      { label: 'Ja, i Sverige', choose: () => topic ? advance({ step: 'purpose' }, 'Svensk säljare') : finish('clarify', 'Svensk säljare') },
+      { label: 'Ja, i Sverige', choose: () => advance({ step: 'purpose' }, 'Svensk säljare') },
       { label: 'Nej, utomlands', choose: () => finish('foreign', 'Utländsk säljare') },
       { label: 'Jag vet inte', choose: () => finish('seller-unknown', 'Okänd säljare') },
     ]
@@ -105,30 +110,38 @@ export default function PurchaseCategoryGuide({
     ]
   }
 
-  const unavailable = ready
-    ? 'En matchande standardkategori är inte tillgänglig för ny bokföring. Kontrollera kategorin och dess inställningar i Kontoplan.'
-    : 'Kontoplanen är inte färdigladdad. Läs in den igen innan du väljer kategori.'
+  const availabilityMessages = {
+    missing: 'Standardkategorin saknas i din kontoplan. Kontrollera om den finns som snabbförslag i Kontoplan.',
+    hidden: 'Kategorin är dold för ny bokföring. Du kan granska synligheten i Kontoplan.',
+    modified: 'Kategorin avviker från standardinställningarna för namn, konto eller moms. Granska den i Kontoplan.',
+    loading: 'Kontoplanen är inte färdigladdad. Vänta tills den har laddats innan du väljer kategori.',
+    'visibility-unknown': 'Kategorins synlighet kunde inte kontrolleras. Läs in kontoplanen igen.',
+  }
+  const availabilityMessage = availability && availability.status !== 'available' ? availabilityMessages[availability.status] : null
+  const unavailable = availabilityMessage ?? 'En matchande standardkategori är inte tillgänglig för ny bokföring.'
   const shippingOrPostage = matches.length === 2 &&
     matches.some(match => match.id === 'frakt') && matches.some(match => match.id === 'porto')
+  const clarification = shippingOrPostage
+    ? 'Kontrollera om avgiften gäller varufrakt eller brevporto. Om båda ingår, beskriv ett inköp i taget.'
+    : matches.length > 1
+      ? 'Flera typer av köp matchar. Beskriv ett inköp i taget, till exempel ”kurs i fotografering” eller ”frakt till kund”.'
+      : partial
+        ? 'Bara en del av beskrivningen matchar. Beskriv ett inköp i taget, till exempel ”abonnemang på Lightroom”.'
+        : 'Guiden hittade ingen inköpstyp. Prova vad som står på underlaget, till exempel ”stativ” eller ”kontorsmaterial”.'
+  const analysisHeading = referral ? 'Annat bokföringsärende'
+    : topic ? getBookingCategory(topic.id)?.name : 'Förtydliga vad du köpte'
   const messages: Record<Result, string> = {
     mixed: 'Ta reda på hur köpet ska användas privat och i verksamheten innan du väljer kategori.',
     'use-unknown': 'Kontrollera om köpet hör till verksamheten, är privat eller används till båda.',
     'seller-unknown': 'Kontrollera på underlaget vem som faktiskt sålde varan eller tjänsten och vilket land säljaren finns i.',
     foreign: 'Kontrollera säljarens land, vad du köpt och om säljaren debiterat moms. Gå vidare till den befintliga kontrollen för utlandsinköp.',
-    clarify: shippingOrPostage
-      ? 'Kontrollera om avgiften gäller varufrakt eller brevporto. Om båda ingår, beskriv ett inköp i taget.'
-      : matches.length > 1
-        ? 'Flera typer av köp matchar. Beskriv en sak i taget och vad du ska använda den till.'
-        : partial
-          ? 'Bara en del av beskrivningen matchar. Förtydliga vad du köpte eller beskriv ett inköp i taget.'
-          : 'Förtydliga vad du köpte och vad det används till. Prova ett enklare ord från fakturan eller kvittot.',
     'purpose-uncertain': topic?.clarify ?? '',
     equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
     'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',
     'payment-uncertain': 'Kontrollera hur köpet betalades. Om du betalade med privata pengar behöver betalningen hanteras som ett privat utlägg för verksamheten.',
     unavailable,
     category: selection?.guidance.categoryGuidance.summary ?? unavailable,
-    withdrawal: selection?.guidance.categoryGuidance.summary ?? unavailable,
+    withdrawal: selection?.guidance.categoryGuidance.summary ?? 'Kategorin Eget uttag är inte tillgänglig för ny bokföring. Kontrollera den i Kontoplan.',
   }
 
   return (
@@ -150,7 +163,7 @@ export default function PurchaseCategoryGuide({
         {step === 'search' ? (
           <form className="space-y-3" onSubmit={event => {
             event.preventDefault()
-            if (query.trim()) advance({ step: 'use' })
+            if (query.trim()) advance({ step: 'analysis' })
           }}>
             <label className="block font-medium">
               Vad har du köpt eller betalat?
@@ -164,7 +177,7 @@ export default function PurchaseCategoryGuide({
                 placeholder="Till exempel Meta-annonser, extern retusch eller frakt"
               />
             </label>
-            <button type="submit" className={actionClass} disabled={!query.trim()}>Fortsätt</button>
+            <button type="submit" className={actionClass} disabled={!query.trim()}>Sök</button>
           </form>
         ) : (
           <>
@@ -172,7 +185,7 @@ export default function PurchaseCategoryGuide({
               {query}{history.map(entry => entry.answer && ` · ${entry.answer}`)}
             </p>
             <h3 ref={heading} tabIndex={-1} className="font-semibold">
-              {question || (selection ? 'Förslag på kategori' : 'Så går du vidare')}
+              {step === 'analysis' ? analysisHeading : question || (selection ? 'Förslag på kategori' : 'Så går du vidare')}
             </h3>
             {answers.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -184,8 +197,44 @@ export default function PurchaseCategoryGuide({
               </div>
             )}
             {result && <p role="status">{messages[result]}</p>}
-            {result === 'clarify' && (
-              <button type="button" className={answerClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
+            {step === 'analysis' && referral && (
+              <>
+                <p role="status">{referral.message}</p>
+                <ul className="space-y-2">
+                  {[referral.articleId, referral.additionalArticleId].flatMap(id => {
+                    const article = findHelpArticle(id ?? null)
+                    return article ? [<li key={article.id}>
+                      <a className="inline-block min-h-11 py-2 font-semibold text-emerald-800 underline"
+                        href={`?help=${encodeURIComponent(article.id)}`} target="_blank" rel="noopener noreferrer">
+                        {article.title} (ny flik)
+                      </a>
+                    </li>] : []
+                  })}
+                </ul>
+              </>
+            )}
+            {step === 'analysis' && !referral && (
+              <>
+                <p role="status">{topic ? availabilityMessage
+                  ?? 'Guiden känner igen inköpstypen. Svara på några frågor för att få vägledning.'
+                  : clarification}</p>
+                {topic ? (
+                  <button type="button" className={actionClass} onClick={() => advance({ step: 'use' })}>Fortsätt till frågorna</button>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={actionClass} onClick={() => setHistory([])}>Ändra beskrivningen</button>
+                    {matches.length === 0 && (
+                      <button type="button" className={answerClass} onClick={() => advance({ step: 'payment', privatePurchase: true }, 'Privat')}>
+                        Det gäller ett helt privat köp
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            {availabilityMessage && availability?.status !== 'loading' && !referral &&
+              (step === 'analysis' || result === 'unavailable') && (
+              <button type="button" className={answerClass} onClick={onOpenChart}>Gå till Kontoplan</button>
             )}
             {result === 'foreign' && (
               <button type="button" className={actionClass} onClick={() => {

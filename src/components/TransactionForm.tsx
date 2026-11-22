@@ -108,6 +108,7 @@ interface TransactionFormProps {
   onOpenPaymentAccountSettings: () => void
   onOpenCustomerInvoices: () => void
   onOpenFixedAssets: () => void
+  onOpenChart: () => void
 }
 
 const initialVatV2Facts: VatV2TransactionFacts = {
@@ -190,6 +191,7 @@ export default function TransactionForm({
   onOpenPaymentAccountSettings,
   onOpenCustomerInvoices,
   onOpenFixedAssets,
+  onOpenChart,
 }: TransactionFormProps) {
   const [ordinaryAmountSubmitAttempted, setOrdinaryAmountSubmitAttempted] = useState(false)
   const [favName, setFavName] = useState('')
@@ -621,6 +623,7 @@ export default function TransactionForm({
             requestAnimationFrame(() => supplierCountryRef.current?.focus())
           }}
           onOpenFixedAssets={onOpenFixedAssets}
+          onOpenChart={onOpenChart}
         />
       )}
       <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : handleOrdinarySubmit}>

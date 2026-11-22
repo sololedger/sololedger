@@ -9,6 +9,7 @@ import tailwind from '@tailwindcss/postcss'
 const owner='00000000-0080-4000-8000-000000000001'
 const profile={role:'admin',subscription_type:'paid',vat_status:'registered',domestic_sales_vat_treatment:'taxable',vat_period_type:'quarter',vat_management_from:'2026-01-01',foreign_purchase_reporting:'required',default_deduction_entitlement:'full'}
 const mock={
+ image:`export default function Image(){return null}`,
  supplierYearEnd:`export const supplierExpenseChoices=[];export class SupplierRejectedError extends Error{};export async function getSupplierYearEndInvoices(){return []};export async function openSupplierAttachment(){};export async function submitSupplierCommand(owner,command){localStorage.setItem('supplierReplay',JSON.stringify(command));return {success:true,invoice_id:'i',transaction_id:'t',ver_nr:10}};`,
  withdrawalService:`export class WithdrawalConflictError extends Error{};export async function loadWithdrawal(){throw Error('Syntetiskt uttagsunderlag saknas i bokningstestet')};export async function saveWithdrawal(){throw Error('Uttagsskrivning är inte tillåten i bokningstestet')};`,
  useAuth:`export const useAuth=()=>({user:{id:localStorage.getItem('testAuthOwner')||'${owner}'},profile:{...${JSON.stringify(profile)},id:localStorage.getItem('testAuthOwner')||'${owner}'},authLoading:false,verifyProfile:async()=> 'synthetic-token'});`,
@@ -35,15 +36,17 @@ mock.useAccountingData = mock.useAccountingData.replace(
   "kontoplan:[{id:'expense'",
   "kontoplan:JSON.parse(localStorage.getItem('testGuideCategories')) ?? [{id:'expense'",
 )
+mock.useAccountingData = mock.useAccountingData.replace('kontoplanLoaded:true', "kontoplanLoaded:localStorage.getItem('testGuideChartLoading')!=='yes'")
 mock.useAuth = mock.useAuth.replace(
   ",id:localStorage.getItem('testAuthOwner')",
   ",vat_status:localStorage.getItem('testGuideVatStatus') ?? 'registered',id:localStorage.getItem('testAuthOwner')",
 )
 const bundle=await build({stdin:{contents:"import React from 'react';import{createRoot}from'react-dom/client';import Home from './src/app/page';createRoot(document.getElementById('root')).render(<Home/>);",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'synthetic-boundaries',setup(b){
  b.onResolve({filter:/.*/},args=>{
+  if(args.path==='next/image')return {path:'image',namespace:'kan80'}
   const leaf=args.path.split('/').at(-1)
   if(mock[leaf])return {path:leaf,namespace:'kan80'}
-  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','NESectionNavigation','SubscriptionGuard','SupplierYearEndPanel'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
+  if(args.importer.replaceAll('\\','/').endsWith('/src/app/page.tsx')&&args.path.startsWith('@/components/')&&!['TransactionForm','AccountingDataBoundary','DashboardOverview','NEBilaga','NESectionNavigation','SubscriptionGuard','SupplierYearEndPanel','FAQ'].includes(leaf))return {path:'component-'+leaf,namespace:'kan80'}
  })
  b.onLoad({filter:/.*/,namespace:'kan80'},args=>({contents:mock[args.path]||(args.path==='component-Layout'?"import React from 'react';export default function Layout(p){return <main data-active-tab={p.activeTab}><nav><button onClick={()=>p.setActiveTab('dashboard')}>Test Dashboard</button><button onClick={()=>p.setActiveTab('ne')}>Test NE</button><button onClick={()=>p.setActiveTab('leverantorsskulder')}>Test Bokslutsskulder</button></nav>{p.children}</main>}":"export default function Placeholder(){return null}"),resolveDir:process.cwd(),loader:'tsx'}))
 }}]})
@@ -201,7 +204,7 @@ try {
  for (const width of [1280, 390]) {
   const context = await browser.newContext({ viewport: { width, height: 920 }, hasTouch: width < 500 })
   const url = 'http://127.0.0.1:47880/kan9'
-  await context.route('**/*', route => route.request().url() === url
+  await context.route('**/*', route => route.request().url().split('?')[0] === url
    ? route.fulfill({ contentType: 'text/html', body: '<meta charset="utf-8"><style>' + css + '</style><div id="root"></div><script>' + bundle.outputFiles[0].text + '</script>' })
    : route.abort())
   const page = await context.newPage()
@@ -241,11 +244,16 @@ try {
   const heading = guide.getByRole('heading', { level: 3 })
   const back = () => answer('Tillbaka').click()
   const cancel = () => answer('Avbryt guiden').click()
-  const start = async (description, use = 'Enbart i verksamheten') => {
+  const lookUp = async description => {
    if (!(await query.isVisible())) await summary.click()
    await query.fill(description)
    await query.press('Enter')
    await expect(query).toBeHidden()
+   await expect(heading).toBeFocused()
+  }
+  const start = async (description, use = 'Enbart i verksamheten') => {
+   await lookUp(description)
+   await answer('Fortsätt till frågorna').click()
    await expect(heading).toHaveText('Vad ska köpet användas till?')
    await expect(heading).toBeFocused()
    await answer(use).click()
@@ -274,6 +282,43 @@ try {
    field.value, field instanceof HTMLInputElement ? field.checked : null,
   ]))
   const beforeGuide = await readFormFields()
+  const referralCases = [
+   ['Betalat moms till Skatteverket', /fördes över från banken/, ['skattekonto', 'moms-redovisa-betala']],
+   ['Förde över pengar till skattekontot', /Pengar till\/från skattekontot/, ['skattekonto']],
+   ['Skatteverket har dragit momsen från skattekontot', /Avräkning på skattekontot/, ['skattekonto']],
+   ['Betalat preliminärskatt', /skattebeslutet/, ['skatt-forsta-aret']],
+   ['Eget uttag', /överföringar mellan dig och firman/, ['intakt-insattning']],
+   ['Egen insättning', /överföringar mellan dig och firman/, ['intakt-insattning']],
+   ['Privat betalt företagsinköp', /stöder privat betalning/, ['privat-betalning']],
+  ]
+  for (const [description, message, articleIds] of referralCases) {
+   await lookUp(description)
+   await expect(heading).toHaveText('Annat bokföringsärende')
+   await expect(guide.getByRole('status')).toHaveText(message)
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
+   await expect(guide.getByRole('link')).toHaveCount(articleIds.length)
+   for (const id of articleIds) {
+    const [helpPage] = await Promise.all([
+     context.waitForEvent('page'),
+     guide.locator(`a[href="?help=${id}"]`).click(),
+    ])
+    await expect(helpPage.getByRole('region', { name: 'Hjälp & FAQ' }).locator(`details[data-help-id="${id}"]`)).toHaveAttribute('open', '')
+    await helpPage.close()
+    assert.deepEqual(await readFormFields(), beforeGuide, 'Opening FAQ preserves the booking draft')
+   }
+   await back()
+   await expect(query).toHaveValue(description)
+   assert.deepEqual(await readFormFields(), beforeGuide)
+   await cancel()
+   assert.deepEqual(await readFormFields(), beforeGuide)
+  }
+  await lookUp('Kontorsmaterial')
+  await expect(heading).toHaveText('Kontorsmaterial')
+  await expect(guide.getByRole('status')).toContainText('saknas i din kontoplan')
+  await answer('Gå till Kontoplan').click()
+  await expect(page.locator('main')).toHaveAttribute('data-active-tab', 'kontoplan')
+  await page.getByRole('button', { name: 'Test Dashboard' }).click()
+  assert.deepEqual(await readFormFields(), beforeGuide)
   await summary.press('Enter')
   await expect(query).toBeFocused()
   await domestic('kurs')
@@ -359,24 +404,28 @@ try {
    await expect(category).toBeFocused()
    await expect(query).toBeHidden()
   }
-  await domestic('okänt xyz')
-  await expect(guide.getByRole('status')).toContainText('Förtydliga vad du köpte')
+  await lookUp('okänt xyz')
+  await expect(heading).toHaveText('Förtydliga vad du köpte')
+  await expect(guide.getByRole('status')).toContainText('Guiden hittade ingen inköpstyp')
+  await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
   await cancel()
   const beforePartial = await readFormFields()
   for (const description of ['Lightroom, monteringsarbete', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning']) {
-   await domestic(description)
+   await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
    assert.deepEqual(await readFormFields(), beforePartial, 'Partial match leaves the booking form untouched')
    await cancel()
   }
   for (const description of ['kurs och frakt till kund', 'mobilabonnemang och bredband', 'Meta Ads och extern retusch', 'Abonnemang för mobil och Lightroom']) {
-   await domestic(description)
+   await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
+   await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
    await cancel()
   }
-  await domestic('frakt eller porto')
+  await lookUp('frakt eller porto')
   await expect(guide.getByRole('status')).toContainText('varufrakt eller brevporto')
   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
   await cancel()
@@ -411,7 +460,7 @@ try {
    await expect(category).toHaveValue(row.id)
    await expect(vatRate).toHaveValue(String(row.default_vat_rate))
   }
-  await domestic('kurs och virke')
+  await lookUp('kurs och virke')
   await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
   await expect(choose(courses.name)).toHaveCount(0)
   await answer('Ändra beskrivningen').click()
@@ -421,6 +470,8 @@ try {
   await expect(guide.getByRole('status')).toContainText('hur köpet ska användas privat och i verksamheten')
   await back()
   await expect(heading).toHaveText('Vad ska köpet användas till?')
+  await back()
+  await expect(heading).toHaveText('Inventarier')
   await back()
   await expect(query).toHaveValue('kamera')
   await expect(query).toBeFocused()
@@ -433,7 +484,8 @@ try {
   await expect(guide.getByRole('status')).toContainText('vad kursen ska användas till')
   await expect(choose(courses.name)).toHaveCount(0)
   await cancel()
-  await start('privat lunch', 'Enbart privat')
+  await lookUp('privat lunch')
+  await answer('Det gäller ett helt privat köp').click()
   await answerPayment('Jag vet inte')
   await expect(choose('Eget uttag')).toHaveCount(0)
   await back()
@@ -442,7 +494,8 @@ try {
   await choose('Eget uttag').click()
   await expect(category).toHaveValue('eget_uttag')
   await vatRate.selectOption('12')
-  await start('privat lunch', 'Enbart privat')
+  await lookUp('privat lunch')
+  await answer('Det gäller ett helt privat köp').click()
   await answerPayment('Ja')
   await expect(vatRate).toHaveValue('12')
   await confirmVat('Eget uttag').click()
@@ -471,23 +524,34 @@ try {
   await page.getByText('Utlandsinköp', { exact: true }).click()
 
   const ads = expandedTopics[0][1]
-  for (const unavailable of [
-   { ...courses, hidden_from_new_booking: true },
-   { ...courses, debit_account: '6992' },
-   { ...courses, name: 'Egen ändrad kategori' },
-   { ...ads, default_vat_rate: 12 },
-   null,
+  for (const [unavailable, message] of [
+   [{ ...courses, hidden_from_new_booking: true }, /dold för ny bokföring/],
+   [{ ...courses, debit_account: '6992' }, /avviker från standardinställningarna/],
+   [{ ...courses, name: 'Egen ändrad kategori' }, /avviker från standardinställningarna/],
+   [{ ...ads, default_vat_rate: 12 }, /avviker från standardinställningarna/],
+   [null, /saknas i din kontoplan/],
   ]) {
    await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), [
     ...categories.filter(row => row.id !== (unavailable?.id ?? 'reklam')), ...(unavailable ? [unavailable] : []),
    ])
    await page.reload()
-   await domestic(unavailable?.id === 'kurser' ? 'kurs' : 'Meta-annonser')
+   await lookUp(unavailable?.id === 'kurser' ? 'kurs' : 'Meta-annonser')
+   await expect(guide.getByRole('status')).toHaveText(message)
+   await expect(answer('Gå till Kontoplan')).toBeVisible()
+   await answer('Fortsätt till frågorna').click()
+   await answer('Enbart i verksamheten').click()
+   await answer('Ja, i Sverige').click()
    await answerPurpose('Ja')
-   await expect(guide.getByRole('status')).toContainText('En matchande standardkategori är inte tillgänglig')
+   await expect(guide.getByRole('status')).toHaveText(message)
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
   }
-  await cancel()
+  await page.evaluate(() => localStorage.setItem('testGuideChartLoading', 'yes'))
+  await page.reload()
+  await lookUp('Kontorsmaterial')
+  await expect(guide.getByRole('status')).toContainText('Kontoplanen är inte färdigladdad')
+  await expect(answer('Gå till Kontoplan')).toHaveCount(0)
+  await page.evaluate(() => localStorage.removeItem('testGuideChartLoading'))
+  await page.reload()
   await domestic('hyrde en kamera')
   await answerPurpose('Nej')
   await expect(answer('Gå till Inventarier')).toHaveCount(0)

@@ -128,6 +128,31 @@ function normalize(text: string) {
   return text.normalize('NFC').toLocaleLowerCase('sv-SE').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 }
 
+export function findPurchaseGuideReferral(query: string) {
+  // Recognize complete descriptions of other bookkeeping events. A tax or
+  // payment word inside a purchase description is not enough to redirect it.
+  const description = normalize(query)
+  if (/^(?:jag |vi )?(?:har )?(?:förde över|fört över|överfört|överföring|betalat in|inbetalning)(?: pengar)?(?: från (?:företagskontot|banken))? till skattekontot$/.test(description)) {
+    return { articleId: 'skattekonto', message: 'Kontrollera bankraden under Pengar till/från skattekontot i Moms. En överföring visar inte att momsen har dragits.' }
+  }
+  if (/^(?:skatteverket har dragit moms(?:en)?(?: från skattekontot)?|moms(?:en)? (?:har )?(?:dragits|debiterats) på skattekontot|(?:debiterad moms|momsdebitering) på skattekontot)$/.test(description)) {
+    return { articleId: 'skattekonto', message: 'Jämför momsraden i skattekontots historik med Avräkning på skattekontot i Moms.' }
+  }
+  if (/^(?:momsbetalning|betala moms(?:en)?|(?:(?:jag |vi )?(?:har )?)?betalat moms(?:en)?(?: till (?:skatteverket|skattekontot))?)$/.test(description)) {
+    return { articleId: 'skattekonto', additionalArticleId: 'moms-redovisa-betala', message: 'Kontrollera om pengarna fördes över från banken eller om Skatteverket drog momsen på skattekontot. I Moms finns ett eget flöde för varje händelse.' }
+  }
+  if (/^(?:(?:betalat|betala) )?(?:preliminärskatt|f skatt)$/.test(description)) {
+    return { articleId: 'skatt-forsta-aret', message: 'Jämför betalningen med skattebeslutet och skattekontots historik.' }
+  }
+  if (/^(?:eget uttag|egen insättning|privat uttag)$/.test(description)) {
+    return { articleId: 'intakt-insattning', message: 'Läs hur du skiljer överföringar mellan dig och firman från företagets inköp och försäljning.' }
+  }
+  if (/^(?:privat utlägg|privat betalt företagsinköp|(?:företagsinköp|inköp (?:för|till) (?:firman|företaget)) betalt privat|betalat företagsinköp privat)$/.test(description)) {
+    return { articleId: 'privat-betalning', message: 'Läs vilka inköpsflöden som stöder privat betalning och hur du granskar betalningskällan.' }
+  }
+  return null
+}
+
 const purchasePrefix = /^(?:(?:jag|vi) )?(?:(?:har )?(?:köpte(?: in)?|köpt(?: in)?|betalade(?: för)?|betalat(?: för)?|hyrde|förnyade|beställde|inköp av|köp av) )?/
 const itemQualifiers = /^(?:(?:en|ett|min|mitt|ny|nytt|nya|begagnad|begagnat)(?: |$))*$/
 const simpleContext = /^(?:i|inom|om|för|till|på)(?: (?:en|ett|min|mitt|den|det|ny|nytt|nya|digital|digitalt|digitala|egen|eget|egna))* \p{L}[\p{L}\p{N}]*$/u
@@ -197,14 +222,15 @@ export function analyzePurchaseDescription(query: string) {
   return { matches, partial }
 }
 
-export function findGuideCategory(
+export function getGuideCategoryAvailability(
   topicId: string,
   categories: readonly GuideCategory[],
   ready: boolean,
 ) {
   const guidance = getBookingCategory(topicId)
   const preset = guidance && bookingCategoryToAccountPreset(guidance)
-  if (!preset) return null
+  if (!ready) return { status: 'loading' } as const
+  if (!preset) return { status: 'missing' } as const
 
   const legacyId = topicId === 'programvaror' ? 'prenumerationer'
     : topicId === 'foretagsforsakring' ? 'forsakring' : topicId
@@ -222,8 +248,19 @@ export function findGuideCategory(
       category.credit_account === expected.credit_account &&
       rate != null && String(rate).trim() !== '' && Number(rate) === expected.default_vat_rate
     ) {
-      return { category, guidance, account: expected.debit_account }
+      return { status: 'available', selection: { category, guidance, account: expected.debit_account } } as const
     }
   }
-  return null
+
+  const existing = categories.find(category => category.id === preset.id)
+    ?? categories.find(category => category.id === legacyId)
+  if (!existing) return { status: 'missing' } as const
+  if (existing.hidden_from_new_booking === true) return { status: 'hidden' } as const
+  if (existing.hidden_from_new_booking !== false) return { status: 'visibility-unknown' } as const
+  return { status: 'modified' } as const
+}
+
+export function findGuideCategory(topicId: string, categories: readonly GuideCategory[], ready: boolean) {
+  const availability = getGuideCategoryAvailability(topicId, categories, ready)
+  return availability.status === 'available' ? availability.selection : null
 }
