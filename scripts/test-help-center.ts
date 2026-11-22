@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { helpArticles, helpTopics, helpDestinations, findHelpArticle, searchHelp, normalizeHelpText } from '../src/lib/helpContent.ts'
-import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination } from '../src/lib/helpNavigation.ts'
+import { helpArticles, helpTopics, helpDestinations, findHelpArticle, findHelpSearchContext, searchHelp, searchHelpResults, normalizeHelpText } from '../src/lib/helpContent.ts'
+import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination, purchaseGuideHelpUrl, readPurchaseGuideHelpQuery } from '../src/lib/helpNavigation.ts'
 import { withdrawalHelpIds } from '../src/lib/withdrawalPresentation.ts'
 for (const id of Object.values(withdrawalHelpIds)) assert.ok(findHelpArticle(id), 'Every contextual withdrawal link resolves')
 
@@ -39,11 +39,47 @@ for (const query of ['rätta', 'ratta', 'korrigera']) includes(query, 'ratta-bok
 for (const query of ['utlägg', 'utlagg', 'privat betalning']) includes(query, 'privat-betalning')
 for (const query of ['uttagsutrymme', 'säkert uttag', 'sakert uttag']) includes(query, 'sakert-uttag')
 for (const query of ['skatt första året', 'preliminärskatt', 'kvarskatt', 'OCR']) includes(query, 'skatt-forsta-aret')
+for (const query of ['skattekonto', 'skattekontot']) includes(query, 'skattekonto')
 assert.deepEqual(searchHelp('', 'first-tax').map(article => article.id), ['skatt-forsta-aret'])
 assert.ok(findHelpArticle('skatt-forsta-aret')?.destinations?.includes('sakert-uttag'))
 assert.ok(searchHelp('momsfri', 'start').some(a => a.id === 'momsprofil-eu'))
 assert.ok(searchHelp('moms', 'vat').every(a => a.topic === 'vat'))
 assert.equal(searchHelp('R14', 'invoice').length, 0)
+assert.equal(searchHelp('el').length, 0, 'Short words cannot match inside longer words')
+assert.equal(searchHelp('!!!').length, 0)
+assert.equal(searchHelp('Skatt första året?')[0]?.id, 'skatt-forsta-aret', 'Exact title ranks first')
+assert.equal(searchHelp('R14')[0]?.id, 'ne-r14', 'Explicit article keyword ranks before body text')
+assert.equal(searchHelp('tryggt R14').length, 0, 'An unexplained word cannot fall back to a partial match')
+const targetedResults = {
+  'egen insättning': ['intakt-insattning'],
+  'insättning': ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
+  'insättning från kund': ['kundfakturor'],
+  'insättning från en kund': ['kundfakturor'],
+  'sätta in pengar': ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
+  'moms': ['moms-redovisa-betala', 'skattekonto', 'momsprofil-eu'],
+  'betala moms': ['skattekonto', 'moms-redovisa-betala'],
+  'moms betalning': ['skattekonto', 'moms-redovisa-betala'],
+  'periodisera': ['periodisering'],
+}
+for (const [query, ids] of Object.entries(targetedResults)) {
+  assert.deepEqual(searchHelp(query).map(article => article.id), ids, query)
+}
+assert.match(findHelpSearchContext('SÄTTA IN PENGAR?')?.message ?? '', /från en kund/)
+assert.match(findHelpSearchContext('betala moms')?.message ?? '', /överföring från banken eller en momshändelse/)
+assert.equal(findHelpSearchContext('moms på kurs och frakt'), undefined)
+assert.equal(findHelpSearchContext('egen insättning och kundbetalning'), undefined)
+assert.equal(findHelpSearchContext('insättning')?.destination, undefined)
+assert.equal(findHelpSearchContext('moms')?.destination, 'moms')
+assert.equal(findHelpSearchContext('moms betalning')?.destination, 'moms')
+assert.equal(findHelpSearchContext('moms betalning och insättning från kund'), undefined)
+assert.deepEqual(searchHelpResults('moms betalning').map(({ relevance }) => relevance), ['primary', 'primary'])
+assert.equal(searchHelpResults('R14').find(({ article }) => article.id === 'ne-r14')?.relevance, 'primary')
+assert.deepEqual(searchHelpResults('vinst').map(({ article, relevance }) => [article.id, relevance]), [
+  ['ne-r14', 'primary'],
+  ['skatt-forsta-aret', 'related'],
+])
+assert.equal(searchHelpResults('eventuell avdragsrätt för moms').find(({ article }) => article.id === 'privat-betalning')?.relevance, 'related')
+assert.deepEqual(findHelpArticle('kundfakturor')?.destinations, ['fakturor', 'arsavslut'])
 assert.equal(findHelpArticle('r14')?.id, 'ne-r14')
 assert.equal(findHelpArticle('unknown'), undefined)
 assert.equal(findHelpArticle(null), undefined)
@@ -61,6 +97,13 @@ assert.equal(next.searchParams.get('code'), 'synthetic-code')
 assert.equal(next.hash, new URL(authUrl).hash)
 assert.equal(next.searchParams.get('help'), 'skattekonto')
 assert.equal(new URL(helpNavigationUrl(authUrl, null), 'https://example.test').searchParams.has('help'), false)
+const helpFromGuide = new URL(purchaseGuideHelpUrl('intakt-insattning', 'Egen insättning & uttag'), 'https://example.test')
+assert.equal(helpFromGuide.search, '?help=intakt-insattning')
+assert.equal(readPurchaseGuideHelpQuery(helpFromGuide), 'Egen insättning & uttag')
+assert.equal(helpQuestionUrl(helpFromGuide.href, 'intakt-insattning'), 'https://example.test/?help=intakt-insattning')
+assert.equal(readPurchaseGuideHelpQuery(new URL(authUrl)), null)
+assert.equal(readPurchaseGuideHelpQuery(new URL('https://example.test/?help=intakt-insattning#help-query=test&access_token=synthetic')), null)
+assert.equal(readPurchaseGuideHelpQuery(new URL('https://example.test/#help-query=syntetisk')), null)
 assert.equal(isHelpDestination('moms'), true)
 assert.equal(isHelpDestination('sakert-uttag'), true)
 for (const value of ['admin', 'constructor', '__proto__', 'https://example.test', null]) assert.equal(isHelpDestination(value), false)

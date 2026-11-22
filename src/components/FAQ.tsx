@@ -1,9 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { Fragment, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import Image from 'next/image'
-import { helpArticles, helpTopics, helpDestinations, searchHelp, type HelpDestination, type HelpMedia } from '@/lib/helpContent'
+import { findHelpSearchContext, helpArticles, helpTopics, helpDestinations, searchHelpResults, type HelpDestination, type HelpMedia } from '@/lib/helpContent'
 import { helpQuestionUrl, type HelpReadingState } from '@/lib/helpNavigation'
+import { analyzePurchaseDescription, findPurchaseGuideReferral } from '@/lib/purchaseCategoryGuide'
+
+function hasPurchaseGuidance(query: string) {
+  if (!query.trim() || findPurchaseGuideReferral(query)) return false
+  const { matches, partial } = analyzePurchaseDescription(query)
+  return matches.length === 1 && !partial
+}
 
 export function HelpArticleMedia({ media }: { media: HelpMedia }) {
   const [opened, setOpened] = useState(false)
@@ -31,8 +38,12 @@ export default function FAQ({ reading, onReadingChange, unknownId, focusRevision
   const [manualLink, setManualLink] = useState<string | null>(null)
   const region = useRef<HTMLElement>(null)
   const search = useRef<HTMLInputElement>(null)
-  const entries = searchHelp(reading.query, reading.topic)
-  const title = reading.query.trim() ? 'Sökresultat' : helpTopics.find(topic => topic.id === reading.topic)?.label ?? 'Frågor och guider'
+  const entries = searchHelpResults(reading.query, reading.topic)
+  const searching = Boolean(reading.query.trim())
+  const context = findHelpSearchContext(reading.query)
+  const destination = reading.topic === 'all' || reading.topic === 'vat' ? context?.destination : undefined
+  const purchaseGuidance = reading.topic === 'all' && !context && hasPurchaseGuidance(reading.query)
+  const title = searching ? 'Sökresultat' : helpTopics.find(topic => topic.id === reading.topic)?.label ?? 'Frågor och guider'
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -63,9 +74,12 @@ export default function FAQ({ reading, onReadingChange, unknownId, focusRevision
       <p className="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-700">Hjälp & FAQ</p>
       <h1 tabIndex={-1} className="text-2xl font-bold tracking-tight sm:text-3xl">Vad vill du ha hjälp med?</h1>
       <p className="mt-3 text-base leading-relaxed text-slate-600">Hitta ett kort svar eller följ en guide, ett steg i taget.</p>
-      <label htmlFor="help-search" className="mb-2 mt-6 block text-sm font-semibold">Sök i frågor och guider</label>
+      <label htmlFor="help-search" className="mb-2 mt-6 block text-sm font-semibold">Sök bokföringshjälp</label>
       <div className="flex flex-wrap gap-2">
-        <input ref={search} id="help-search" type="search" autoComplete="off" value={reading.query} onChange={e => onReadingChange(previous => ({ ...previous, query: e.target.value }))} placeholder="Till exempel moms, R14 eller årslås" className="min-h-12 min-w-0 flex-[1_1_14rem] rounded-xl border border-slate-400 bg-white px-4 py-3 text-base" />
+        <input ref={search} id="help-search" type="search" autoComplete="off" value={reading.query} onChange={e => {
+          const query = e.currentTarget.value
+          onReadingChange(previous => ({ ...previous, query, open: [], anchor: null }))
+        }} placeholder="Till exempel moms, egen insättning eller periodisera" className="min-h-12 min-w-0 flex-[1_1_14rem] rounded-xl border border-slate-400 bg-white px-4 py-3 text-base" />
         {reading.query && <button type="button" onClick={() => { onReadingChange(previous => ({ ...previous, query: '' })); search.current?.focus() }} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold">Rensa sökning</button>}
       </div>
     </header>
@@ -81,31 +95,52 @@ export default function FAQ({ reading, onReadingChange, unknownId, focusRevision
       </nav>
       <div className="min-w-0">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">{title}</h2><p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-slate-600">{entries.length} av {helpArticles.length} frågor och guider</p></div>
-        {entries.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-semibold">Ingen träff</h3><p className="mt-2">Prova ett kortare ord eller välj Alla ämnen.</p><button type="button" className="mt-3 min-h-11 font-semibold text-emerald-800 underline" onClick={() => { onReadingChange(previous => ({ ...previous, query: '', topic: 'all' })); search.current?.focus() }}>Visa alla frågor</button></div>}
-        {entries.map(article => <details key={article.id} data-help-id={article.id} open={reading.open.includes(article.id)} onToggle={e => {
-          const opened = e.currentTarget.open
-          if (opened === reading.open.includes(article.id)) return
-          onReadingChange(previous => ({ ...previous, open: opened ? [...new Set([...previous.open, article.id])] : previous.open.filter(id => id !== article.id), anchor: article.id }))
-          if (opened) onQuestion(article.id)
-        }} className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <summary className="min-h-14 cursor-pointer px-4 py-5 text-base font-semibold leading-relaxed sm:px-5">{article.title}</summary>
-          <div className="space-y-4 border-t border-slate-200 px-4 py-5 text-base leading-relaxed sm:px-5">
-            {article.answerHeading && <h3 className="font-semibold">{article.answerHeading}</h3>}
-            <p>{article.answer}</p>
-            {article.applies && <p className="text-sm text-slate-600">{article.applies}</p>}
-            {article.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-            {article.stepsHeading && <h3 className="font-semibold">{article.stepsHeading}</h3>}
-            {article.steps && <ol className="list-decimal space-y-3 pl-6">{article.steps.map(step => <li key={step} className="pl-1">{step}</li>)}</ol>}
-            {article.warning && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Kontrollera: </strong>{article.warning}</p>}
-            <div className="flex flex-wrap gap-3">{article.destinations?.map(destination => <button key={destination} type="button" onClick={() => { onReadingChange(previous => ({ ...previous, anchor: article.id })); onNavigate(destination) }} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Öppna {helpDestinations[destination]}</button>)}</div>
-            {article.media && <HelpArticleMedia media={article.media} />}
-            <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-600">
-              {article.sources?.map(source => <p key={source.href}><a href={source.href} target="_blank" rel="noopener noreferrer" className="inline-block py-2 text-emerald-800 underline underline-offset-4">{source.label}<span className="sr-only"> (öppnas i ny flik)</span></a></p>)}
-              <p>Innehåll granskat {article.reviewed}. Kontrollera aktuellt år och dina förutsättningar.</p>
-              <button type="button" onClick={() => void copyLink(article.id)} className="min-h-11 py-2 font-semibold text-emerald-800 underline underline-offset-4" aria-label={`Kopiera frågelänk: ${article.title}`}>Kopiera frågelänk</button>
+        {context?.message && <p className="mb-4 text-sm text-slate-700">{context.message}</p>}
+        {destination && <section aria-labelledby="help-search-workflows" className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <h3 id="help-search-workflows" className="font-semibold">Arbetsflöden</h3>
+          <p className="mt-1 text-sm">{context?.destinationDescription}</p>
+          <button type="button" onClick={() => onNavigate(destination)} className="min-h-11 font-semibold text-emerald-800 underline">Öppna {helpDestinations[destination]}</button>
+        </section>}
+        {purchaseGuidance && <section aria-labelledby="help-search-purchases" className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <h3 id="help-search-purchases" className="font-semibold">Inköpstyper</h3>
+          <p className="mt-1 text-sm">Inköpsguiden har frågor för den här typen av inköp. Öppna Hjälp mig välja kategori i Bokföring för att gå igenom dem.</p>
+          <button type="button" onClick={() => onNavigate('dashboard')} className="min-h-11 font-semibold text-emerald-800 underline">Öppna Bokföring</button>
+        </section>}
+        {entries.length === 0 && !destination && !purchaseGuidance && <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-semibold">Ingen träff</h3><p className="mt-2">Prova att beskriva vad som hänt eller välj Alla ämnen.</p><button type="button" className="mt-3 min-h-11 font-semibold text-emerald-800 underline" onClick={() => { onReadingChange(previous => ({ ...previous, query: '', topic: 'all' })); search.current?.focus() }}>Visa alla frågor</button></div>}
+        {entries.map(({ article, relevance }, index) => <Fragment key={article.id}>
+          {searching && entries[index - 1]?.relevance !== relevance && <h3 className="mb-2 mt-4 font-semibold">
+            {relevance === 'primary' ? 'Primära sökresultat' : 'Relaterade lästips'}
+          </h3>}
+          <details data-help-id={article.id} open={reading.open.includes(article.id)} onToggle={e => {
+            const opened = e.currentTarget.open
+            if (opened === reading.open.includes(article.id)) return
+            onReadingChange(previous => ({ ...previous, open: opened ? [...new Set([...previous.open, article.id])] : previous.open.filter(id => id !== article.id), anchor: article.id }))
+            if (opened) onQuestion(article.id)
+          }} className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <summary className="min-h-14 cursor-pointer px-4 py-5 text-base font-semibold leading-relaxed sm:px-5">
+              {article.title}
+              {searching && relevance === 'primary' && !reading.open.includes(article.id) && <span className="mt-1 block text-sm font-normal text-slate-600">
+                {article.searchDescription ?? helpTopics.find(topic => topic.id === article.topic)?.label}
+              </span>}
+            </summary>
+            <div className="space-y-4 border-t border-slate-200 px-4 py-5 text-base leading-relaxed sm:px-5">
+              {article.answerHeading && <h3 className="font-semibold">{article.answerHeading}</h3>}
+              <p>{article.answer}</p>
+              {article.applies && <p className="text-sm text-slate-600">{article.applies}</p>}
+              {article.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+              {article.stepsHeading && <h3 className="font-semibold">{article.stepsHeading}</h3>}
+              {article.steps && <ol className="list-decimal space-y-3 pl-6">{article.steps.map(step => <li key={step} className="pl-1">{step}</li>)}</ol>}
+              {article.warning && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Kontrollera: </strong>{article.warning}</p>}
+              <div className="flex flex-wrap gap-3">{article.destinations?.map(destination => <button key={destination} type="button" onClick={() => { onReadingChange(previous => ({ ...previous, anchor: article.id })); onNavigate(destination) }} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Öppna {helpDestinations[destination]}</button>)}</div>
+              {article.media && <HelpArticleMedia media={article.media} />}
+              <div className="space-y-2 border-t border-slate-200 pt-3 text-sm text-slate-600">
+                {article.sources?.map(source => <p key={source.href}><a href={source.href} target="_blank" rel="noopener noreferrer" className="inline-block py-2 text-emerald-800 underline underline-offset-4">{source.label}<span className="sr-only"> (öppnas i ny flik)</span></a></p>)}
+                <p>Innehåll granskat {article.reviewed}. Kontrollera aktuellt år och dina förutsättningar.</p>
+                <button type="button" onClick={() => void copyLink(article.id)} className="min-h-11 py-2 font-semibold text-emerald-800 underline underline-offset-4" aria-label={`Kopiera frågelänk: ${article.title}`}>Kopiera frågelänk</button>
+              </div>
             </div>
-          </div>
-        </details>)}
+          </details>
+        </Fragment>)}
       </div>
     </div>
     <p role="status" aria-live="polite" className="mt-4 text-sm text-slate-700">{copyNotice}</p>

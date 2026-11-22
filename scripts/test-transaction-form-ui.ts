@@ -6,6 +6,7 @@ import { defaultCustomerInvoiceVatTreatment } from '../src/lib/customerInvoiceUi
 import { categoryUsesDomesticSalesVatPolicy, isOwnerDepositCategoryId } from '../src/lib/accountCategoryUi.ts'
 import { getOrdinarySalesVatPolicy } from '../src/lib/domesticSalesVatPolicy.ts'
 import { parseStandardBookingAmount } from '../src/lib/standardBookingAmount.ts'
+import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability } from '../src/lib/purchaseCategoryGuide.ts'
 
 function readSource(file: string, encoding: 'utf8') {
   return readFileSync(file, encoding).replace(/\r\n/g, '\n')
@@ -22,6 +23,266 @@ const transactionFormSource = readSource(
   'utf8'
 )
 const appPageSource = readSource('src/app/page.tsx', 'utf8')
+
+for (const [query, ids, partial = false, equipmentCheck = undefined] of [
+  ['Jag köpte kamerahuset med ett objektiv och SD‑kort', 'inventarier', true],
+  ['Kameran behöver ett minneskort', 'inventarier', true],
+  ['Köpte ett kamerahus med objektiv', 'inventarier', false, 'together'],
+  ['Jag köpte ett nytt kamerahus med ett objektiv', 'inventarier', false, 'together'],
+  ['Minneskort till kameran', 'inventarier', false, 'reuse'],
+  ['Batteri till kameran', 'inventarier', false, 'reuse'],
+  ['Nytt batteri till borrmaskinen', 'inventarier', false, 'reuse'],
+  ['Ny bildskärm till datorn', 'inventarier', false, 'reuse'],
+  ['Monitorn', 'inventarier'],
+  ['Fotobakgrund', 'inventarier', false, 'reuse'],
+  ['Fotobakgrunden och logi', 'inventarier', true],
+  ['Fotobakgrund som förbrukas', 'inventarier', true],
+  ['Minneskort till kameran och montering', 'inventarier', true],
+  ['Batteri och servicekostnad till kameran', 'inventarier', true],
+  ['Bildskärm eller dator', 'inventarier', true],
+  ['Köpte ett stativ och en blixt', 'inventarier', false, 'together'],
+  ['Stativ och blixt och montering', 'inventarier', true],
+  ['Stativ och frakt', 'inventarier,frakt'],
+  ['Köpte en kurs i fotografering', 'kurser'],
+  ['Köpte en kurs i digital fotografering', 'kurser'],
+  ['betala för utbildning', 'kurser'],
+  ['Betala för en utbildning', 'kurser'],
+  ['Betala för frakt', 'frakt'],
+  ['Betala för utbildning och frakt', 'kurser,frakt'],
+  ['Betala för utbildning och logi', 'kurser', true],
+  ['Betala för utbildning i Danmark', 'kurser', true],
+  ['Betala för utbildning för privat bruk', 'kurser', true],
+  ['Betala för utbildning utan moms', 'kurser', true],
+  ['Betala för köp av utbildning', 'kurser', true],
+  ['Adobe Creative Cloud', 'programvaror'],
+  ['Adobe Lightroom', 'programvaror'],
+  ['Adobe Lightroom abonnemang', 'programvaror'],
+  ['Abonnemang på Lightroom', 'programvaror'],
+  ['Abonnemang på Adobe Lightroom', 'programvaror'],
+  ['Lightroom abonnemang på Photoshop', 'programvaror', true],
+  ['Adobe Lightroom abonnemang på Capture One', 'programvaror', true],
+  ['Capture One prenumeration för Premiere Pro', 'programvaror', true],
+  ['Lightroom abonnemang för bredband', 'programvaror,internet'],
+  ['Capture One prenumeration', 'programvaror'],
+  ['Prenumeration på Capture One', 'programvaror'],
+  ['Adobe Lightroom abonnemang med IT-support', 'programvaror,it_tjanster'],
+  ['Adobe Lightroom abonnemang och montering', 'programvaror', true],
+  ['Internet abonnemang och Lightroom', 'programvaror,internet'],
+  ['Jag förnyade Lightroom', 'programvaror'],
+  ['Program för bokföring', 'programvaror'],
+  ['Papper för fotoutskrift', 'varor_material'],
+  ['Betalade hyran för studion', 'lokalhyra'],
+  ['hyra lokal', 'lokalhyra'],
+  ['hyrde en lokal', 'lokalhyra'],
+  ['Jag betalade hyra för verksamhetslokalen', 'lokalhyra'],
+  ['Hyra för hemmakontor', 'lokalhyra', true],
+  ['Hyra av maskin', 'lokalhyra,inventarier'],
+  ['Hyra i en lokal', 'lokalhyra', true],
+  ['Hyrde en lokal och logi', 'lokalhyra', true],
+  ['Hyra lokal väktartjänst', 'lokalhyra', true],
+  ['Kontor', ''],
+  ['Elräkning för lokalen', 'el_verksamhetslokal'],
+  ['Betalade elräkningen för verksamhetslokalen', 'el_verksamhetslokal'],
+  ['Elräkning för bostaden', 'el_verksamhetslokal', true],
+  ['El för laddning', 'el_verksamhetslokal', true],
+  ['Hushållsel', ''],
+  ['Elräkning och vattenavgift', 'el_verksamhetslokal', true],
+  ['Kontorsmaterial', 'kontorsmaterial'],
+  ['Kontorsmateriel och logi', 'kontorsmaterial', true],
+  ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster', true],
+  ['Kurs och frakt till kund', 'kurser,frakt'],
+  ['kurs och virke', 'kurser,varor_material'],
+  ['Lightroom, monteringsarbete', 'programvaror', true],
+  ['frakt Lightroom', 'programvaror,frakt'],
+  ['kurs i fotografering och montering', 'kurser', true],
+  ['kurs i fotografering frakt', 'kurser,frakt'],
+  ['kurs i fotografering frakt till kund', 'kurser,frakt'],
+  ['kurs. Montering separat', 'kurser', true],
+  ['kamerahus med okänt tillbehör', 'inventarier', true],
+  ['Fotokursen och Lightroom', 'kurser,programvaror'],
+  ['Program för bokföring och hjälp med bokslutet', 'programvaror,redovisningstjanster'],
+  ['Skrivarpapper och fotopappret', 'varor_material,kontorsmaterial'],
+  ['Hyra kamera', 'lokalhyra,inventarier'],
+  ['Apparat, frakt och Google Ads', 'reklam,frakt'],
+  ['Köpte annonser på Meta', 'reklam'],
+  ['Meta-annonser', 'reklam'],
+  ['Annonser på Google', 'reklam'],
+  ['Betalade för extern retusch i ett kunduppdrag', 'kopta_tjanster_kunduppdrag'],
+  ['Tåg till ett kunduppdrag', 'resor'],
+  ['Kunduppdrag', ''],
+  ['Frakt av fotoböcker till kund', 'frakt'],
+  ['Betalat frakten', 'frakt'],
+  ['Frakter', 'frakt'],
+  ['Frakt av varor till kund', 'frakt'],
+  ['Betalat frakten och städning', 'frakt', true],
+  ['Porto för brev', 'porto'],
+  ['frakt eller porto', 'frakt,porto'],
+  ['Fotoböcker med frakt', 'frakt', true],
+  ['Försäkring för kamerautrustning', 'foretagsforsakring'],
+  ['Mobilabonnemang', 'mobiltelefoni'],
+  ['Mobilabonnemang för företaget', 'mobiltelefoni'],
+  ['Telefonabonnemang', 'mobiltelefoni'],
+  ['Abonnemang för mobil', 'mobiltelefoni'],
+  ['Jag betalade ett abonnemang för telefon', 'mobiltelefoni'],
+  ['Abonnemang för mobiltelefon', 'mobiltelefoni'],
+  ['Abonnemang för bredband', 'internet'],
+  ['Abonnemang för internet', 'internet'],
+  ['Abonnemang på internet', 'internet'],
+  ['Programvaruabonnemang', 'programvaror'],
+  ['Abonnemang för programvara', 'programvaror'],
+  ['Abonnemang på Lightroom', 'programvaror'],
+  ['Prenumeration på Lightroom', 'programvaror'],
+  ['Abonnemang', 'programvaror', true],
+  ['Prenumeration', 'programvaror', true],
+  ['Prenumeration på tidning', 'programvaror', true],
+  ['Abonnemang för streaming', 'programvaror', true],
+  ['Abonnemang för telefon och tidning', 'mobiltelefoni', true],
+  ['Abonnemang för telefon och Lightroom', 'programvaror,mobiltelefoni'],
+  ['Abonnemang för mobil eller bredband', 'mobiltelefoni,internet'],
+  ['Abonnemang på internet, programvaruabonnemang', 'programvaror,internet'],
+  ['Abonnemang på Lightroom med IT-support', 'programvaror,it_tjanster'],
+  ['Köpte en mobiltelefon', ''],
+  ['Betalade bredbandsabonnemanget', 'internet'],
+  ['Webbuppkoppling för studion', 'internet'],
+  ['Mobilabonnemang och bredband', 'mobiltelefoni,internet'],
+  ['Bankens kontoavgift', 'bankavgift'],
+  ['Överföring från bank', ''],
+  ['Bankavgift plus ränta', 'bankavgift', true],
+  ['Tågbiljett och logi', 'resor', true],
+  ['Företagsförsäkring och logi', 'foretagsforsakring', true],
+  ['Porto och logi', 'porto', true],
+  ['Meta-annonser och logi', 'reklam', true],
+  ['Extern retusch och monteringsarbete', 'kopta_tjanster_kunduppdrag', true],
+  ['Mobilabonnemang med telefon', 'mobiltelefoni', true],
+  ['Webbuppkoppling med router', 'internet', true],
+  ['IT-support för Lightroom', 'programvaror,it_tjanster'],
+  ['Programvara för drift', 'programvaror', true],
+  ['IT-support för företaget', 'it_tjanster'],
+  ['IT-tjänster', 'it_tjanster'],
+  ['Betalat för tekniskt arbete', 'it_tjanster'],
+  ['IT-support i ett kunduppdrag', 'it_tjanster', true],
+  ['IT-support och monteringsarbete', 'it_tjanster', true],
+  ['IT-support med extern retusch', 'kopta_tjanster_kunduppdrag,it_tjanster'],
+  ['Support', ''],
+  ['…', ''],
+] as const) {
+  const result = analyzePurchaseDescription(query)
+  assert(result.matches.map(topic => topic.id).join(',') === ids, `Unexpected guide search result for "${query}"`)
+  assert(result.partial === partial, `Unexpected partial-match result for "${query}"`)
+  assert(result.equipmentCheck === equipmentCheck, `Unexpected equipment question for "${query}"`)
+}
+
+for (const [query, expected] of [
+  ['kontorsmatrial', 'kontorsmaterial'], ['mineskort', 'minneskort'],
+  ['kontorsmatrial och logi', null], ['mineskort till kameran', null], ['mneskrt', null],
+] as const) {
+  const result = analyzePurchaseDescription(query)
+  assert((result.spellingSuggestion ?? null) === expected, `Unexpected spelling suggestion for "${query}"`)
+  if (expected) assert(result.matches.length === 0, 'A spelling suggestion cannot create a category match')
+}
+
+for (const [query, expected] of [
+  ['Momsbetalning', 'skattekonto'],
+  ['Moms har debiterats på skattekontot', 'skattekonto'],
+  ['Överfört från företagskontot till skattekontot', 'skattekonto'],
+  ['Förde över pengar till skattekontot', 'skattekonto'],
+  ['F-skatt', 'skatt-forsta-aret'],
+  ['Eget uttag', 'intakt-insattning'],
+  ['Egen insättning', 'intakt-insattning'],
+  ['Inköp för firman betalt privat', 'privat-betalning'],
+] as const) {
+  const referral = findPurchaseGuideReferral(query)
+  assert(referral?.articleId === expected, `Unexpected help referral for "${query}"`)
+}
+for (const query of ['Kurs om moms', 'Eget uttag och kurs', 'Batteri till kameran', 'Skatteverket har inte dragit moms']) {
+  assert(!findPurchaseGuideReferral(query), `Uncertain or mixed search must not redirect: "${query}"`)
+}
+
+const office = { id: 'kontorsmaterial', name: 'Kontorsmaterial', debit_account: '6110', credit_account: '1930', default_vat_rate: 25, hidden_from_new_booking: false }
+assert(getGuideCategoryAvailability(office.id, [], true).status === 'missing', 'Missing office supplies')
+assert(getGuideCategoryAvailability(office.id, [office], false).status === 'loading', 'Unavailable chart')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, hidden_from_new_booking: true }], true).status === 'hidden', 'Hidden office supplies')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, hidden_from_new_booking: null }], true).status === 'visibility-unknown', 'Unknown visibility')
+assert(getGuideCategoryAvailability(office.id, [{ ...office, default_vat_rate: 12 }], true).status === 'modified', 'Modified office supplies')
+assert(getGuideCategoryAvailability(office.id, [office], true).status === 'available', 'Visible standard office supplies')
+
+const standardRows = [
+  ['lokalhyra', 'Hyra för verksamhetslokal', '5010', 0],
+  ['el_verksamhetslokal', 'El för verksamhetslokal', '5020', 25],
+  ['kontorsmaterial', 'Kontorsmaterial', '6110', 25],
+  ['it_tjanster', 'IT-tjänster', '6540', 25],
+  ['reklam', 'Reklam & annonsering', '5910', 25],
+  ['kopta_tjanster_kunduppdrag', 'Köpta tjänster för kunduppdrag', '4600', 25],
+  ['frakt', 'Frakt & varutransporter', '5710', 25],
+  ['porto', 'Porto', '6250', 25],
+  ['resor', 'Resor i verksamheten', '5800', 6],
+  ['foretagsforsakring', 'Företagsförsäkring', '6310', 0],
+  ['mobiltelefoni', 'Mobiltelefoni', '6212', 25],
+  ['internet', 'Internet & datakommunikation', '6230', 25],
+  ['bankavgift', 'Bankavgifter', '6570', 0],
+] as const
+for (const [id, name, debit_account, default_vat_rate] of standardRows) {
+  const row = { id, name, debit_account, default_vat_rate, credit_account: '1930', hidden_from_new_booking: false }
+  assert(findGuideCategory(id, [row], true)?.account === debit_account, `${id} must resolve to its catalog account`)
+  assert(!findGuideCategory(id, [row], false), `${id} must wait for the chart of accounts`)
+  assert(!findGuideCategory(id, [], true), `${id} must not be offered when missing`)
+  for (const changes of [
+    { hidden_from_new_booking: true }, { name: 'Eget namn' },
+    { debit_account: '6990' }, { credit_account: '1920' }, { default_vat_rate: 12 },
+  ]) {
+    assert(!findGuideCategory(id, [{ ...row, ...changes }], true), `${id} must not be offered after ${JSON.stringify(changes)}`)
+  }
+}
+const legacyElectricity = {
+  id: 'el-lokal', name: 'El för verksamhetslokal', debit_account: '5020', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}
+const legacyInsurance = {
+  id: 'forsakring', name: 'Företagsförsäkring', debit_account: '6310', credit_account: '1930',
+  default_vat_rate: 0, hidden_from_new_booking: false,
+}
+const legacySoftware = {
+  id: 'prenumerationer', name: 'Prenumerationer & programvaror', debit_account: '5420', credit_account: '1930',
+  default_vat_rate: '25', hidden_from_new_booking: false,
+}
+for (const [id, name, older] of [
+  ['el_verksamhetslokal', 'El för verksamhetslokal', legacyElectricity],
+  ['foretagsforsakring', 'Företagsförsäkring', legacyInsurance],
+  ['programvaror', 'Programvaror & prenumerationer', legacySoftware],
+] as const) {
+  const current = { ...older, id, name, default_vat_rate: Number(older.default_vat_rate) }
+  assert(findGuideCategory(id, [current], true)?.category.id === id, `${id} must accept the current preset`)
+  assert(findGuideCategory(id, [older, current], true)?.category.id === id, `${id} must prefer the current preset when both verify`)
+  assert(findGuideCategory(id, [older], true)?.category.id === older.id, `${id} must still accept a verified older preset on its own`)
+  assert(getGuideCategoryAvailability(id, [], true).status === 'missing', `${id} must report a missing category`)
+  assert(!findGuideCategory(id, [older, current], false), `${id} must wait for the chart of accounts`)
+  for (const [changes, status] of [
+    [{ hidden_from_new_booking: true }, 'hidden'],
+    [{ hidden_from_new_booking: null }, 'visibility-unknown'],
+    [{ default_vat_rate: 12 }, 'modified'],
+    [{ name: 'Anpassad kategori' }, 'modified'],
+    [{ debit_account: '6990' }, 'modified'],
+    [{ credit_account: '1920' }, 'modified'],
+  ] as const) {
+    const alteredCurrent = { ...current, ...changes }
+    const alteredOlder = { ...older, ...changes }
+    assert(getGuideCategoryAvailability(id, [alteredCurrent], true).status === status, `Current ${id} must report ${status}`)
+    assert(getGuideCategoryAvailability(id, [alteredOlder], true).status === status, `Older ${id} must report ${status}`)
+    for (const rows of [[alteredCurrent, older], [current, alteredOlder]]) {
+      assert(getGuideCategoryAvailability(id, rows, true).status === 'conflict', `${id} must report conflict despite one verified row`)
+      assert(!findGuideCategory(id, rows, true), `${id} must not propose a category on conflict`)
+    }
+  }
+}
+const legacyAdvertising = {
+  id: 'reklam', name: 'Reklam & Annonsering', debit_account: '5900', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}
+assert(!findGuideCategory('reklam', [legacyAdvertising], true), 'The old advertising preset on 5900 must not substitute for 5910')
+assert(findGuideCategory('frakt', [{
+  id: 'frakt', name: 'Frakt & transporter', debit_account: '5710', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}], true)?.category.id === 'frakt', 'An equivalent older name for the same freight ID remains usable')
 
 assert(
   transactionFormSource.includes(
@@ -328,7 +589,9 @@ const pageTree = ts.createSourceFile('page.tsx', normalizationSource, ts.ScriptT
 const formTree = ts.createSourceFile('TransactionForm.tsx', transactionFormSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 let normalization: ts.CallExpression | undefined
 let categoryChange: ts.Expression | undefined
+let selectCategory: ts.FunctionDeclaration | undefined
 let vatChange: ts.Expression | undefined
+let categoryVatRate: ts.FunctionDeclaration | undefined
 let editableAmounts: ts.IfStatement | undefined
 function findNormalization(node: ts.Node) {
   if (ts.isCallExpression(node) && node.expression.getText(pageTree) === 'useEffect' &&
@@ -338,6 +601,8 @@ function findNormalization(node: ts.Node) {
   ts.forEachChild(node, findNormalization)
 }
 function findFormHandlers(node: ts.Node) {
+  if (ts.isFunctionDeclaration(node) && node.name?.text === 'selectCategory') selectCategory = node
+  if (ts.isFunctionDeclaration(node) && node.name?.text === 'categoryVatRate') categoryVatRate = node
   if (ts.isJsxOpeningElement(node) && node.tagName.getText(formTree) === 'select') {
     const attrs = node.attributes.properties.filter(ts.isJsxAttribute)
     const label = attrs.find(attr => attr.name.getText(formTree) === 'aria-label')?.initializer
@@ -351,7 +616,7 @@ function findFormHandlers(node: ts.Node) {
   ts.forEachChild(node, findFormHandlers)
 }
 findNormalization(pageTree); findFormHandlers(formTree)
-assert(normalization && categoryChange && vatChange && editableAmounts, 'Actual form effect, handlers and saved-amount guard exist')
+assert(normalization && categoryChange && selectCategory && vatChange && editableAmounts, 'Actual form effect, handlers and saved-amount guard exist')
 const accounts = [
   { id: 'cost25', debit_account: '6110', credit_account: '1930', default_vat_rate: 25 },
   { id: 'cost12', debit_account: '6212', credit_account: '1930', default_vat_rate: 12 },
@@ -371,6 +636,8 @@ vm.createContext(context)
 const operations = vm.runInContext(ts.transpileModule(`
   const normalize = ${normalization.arguments[0].getText(pageTree)};
   const dependencies = () => ${normalization.arguments[1].getText(pageTree)};
+  ${categoryVatRate?.getText(formTree) ?? ''}
+  ${selectCategory.getText(formTree)}
   const category = ${categoryChange.getText(formTree)};
   const vat = ${vatChange.getText(formTree)};
   ({normalize, dependencies, category, vat})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context) as {

@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import FavoriteChips, { Favorite } from './FavoriteChips'
 import AccountingAttachmentHistory from './AccountingAttachmentHistory'
 import SwedishDateInput from './SwedishDateInput'
+import PurchaseCategoryGuide from './PurchaseCategoryGuide'
 import type { CompanyVatProfileAdapterResult } from '@/lib/vatProfileAdapter'
 import type {
   DomesticSalesVatTreatment,
@@ -107,6 +108,7 @@ interface TransactionFormProps {
   onOpenPaymentAccountSettings: () => void
   onOpenCustomerInvoices: () => void
   onOpenFixedAssets: () => void
+  onOpenChart: () => void
 }
 
 const initialVatV2Facts: VatV2TransactionFacts = {
@@ -189,12 +191,15 @@ export default function TransactionForm({
   onOpenPaymentAccountSettings,
   onOpenCustomerInvoices,
   onOpenFixedAssets,
+  onOpenChart,
 }: TransactionFormProps) {
   const [ordinaryAmountSubmitAttempted, setOrdinaryAmountSubmitAttempted] = useState(false)
   const [favName, setFavName] = useState('')
   const [showFavInput, setShowFavInput] = useState(false)
   const [descriptionHighlight, setDescriptionHighlight] = useState(false)
   const [favRefreshKey, setFavRefreshKey] = useState(0)
+  const categorySelectRef = useRef<HTMLSelectElement>(null)
+  const supplierCountryRef = useRef<HTMLSelectElement>(null)
   const [vatV2Facts, setVatV2Facts] =
     useState<VatV2TransactionFacts>(initialVatV2Facts)
   const [vatV2PaymentSourceChoice, setVatV2PaymentSourceChoice] =
@@ -510,6 +515,44 @@ export default function TransactionForm({
     }
   }
 
+  function categoryVatRate(id: string) {
+    const account = kontoplan.find(item => item.id === id)
+    return (
+      !id ||
+      isOwnerDepositCategoryId(id) ||
+      isNotVatRegistered ||
+      (account && categoryUsesDomesticSalesVatPolicy(account) && ordinarySalesVatPolicy.vatRateLocked)
+        ? 0
+        : Number(account?.default_vat_rate) || 0
+    )
+  }
+
+  function selectCategory(id: string) {
+    setFormData({
+      ...formData,
+      type: id,
+      vatRate: categoryVatRate(id),
+      inputVatDeduction: 'profile_default',
+    })
+  }
+
+  function guideChangesCategoryFields(id: string) {
+    return id !== formData.type || (id === 'eget_uttag' && formData.vatRate !== 0)
+  }
+
+  function guideVatChange(id: string) {
+    if (!guideChangesCategoryFields(id)) return null
+    const nextRate = categoryVatRate(id)
+    const changes = []
+    if (nextRate !== formData.vatRate) {
+      changes.push(`Moms på fakturan ändras från ${formData.vatRate} % till ${nextRate} %.`)
+    }
+    if (formData.inputVatDeduction !== 'profile_default') {
+      changes.push('Det manuella valet av momsavdrag återställs till företagsprofilens standard.')
+    }
+    return changes.length ? changes.join(' ') : null
+  }
+
   function handleFavoriteSelect(fav: Favorite) {
     if (categoryError(fav.type)) return
     const favoriteCategory = kontoplan.find(k => k.id === fav.type)
@@ -565,6 +608,24 @@ export default function TransactionForm({
 
       {selectedCategoryError && <p role="alert" className="mb-3 text-sm text-amber-800">{selectedCategoryError}</p>}
       {editingId && <AccountingAttachmentHistory owner={userId} entityType="transaction" entityId={editingId} locked={isYearLocked} onUpload={onUploadAttachment} />}
+      {showVatV2Assessment && showOrdinaryV1Fields && !isYearLocked && (
+        <PurchaseCategoryGuide
+          categories={kontoplan}
+          ready={kontoplanReady}
+          getVatChange={guideVatChange}
+          onChooseCategory={id => {
+            if (categoryError(id)) return
+            if (guideChangesCategoryFields(id)) selectCategory(id)
+            categorySelectRef.current?.focus()
+          }}
+          onOpenForeignPurchase={() => {
+            handleVatV2Toggle(true)
+            requestAnimationFrame(() => supplierCountryRef.current?.focus())
+          }}
+          onOpenFixedAssets={onOpenFixedAssets}
+          onOpenChart={onOpenChart}
+        />
+      )}
       <form onSubmit={vatV2AssessmentEnabled ? handleVatV2Submit : handleOrdinarySubmit}>
         {editingBooked ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-5 py-4">
@@ -623,40 +684,9 @@ export default function TransactionForm({
                 </label>
 
                 <select
+                  ref={categorySelectRef}
                   value={formData.type}
-                  onChange={e => {
-                    if (!e.target.value) {
-                      setFormData({
-                        ...formData,
-                        type: '',
-                        vatRate: 0,
-                        inputVatDeduction: 'profile_default',
-                      })
-                      return
-                    }
-
-                    const acc = kontoplan.find(
-                      k => k.id === e.target.value
-                    )
-
-                    const nextVatRate =
-                      isOwnerDepositCategoryId(e.target.value) ||
-                      isNotVatRegistered ||
-                      (
-                        acc &&
-                        categoryUsesDomesticSalesVatPolicy(acc) &&
-                        ordinarySalesVatPolicy.vatRateLocked
-                      )
-                        ? 0
-                        : Number(acc?.default_vat_rate) || 0
-
-                    setFormData({
-                      ...formData,
-                      type: e.target.value,
-                      vatRate: nextVatRate,
-                      inputVatDeduction: 'profile_default',
-                    })
-                  }}
+                  onChange={event => selectCategory(event.target.value)}
                   disabled={editingBooked || isYearLocked || (!editingId && !kontoplanReady)}
                   aria-label="Kategori"
                   required
@@ -961,7 +991,7 @@ export default function TransactionForm({
             {isNotVatRegistered && (
               <div className="col-span-2 lg:col-span-12 -mt-1 px-1">
                 <p className="sl-secondary-copy text-[9px] font-bold">
-                  Företaget är markerat som inte momsregistrerat. Nya bokningar görs därför med 0 % moms.
+                  Profilen anger att företaget inte är momsregistrerat. I det vanliga bokföringsformuläret används då 0 % moms. För köp från en utländsk säljare, kontrollera momsbehandlingen via Utlandsinköp.
                 </p>
               </div>
             )}
@@ -1067,6 +1097,7 @@ export default function TransactionForm({
                       Leverantörsland
                     </label>
                     <select
+                      ref={supplierCountryRef}
                       value={vatV2Facts.supplierCountry}
                       onChange={e =>
                         updateVatV2Facts({

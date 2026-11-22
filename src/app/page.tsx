@@ -1318,6 +1318,7 @@ function HomeSession({ auth }: { auth: ReturnType<typeof useAuth> }) {
               onOpenPaymentAccountSettings={() => setActiveTab('profil')}
               onOpenCustomerInvoices={() => setActiveTab('fakturor')}
               onOpenFixedAssets={() => setActiveTab('inventarier')}
+              onOpenChart={() => setActiveTab('kontoplan')}
             />
             </fieldset>
           </div>
