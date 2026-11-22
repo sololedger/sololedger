@@ -26,6 +26,7 @@ export type HelpMedia =
   | { kind: 'video'; src: string; caption: string; captions: string; transcript: string }
 export type HelpArticle = {
   id: string; aliases?: string[]; topic: HelpTopic; title: string; answer: string
+  searchDescription?: string
   applies?: string; paragraphs?: string[]; steps?: string[]; warning?: string
   keywords: string[]; destinations?: HelpDestination[]
   sources?: { label: string; href: string }[]; reviewed: string; media?: HelpMedia
@@ -79,6 +80,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'momsprofil-eu', topic: 'start', title: 'Kan jag vara momsregistrerad och ändå sälja utan moms?',
+    searchDescription: 'Momsregistrering vid EU-inköp och momsbefriad försäljning i Sverige.',
     answer: 'Ja, registrering kan behövas för vissa EU-inköp samtidigt som svensk försäljning är momsbefriad och normal avdragsrätt saknas.',
     applies: 'Detta är en möjlig kombination, inte en regel för alla företag eller utländska inköp.',
     steps: ['Kontrollera företagets registrering och hur det aktuella inköpet ska redovisas.', 'Ange momsregistrering, svensk försäljningsbehandling, utländska inköp och normal avdragsrätt separat i Profil.', 'Spara uppgifterna. Granska sedan det enskilda inköpet och dess avdragsrätt i det stödda bokföringsflödet.'],
@@ -105,6 +107,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'privat-betalning', topic: 'book', title: 'Hur bokför jag ett inköp som jag betalat privat?',
+    searchDescription: 'Betalningskälla och underlag för företagsinköp som betalats med privata pengar.',
     answer: 'Välj Betalningskälla → Privat betalning i inköpsflöden som stöder det. Hur inköpet betalats är en annan fråga än om det är en kostnad eller en tillgång.',
     steps: ['Kontrollera att inköpet hör till verksamheten och att underlag finns.', 'Välj rätt inköpsflöde och granska kostnad eller tillgång samt eventuell avdragsrätt för moms.', 'Välj Privat betalning och kontrollera betalningskontot före bokning. Företagsbanken ska inte minska för ett privat betalt inköp.'],
     warning: 'Ett privat köp blir inte avdragsgillt bara för att det betalats med ett visst kort. Skapa inte en egen kategori för att kringgå flödets kontroller.',
@@ -112,6 +115,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'periodisering', topic: 'book', title: 'När och hur använder jag periodisering?',
+    searchDescription: 'Kostnader som hör till en annan period och de förenklingar som beskrivs i K1.',
     answer: 'Periodisering kan fördela en kostnad till den period den hör till. För förenklat årsbokslut enligt K1 finns förenklingar och undantag som behöver kontrolleras först.',
     steps: ['Bedöm från underlaget och K1-reglerna om kostnaden ska periodiseras.', 'I det stödda bokföringsformuläret väljer du periodisering och den framtida månad kostnaden avser.', 'Granska båda bokningarna. Funktionen omfattar betalningsbokningen och kostnadsbokningen i den valda månaden.'],
     warning: 'Kostnaden flyttas till vald månad, inte generellt när nyåret börjar. Momsbehandlingen beror på inköpet och avdragsrätten. Kringgå inte låsta år eller stängda momsperioder.',
@@ -139,6 +143,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'intakt-insattning', topic: 'book', title: 'Vad skiljer intäkt, egen insättning och eget uttag?',
+    searchDescription: 'Skillnaden mellan företagets intäkter och överföringar mellan dig och företaget.',
     answer: 'En intäkt hör till verksamhetens resultat. Egna insättningar och uttag ändrar eget kapital och är inte försäljning eller kostnad.',
     paragraphs: ['Intäkt är inte samma sak som bankinbetalning. En kundbetalning kan reglera en tidigare fordran. Intäkter kan också höra till olika NE-rutor; allt hör inte till R1.', 'Privata köp ska inte tas upp som verksamhetskostnader. Egna uttag och insättningar hanteras separat från företagets inköp och försäljning.'],
     keywords: ['2013', '2018', 'privat', 'bank', 'pengar in'], destinations: ['dashboard', 'ne'], sources: [sources.declaration], reviewed,
@@ -151,6 +156,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'kundfakturor', topic: 'invoice', title: 'Var hanterar jag kundfakturor och betalningar?',
+    searchDescription: 'Kundinbetalningar, fakturastatus och avstämning mot bankunderlag.',
     answer: 'Öppna Fakturor för att granska kundfakturans underlag, status och tillgängliga betalningsåtgärder.',
     steps: ['Kontrollera fakturan och dess status innan du registrerar något.', 'Jämför faktisk betalning med faktura och bankunderlag i det avsedda flödet.', 'Vid årsskifte, följ även Årsavsluts kontroll av kundfordringar.'],
     warning: 'Bokför inte samma kundbetalning både i fakturaflödet och som en ny vanlig försäljning. Rättelser ska följa fakturans egna åtgärder.',
@@ -171,6 +177,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'moms-redovisa-betala', topic: 'vat', title: 'Hur redovisar och betalar jag momsen?',
+    searchDescription: 'Momsrapport, deklaration och betalning som separata moment.',
     answer: 'Rapport, deklaration och betalning är olika saker. Börja med rätt år och period i Moms.',
     steps: ['Granska perioderna. Om täckning saknas, granska förslaget till saknade perioder och bekräfta separat när underlaget är rätt.', 'Beräkna rapporten och jämför med bokföringen. Utred varningar innan du går vidare.', 'Stäng perioden när underlaget är klart. Läs bekräftelsen: stängningen kan skapa en momsverifikation och spärrar vanlig momsrelaterad bokföring.', 'Lämna deklarationen hos Skatteverket, spara kvittot och dokumentera inlämningen i SoloLedger.', 'Stäm av betalningen separat mot bank och skattekonto. Använd styrkta belopp och datum.'],
     warning: 'Att öppna Moms eller en hjälpknapp skapar, stänger eller deklarerar ingenting automatiskt. Kontrollera tidsfristen för din registrering och period hos Skatteverket.',
@@ -178,6 +185,7 @@ export const helpArticles: HelpArticle[] = [
   },
   {
     id: 'skattekonto', topic: 'vat', title: 'Vad skiljer överföring och avräkning på skattekontot?',
+    searchDescription: 'Skillnaden mellan en banköverföring och en momshändelse på skattekontot.',
     answer: 'Pengar till/från skattekontot och Avräkning på skattekontot registrerar två olika händelser. En banköverföring bevisar inte att momsen har dragits eller krediterats.',
     steps: ['Jämför bankens överföring eller återbetalning med underlaget. Använd Pengar till/från skattekontot i Moms för den stödda händelsen.', 'Kontrollera själva momshändelsen hos Skatteverket. Använd Avräkning på skattekontot med den händelsens datum och belopp.', 'Granska vad som redan är registrerat så att samma händelse inte bokförs två gånger.'],
     warning: 'En överföring som även avser annan skatt får inte generellt räknas som momsbetalning. Använd inte en vanlig kategori med plus- eller minusbelopp som genväg runt momsflödet.',
@@ -248,6 +256,7 @@ type HelpSearchContext = {
 
 const helpSearchContexts: HelpSearchContext[] = [
   { queries: ['egen insättning', 'egna insättningar'], articleIds: ['intakt-insattning'] },
+  { queries: ['insättning från kund', 'insättning från en kund'], articleIds: ['kundfakturor'] },
   {
     queries: ['insättning', 'sätta in pengar'],
     articleIds: ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
@@ -259,7 +268,7 @@ const helpSearchContexts: HelpSearchContext[] = [
     destination: 'moms', destinationDescription: 'Se momsperioder, rapporter och betalningshändelser.',
   },
   {
-    queries: ['betala moms', 'betala momsen', 'momsbetalning'],
+    queries: ['betala moms', 'betala momsen', 'momsbetalning', 'moms betalning'],
     articleIds: ['skattekonto', 'moms-redovisa-betala'],
     message: 'Menar du en överföring från banken eller en momshändelse på skattekontot? Jämför händelserna i hjälpen nedan.',
     destination: 'moms', destinationDescription: 'Se alternativen för banköverföring och avräkning på skattekontot.',
@@ -281,17 +290,19 @@ const helpSearchIndex = helpArticles.map(article => ({
   ].flatMap(field => field ? [normalizeHelpText(field)] : []),
 }))
 
-export function searchHelp(query: string, topic: HelpTopic | 'all' = 'all'): HelpArticle[] {
+type HelpSearchResult = { article: HelpArticle; relevance: 'primary' | 'related' }
+
+export function searchHelpResults(query: string, topic: HelpTopic | 'all' = 'all'): HelpSearchResult[] {
   const normalized = normalizeHelpText(query)
   const inTopic = (article: HelpArticle) => topic === 'all' || article.topic === topic
-  if (!query.trim()) return helpArticles.filter(inTopic)
+  if (!query.trim()) return helpArticles.filter(inTopic).map(article => ({ article, relevance: 'primary' }))
   if (!normalized) return []
 
   const context = findHelpSearchContext(query)
   if (context) {
     return context.articleIds.flatMap(id => {
       const article = findHelpArticle(id)
-      return article && inTopic(article) ? [article] : []
+      return article && inTopic(article) ? [{ article, relevance: 'primary' }] : []
     })
   }
 
@@ -312,5 +323,12 @@ export function searchHelp(query: string, topic: HelpTopic | 'all' = 'all'): Hel
     else if (has(text, phrases)) rank = 3
     else if (terms.every(term => has(fields, term))) rank = 2
     return rank ? [{ article, rank }] : []
-  }).sort((a, b) => b.rank - a.rank).map(result => result.article)
+  }).sort((a, b) => b.rank - a.rank).map(({ article, rank }) => ({
+    article,
+    relevance: rank >= 4 ? 'primary' : 'related',
+  }))
+}
+
+export function searchHelp(query: string, topic: HelpTopic | 'all' = 'all'): HelpArticle[] {
+  return searchHelpResults(query, topic).map(({ article }) => article)
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { helpArticles, helpTopics, helpDestinations, findHelpArticle, findHelpSearchContext, searchHelp, normalizeHelpText } from '../src/lib/helpContent.ts'
+import { helpArticles, helpTopics, helpDestinations, findHelpArticle, findHelpSearchContext, searchHelp, searchHelpResults, normalizeHelpText } from '../src/lib/helpContent.ts'
 import { helpQuestionUrl, helpNavigationUrl, helpPasswordResetUrl, isHelpDestination } from '../src/lib/helpNavigation.ts'
 import { withdrawalHelpIds } from '../src/lib/withdrawalPresentation.ts'
 for (const id of Object.values(withdrawalHelpIds)) assert.ok(findHelpArticle(id), 'Every contextual withdrawal link resolves')
@@ -53,9 +53,12 @@ assert.equal(searchHelp('tryggt R14').length, 0, 'An unexplained word cannot fal
 const targetedResults = {
   'egen insättning': ['intakt-insattning'],
   'insättning': ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
+  'insättning från kund': ['kundfakturor'],
+  'insättning från en kund': ['kundfakturor'],
   'sätta in pengar': ['intakt-insattning', 'kundfakturor', 'privat-betalning'],
   'moms': ['moms-redovisa-betala', 'skattekonto', 'momsprofil-eu'],
   'betala moms': ['skattekonto', 'moms-redovisa-betala'],
+  'moms betalning': ['skattekonto', 'moms-redovisa-betala'],
   'periodisera': ['periodisering'],
 }
 for (const [query, ids] of Object.entries(targetedResults)) {
@@ -67,6 +70,16 @@ assert.equal(findHelpSearchContext('moms på kurs och frakt'), undefined)
 assert.equal(findHelpSearchContext('egen insättning och kundbetalning'), undefined)
 assert.equal(findHelpSearchContext('insättning')?.destination, undefined)
 assert.equal(findHelpSearchContext('moms')?.destination, 'moms')
+assert.equal(findHelpSearchContext('moms betalning')?.destination, 'moms')
+assert.equal(findHelpSearchContext('moms betalning och insättning från kund'), undefined)
+assert.deepEqual(searchHelpResults('moms betalning').map(({ relevance }) => relevance), ['primary', 'primary'])
+assert.equal(searchHelpResults('R14').find(({ article }) => article.id === 'ne-r14')?.relevance, 'primary')
+assert.deepEqual(searchHelpResults('vinst').map(({ article, relevance }) => [article.id, relevance]), [
+  ['ne-r14', 'primary'],
+  ['skatt-forsta-aret', 'related'],
+])
+assert.equal(searchHelpResults('eventuell avdragsrätt för moms').find(({ article }) => article.id === 'privat-betalning')?.relevance, 'related')
+assert.deepEqual(findHelpArticle('kundfakturor')?.destinations, ['fakturor', 'arsavslut'])
 assert.equal(findHelpArticle('r14')?.id, 'ne-r14')
 assert.equal(findHelpArticle('unknown'), undefined)
 assert.equal(findHelpArticle(null), undefined)
