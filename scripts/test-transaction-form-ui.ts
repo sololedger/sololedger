@@ -56,13 +56,30 @@ for (const [query, ids, partial = false, equipmentCheck = undefined] of [
   ['Lightroom abonnemang för bredband', 'programvaror,internet'],
   ['Capture One prenumeration', 'programvaror'],
   ['Prenumeration på Capture One', 'programvaror'],
-  ['Adobe Lightroom abonnemang med IT-support', 'programvaror', true],
+  ['Adobe Lightroom abonnemang med IT-support', 'programvaror,it_tjanster'],
   ['Adobe Lightroom abonnemang och montering', 'programvaror', true],
   ['Internet abonnemang och Lightroom', 'programvaror,internet'],
   ['Jag förnyade Lightroom', 'programvaror'],
   ['Program för bokföring', 'programvaror'],
   ['Papper för fotoutskrift', 'varor_material'],
   ['Betalade hyran för studion', 'lokalhyra'],
+  ['hyra lokal', 'lokalhyra'],
+  ['hyrde en lokal', 'lokalhyra'],
+  ['Jag betalade hyra för verksamhetslokalen', 'lokalhyra'],
+  ['Hyra för hemmakontor', 'lokalhyra', true],
+  ['Hyra av maskin', 'lokalhyra,inventarier'],
+  ['Hyra i en lokal', 'lokalhyra', true],
+  ['Hyrde en lokal och logi', 'lokalhyra', true],
+  ['Hyra lokal väktartjänst', 'lokalhyra', true],
+  ['Kontor', ''],
+  ['Elräkning för lokalen', 'el_verksamhetslokal'],
+  ['Betalade elräkningen för verksamhetslokalen', 'el_verksamhetslokal'],
+  ['Elräkning för bostaden', 'el_verksamhetslokal', true],
+  ['El för laddning', 'el_verksamhetslokal', true],
+  ['Hushållsel', ''],
+  ['Elräkning och vattenavgift', 'el_verksamhetslokal', true],
+  ['Kontorsmaterial', 'kontorsmaterial'],
+  ['Kontorsmateriel och logi', 'kontorsmaterial', true],
   ['Bokföringsbyrån hjälpte mig', 'redovisningstjanster', true],
   ['Kurs och frakt till kund', 'kurser,frakt'],
   ['kurs och virke', 'kurser,varor_material'],
@@ -85,6 +102,10 @@ for (const [query, ids, partial = false, equipmentCheck = undefined] of [
   ['Tåg till ett kunduppdrag', 'resor'],
   ['Kunduppdrag', ''],
   ['Frakt av fotoböcker till kund', 'frakt'],
+  ['Betalat frakten', 'frakt'],
+  ['Frakter', 'frakt'],
+  ['Frakt av varor till kund', 'frakt'],
+  ['Betalat frakten och städning', 'frakt', true],
   ['Porto för brev', 'porto'],
   ['frakt eller porto', 'frakt,porto'],
   ['Fotoböcker med frakt', 'frakt', true],
@@ -110,7 +131,7 @@ for (const [query, ids, partial = false, equipmentCheck = undefined] of [
   ['Abonnemang för telefon och Lightroom', 'programvaror,mobiltelefoni'],
   ['Abonnemang för mobil eller bredband', 'mobiltelefoni,internet'],
   ['Abonnemang på internet, programvaruabonnemang', 'programvaror,internet'],
-  ['Abonnemang på Lightroom med IT-support', 'programvaror', true],
+  ['Abonnemang på Lightroom med IT-support', 'programvaror,it_tjanster'],
   ['Köpte en mobiltelefon', ''],
   ['Betalade bredbandsabonnemanget', 'internet'],
   ['Webbuppkoppling för studion', 'internet'],
@@ -125,9 +146,15 @@ for (const [query, ids, partial = false, equipmentCheck = undefined] of [
   ['Extern retusch och monteringsarbete', 'kopta_tjanster_kunduppdrag', true],
   ['Mobilabonnemang med telefon', 'mobiltelefoni', true],
   ['Webbuppkoppling med router', 'internet', true],
-  ['IT-support för Lightroom', 'programvaror', true],
+  ['IT-support för Lightroom', 'programvaror,it_tjanster'],
   ['Programvara för drift', 'programvaror', true],
-  ['IT-support för företaget', ''],
+  ['IT-support för företaget', 'it_tjanster'],
+  ['IT-tjänster', 'it_tjanster'],
+  ['Betalat för tekniskt arbete', 'it_tjanster'],
+  ['IT-support i ett kunduppdrag', 'it_tjanster', true],
+  ['IT-support och monteringsarbete', 'it_tjanster', true],
+  ['IT-support med extern retusch', 'kopta_tjanster_kunduppdrag,it_tjanster'],
+  ['Support', ''],
   ['…', ''],
 ] as const) {
   const result = analyzePurchaseDescription(query)
@@ -171,6 +198,10 @@ assert(getGuideCategoryAvailability(office.id, [{ ...office, default_vat_rate: 1
 assert(getGuideCategoryAvailability(office.id, [office], true).status === 'available', 'Visible standard office supplies')
 
 const standardRows = [
+  ['lokalhyra', 'Hyra för verksamhetslokal', '5010', 0],
+  ['el_verksamhetslokal', 'El för verksamhetslokal', '5020', 25],
+  ['kontorsmaterial', 'Kontorsmaterial', '6110', 25],
+  ['it_tjanster', 'IT-tjänster', '6540', 25],
   ['reklam', 'Reklam & annonsering', '5910', 25],
   ['kopta_tjanster_kunduppdrag', 'Köpta tjänster för kunduppdrag', '4600', 25],
   ['frakt', 'Frakt & varutransporter', '5710', 25],
@@ -193,6 +224,12 @@ for (const [id, name, debit_account, default_vat_rate] of standardRows) {
     assert(!findGuideCategory(id, [{ ...row, ...changes }], true), `${id} must not be offered after ${JSON.stringify(changes)}`)
   }
 }
+const legacyElectricity = {
+  id: 'el-lokal', name: 'El för verksamhetslokal', debit_account: '5020', credit_account: '1930',
+  default_vat_rate: 25, hidden_from_new_booking: false,
+}
+assert(findGuideCategory('el_verksamhetslokal', [legacyElectricity], true)?.category.id === 'el-lokal', 'Standard legacy electricity category')
+assert(!findGuideCategory('el_verksamhetslokal', [{ ...legacyElectricity, hidden_from_new_booking: true }], true), 'Hidden legacy electricity category')
 const legacyAdvertising = {
   id: 'reklam', name: 'Reklam & Annonsering', debit_account: '5900', credit_account: '1930',
   default_vat_rate: 25, hidden_from_new_booking: false,

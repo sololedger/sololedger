@@ -3,10 +3,10 @@ import { getBookingCategory } from '@/lib/accountingKnowledge'
 import { findHelpArticle } from '@/lib/helpContent'
 import { analyzePurchaseDescription, findGuideCategory, findPurchaseGuideReferral, getGuideCategoryAvailability, type GuideCategory } from '@/lib/purchaseCategoryGuide'
 
-type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'equipment-check' | 'payment' | 'result'
+type Step = 'search' | 'analysis' | 'use' | 'seller' | 'purpose' | 'equipment-check' | 'rent-vat' | 'payment' | 'result'
 type Result = 'mixed' | 'use-unknown' | 'seller-unknown' | 'foreign' |
   'purpose-uncertain' | 'equipment-uncertain' | 'equipment' | 'private-payment-uncertain' | 'payment-uncertain' |
-  'unavailable' | 'category' | 'withdrawal'
+  'rent-vat-review' | 'unavailable' | 'category' | 'withdrawal'
 type Stage =
   | { step: Exclude<Step, 'result'>; privatePurchase?: boolean }
   | { step: 'result'; result: Result }
@@ -98,7 +98,7 @@ export default function PurchaseCategoryGuide({
       { label: 'Ja', choose: () => {
         if (topic.id === 'inventarier' && equipmentCheck) advance({ step: 'equipment-check' }, 'Köpt för verksamheten')
         else if (topic.id === 'inventarier') finish('equipment', 'Köpt för verksamheten')
-        else if (topicSelection) advance({ step: 'payment' }, 'Ändamål bekräftat')
+        else if (topicSelection) advance({ step: topic.id === 'lokalhyra' ? 'rent-vat' : 'payment' }, 'Ändamål bekräftat')
         else finish('unavailable', 'Ändamål bekräftat')
       } },
       { label: 'Nej', choose: () => finish('purpose-uncertain', 'Annat ändamål') },
@@ -113,6 +113,13 @@ export default function PurchaseCategoryGuide({
       { label: 'Ja', choose: () => finish('equipment', together ? 'Delarna hör ihop' : 'Används flera gånger') },
       { label: 'Nej', choose: () => finish('equipment-uncertain', together ? 'Separata inköp' : 'Används inte flera gånger') },
       { label: 'Jag vet inte', choose: () => finish('equipment-uncertain', 'Behöver kontrolleras') },
+    ]
+  } else if (step === 'rent-vat') {
+    question = 'Visar hyresavin eller fakturan att hyran är utan moms?'
+    answers = [
+      { label: 'Ja, hyran är utan moms', choose: () => advance({ step: 'payment' }, 'Hyra utan moms') },
+      { label: 'Nej, moms står på underlaget', choose: () => finish('rent-vat-review', 'Moms på underlaget') },
+      { label: 'Jag vet inte', choose: () => finish('rent-vat-review', 'Okänd moms') },
     ]
   } else if (stage.step === 'payment') {
     const privatePurchase = stage.privatePurchase
@@ -154,6 +161,7 @@ export default function PurchaseCategoryGuide({
     equipment: 'I Inventarier bedöms om köpet ska kostnadsföras direkt eller bokföras som tillgång. Ta fram pris, beräknad livslängd och uppgifter om utrustning som används tillsammans.',
     'private-payment-uncertain': 'Kontrollera vem som betalade och vilket konto som belastades. Eget uttag är aktuellt när verksamhetens pengar användes till det privata köpet.',
     'payment-uncertain': 'Kontrollera hur köpet betalades. Om du betalade med privata pengar behöver betalningen hanteras som ett privat utlägg för verksamheten.',
+    'rent-vat-review': 'Kontrollera hyresavin eller fakturan och rätten till momsavdrag. Guiden lämnar inget förslag med standardmomsen 0 % när moms anges eller underlaget är oklart.',
     unavailable,
     category: selection?.guidance.categoryGuidance.summary ?? unavailable,
     withdrawal: selection?.guidance.categoryGuidance.summary ?? 'Kategorin Eget uttag är inte tillgänglig för ny bokföring. Kontrollera den i Kontoplan.',

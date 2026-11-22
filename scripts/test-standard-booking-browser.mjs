@@ -214,19 +214,24 @@ try {
    id, name, debit_account: account, credit_account: '1930', default_vat_rate: rate, hidden_from_new_booking: false,
   })
   const courses = makeCategory('kurser', 'Kurser & fortbildning', '6991', 0)
+  const rent = makeCategory('lokalhyra', 'Hyra för verksamhetslokal', '5010', 0)
+  const office = makeCategory('kontorsmaterial', 'Kontorsmaterial', '6110', 25)
   const expandedTopics = [
    ['Köpte annonser på Meta', makeCategory('reklam', 'Reklam & annonsering', '5910', 25), /marknadsföra den egna verksamheten/],
    ['Extern retusch i ett kunduppdrag', makeCategory('kopta_tjanster_kunduppdrag', 'Köpta tjänster för kunduppdrag', '4600', 25), /direkt del av det du levererar/],
-   ['Frakt av fotoböcker till kund', makeCategory('frakt', 'Frakt & varutransporter', '5710', 25), /skild från varans pris och från brevporto/],
+   ['Betalat frakten', makeCategory('frakt', 'Frakt & varutransporter', '5710', 25), /skild från varans pris och från brevporto/],
    ['Porto för brev', makeCategory('porto', 'Porto', '6250', 25), /porto eller en posttjänst/],
    ['Tågbiljett till kunden', makeCategory('resor', 'Resor i verksamheten', '5800', 6), /utan att det är pendling/],
    ['Försäkring för kamerautrustning', makeCategory('foretagsforsakring', 'Företagsförsäkring', '6310', 0), /försäkringen tecknad för verksamheten/],
    ['Abonnemang för telefon', makeCategory('mobiltelefoni', 'Mobiltelefoni', '6212', 25), /själva telefonitjänsten eller mobilabonnemanget/],
    ['Abonnemang för internet', makeCategory('internet', 'Internet & datakommunikation', '6230', 25), /internetanslutning eller datakommunikation/],
    ['Bankens kontoavgift', makeCategory('bankavgift', 'Bankavgifter', '6570', 0), /banken eller en betaltjänst/],
+   ['Elräkning för lokalen', makeCategory('el-lokal', 'El för verksamhetslokal', '5020', 25), /enbart el till en separat verksamhetslokal/],
+   ['IT-support', makeCategory('it_tjanster', 'IT-tjänster', '6540', 25), /utan programvarulicens och utan arbete direkt i ett kunduppdrag/],
   ]
   const categories = [
    courses,
+   rent,
    makeCategory('prenumerationer', 'Prenumerationer & programvaror', '5420', '25'),
    makeCategory('varor_material', 'Varor & material för försäljning', '4010', 25),
    makeCategory('eget_uttag', 'Eget uttag', '2013', 0),
@@ -445,7 +450,9 @@ try {
    await cancel()
    assert.deepEqual(await readFormFields(), beforePartial, 'Cancelling an ambiguous search preserves the form')
   }
-  for (const description of ['Lightroom, monteringsarbete', 'Adobe Lightroom abonnemang och montering', 'IT-support för Lightroom', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning', 'Minneskort till kameran och frkat', 'Stativ och blixt och montering']) {
+  for (const description of ['Lightroom, monteringsarbete', 'Adobe Lightroom abonnemang och montering', 'Extern retusch och logi', 'Webbuppkoppling med router', 'Prenumeration på tidning', 'Abonnemang för telefon och tidning', 'Minneskort till kameran och frkat', 'Stativ och blixt och montering',
+   'Hyra för hemmakontor', 'Hyrde en lokal och logi', 'Elräkning för bostaden', 'Elräkning och vattenavgift',
+   'Frakter och städning', 'Kontorsmaterial och logi', 'IT-support i ett kunduppdrag', 'IT-support och monteringsarbete']) {
    await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Bara en del av beskrivningen matchar')
    await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
@@ -453,7 +460,7 @@ try {
    assert.deepEqual(await readFormFields(), beforePartial, 'Partial match leaves the booking form untouched')
    await cancel()
   }
-  for (const description of ['kurs och frakt till kund', 'mobilabonnemang och bredband', 'Meta Ads och extern retusch', 'Abonnemang för mobil och Lightroom']) {
+  for (const description of ['kurs och frakt till kund', 'mobilabonnemang och bredband', 'Meta Ads och extern retusch', 'Abonnemang för mobil och Lightroom', 'IT-support för Lightroom', 'Hyra av maskin']) {
    await lookUp(description)
    await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
    await expect(answer('Fortsätt till frågorna')).toHaveCount(0)
@@ -523,7 +530,7 @@ try {
    await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
    await back()
    await answerPurpose('Ja')
-   if (row.id === 'kopta_tjanster_kunduppdrag') {
+   if (row.id === 'kopta_tjanster_kunduppdrag' || row.id === 'it_tjanster') {
     await answerPayment('Nej')
     await expect(guide.getByRole('status')).toContainText('privat utlägg')
     await expect(confirmVat(row.name)).toHaveCount(0)
@@ -537,6 +544,35 @@ try {
    await expect(category).toHaveValue(row.id)
    await expect(vatRate).toHaveValue(String(row.default_vat_rate))
   }
+  await vatRate.selectOption('12')
+  const beforeRent = await readFormFields()
+  await domestic('hyrde en lokal')
+  await expect(heading).toHaveText(/separat verksamhetslokal utanför din bostad/)
+  await answerPurpose('Nej')
+  await expect(guide.getByRole('status')).toContainText('Hemmakontor, privat bostad och hyrd utrustning')
+  await expect(choose(rent.name)).toHaveCount(0)
+  await back()
+  await answerPurpose('Ja')
+  await expect(heading).toHaveText(/hyresavin eller fakturan.*utan moms/)
+  for (const decision of ['Nej, moms står på underlaget', 'Jag vet inte']) {
+   await answer(decision).click()
+   await expect(guide.getByRole('status')).toContainText('momsavdrag')
+   await expect(confirmVat(rent.name)).toHaveCount(0)
+   assert.deepEqual(await readFormFields(), beforeRent)
+   await back()
+  }
+  await answer('Ja, hyran är utan moms').click()
+  await answerPayment('Ja')
+  await expect(guide).toContainText('konto 5010')
+  await expect(guide).toContainText('Moms på fakturan ändras från 12 % till 0 %.')
+  assert.deepEqual(await readFormFields(), beforeRent)
+  await confirmVat(rent.name).click()
+  await expect(category).toHaveValue(rent.id)
+  await expect(vatRate).toHaveValue('0')
+  await start('Elräkning för lokalen', 'Både privat och i verksamheten')
+  await expect(guide.getByRole('status')).toContainText('privat och i verksamheten')
+  await expect(choose('El för verksamhetslokal')).toHaveCount(0)
+  await cancel()
   await lookUp('kurs och virke')
   await expect(guide.getByRole('status')).toContainText('Flera typer av köp matchar')
   await expect(choose(courses.name)).toHaveCount(0)
@@ -593,7 +629,7 @@ try {
   await expect(country).toHaveValue('unknown')
   await expect(category).toHaveCount(0)
   await page.getByText('Utlandsinköp', { exact: true }).click()
-  await start('Annonser på Google')
+  await start('IT-support')
   await answer('Nej, utomlands').click()
   await expect(guide.getByRole('button', { name: /^(Välj |Bekräfta momsändring)/ })).toHaveCount(0)
   await answer('Öppna Utlandsinköp').click()
@@ -606,13 +642,15 @@ try {
    [{ ...courses, debit_account: '6992' }, /avviker från standardinställningarna/],
    [{ ...courses, name: 'Egen ändrad kategori' }, /avviker från standardinställningarna/],
    [{ ...ads, default_vat_rate: 12 }, /avviker från standardinställningarna/],
+   [{ ...office, hidden_from_new_booking: true }, /dold för ny bokföring/],
+   [{ ...office, default_vat_rate: 12 }, /avviker från standardinställningarna/],
    [null, /saknas i din kontoplan/],
   ]) {
    await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), [
     ...categories.filter(row => row.id !== (unavailable?.id ?? 'reklam')), ...(unavailable ? [unavailable] : []),
    ])
    await page.reload()
-   await lookUp(unavailable?.id === 'kurser' ? 'kurs' : 'Meta-annonser')
+   await lookUp(unavailable?.id === 'kurser' ? 'kurs' : unavailable?.id === office.id ? office.name : 'Meta-annonser')
    await expect(guide.getByRole('status')).toHaveText(message)
    await expect(answer('Gå till Kontoplan')).toBeVisible()
    await answer('Fortsätt till frågorna').click()
@@ -628,7 +666,14 @@ try {
   await expect(guide.getByRole('status')).toContainText('Kontoplanen är inte färdigladdad')
   await expect(answer('Gå till Kontoplan')).toHaveCount(0)
   await page.evaluate(() => localStorage.removeItem('testGuideChartLoading'))
+  await page.evaluate(rows => localStorage.setItem('testGuideCategories', JSON.stringify(rows)), [...categories, office])
   await page.reload()
+  await domestic(office.name)
+  await answerPurpose('Ja')
+  await answerPayment('Ja')
+  await expect(guide).toContainText('konto 6110')
+  await choose(office.name).click()
+  await expect(category).toHaveValue(office.id)
   await domestic('hyrde en kamera')
   await answerPurpose('Nej')
   await expect(answer('Gå till Inventarier')).toHaveCount(0)

@@ -50,13 +50,20 @@ const topics = [
   },
   {
     id: 'lokalhyra',
-    words: ['salongshyra', 'fotostudio', 'fotostudion', 'studiohyra', 'studiohyran', 'verkstadshyra', 'hyrde studio', 'hyran för studion'],
+    words: ['salongshyra', 'fotostudio', 'fotostudion', 'studiohyra', 'studiohyran', 'verkstadshyra', 'hyrde studio',
+      'hyra lokal', 'hyra en lokal', 'hyrde lokal', 'hyrde en lokal', 'hyrt lokal', 'hyrt en lokal', 'hyran', 'lokalhyran'],
     question: 'Gäller hyran en separat verksamhetslokal utanför din bostad?',
-    clarify: 'Kontrollera vilken lokal hyran gäller. En arbetsplats i den privata bostaden behöver en särskild bedömning.',
+    clarify: 'Kontrollera vad som hyrs. Hemmakontor, privat bostad och hyrd utrustning behöver bedömas separat.',
+  },
+  {
+    id: 'el_verksamhetslokal',
+    words: ['elräkningen', 'elfaktura', 'elfakturan', 'elkostnad'],
+    question: 'Gäller elräkningen enbart el till en separat verksamhetslokal utanför din bostad?',
+    clarify: 'Kontrollera vad elräkningen avser. Hushållsel, blandad användning och el för ett annat ändamål behöver bedömas separat.',
   },
   {
     id: 'kontorsmaterial',
-    words: ['skrivarpapper', 'kopieringspapper', 'pennor', 'kontorspapper', 'kontorsmaterialet'],
+    words: ['skrivarpapper', 'kopieringspapper', 'pennor', 'kontorspapper', 'kontorsmaterialet', 'kontorsmateriel'],
     question: 'Är det material som går åt i det vanliga kontorsarbetet?',
     clarify: 'Kontrollera om köpet gäller kontorsmaterial, utrustning eller material som ingår i en kundleverans.',
   },
@@ -86,7 +93,7 @@ const topics = [
   },
   {
     id: 'frakt',
-    words: ['fraktkostnad', 'frakten', 'budfrakt', 'fotoboksfrakt', 'fotoboksleverans', 'fotoboksleveranser', 'frakt av fotobok', 'frakt av fotoböcker', 'leverans av fotoböcker'],
+    words: ['fraktkostnad', 'frakten', 'frakter', 'budfrakt', 'fotoboksfrakt', 'fotoboksleverans', 'fotoboksleveranser', 'frakt av fotobok', 'frakt av fotoböcker', 'frakt av varor', 'leverans av fotoböcker'],
     question: 'Gäller kostnaden frakt eller transport av själva varan, och är den skild från varans pris och från brevporto?',
     clarify: 'Kontrollera om avgiften gäller varufrakt, brevporto eller själva varan som levereras.',
   },
@@ -126,6 +133,12 @@ const topics = [
     clarify: 'Kontrollera om kostnaden gäller uppkopplingen, utrustning eller en annan digital tjänst. En uppkoppling som också används privat behöver bedömas separat.',
   },
   {
+    id: 'it_tjanster',
+    words: ['teknisk support', 'tekniskt arbete', 'it drift', 'it konsult', 'it tjänst', 'it tjänster'],
+    question: 'Gäller betalningen en extern IT-tjänst för din egen verksamhet, utan programvarulicens och utan arbete direkt i ett kunduppdrag?',
+    clarify: 'Kontrollera på fakturan om du betalat för tekniskt arbete i din egen verksamhet, en programvarulicens eller en tjänst som ingår direkt i ett kunduppdrag.',
+  },
+  {
     id: 'bankavgift',
     words: ['bankavgiften', 'kontoavgift', 'bankens kontoavgift', 'betalningsavgift', 'transaktionsavgift', 'avgift för betaltjänst', 'avgift från banken'],
     question: 'Är det en avgift som banken eller en betaltjänst tar ut för en tjänst som hör till verksamheten?',
@@ -163,8 +176,15 @@ const itemQualifiers = /^(?:(?:en|ett|min|mitt|ny|nytt|nya|begagnad|begagnat)(?:
 const simpleContext = /^(?:i|inom|om|för|till|på)(?: (?:en|ett|min|mitt|den|det|ny|nytt|nya|digital|digitalt|digitala|egen|eget|egna))* \p{L}[\p{L}\p{N}]*$/u
 const separateItems = /[;,/&+\r\n]|[.!?]\s*[\p{L}\p{N}]|\s[-–—]\s/u
 const uncertainContext = / (?:i|inom|om|för|till|på|och|samt|eller|plus|med|också|dessutom|inklusive|inkl|köpte|köpt|betalade|betalat|beställde|beställt|förutom|inte|ingen|inget|utan)(?: |$)/u
+const premisesContext = /^(?:för|i|till) (?:(?:en|den|separat|min|vår) )*(?:lokal(?:en)?|verksamhetslokal(?:en)?|kontorslokal(?:en)?|lagerlokal(?:en)?|studio(?:n)?|fotostudio(?:n)?)$/
+const ownBusinessContext = /^(?:för|i|till) (?:(?:den|min|vår|egna) )*(?:företaget|firman|verksamheten)$/
 // These catalog keywords describe the context or a possible piece of equipment.
 const contextKeywords = new Set(['kunduppdrag', 'mobil', 'telefon', 'bank', 'betaltjänst'])
+const ambiguousKeywords: Partial<Record<string, readonly string[]>> = {
+  lokalhyra: ['lokal', 'studio', 'kontor', 'lager'],
+  el_verksamhetslokal: ['verksamhetslokal'],
+  it_tjanster: ['it', 'support', 'drift', 'utvecklare'],
+}
 const itServiceKeywords = (getBookingCategory('it_tjanster')?.keywords ?? []).map(normalize)
 const genericSubscriptionKeywords = new Set(['abonnemang', 'prenumeration'])
 const subscriptionSubjects: Partial<Record<string, string[]>> = {
@@ -180,7 +200,10 @@ function subscriptionPhrases(subject: string) {
 }
 
 const searchTopics = topics.map(topic => {
-  const keywords = getBookingCategory(topic.id)?.keywords?.filter(word => !contextKeywords.has(word)) ?? []
+  const category = getBookingCategory(topic.id)
+  const keywords = category?.keywords?.filter(word =>
+    !contextKeywords.has(word) && !ambiguousKeywords[topic.id]?.includes(word)
+  ) ?? []
   const subscriptions = (subscriptionSubjects[topic.id] ?? []).flatMap(subscriptionPhrases)
   return { topic, words: [...new Set([...topic.words, ...keywords, ...subscriptions].map(normalize))] }
 })
@@ -280,7 +303,10 @@ export function analyzePurchaseDescription(query: string): PurchaseDescription {
   }
 
   const context = normalized.slice(end).trim()
-  const partial = Boolean(context && (!simpleContext.test(context) || uncertainContext.test(context)))
+  const allowedContext = first.topic.id === 'lokalhyra' || first.topic.id === 'el_verksamhetslokal' ? premisesContext
+    : first.topic.id === 'it_tjanster' ? ownBusinessContext : simpleContext
+  const rentWithoutPremises = first.topic.id === 'lokalhyra' && ['hyra', 'hyran'].includes(first.word) && !context.startsWith('för ')
+  const partial = rentWithoutPremises || Boolean(context && (!allowedContext.test(context) || uncertainContext.test(context)))
   if (!partial && hasEquipmentParts) return { matches, partial: false, equipmentCheck: 'together' }
   if (!partial && strongest.some(hit => reusableOrConsumable.includes(hit.word))) {
     return { matches, partial: false, equipmentCheck: 'reuse' }
@@ -299,7 +325,8 @@ export function getGuideCategoryAvailability(
   if (!preset) return { status: 'missing' } as const
 
   const legacyId = topicId === 'programvaror' ? 'prenumerationer'
-    : topicId === 'foretagsforsakring' ? 'forsakring' : topicId
+    : topicId === 'foretagsforsakring' ? 'forsakring'
+    : topicId === 'el_verksamhetslokal' ? 'el-lokal' : topicId
   const legacy = ACCOUNT_PRESETS.find(item =>
     item.id === legacyId && item.debit_account === preset.debit_account &&
     item.credit_account === preset.credit_account && item.default_vat_rate === preset.default_vat_rate
