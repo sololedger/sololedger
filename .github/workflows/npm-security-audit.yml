@@ -1,0 +1,44 @@
+name: npm security audit
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/npm-security-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit npm dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.15.0'
+          package-manager-cache: false
+
+      - name: Report all findings and fail on high or critical production findings
+        run: |
+          audit_status=0
+
+          echo '::group::All dependencies (including development)'
+          npm audit --package-lock-only --include=dev --audit-level=none --registry=https://registry.npmjs.org || audit_status=$?
+          echo '::endgroup::'
+
+          echo '::group::Production dependencies (high or critical findings fail this check)'
+          npm audit --package-lock-only --omit=dev --audit-level=high --registry=https://registry.npmjs.org || audit_status=$?
+          echo '::endgroup::'
+
+          exit "$audit_status"
