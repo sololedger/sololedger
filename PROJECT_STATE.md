@@ -1,5 +1,11 @@
 # SoloLedger Project State
 
+## KAN-143 – godkänd ordinarie lokal arbetsmiljö
+
+- Pontus har godkänt den tekniska verifieringen och valt `C:\Users\Familjedator\Desktop\Sololedger-NY` som ordinarie lokal arbetskopia. Använd Git-metoden i [AGENTS.md](AGENTS.md). Arbetskopian var ren på `main` vid slutkontrollen, med `main` på `a7d12a8f6a6b5f1d0862645787b229c3aea04477` och GitHub `staging` på `70eaf7e0e45c03cc1ee48aa2a9700fefc6f61cc3`.
+- Installation, lokal Staging-konfiguration, TypeScript, E2E-säkerhetskontroll och 3/3 publika Playwright-smoketester passerade. Lokal Git-commit, GitHub-push och automatisk isolerad Preview verifierades. Testgrenen är borttagen på GitHub och lokalt. Production och det ordinarie Staging-aliaset var oförändrade efter städningen. Se [PROJECT_ARCHIVE.md](PROJECT_ARCHIVE.md#kan-143--ny-ordinarie-lokal-arbetsmiljö) för exakta referenser.
+- **Återstår separat.** Autentiserade Staging-tester och riktiga Staging- och Production-publiceringar från den nya miljön är ännu inte verifierade. Utred npm:s 18 rapporterade sårbarheter separat. Inventera och arkivera äldre arbetskopior som ett eget uppdrag och bevara allt unikt material tills det har bedömts. Rotorsaken till problemen i den gamla miljön är okänd.
+
 2026-10-26 – **KAN-117 P1 lokal rättning PASS för nytt Staging-test.**
 Publicerad Staging-version eacdc5b är fortsatt BLOCKED. Production inte godkänd.
 KAN-112/KAN-113 Production PASS och Done. KAN-117 separat aktivt uppdrag.
