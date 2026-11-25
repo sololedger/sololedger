@@ -84,6 +84,15 @@ Use **LOCAL → STAGING → PRODUCTION** unless the user narrows the assignment.
 
 Stop and ask when scope must expand, accounting rules remain genuinely unclear after verification, real user data would change, existing data must be deleted/reset, or other databases/shared roles/passwords/server settings could be affected. Local autonomy never authorizes those operations, external publication, or Jira mutations. User instructions limiting an individual step always take precedence.
 
+For an approved local assignment, carry analysis, implementation, focused tests, in-scope fixes, and the local checkpoint through as one workflow. Group already authorized operations when safe. Fix routine failures within scope and verify the result before continuing with dependent steps. Avoid repeating project-owner approval for routine steps already covered by the assignment. Honor any execution approvals the environment requires and any narrower conditions for the task. Publication and database approval boundaries below still apply.
+
+## Local Workspace And Git Execution
+
+- The regular local checkout is `C:\Users\Familjedator\Desktop\Sololedger-NY`. Verify the checkout and intended branch before starting work. Preserve older checkouts and unique local material under Worktree Preservation.
+- The verified GitHub remote is `origin` at `https://github.com/sololedger/sololedger.git`. Use local Windows PowerShell with `git -c credential.https://github.com.username=sololedger <command>` for GitHub operations. Verify the remote and the exact refs first. Check whether a push can start automatic deployments or workflows and verify the environment and alias boundaries before any such publication.
+- In the managed Work Mode `workspace-write` profile verified in KAN-143, `CODEX_SANDBOX_NETWORK_DISABLED=1` and `.git` is read-only in the sandbox. Run local Git reads in the sandbox. For GitHub network operations and local Git operations that write to `.git`, the verified method is `exec_command` with `sandbox_permissions: "require_escalated"`, a clear reason for the scoped one-time approval, and no `prefix_rule`. Local-only commands need no GitHub account override. These execution approvals are separate from Pontus's authorization for the task.
+- Keep local development bound to `127.0.0.1` and verify the Staging target with the project's preflight. If the sandbox blocks Playwright's loopback access, the verified setup runs both the local server and Playwright outside the sandbox with the required approvals. Use the existing public smoke spec for signed-out checks. Authenticated Staging tests and writes remain subject to the existing test and approval rules.
+
 ## Permanent Git, Staging, And Production Workflow
 
 - `main` is Production. A push to GitHub `main` deploys Production and always
